@@ -1,3 +1,7 @@
+import 'clipboard/clipboard_service.dart';
+import 'clipboard/in_memory_clipboard_provider.dart';
+import 'editing/editing_service.dart';
+import 'editing/editing_session.dart';
 import 'engine_diagnostics.dart';
 import 'engine_registry.dart';
 import 'engine_state.dart';
@@ -12,10 +16,13 @@ import 'graph/services/in_memory_graph_provider.dart';
 import 'importers/json/json_import_provider.dart';
 import 'importers/shared/import_request.dart';
 import 'importers/shared/import_result.dart';
+import 'interfaces/clipboard_provider.dart';
 import 'interfaces/export_provider.dart';
 import 'interfaces/graph_provider.dart';
 import 'interfaces/import_provider.dart';
+import 'interfaces/layout_provider.dart';
 import 'interfaces/navigation_provider.dart';
+import 'interfaces/routing_provider.dart';
 import 'interfaces/selection_provider.dart';
 import 'interfaces/serialization_provider.dart';
 import 'interfaces/simulation_provider.dart';
@@ -23,12 +30,15 @@ import 'interfaces/symbol_provider.dart';
 import 'interfaces/validation_provider.dart';
 import 'navigation/navigation_service.dart';
 import 'selection/selection_service.dart';
+import 'shared/ids.dart';
 import 'simulation/no_op_simulation_provider.dart';
 import 'symbols/library/symbol_library.dart';
 import 'validation/validation_report.dart';
 import 'validation/validation_service.dart';
 import 'views/diagram/diagram_renderer.dart';
 import 'views/diagram/diagram_view.dart';
+import 'views/diagram/in_memory_layout_provider.dart';
+import 'views/diagram/orthogonal_routing_provider.dart';
 
 /// Primary runtime object of the Engineering Engine (SDD-025/026,
 /// STUDIO-TASK-000060).
@@ -41,7 +51,7 @@ import 'views/diagram/diagram_view.dart';
 /// No Flutter Widgets. No `BuildContext`. No Widget dependencies
 /// (SDD-025/026) — this entire `lib/core` tree is plain Dart.
 class EngineeringEngine {
-  static const String version = '0.1.0';
+  static const String version = '0.2.0';
 
   final EngineRegistry registry;
   final EngineEventBus _events = EngineEventBus();
@@ -59,6 +69,16 @@ class EngineeringEngine {
     events: _events,
   );
 
+  /// Undoable editing (WORK_PACKAGE_021). Starts against a placeholder
+  /// empty graph — call [beginEditingSession] once a real graph exists
+  /// (created or loaded via [graph]).
+  late final EditingService editing = EditingService(
+    initialSession: EditingSession.initial(EngineeringGraph.empty(EngineIds.generate('session'))),
+    events: _events,
+  );
+
+  late final ClipboardService clipboard = ClipboardService(provider: registry.clipboard);
+
   EngineeringEngine(
     this.registry, {
     SelectionService? selectionService,
@@ -66,12 +86,14 @@ class EngineeringEngine {
   })  : _selectionService = selectionService,
         _navigationService = navigationService;
 
-  /// Builds an engine wired with Phase 1's default providers:
-  /// [InMemoryGraphProvider] + [JsonFileSerializationProvider] for the
-  /// graph, [SymbolLibrary] loading from [symbolsDirectory],
-  /// [ValidationService], [NavigationService], [SelectionService],
-  /// [JsonImportProvider]/[JsonExportProvider], and
-  /// [NoOpSimulationProvider]. Call [initialize] before use.
+  /// Builds an engine wired with default providers: [InMemoryGraphProvider]
+  /// + [JsonFileSerializationProvider] for the graph, [SymbolLibrary]
+  /// loading from [symbolsDirectory], [ValidationService],
+  /// [NavigationService], [SelectionService],
+  /// [JsonImportProvider]/[JsonExportProvider], [NoOpSimulationProvider],
+  /// [InMemoryLayoutProvider], [InMemoryClipboardProvider], and
+  /// [OrthogonalRoutingProvider] (WORK_PACKAGE_021). Call [initialize]
+  /// before use.
   factory EngineeringEngine.create({String symbolsDirectory = 'assets/symbols'}) {
     final registry = EngineRegistry();
     final events = EngineEventBus();
@@ -90,7 +112,10 @@ class EngineeringEngine {
       ..register<SelectionProvider>(selectionService)
       ..register<ImportProvider>(JsonImportProvider())
       ..register<ExportProvider>(JsonExportProvider())
-      ..register<SimulationProvider>(NoOpSimulationProvider());
+      ..register<SimulationProvider>(NoOpSimulationProvider())
+      ..register<LayoutProvider>(InMemoryLayoutProvider())
+      ..register<ClipboardProvider>(InMemoryClipboardProvider())
+      ..register<RoutingProvider>(OrthogonalRoutingProvider());
 
     return EngineeringEngine(
       registry,
@@ -107,10 +132,20 @@ class EngineeringEngine {
     _state = EngineState.initialized;
   }
 
+  /// Starts (or restarts) the undoable editing session against [graph],
+  /// clearing undo/redo history. The Demonstration Host calls this once
+  /// after creating/loading its working graph.
+  EditingSession beginEditingSession(EngineeringGraph graph) {
+    final session = EditingSession.initial(graph);
+    editing.resetSession(session);
+    return session;
+  }
+
   Future<void> shutdown() async {
     if (_state == EngineState.shutdown) return;
     await _selectionService?.dispose();
     await _navigationService?.dispose();
+    await editing.dispose();
     await _events.dispose();
     _state = EngineState.shutdown;
   }

@@ -5,11 +5,25 @@
 /// Layout, Simulation, Print) will export from `lib/diagrams/` in the same
 /// way, or from a renamed `lib/views/` barrel if a second View is added
 /// before Phase 2 — see docs/ARCHITECTURE_DECISIONS.md ADR-003.
+///
+/// Layout ([DiagramLayoutState]/[LayoutProvider]) and routing
+/// ([RoutingProvider]/[OrthogonalRoutingProvider]) were added in
+/// WORK_PACKAGE_021 — see ADR-011 for why layout lives here and not on
+/// the graph.
 library;
 
+export '../core/interfaces/layout_provider.dart';
+export '../core/interfaces/routing_provider.dart';
 export '../core/views/diagram/diagram_geometry.dart';
+export '../core/views/diagram/diagram_hit_testing.dart';
 export '../core/views/diagram/diagram_layout.dart';
+export '../core/views/diagram/diagram_layout_state.dart';
 export '../core/views/diagram/diagram_renderer.dart';
 export '../core/views/diagram/diagram_scene.dart';
 export '../core/views/diagram/diagram_view.dart';
+export '../core/views/diagram/in_memory_layout_provider.dart';
+export '../core/views/diagram/orthogonal_routing_provider.dart';
+export '../core/views/diagram/rect2d.dart';
+export '../core/views/diagram/routing_context.dart';
+export '../core/views/diagram/routing_request.dart';
 export '../core/views/view.dart';

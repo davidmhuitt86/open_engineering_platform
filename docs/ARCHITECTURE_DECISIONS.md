@@ -249,3 +249,75 @@ review to decide whether it's a new node category, a new top-level graph
 concept, or an extension of `EngineeringGroup`.
 
 **Status.** Proposed — awaiting architectural review.
+
+---
+
+## ADR-011 — Movement Is Layout Data, Never Graph Data (WORK_PACKAGE_021)
+
+**Context.** WORK_PACKAGE_021's Move System (ENGINE-TASK-000081) says
+"Movement updates Engineering Graph coordinates only." SDD-024
+Architecture Rule 5 (frozen, **not** amended by SDD-024A, which
+reaffirms "Views... shall never own engineering state" without adding any
+position concept to the object model) states "Layout is not Engineering
+Knowledge... The graph contains no visual layout information." Storing
+x/y directly on `EngineeringNode` would violate that frozen rule.
+
+**Decision.** Position lives in a new sibling concept —
+`DiagramLayoutState`, tracked by a `LayoutProvider` resolved through
+`EngineRegistry` exactly like `GraphProvider` — not as fields on
+`EngineeringNode`. `EditingSession { graph, layout }` bundles both under
+one command/undo-redo history, so "movement updates the Engineering
+Engine's canonical editing session" is true in spirit, while
+`EngineeringGraph` itself stays entirely layout-free. SDD-024 Rule 5
+stays intact; layout becomes its own registry-resolved provider, which is
+also consistent with "layout belongs to the renderer" (SDD-024) — it
+isn't the *View's* state either, it's the engine's, just not the
+*Graph's*.
+
+**Status.** Accepted. Flagged prominently at plan time and left
+uncorrected through implementation — reversible if this reading of the
+tension turns out to be wrong.
+
+---
+
+## ADR-012 — Routing Confirms the Provider Architecture Extends Cleanly (WORK_PACKAGE_021)
+
+**Context.** ADR-008 (WORK_PACKAGE_020) predicted that any future
+capability the EKE analysis identified — including a routing engine —
+would register through `EngineRegistry` with zero changes to
+`EngineRegistry` or `EngineeringEngine` itself, since `register<T extends
+Object>()` is already fully generic.
+
+**Decision/Finding.** Confirmed in practice: `RoutingProvider` +
+`OrthogonalRoutingProvider` (ENGINE-TASK-000086 — the one capability this
+work package explicitly requires to be Marketplace-replaceable) were
+added exactly like `GraphProvider`/`SymbolProvider`/etc., with the only
+change to `EngineRegistry` being one new typed convenience getter
+(`registry.routing`) — a pure addition, not a modification of existing
+behavior. `LayoutProvider` and `ClipboardProvider` followed the identical
+pattern. This is now the second work package in a row where the
+provider/registry design absorbed new requirements without architectural
+strain.
+
+**Status.** Confirmed.
+
+---
+
+## ADR-013 — Property Editing Excludes Net/Confidence (WORK_PACKAGE_021)
+
+**Context.** ENGINE-TASK-000085 explicitly gates two properties: "Net (if
+approved through SDD amendments)" and "Confidence (if approved through
+SDD amendments)." SDD-027A remains `Status: Proposed` as of this work
+package — not accepted.
+
+**Decision.** `UpdateNodePropertiesCommand`/`UpdateRelationshipPropertiesCommand`
+support arbitrary property patches today (Node/Relationship/Port/Group/
+Evidence Link), but neither `Net` nor `Confidence` is implemented,
+consistent with ADR-009/ADR-010 remaining `Proposed`. Because the
+property-update commands take a generic `Map<String, Object?>` patch
+rather than named fields, adding Net/Confidence later (once SDD-027A is
+accepted) requires no redesign of the command layer — only the SDD-027
+object-model amendment itself, reviewed on its own.
+
+**Status.** Accepted (as a scoping decision) — Net/Confidence editing
+remains blocked on SDD-027A's approval, tracked in ADR-009/ADR-010.

@@ -78,6 +78,13 @@ class EngineeringGraph {
     return copyWith(groups: {...groups, group.id: group});
   }
 
+  /// Removes a group without touching its member nodes (WORK_PACKAGE_021
+  /// `UngroupCommand`) — mirrors [withoutNode]/[withoutRelationship].
+  EngineeringGraph withoutGroup(String groupId) {
+    final remaining = {...groups}..remove(groupId);
+    return copyWith(groups: remaining);
+  }
+
   List<EngineeringRelationship> relationshipsForNode(String nodeId) {
     return relationships.values
         .where((r) => r.sourceNode == nodeId || r.targetNode == nodeId)

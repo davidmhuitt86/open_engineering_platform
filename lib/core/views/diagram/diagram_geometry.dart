@@ -10,5 +10,11 @@ class Point2D {
   Point2D translate(double x, double y) => Point2D(dx + x, dy + y);
 
   @override
+  bool operator ==(Object other) => other is Point2D && other.dx == dx && other.dy == dy;
+
+  @override
+  int get hashCode => Object.hash(dx, dy);
+
+  @override
   String toString() => 'Point2D($dx, $dy)';
 }

@@ -16,26 +16,57 @@ void main() {
       expect(selection.current.isEmpty, isTrue);
     });
 
-    test('selectNode updates current and emits a change', () async {
+    test('selectNode replaces the selection and emits a change', () async {
       final future = selection.changes.first;
       selection.selectNode('n1');
       final emitted = await future;
-      expect(emitted.kind, SelectionKind.node);
-      expect(emitted.id, 'n1');
-      expect(selection.current.id, 'n1');
+      expect(emitted.nodeIds, {'n1'});
+      expect(selection.current.nodeIds, {'n1'});
     });
 
-    test('clear resets to none', () {
+    test('selectNode with additive:true extends the selection', () {
       selection.selectNode('n1');
-      selection.clear();
+      selection.selectNode('n2', additive: true);
+      expect(selection.current.nodeIds, {'n1', 'n2'});
+    });
+
+    test('toggleNode adds then removes', () {
+      selection.toggleNode('n1');
+      expect(selection.current.nodeIds, {'n1'});
+      selection.toggleNode('n1');
+      expect(selection.current.nodeIds, isEmpty);
+    });
+
+    test('selectMany replaces nodes/relationships/groups together', () {
+      selection.selectMany(nodeIds: {'n1', 'n2'}, relationshipIds: {'r1'});
+      expect(selection.current.nodeIds, {'n1', 'n2'});
+      expect(selection.current.relationshipIds, {'r1'});
+    });
+
+    test('selectAll selects every node/relationship/group in the graph', () {
+      final graph = (GraphBuilder(id: 'g')
+            ..addNode(id: 'a', category: NodeCategory.component, displayName: 'A')
+            ..addNode(id: 'b', category: NodeCategory.component, displayName: 'B')
+            ..connect('a', 'b', id: 'r1'))
+          .build();
+      selection.selectAll(graph);
+      expect(selection.current.nodeIds, {'a', 'b'});
+      expect(selection.current.relationshipIds, {'r1'});
+    });
+
+    test('deselectAll resets to empty', () {
+      selection.selectNode('n1');
+      selection.deselectAll();
       expect(selection.current.isEmpty, isTrue);
     });
 
-    test('selectPort carries owner id', () {
-      selection.selectPort('n1', 'p1');
-      expect(selection.current.kind, SelectionKind.port);
-      expect(selection.current.id, 'p1');
-      expect(selection.current.ownerId, 'n1');
+    test('focusPort carries owner id, independent of the multi-selection', () {
+      selection.selectNode('n1');
+      selection.focusPort('n1', 'p1');
+      expect(selection.focus.kind, FocusKind.port);
+      expect(selection.focus.id, 'p1');
+      expect(selection.focus.ownerId, 'n1');
+      expect(selection.current.nodeIds, {'n1'}); // untouched by focus
     });
   });
 

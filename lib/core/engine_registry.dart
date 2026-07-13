@@ -1,7 +1,10 @@
+import 'interfaces/clipboard_provider.dart';
 import 'interfaces/export_provider.dart';
 import 'interfaces/graph_provider.dart';
 import 'interfaces/import_provider.dart';
+import 'interfaces/layout_provider.dart';
 import 'interfaces/navigation_provider.dart';
+import 'interfaces/routing_provider.dart';
 import 'interfaces/selection_provider.dart';
 import 'interfaces/serialization_provider.dart';
 import 'interfaces/simulation_provider.dart';
@@ -37,6 +40,9 @@ class ProviderNotRegisteredException implements Exception {
 ///         -> ImportProvider
 ///         -> ExportProvider
 ///         -> SimulationProvider
+///         -> LayoutProvider
+///         -> ClipboardProvider
+///         -> RoutingProvider
 /// ```
 ///
 /// Registration is by interface type. A future Marketplace package, an
@@ -71,6 +77,9 @@ class EngineRegistry {
   ExportProvider get export => require<ExportProvider>();
   SimulationProvider get simulation => require<SimulationProvider>();
   SerializationProvider get serialization => require<SerializationProvider>();
+  LayoutProvider get layout => require<LayoutProvider>();
+  ClipboardProvider get clipboard => require<ClipboardProvider>();
+  RoutingProvider get routing => require<RoutingProvider>();
 
   List<Type> get registeredTypes => _providers.keys.toList(growable: false);
 }

@@ -70,6 +70,7 @@ class EngineeringNode {
   });
 
   EngineeringNode copyWith({
+    NodeCategory? category,
     String? displayName,
     String? symbolId,
     bool clearSymbolId = false,
@@ -83,7 +84,7 @@ class EngineeringNode {
   }) {
     return EngineeringNode(
       id: id,
-      category: category,
+      category: category ?? this.category,
       displayName: displayName ?? this.displayName,
       symbolId: clearSymbolId ? null : (symbolId ?? this.symbolId),
       repositoryObjectId: repositoryObjectId ?? this.repositoryObjectId,

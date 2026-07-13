@@ -4,13 +4,16 @@ The Engineering Engine runtime for the Open Engineering Platform (OEP):
 the Engineering Graph, Symbol Library, Views, validation, navigation,
 selection, import/export, and a simulation framework placeholder.
 
-Status: **Phase 1 (WORK_PACKAGE_019) implemented.** **WORK_PACKAGE_020
-(EKE architectural analysis) complete** — a full study of
-`engine_reference_only/`, documentation only, no feature migration or
-engine code changes (see `docs/EKE_*.md` below). Feature migration itself
-awaits per-item authorization, per `docs/EKE_MIGRATION_MATRIX.md`.
+Status: **Phase 1 (WORK_PACKAGE_019) implemented.** **WORK_PACKAGE_020**
+(EKE architectural analysis) **complete** — documentation only, no engine
+code changes (see `docs/EKE_*.md` below). **WORK_PACKAGE_021** (Engineering
+Graph Editing) **implemented** — the engine is now a fully interactive,
+undoable editor: create/delete/move/duplicate nodes and relationships,
+multi/box selection, grouping, clipboard, deterministic undo/redo, and a
+replaceable orthogonal routing engine.
 
-Governed by SDD-024 through SDD-029 (frozen). Implementation reasoning
+Governed by SDD-024 through SDD-030 plus amendments SDD-024A/027A/028A
+(`docs/specifications/`, `docs/amendments/`). Implementation reasoning
 that isn't in the SDDs themselves is recorded in
 `docs/ARCHITECTURE_DECISIONS.md`.
 
@@ -25,7 +28,14 @@ final engine = EngineeringEngine.create();
 await engine.initialize();
 
 final graph = await engine.graph.create(id: 'demo');
-final report = engine.validate(graph);
+engine.beginEditingSession(graph);
+
+const node = EngineeringNode(id: 'battery', category: NodeCategory.component, displayName: 'Battery');
+engine.editing.execute(CreateNodeCommand(node, position: const Point2D(0, 0)));
+engine.editing.undo(); // removes it again
+engine.editing.redo(); // brings it back
+
+final report = engine.validate(engine.editing.session.graph);
 
 await engine.shutdown();
 ```
@@ -40,9 +50,13 @@ See `docs/ENGINEERING_ENGINE.md` for the full public API.
 | `docs/ENGINEERING_GRAPH.md` | Graph object model, building, querying, validation |
 | `docs/SYMBOL_LIBRARY.md` | Symbol Definition schema, the 14 seed symbols, loading |
 | `docs/DIAGRAM_STUDIO.md` | The View layer, Diagram View, and the Demonstration Host (**not** Diagram Studio) |
+| `docs/GRAPH_EDITING.md` | Editing philosophy, what's editable, movement-as-layout, grouping, clipboard |
+| `docs/UNDO_REDO.md` | The command model, `CommandHistory`, `EditingService`, what's outside undo/redo |
+| `docs/ROUTING_ENGINE.md` | `RoutingProvider`, the default orthogonal router, port-snapping scoping |
+| `docs/SELECTION_MODEL.md` | `GraphSelection` vs. `FocusState`, multi/box/toggle selection |
 | `docs/ARCHITECTURE_DECISIONS.md` | Why — the ADR log for implementation decisions |
-| `docs/specifications/SDD-0{24..29}-*.md` | The frozen architecture itself |
-| `docs/tasks/WORK_PACKAGE_019.md`, `WORK_PACKAGE_020.md` | The governing work packages |
+| `docs/specifications/SDD-0{24..30}-*.md`, `docs/amendments/SDD-0{24,27,28}A-*.md` | The architecture itself |
+| `docs/tasks/WORK_PACKAGE_019.md`, `WORK_PACKAGE_020.md`, `WORK_PACKAGE_021.md` | The governing work packages |
 
 ### EKE reference-implementation analysis (WORK_PACKAGE_020)
 
