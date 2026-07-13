@@ -171,3 +171,81 @@ know about Flutter's asset system. The Demonstration Host's
 `symbol_bundle_loader.dart` is the only place this is used.
 
 **Status.** Accepted.
+
+---
+
+## ADR-008 — Provider/Registry Architecture Validated, No Code Change Required (WORK_PACKAGE_020)
+
+**Context.** WORK_PACKAGE_020's complete architectural analysis of
+`engine_reference_only/` (see `docs/EKE_*.md`) surfaced several concrete
+future capabilities the Engineering Engine doesn't yet implement:
+directional power/ground path tracing, system/topology recognition,
+orthogonal wire routing, confidence scoring, and others (full list in
+`docs/EKE_MIGRATION_MATRIX.md`). The work package's own scope explicitly
+allows (but does not require) adding "missing interfaces, missing
+extension points, missing abstractions" if analysis reveals a genuine
+structural gap.
+
+**Finding.** No such gap was found. `EngineRegistry.register<T extends
+Object>()` (ADR-001) is fully generic — a future `SystemRecognitionProvider`,
+a confidence-scoring service, or any other new capability registers the
+same way `GraphProvider`/`SymbolProvider`/etc. already do, with zero
+changes to `EngineRegistry` or `EngineeringEngine` itself.
+`DiagramRendererRegistry` (ADR-003) is likewise already an open
+registration point for new renderers (e.g. a future orthogonal-routing-
+aware painter). `ValidationProvider`'s contract (`validate(graph) ->
+ValidationReport`) doesn't need to change to add new rules — new checks
+are additions to `ValidationService`'s private rule list, not interface
+changes.
+
+**Decision.** No Engineering Engine code changes are made as part of
+WORK_PACKAGE_020. The provider/registry architecture designed in Phase 1
+(ADR-001) is confirmed, under real scrutiny against a mature reference
+implementation, to already accommodate every extension point this
+analysis identified. Feature migration itself (implementing any of the
+above) remains explicitly out of scope for this work package and awaits
+separate authorization per item, per `docs/EKE_MIGRATION_MATRIX.md`.
+
+**Status.** Confirmed.
+
+---
+
+## ADR-009 — Confidence as a Future Object-Model Field (proposed, not implemented)
+
+**Context.** `docs/EKE_GRAPH_COMPARISON.md` identifies that the reference
+implementation threads a `confidence` value through nearly every object
+(components, wires, systems, topology matches), while SDD-027's
+`EngineeringNode`/`EngineeringRelationship` have no dedicated confidence
+field — it would currently have to be smuggled into the untyped
+`metadata` map. This matters because the Engineering Engine's own future
+Import Engine (OCR/vision-derived nodes) will need it for exactly the
+same reason the reference does: extracted data is often uncertain, and
+uncertainty needs a home that validation, rendering, and review UI can
+all rely on consistently.
+
+**Decision.** Not implemented. This would be an amendment to SDD-027,
+which is `Frozen` — the correct process is architectural review, not a
+Phase-2-analysis-driven code change. Flagged here explicitly so it isn't
+lost, and cross-referenced from `docs/EKE_GRAPH_COMPARISON.md` and
+`docs/EKE_MIGRATION_MATRIX.md`.
+
+**Status.** Proposed — awaiting architectural review.
+
+---
+
+## ADR-010 — Electrical-Equivalence `Net` Concept (proposed, not implemented)
+
+**Context.** `docs/EKE_GRAPH_COMPARISON.md` identifies the reference's
+`Net` object (many wires/connectors that are all the same electrical
+node, e.g. "battery positive" spanning several physical wires) as a real
+gap in SDD-027: nothing today distinguishes "these nodes are organized
+together" (`EngineeringGroup` — a Circuit/Harness/Assembly/Subsystem/
+Module) from "these relationships are electrically the same point,"
+which is a different, narrower claim.
+
+**Decision.** Not implemented. Like ADR-009, this is a candidate SDD-027
+amendment, not a Phase-2-analysis code change — it needs architectural
+review to decide whether it's a new node category, a new top-level graph
+concept, or an extension of `EngineeringGroup`.
+
+**Status.** Proposed — awaiting architectural review.
