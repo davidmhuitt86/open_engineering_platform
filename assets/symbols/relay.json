@@ -1,0 +1,18 @@
+{
+  "identifier": "relay",
+  "name": "Relay",
+  "category": "electrical",
+  "description": "Electromechanical switch actuated by a coil.",
+  "aliases": ["relay"],
+  "standards": ["iec", "ansi"],
+  "geometry": { "kind": "svgAsset", "assetPath": "assets/symbols/relay.svg", "width": 100, "height": 100 },
+  "ports": [
+    { "id": "coil_positive", "displayName": "Coil +", "connectionType": "power", "direction": "input", "x": 0.0, "y": 0.2 },
+    { "id": "coil_negative", "displayName": "Coil -", "connectionType": "power", "direction": "input", "x": 0.0, "y": 0.8 },
+    { "id": "common", "displayName": "Common", "connectionType": "power", "direction": "bidirectional", "x": 0.6, "y": 0.5 },
+    { "id": "normally_open", "displayName": "Normally Open", "connectionType": "power", "direction": "output", "x": 1.0, "y": 0.2 },
+    { "id": "normally_closed", "displayName": "Normally Closed", "connectionType": "power", "direction": "output", "x": 1.0, "y": 0.8 }
+  ],
+  "rendering": { "defaultColor": "#1a1a1a", "strokeWidth": 1.5, "fill": false, "layer": 0, "snapPoints": [] },
+  "validationRules": { "requiredPortIds": ["coil_positive", "coil_negative", "common"], "allowedConnectionTypes": ["power"], "requiredMetadataKeys": [] }
+}

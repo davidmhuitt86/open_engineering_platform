@@ -1,0 +1,15 @@
+{
+  "identifier": "fuse",
+  "name": "Fuse",
+  "category": "electrical",
+  "description": "Overcurrent protection device.",
+  "aliases": ["fuse"],
+  "standards": ["iec", "ansi"],
+  "geometry": { "kind": "svgAsset", "assetPath": "assets/symbols/fuse.svg", "width": 100, "height": 100 },
+  "ports": [
+    { "id": "terminal_a", "displayName": "Terminal A", "connectionType": "power", "direction": "bidirectional", "x": 0.0, "y": 0.5 },
+    { "id": "terminal_b", "displayName": "Terminal B", "connectionType": "power", "direction": "bidirectional", "x": 1.0, "y": 0.5 }
+  ],
+  "rendering": { "defaultColor": "#1a1a1a", "strokeWidth": 1.5, "fill": false, "layer": 0, "snapPoints": [] },
+  "validationRules": { "requiredPortIds": ["terminal_a", "terminal_b"], "allowedConnectionTypes": ["power"], "requiredMetadataKeys": [] }
+}

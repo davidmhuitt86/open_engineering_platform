@@ -1,0 +1,28 @@
+name: engineering_engine_demonstration_host
+description: >
+  Verification harness for the Engineering Engine (oep_engine).
+  Consumes ONLY the Engineering Engine's public API. This is NOT
+  Diagram Studio — Diagram Studio belongs to oep_studio and is out of
+  scope for this package.
+publish_to: 'none'
+version: 0.1.0
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  engineering_engine:
+    path: ..
+  flutter_svg: ^2.0.10+1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  integration_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

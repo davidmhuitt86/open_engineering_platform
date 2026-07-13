@@ -1,0 +1,17 @@
+{
+  "identifier": "connector",
+  "name": "Connector",
+  "category": "electrical",
+  "description": "Multi-pin connector housing.",
+  "aliases": ["connector", "plug", "receptacle"],
+  "standards": ["iec", "ansi", "custom"],
+  "geometry": { "kind": "svgAsset", "assetPath": "assets/symbols/connector.svg", "width": 100, "height": 100 },
+  "ports": [
+    { "id": "pin_1", "displayName": "Pin 1", "connectionType": "signal", "direction": "bidirectional", "x": 0.3, "y": 0.0 },
+    { "id": "pin_2", "displayName": "Pin 2", "connectionType": "signal", "direction": "bidirectional", "x": 0.5, "y": 0.0 },
+    { "id": "pin_3", "displayName": "Pin 3", "connectionType": "signal", "direction": "bidirectional", "x": 0.7, "y": 0.0 },
+    { "id": "pin_4", "displayName": "Pin 4", "connectionType": "signal", "direction": "bidirectional", "x": 0.3, "y": 1.0 }
+  ],
+  "rendering": { "defaultColor": "#1a1a1a", "strokeWidth": 1.5, "fill": false, "layer": 0, "snapPoints": [] },
+  "validationRules": { "requiredPortIds": [], "allowedConnectionTypes": ["signal", "power", "ground"], "requiredMetadataKeys": [] }
+}

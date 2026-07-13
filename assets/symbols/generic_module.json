@@ -1,0 +1,15 @@
+{
+  "identifier": "generic_module",
+  "name": "Generic Module",
+  "category": "general",
+  "description": "Placeholder for an unclassified module — used as the Unknown Symbol fallback.",
+  "aliases": ["generic_module", "module", "unknown"],
+  "standards": ["custom"],
+  "geometry": { "kind": "svgAsset", "assetPath": "assets/symbols/generic_module.svg", "width": 100, "height": 100 },
+  "ports": [
+    { "id": "in", "displayName": "In", "connectionType": "signal", "direction": "input", "x": 0.0, "y": 0.5 },
+    { "id": "out", "displayName": "Out", "connectionType": "signal", "direction": "output", "x": 1.0, "y": 0.5 }
+  ],
+  "rendering": { "defaultColor": "#666666", "strokeWidth": 1.5, "fill": false, "layer": 0, "snapPoints": [] },
+  "validationRules": { "requiredPortIds": [], "allowedConnectionTypes": [], "requiredMetadataKeys": [] }
+}
