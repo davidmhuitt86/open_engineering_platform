@@ -7,6 +7,7 @@ class RoutingContext {
   static const double laneSpacing = 12;
 
   final Map<int, int> _columnUsage = {};
+  final Map<String, double> _trunkColumns = {};
 
   /// Returns a column x-coordinate near [preferredX], offset by
   /// [laneSpacing] (alternating left/right) each time the same preferred
@@ -19,5 +20,15 @@ class RoutingContext {
     final magnitude = (count + 1) ~/ 2;
     final sign = count.isOdd ? 1 : -1;
     return preferredX + sign * magnitude * laneSpacing;
+  }
+
+  /// Returns the same column for every request sharing [trunkKey]
+  /// (WORK_PACKAGE_022 "Shared Trunks") — the first request for a given
+  /// key allocates a lane via [allocateColumn] as normal (so it still
+  /// doesn't collide with unrelated wires); every subsequent request with
+  /// the same key reuses exactly that column instead of getting its own
+  /// offset lane.
+  double allocateTrunkColumn(String trunkKey, double preferredX) {
+    return _trunkColumns.putIfAbsent(trunkKey, () => allocateColumn(preferredX));
   }
 }

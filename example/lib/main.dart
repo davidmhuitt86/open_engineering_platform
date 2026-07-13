@@ -2,28 +2,35 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:engineering_engine/engineering_engine.dart';
 
+import 'dialogs/grid_settings_dialog.dart';
+import 'dialogs/named_layouts_dialog.dart';
 import 'geometry_utils.dart';
 import 'seed_graph.dart';
 import 'symbol_bundle_loader.dart';
-import 'wire_painter.dart';
+import 'widgets/graph_view_panel.dart';
+import 'widgets/inspector_panels.dart';
+import 'widgets/rulers.dart';
+import 'widgets/status_bar.dart';
+import 'widgets/toolbar.dart';
 
 /// Engineering Engine Demonstration Host.
 ///
 /// This is NOT Diagram Studio — Diagram Studio belongs to `oep_studio` and
-/// is out of scope here (STUDIO-TASK-000063, reaffirmed WORK_PACKAGE_021).
-/// This app exists only to verify the Engineering Engine, and consumes
-/// ONLY its public API (`package:engineering_engine/engineering_engine.dart`).
+/// is out of scope here (STUDIO-TASK-000063, reaffirmed WORK_PACKAGE_021/
+/// 022). This app exists only to verify the Engineering Engine, and
+/// consumes ONLY its public API
+/// (`package:engineering_engine/engineering_engine.dart`).
 ///
-/// WORK_PACKAGE_021 extends it with a fully interactive editor: create/
-/// delete/move/duplicate nodes, connect/reconnect/delete relationships,
-/// multi/box selection, grouping, clipboard, and undo/redo — every
-/// mutation goes through `EditingService.execute` (an `EditingCommand`),
-/// never a direct graph edit, and the whole shell rebuilds from a single
-/// `EditingService.sessionChanges` subscription rather than per-action
-/// manual state rewriting.
+/// WORK_PACKAGE_022 adds the professional editing environment around the
+/// WP021 command/selection/clipboard/routing foundation: grid/snap,
+/// smart alignment guides, named layout persistence, port hover/drag-to-
+/// connect/drag-to-reconnect, fit-all/fit-selection/center/zoom-to-cursor
+/// navigation, and drafting-tool polish (rulers, origin indicator,
+/// coordinate readout). ViewState (zoom/pan/grid/guides/theme) is a
+/// permanently separate runtime concern from the Engineering Graph and
+/// Diagram Layout — see docs/ARCHITECTURE_DECISIONS.md ADR-014.
 void main() {
   runApp(const DemonstrationHostApp());
 }
@@ -41,8 +48,8 @@ class DemonstrationHostApp extends StatelessWidget {
   }
 }
 
-const double _gridSize = 20;
 const double _defaultNodeSpawnStep = 40;
+const double _nodeSize = 100; // DiagramLayout.nodeSize, mirrored for hit-testing.
 
 class HostShell extends StatefulWidget {
   const HostShell({super.key});
@@ -59,6 +66,7 @@ class _HostShellState extends State<HostShell> {
   ValidationReport? report;
   GraphSelection selection = GraphSelection.empty;
   FocusState focus = const FocusState.none();
+  ViewState viewState = ViewState.initial;
   bool loading = true;
   int _spawnCounter = 0;
 
@@ -67,15 +75,31 @@ class _HostShellState extends State<HostShell> {
 
   Rect2D? _boxSelectRect;
   Offset? _boxSelectStart;
+  Point2D? _panStartPan;
 
   Set<String>? _dragNodeIds;
   Map<String, Point2D>? _dragStartPositions;
   Point2D _dragTotalDelta = const Point2D(0, 0);
+  List<AlignmentGuide> _activeGuides = const [];
+
+  Point2D? _cursorScenePosition;
+
+  PortReference? _connectFromPort;
+  Point2D? _connectionCurrentPoint;
+  bool _connectionValid = false;
+
+  String? _reconnectRelationshipId;
+  bool _reconnectIsSourceEnd = false;
+  Point2D? _reconnectCurrentPoint;
+
+  double _explorerWidth = 220;
+  double _inspectorWidth = 320;
 
   StreamSubscription<EditingSession>? _sessionSub;
   StreamSubscription<GraphSelection>? _selectionSub;
   StreamSubscription<FocusState>? _focusSub;
   StreamSubscription<NavigationEvent>? _navigationSub;
+  StreamSubscription<ViewState>? _viewStateSub;
 
   @override
   void initState() {
@@ -104,10 +128,15 @@ class _HostShellState extends State<HostShell> {
       setState(() => focus = f);
     });
     _navigationSub = engine.registry.navigation.events.listen(_onNavigationEvent);
+    _viewStateSub = engine.registry.viewState.changes.listen((v) {
+      setState(() => viewState = v);
+      _applyViewStateToTransform();
+    });
 
     setState(() {
       session = engine.editing.session;
       report = engine.validate(session!.graph);
+      viewState = engine.registry.viewState.current;
       loading = false;
     });
   }
@@ -134,8 +163,65 @@ class _HostShellState extends State<HostShell> {
     _selectionSub?.cancel();
     _focusSub?.cancel();
     _navigationSub?.cancel();
+    _viewStateSub?.cancel();
     unawaited(engine.shutdown());
     super.dispose();
+  }
+
+  // --- ViewState / viewport --------------------------------------------
+
+  ViewStateService get _viewStateService => engine.registry.viewState as ViewStateService;
+
+  void _applyViewStateToTransform() {
+    transformController.value = Matrix4.identity()
+      ..translateByDouble(viewState.pan.dx, viewState.pan.dy, 0, 1)
+      ..scaleByDouble(viewState.zoom, viewState.zoom, viewState.zoom, 1);
+  }
+
+  void _syncViewStateFromTransform() {
+    final matrix = transformController.value;
+    final scale = matrix.getMaxScaleOnAxis();
+    final translation = matrix.getTranslation();
+    _viewStateService
+      ..setZoom(scale)
+      ..setPan(Point2D(translation.x, translation.y));
+  }
+
+  void _ensureViewportSize(double width, double height) {
+    if (viewState.viewportWidth == width && viewState.viewportHeight == height) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _viewStateService.setViewportSize(width, height);
+    });
+  }
+
+  Rect2D? _selectionBounds(DiagramScene scene) {
+    final selected = scene.nodes.where((n) => selection.containsNode(n.nodeId)).toList();
+    if (selected.isEmpty) return null;
+    var left = selected.first.position.dx;
+    var top = selected.first.position.dy;
+    var right = left + selected.first.width;
+    var bottom = top + selected.first.height;
+    for (final node in selected.skip(1)) {
+      left = left < node.position.dx ? left : node.position.dx;
+      top = top < node.position.dy ? top : node.position.dy;
+      right = right > node.position.dx + node.width ? right : node.position.dx + node.width;
+      bottom = bottom > node.position.dy + node.height ? bottom : node.position.dy + node.height;
+    }
+    return Rect2D(left: left, top: top, right: right, bottom: bottom);
+  }
+
+  void _fitAll(DiagramScene scene) {
+    _viewStateService.fitAll(scene.contentWidth, scene.contentHeight);
+  }
+
+  void _fitSelection(DiagramScene scene) {
+    final bounds = _selectionBounds(scene);
+    if (bounds != null) _viewStateService.fitSelection(bounds);
+  }
+
+  void _centerSelection(DiagramScene scene) {
+    final bounds = _selectionBounds(scene);
+    if (bounds != null) _viewStateService.centerSelection(bounds);
   }
 
   // --- Editing actions -----------------------------------------------
@@ -213,6 +299,16 @@ class _HostShellState extends State<HostShell> {
   void _undo() => engine.editing.undo();
   void _redo() => engine.editing.redo();
 
+  void _align(AlignmentMode mode) {
+    if (selection.nodeIds.length < 2) return;
+    engine.editing.execute(AlignNodesCommand(selection.nodeIds, mode));
+  }
+
+  void _distribute(DistributionAxis axis) {
+    if (selection.nodeIds.length < 3) return;
+    engine.editing.execute(DistributeNodesCommand(selection.nodeIds, axis));
+  }
+
   void _highlightBatteryToGround() {
     final current = session;
     if (current == null) return;
@@ -228,6 +324,8 @@ class _HostShellState extends State<HostShell> {
       HardwareKeyboard.instance.isShiftPressed || HardwareKeyboard.instance.isControlPressed;
 
   bool get _toggleModifierPressed => HardwareKeyboard.instance.isControlPressed;
+
+  bool get _spacePressed => HardwareKeyboard.instance.isLogicalKeyPressed(LogicalKeyboardKey.space);
 
   void _handleNodeTap(String nodeId) {
     if (_toggleModifierPressed) {
@@ -245,7 +343,14 @@ class _HostShellState extends State<HostShell> {
     }
   }
 
-  void _handleBoxSelectStart(Offset localPosition) {
+  // Space+drag pans the viewport (mirrors the reference implementation's
+  // own convention — see docs/EKE_INTERACTION_MODEL.md); a plain drag on
+  // empty space performs box selection (Marquee Selection).
+  void _handleBackgroundPanStart(Offset localPosition) {
+    if (_spacePressed) {
+      _panStartPan = viewState.pan;
+      return;
+    }
     _boxSelectStart = localPosition;
     setState(() => _boxSelectRect = Rect2D.fromPoints(
           offsetToPoint(localPosition),
@@ -253,23 +358,33 @@ class _HostShellState extends State<HostShell> {
         ));
   }
 
-  void _handleBoxSelectUpdate(Offset localPosition, DiagramScene scene) {
+  void _handleBackgroundPanUpdate(Offset localPosition, Offset delta) {
+    if (_panStartPan != null) {
+      // Panning: `delta` is already scene-space (see `_SymbolNode` drag
+      // for the same behavior), but the viewport's pan is screen-space —
+      // scale by the current zoom so a scene-space drag produces the
+      // correct screen-space translation.
+      _viewStateService.setPan(viewState.pan.translate(
+        delta.dx * viewState.zoom,
+        delta.dy * viewState.zoom,
+      ));
+      return;
+    }
     final start = _boxSelectStart;
     if (start == null) return;
-    setState(() {
-      _boxSelectRect = rectFromOffsets(start, localPosition);
-    });
+    setState(() => _boxSelectRect = rectFromOffsets(start, localPosition));
   }
 
-  void _handleBoxSelectEnd(DiagramScene scene) {
+  void _handleBackgroundPanEnd(DiagramScene scene) {
+    if (_panStartPan != null) {
+      _panStartPan = null;
+      return;
+    }
     final rect = _boxSelectRect;
     if (rect != null) {
       final ids = DiagramHitTesting.nodesInRect(scene, rect);
       if (ids.isNotEmpty) {
-        engine.registry.selection.selectMany(
-          nodeIds: ids,
-          additive: _additiveModifierPressed,
-        );
+        engine.registry.selection.selectMany(nodeIds: ids, additive: _additiveModifierPressed);
       }
     }
     setState(() {
@@ -278,7 +393,29 @@ class _HostShellState extends State<HostShell> {
     });
   }
 
-  // --- Node dragging ----------------------------------------------------
+  void _handleHover(Offset localPosition) {
+    _cursorScenePosition = offsetToPoint(localPosition);
+    if (_connectFromPort != null || _reconnectRelationshipId != null) return;
+    // Coordinate readout updates every frame; throttling isn't critical at
+    // Demonstration Host scale.
+    setState(() {});
+  }
+
+  // --- Node dragging + smart guides ------------------------------------
+
+  List<Rect2D> _siblingBounds(String excludingNodeId) {
+    final layout = session!.layout;
+    return [
+      for (final entry in session!.graph.nodes.entries)
+        if (entry.key != excludingNodeId && layout.positionOf(entry.key) != null)
+          Rect2D(
+            left: layout.positionOf(entry.key)!.dx,
+            top: layout.positionOf(entry.key)!.dy,
+            right: layout.positionOf(entry.key)!.dx + _nodeSize,
+            bottom: layout.positionOf(entry.key)!.dy + _nodeSize,
+          ),
+    ];
+  }
 
   void _handleNodeDragStart(String nodeId) {
     final current = session;
@@ -302,7 +439,36 @@ class _HostShellState extends State<HostShell> {
     if (_dragNodeIds == null) return;
     setState(() {
       _dragTotalDelta = _dragTotalDelta.translate(delta.dx, delta.dy);
+      if (_dragNodeIds!.length == 1 && viewState.guidesVisible) {
+        final id = _dragNodeIds!.first;
+        final candidate = _dragStartPositions![id]!.translate(_dragTotalDelta.dx, _dragTotalDelta.dy);
+        final bounds = Rect2D(
+          left: candidate.dx,
+          top: candidate.dy,
+          right: candidate.dx + _nodeSize,
+          bottom: candidate.dy + _nodeSize,
+        );
+        _activeGuides = AlignmentGuideComputer.computeGuides(
+          draggedBounds: bounds,
+          siblingBounds: _siblingBounds(id),
+        );
+      } else {
+        _activeGuides = const [];
+      }
     });
+  }
+
+  Point2D _snappedDragPosition(String nodeId, Point2D raw) {
+    var result = raw;
+    if (viewState.guidesVisible && _dragNodeIds?.length == 1) {
+      result = AlignmentGuideComputer.snapToGuides(
+        candidatePosition: result,
+        width: _nodeSize,
+        height: _nodeSize,
+        siblingBounds: _siblingBounds(nodeId),
+      );
+    }
+    return GridComputer.snap(result, viewState.grid);
   }
 
   void _handleNodeDragEnd() {
@@ -311,16 +477,14 @@ class _HostShellState extends State<HostShell> {
     if (nodeIds == null || startPositions == null) return;
     final newPositions = {
       for (final id in nodeIds)
-        id: snapToGrid(
-          startPositions[id]!.translate(_dragTotalDelta.dx, _dragTotalDelta.dy),
-          _gridSize,
-        ),
+        id: _snappedDragPosition(id, startPositions[id]!.translate(_dragTotalDelta.dx, _dragTotalDelta.dy)),
     };
     engine.editing.execute(MoveNodesCommand(newPositions));
     setState(() {
       _dragNodeIds = null;
       _dragStartPositions = null;
       _dragTotalDelta = const Point2D(0, 0);
+      _activeGuides = const [];
     });
   }
 
@@ -329,13 +493,136 @@ class _HostShellState extends State<HostShell> {
     if (_dragNodeIds == null || _dragStartPositions == null) return current.layout;
     final preview = {
       for (final id in _dragNodeIds!)
-        id: snapToGrid(
-          _dragStartPositions![id]!.translate(_dragTotalDelta.dx, _dragTotalDelta.dy),
-          _gridSize,
-        ),
+        id: _snappedDragPosition(id, _dragStartPositions![id]!.translate(_dragTotalDelta.dx, _dragTotalDelta.dy)),
     };
     return current.layout.withPositions(preview);
   }
+
+  // --- Port interaction / drag-to-connect ------------------------------
+
+  Point2D? _portAnchor(PortReference port) {
+    final node = session!.graph.nodes[port.nodeId];
+    final position = session!.layout.positionOf(port.nodeId);
+    if (node == null || position == null) return null;
+    final symbol = engine.registry.symbols.resolve(node.symbolId ?? '');
+    final match = symbol.ports.where((p) => p.id == port.portId);
+    if (match.isEmpty) return position.translate(_nodeSize / 2, _nodeSize / 2);
+    final p = match.first;
+    return position.translate(p.x * _nodeSize, p.y * _nodeSize);
+  }
+
+  String? _nodeAt(Point2D point) {
+    for (final entry in session!.layout.positions.entries) {
+      final within = point.dx >= entry.value.dx &&
+          point.dx <= entry.value.dx + _nodeSize &&
+          point.dy >= entry.value.dy &&
+          point.dy <= entry.value.dy + _nodeSize;
+      if (within) return entry.key;
+    }
+    return null;
+  }
+
+  void _handlePortHoverEnter(PortReference port) => _viewStateService.hoverPort(port);
+  void _handlePortHoverExit() => _viewStateService.hoverPort(null);
+
+  void _handlePortDragStart(PortReference port) {
+    setState(() {
+      _connectFromPort = port;
+      _connectionCurrentPoint = _portAnchor(port);
+      _connectionValid = false;
+    });
+  }
+
+  void _handlePortDragUpdate(Offset delta) {
+    if (_connectionCurrentPoint == null) return;
+    setState(() {
+      _connectionCurrentPoint = _connectionCurrentPoint!.translate(delta.dx, delta.dy);
+      final targetNodeId = _nodeAt(_connectionCurrentPoint!);
+      _connectionValid = targetNodeId != null &&
+          ConnectionValidator.canConnect(session!.graph, _connectFromPort!.nodeId, targetNodeId);
+    });
+  }
+
+  void _handlePortDragEnd() {
+    final source = _connectFromPort;
+    final point = _connectionCurrentPoint;
+    if (source != null && point != null) {
+      final targetNodeId = _nodeAt(point);
+      if (targetNodeId != null && ConnectionValidator.canConnect(session!.graph, source.nodeId, targetNodeId)) {
+        engine.editing.execute(CreateRelationshipCommand(EngineeringRelationship(
+          id: engine.graph.generateId('rel'),
+          relationshipType: RelationshipType.connectedTo,
+          sourceNode: source.nodeId,
+          targetNode: targetNodeId,
+        )));
+      }
+    }
+    setState(() {
+      _connectFromPort = null;
+      _connectionCurrentPoint = null;
+      _connectionValid = false;
+    });
+  }
+
+  // --- Drag-to-reconnect ------------------------------------------------
+
+  DiagramWireVisual? _reconnectingWire(DiagramScene scene) {
+    if (selection.relationshipIds.length != 1) return null;
+    final id = selection.relationshipIds.first;
+    for (final wire in scene.wires) {
+      if (wire.relationshipId == id) return wire;
+    }
+    return null;
+  }
+
+  void _handleReconnectDragStart(bool isSourceEnd) {
+    final relationshipId = selection.relationshipIds.single;
+    final relationship = session!.graph.relationships[relationshipId]!;
+    final anchorNodeId = isSourceEnd ? relationship.sourceNode : relationship.targetNode;
+    final position = session!.layout.positionOf(anchorNodeId) ?? const Point2D(0, 0);
+    setState(() {
+      _reconnectRelationshipId = relationshipId;
+      _reconnectIsSourceEnd = isSourceEnd;
+      _reconnectCurrentPoint = position.translate(_nodeSize / 2, _nodeSize / 2);
+    });
+  }
+
+  void _handleReconnectDragUpdate(Offset delta) {
+    if (_reconnectCurrentPoint == null) return;
+    setState(() => _reconnectCurrentPoint = _reconnectCurrentPoint!.translate(delta.dx, delta.dy));
+  }
+
+  void _handleReconnectDragEnd() {
+    final relationshipId = _reconnectRelationshipId;
+    final point = _reconnectCurrentPoint;
+    if (relationshipId != null && point != null) {
+      final targetNodeId = _nodeAt(point);
+      if (targetNodeId != null) {
+        engine.editing.execute(ReconnectRelationshipCommand(
+          relationshipId,
+          newSourceNode: _reconnectIsSourceEnd ? targetNodeId : null,
+          newTargetNode: _reconnectIsSourceEnd ? null : targetNodeId,
+        ));
+      }
+    }
+    setState(() {
+      _reconnectRelationshipId = null;
+      _reconnectCurrentPoint = null;
+    });
+  }
+
+  // --- Layouts / dialogs -------------------------------------------------
+
+  Future<void> _openGridSettings() => showGridSettingsDialog(context, _viewStateService);
+
+  Future<void> _openNamedLayouts() => showNamedLayoutsDialog(
+        context,
+        layoutProvider: engine.registry.layout,
+        graphId: session!.graph.id,
+        currentLayout: () => session!.layout,
+        onLoad: (layout) => engine.editing.resetSession(session!.copyWith(layout: layout)),
+        onReset: () => engine.editing.resetSession(session!.copyWith(layout: DiagramLayoutState.empty)),
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -352,6 +639,7 @@ class _HostShellState extends State<HostShell> {
       highlightedNodeIds: _highlightedNodeIds,
       highlightedRelationshipIds: _highlightedRelationshipIds,
     );
+    final reconnectingWire = _reconnectingWire(scene);
 
     return Focus(
       autofocus: true,
@@ -390,7 +678,7 @@ class _HostShellState extends State<HostShell> {
           ),
           body: Column(
             children: [
-              _Toolbar(
+              DemoToolbar(
                 onAddNode: _addNode,
                 onDelete: selection.isEmpty ? null : _deleteSelection,
                 onGroup: selection.nodeIds.length < 2 ? null : _groupSelection,
@@ -403,40 +691,103 @@ class _HostShellState extends State<HostShell> {
                 onRedo: engine.editing.canRedo ? _redo : null,
                 symbolChoices: seedSymbolIdentifiers,
                 resolveSymbolName: (id) => engine.registry.symbols.resolve(id).name,
+                onFitAll: () => _fitAll(scene),
+                onFitSelection: selection.nodeIds.isEmpty ? null : () => _fitSelection(scene),
+                onCenterSelection: selection.nodeIds.isEmpty ? null : () => _centerSelection(scene),
+                onGoBack: _viewStateService.canGoBack ? _viewStateService.goBack : null,
+                onGoForward: _viewStateService.canGoForward ? _viewStateService.goForward : null,
+                onAlign: selection.nodeIds.length < 2 ? null : _align,
+                onDistribute: selection.nodeIds.length < 3 ? null : _distribute,
+                viewState: viewState,
+                onToggleGrid: _viewStateService.toggleGrid,
+                onToggleSnap: _viewStateService.toggleSnap,
+                onToggleGuides: () => _viewStateService.setGuidesVisible(!viewState.guidesVisible),
+                onOpenGridSettings: _openGridSettings,
+                onOpenNamedLayouts: _openNamedLayouts,
               ),
               const Divider(height: 1),
               Expanded(
                 child: Row(
                   children: [
                     SizedBox(
-                      width: 220,
-                      child: _GraphExplorerPanel(
+                      width: _explorerWidth,
+                      child: GraphExplorerPanel(
                         graph: currentGraph,
                         selection: selection,
                         onSelectNode: _handleNodeTap,
                       ),
                     ),
-                    const VerticalDivider(width: 1),
+                    _ResizeHandle(onDrag: (dx) => setState(() => _explorerWidth = (_explorerWidth + dx).clamp(150, 400))),
                     Expanded(
-                      child: _GraphViewPanel(
-                        scene: scene,
-                        boxSelectRect: _boxSelectRect,
-                        transformController: transformController,
-                        onNodeTap: _handleNodeTap,
-                        onNodeDragStart: _handleNodeDragStart,
-                        onNodeDragUpdate: _handleNodeDragUpdate,
-                        onNodeDragEnd: _handleNodeDragEnd,
-                        onBackgroundTap: _handleBackgroundTap,
-                        onBoxSelectStart: _handleBoxSelectStart,
-                        onBoxSelectUpdate: (position) =>
-                            _handleBoxSelectUpdate(position, scene),
-                        onBoxSelectEnd: () => _handleBoxSelectEnd(scene),
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          // Reserve 20px for the rulers (ENGINE-TASK-000096)
+                          // when computing the actual canvas viewport size.
+                          _ensureViewportSize(constraints.maxWidth - 20, constraints.maxHeight - 20);
+                          final graphView = GraphViewPanel(
+                            scene: scene,
+                            viewState: viewState,
+                            symbols: engine.registry.symbols,
+                            guides: _activeGuides,
+                            boxSelectRect: _boxSelectRect,
+                            transformController: transformController,
+                            connectionPreviewFrom:
+                                _connectFromPort == null ? null : _portAnchor(_connectFromPort!),
+                            connectionPreviewTo: _connectionCurrentPoint,
+                            connectionPreviewValid: _connectionValid,
+                            reconnectingWire: reconnectingWire,
+                            onNodeTap: _handleNodeTap,
+                            onNodeDragStart: _handleNodeDragStart,
+                            onNodeDragUpdate: _handleNodeDragUpdate,
+                            onNodeDragEnd: _handleNodeDragEnd,
+                            onBackgroundTap: _handleBackgroundTap,
+                            onBackgroundPanStart: _handleBackgroundPanStart,
+                            onBackgroundPanUpdate: _handleBackgroundPanUpdate,
+                            onBackgroundPanEnd: () => _handleBackgroundPanEnd(scene),
+                            onHover: _handleHover,
+                            onPortHoverEnter: _handlePortHoverEnter,
+                            onPortHoverExit: _handlePortHoverExit,
+                            onPortDragStart: _handlePortDragStart,
+                            onPortDragUpdate: _handlePortDragUpdate,
+                            onPortDragEnd: _handlePortDragEnd,
+                            onReconnectDragStart: _handleReconnectDragStart,
+                            onReconnectDragUpdate: _handleReconnectDragUpdate,
+                            onReconnectDragEnd: _handleReconnectDragEnd,
+                            onInteractionEnd: _syncViewStateFromTransform,
+                          );
+                          return Column(
+                            children: [
+                              Row(
+                                children: [
+                                  const SizedBox(width: 20, height: 20),
+                                  Expanded(
+                                    child: HorizontalRuler(
+                                      viewState: viewState,
+                                      width: constraints.maxWidth - 20,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Expanded(
+                                child: Row(
+                                  children: [
+                                    VerticalRuler(
+                                      viewState: viewState,
+                                      height: constraints.maxHeight - 20,
+                                    ),
+                                    Expanded(child: graphView),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          );
+                        },
                       ),
                     ),
-                    const VerticalDivider(width: 1),
+                    _ResizeHandle(onDrag: (dx) => setState(() => _inspectorWidth = (_inspectorWidth - dx).clamp(220, 480))),
                     SizedBox(
-                      width: 320,
-                      child: _InspectorColumn(
+                      width: _inspectorWidth,
+                      child: InspectorColumn(
                         engine: engine,
                         graph: currentGraph,
                         selection: selection,
@@ -450,577 +801,37 @@ class _HostShellState extends State<HostShell> {
                   ],
                 ),
               ),
-              _StatusBar(engine: engine, selection: selection),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _Toolbar extends StatelessWidget {
-  final void Function(String symbolId) onAddNode;
-  final VoidCallback? onDelete;
-  final VoidCallback? onGroup;
-  final VoidCallback? onUngroup;
-  final VoidCallback? onCopy;
-  final VoidCallback? onCut;
-  final VoidCallback? onPaste;
-  final VoidCallback? onDuplicate;
-  final VoidCallback? onUndo;
-  final VoidCallback? onRedo;
-  final List<String> symbolChoices;
-  final String Function(String symbolId) resolveSymbolName;
-
-  const _Toolbar({
-    required this.onAddNode,
-    required this.onDelete,
-    required this.onGroup,
-    required this.onUngroup,
-    required this.onCopy,
-    required this.onCut,
-    required this.onPaste,
-    required this.onDuplicate,
-    required this.onUndo,
-    required this.onRedo,
-    required this.symbolChoices,
-    required this.resolveSymbolName,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: Wrap(
-        spacing: 4,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          PopupMenuButton<String>(
-            tooltip: 'Add node',
-            onSelected: onAddNode,
-            itemBuilder: (context) => symbolChoices
-                .map((id) => PopupMenuItem(value: id, child: Text(resolveSymbolName(id))))
-                .toList(),
-            child: const _ToolbarButtonLabel(icon: Icons.add_box, label: 'Add'),
-          ),
-          IconButton(
-            onPressed: onDelete,
-            icon: const Icon(Icons.delete),
-            tooltip: 'Delete (Del)',
-          ),
-          IconButton(
-            onPressed: onGroup,
-            icon: const Icon(Icons.group_work),
-            tooltip: 'Group',
-          ),
-          IconButton(
-            onPressed: onUngroup,
-            icon: const Icon(Icons.group_off),
-            tooltip: 'Ungroup',
-          ),
-          const VerticalDivider(),
-          IconButton(onPressed: onCopy, icon: const Icon(Icons.copy), tooltip: 'Copy (Ctrl+C)'),
-          IconButton(onPressed: onCut, icon: const Icon(Icons.cut), tooltip: 'Cut (Ctrl+X)'),
-          IconButton(
-              onPressed: onPaste, icon: const Icon(Icons.paste), tooltip: 'Paste (Ctrl+V)'),
-          IconButton(
-            onPressed: onDuplicate,
-            icon: const Icon(Icons.content_copy),
-            tooltip: 'Duplicate (Ctrl+D)',
-          ),
-          const VerticalDivider(),
-          IconButton(onPressed: onUndo, icon: const Icon(Icons.undo), tooltip: 'Undo (Ctrl+Z)'),
-          IconButton(onPressed: onRedo, icon: const Icon(Icons.redo), tooltip: 'Redo (Ctrl+Y)'),
-        ],
-      ),
-    );
-  }
-}
-
-class _ToolbarButtonLabel extends StatelessWidget {
-  final IconData icon;
-  final String label;
-
-  const _ToolbarButtonLabel({required this.icon, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(icon, size: 18),
-        const SizedBox(width: 4),
-        Text(label),
-      ]),
-    );
-  }
-}
-
-class _GraphExplorerPanel extends StatelessWidget {
-  final EngineeringGraph graph;
-  final GraphSelection selection;
-  final void Function(String nodeId) onSelectNode;
-
-  const _GraphExplorerPanel({
-    required this.graph,
-    required this.selection,
-    required this.onSelectNode,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final nodes = graph.nodes.values.toList()
-      ..sort((a, b) => a.displayName.compareTo(b.displayName));
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const Padding(
-          padding: EdgeInsets.all(8),
-          child: Text('Graph Explorer', style: TextStyle(fontWeight: FontWeight.bold)),
-        ),
-        Expanded(
-          child: ListView(
-            children: nodes.map((node) {
-              final isSelected = selection.containsNode(node.id);
-              return ListTile(
-                dense: true,
-                selected: isSelected,
-                title: Text(node.displayName),
-                subtitle: Text(node.category.name),
-                onTap: () => onSelectNode(node.id),
-              );
-            }).toList(),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _GraphViewPanel extends StatelessWidget {
-  final DiagramScene scene;
-  final Rect2D? boxSelectRect;
-  final TransformationController transformController;
-  final void Function(String nodeId) onNodeTap;
-  final void Function(String nodeId) onNodeDragStart;
-  final void Function(Offset delta) onNodeDragUpdate;
-  final VoidCallback onNodeDragEnd;
-  final VoidCallback onBackgroundTap;
-  final void Function(Offset localPosition) onBoxSelectStart;
-  final void Function(Offset localPosition) onBoxSelectUpdate;
-  final VoidCallback onBoxSelectEnd;
-
-  const _GraphViewPanel({
-    required this.scene,
-    required this.boxSelectRect,
-    required this.transformController,
-    required this.onNodeTap,
-    required this.onNodeDragStart,
-    required this.onNodeDragUpdate,
-    required this.onNodeDragEnd,
-    required this.onBackgroundTap,
-    required this.onBoxSelectStart,
-    required this.onBoxSelectUpdate,
-    required this.onBoxSelectEnd,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ColoredBox(
-      color: const Color(0xFFF5F5F5),
-      child: InteractiveViewer(
-        transformationController: transformController,
-        minScale: 0.25,
-        maxScale: 4,
-        boundaryMargin: const EdgeInsets.all(400),
-        constrained: false,
-        // Box-select drags and node drags both need the panel's own pan
-        // handling, so InteractiveViewer's own pan is left to two-finger/
-        // middle-button gestures implicitly (single-drag is claimed by
-        // the GestureDetector below).
-        panEnabled: false,
-        child: SizedBox(
-          width: scene.contentWidth,
-          height: scene.contentHeight,
-          child: Stack(
-            children: [
-              Positioned.fill(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: onBackgroundTap,
-                  onPanStart: (details) => onBoxSelectStart(details.localPosition),
-                  onPanUpdate: (details) => onBoxSelectUpdate(details.localPosition),
-                  onPanEnd: (_) => onBoxSelectEnd(),
-                  child: CustomPaint(painter: WirePainter(scene.wires)),
-                ),
-              ),
-              for (final node in scene.nodes)
-                Positioned(
-                  left: node.position.dx,
-                  top: node.position.dy,
-                  width: node.width,
-                  height: node.height,
-                  child: _SymbolNode(
-                    node: node,
-                    onTap: () => onNodeTap(node.nodeId),
-                    onDragStart: () => onNodeDragStart(node.nodeId),
-                    onDragUpdate: onNodeDragUpdate,
-                    onDragEnd: onNodeDragEnd,
-                  ),
-                ),
-              if (boxSelectRect != null)
-                Positioned.fromRect(
-                  rect: rect2DToRect(boxSelectRect!),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.blue.withValues(alpha: 0.1),
-                      border: Border.all(color: Colors.blue),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SymbolNode extends StatelessWidget {
-  final DiagramNodeVisual node;
-  final VoidCallback onTap;
-  final VoidCallback onDragStart;
-  final void Function(Offset delta) onDragUpdate;
-  final VoidCallback onDragEnd;
-
-  const _SymbolNode({
-    required this.node,
-    required this.onTap,
-    required this.onDragStart,
-    required this.onDragUpdate,
-    required this.onDragEnd,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final borderColor = node.highlighted
-        ? Colors.orange
-        : (node.selected ? Colors.blue : Colors.transparent);
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      onPanStart: (_) => onDragStart(),
-      onPanUpdate: (details) => onDragUpdate(details.delta),
-      onPanEnd: (_) => onDragEnd(),
-      child: Container(
-        decoration: BoxDecoration(border: Border.all(color: borderColor, width: 2)),
-        padding: const EdgeInsets.all(4),
-        child: node.symbolId == null
-            ? const Icon(Icons.help_outline)
-            : SvgPicture.asset(
-                'assets/symbols/${node.symbolId}.svg',
-                package: 'engineering_engine',
-              ),
-      ),
-    );
-  }
-}
-
-class _InspectorColumn extends StatelessWidget {
-  final EngineeringEngine engine;
-  final EngineeringGraph graph;
-  final GraphSelection selection;
-  final FocusState focus;
-  final ValidationReport? report;
-  final VoidCallback onRevalidate;
-
-  const _InspectorColumn({
-    required this.engine,
-    required this.graph,
-    required this.selection,
-    required this.focus,
-    required this.report,
-    required this.onRevalidate,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Expanded(
-          child: _PropertyInspectorPanel(engine: engine, graph: graph, selection: selection),
-        ),
-        const Divider(height: 1),
-        Expanded(child: _EvidencePanel(graph: graph, selection: selection)),
-        const Divider(height: 1),
-        Expanded(
-          flex: 2,
-          child: _ValidationPanel(report: report, onRevalidate: onRevalidate),
-        ),
-      ],
-    );
-  }
-}
-
-class _PropertyInspectorPanel extends StatefulWidget {
-  final EngineeringEngine engine;
-  final EngineeringGraph graph;
-  final GraphSelection selection;
-
-  const _PropertyInspectorPanel({
-    required this.engine,
-    required this.graph,
-    required this.selection,
-  });
-
-  @override
-  State<_PropertyInspectorPanel> createState() => _PropertyInspectorPanelState();
-}
-
-class _PropertyInspectorPanelState extends State<_PropertyInspectorPanel> {
-  late TextEditingController _nameController;
-  String? _editingNodeId;
-
-  @override
-  void initState() {
-    super.initState();
-    _nameController = TextEditingController();
-  }
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    super.dispose();
-  }
-
-  void _syncController(EngineeringNode? node) {
-    if (node == null) return;
-    if (_editingNodeId != node.id) {
-      _editingNodeId = node.id;
-      _nameController.text = node.displayName;
-    }
-  }
-
-  void _commitRename(String nodeId, String value) {
-    if (value.trim().isEmpty) return;
-    widget.engine.editing.execute(RenameNodeCommand(nodeId, value.trim()));
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    Widget body;
-    final selection = widget.selection;
-    if (selection.length == 1 && selection.nodeIds.isNotEmpty) {
-      final node = widget.graph.nodes[selection.nodeIds.first];
-      if (node == null) {
-        body = const Text('Node not found.');
-      } else {
-        _syncController(node);
-        body = Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Id: ${node.id}'),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _nameController,
-              decoration: const InputDecoration(labelText: 'Display Name'),
-              onSubmitted: (value) => _commitRename(node.id, value),
-              onEditingComplete: () => _commitRename(node.id, _nameController.text),
-            ),
-            const SizedBox(height: 8),
-            DropdownButtonFormField<NodeCategory>(
-              initialValue: node.category,
-              decoration: const InputDecoration(labelText: 'Category'),
-              items: NodeCategory.values
-                  .map((c) => DropdownMenuItem(value: c, child: Text(c.name)))
-                  .toList(),
-              onChanged: (value) {
-                if (value == null) return;
-                widget.engine.editing.execute(ChangeNodeCategoryCommand(node.id, value));
-              },
-            ),
-            const SizedBox(height: 8),
-            Text('Symbol: ${node.symbolId ?? '(none)'}'),
-            Text('Ports: ${node.ports.length}'),
-            Text('Evidence Links: ${node.evidenceLinks.length}'),
-          ],
-        );
-      }
-    } else if (selection.length > 1) {
-      body = Text('${selection.length} items selected.');
-    } else if (selection.relationshipIds.length == 1) {
-      final relationship = widget.graph.relationships[selection.relationshipIds.first];
-      body = relationship == null
-          ? const Text('Relationship not found.')
-          : _KeyValueList(entries: {
-              'Id': relationship.id,
-              'Type': relationship.relationshipType.name,
-              'Source': relationship.sourceNode,
-              'Target': relationship.targetNode,
-            });
-    } else if (selection.groupIds.length == 1) {
-      final group = widget.graph.groups[selection.groupIds.first];
-      body = group == null
-          ? const Text('Group not found.')
-          : _KeyValueList(entries: {
-              'Id': group.id,
-              'Kind': group.kind.name,
-              'Name': group.displayName,
-              'Members': group.memberNodeIds.length.toString(),
-              'Locked': group.locked.toString(),
-            });
-    } else {
-      body = const Text('Nothing selected.');
-    }
-
-    return Padding(
-      padding: const EdgeInsets.all(8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('Property Inspector', style: TextStyle(fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
-          Expanded(child: SingleChildScrollView(child: body)),
-        ],
-      ),
-    );
-  }
-}
-
-class _EvidencePanel extends StatelessWidget {
-  final EngineeringGraph graph;
-  final GraphSelection selection;
-
-  const _EvidencePanel({required this.graph, required this.selection});
-
-  @override
-  Widget build(BuildContext context) {
-    final node =
-        selection.nodeIds.length == 1 ? graph.nodes[selection.nodeIds.first] : null;
-    final links = node?.evidenceLinks ?? const [];
-    return Padding(
-      padding: const EdgeInsets.all(8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('Evidence', style: TextStyle(fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
-          Expanded(
-            child: SingleChildScrollView(
-              child: links.isEmpty
-                  ? const Text('No evidence linked.')
-                  : Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: links
-                          .map((link) => Text('${link.kind.name}: ${link.sourceReference}'))
-                          .toList(),
-                    ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ValidationPanel extends StatelessWidget {
-  final ValidationReport? report;
-  final VoidCallback onRevalidate;
-
-  const _ValidationPanel({required this.report, required this.onRevalidate});
-
-  @override
-  Widget build(BuildContext context) {
-    final findings = report?.findings ?? const [];
-    return Padding(
-      padding: const EdgeInsets.all(8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Text('Validation', style: TextStyle(fontWeight: FontWeight.bold)),
-              const Spacer(),
-              IconButton(
-                onPressed: onRevalidate,
-                icon: const Icon(Icons.refresh),
-                tooltip: 'Revalidate',
+              DemoStatusBar(
+                engine: engine,
+                selection: selection,
+                viewState: viewState,
+                cursorScenePosition: _cursorScenePosition,
               ),
             ],
           ),
-          if (findings.isEmpty)
-            const Text('Clean — no findings.')
-          else
-            Expanded(
-              child: ListView(
-                children: findings.map((finding) {
-                  final color = switch (finding.severity) {
-                    ValidationSeverity.error => Colors.red,
-                    ValidationSeverity.warning => Colors.orange,
-                    ValidationSeverity.info => Colors.blueGrey,
-                  };
-                  return Text(finding.toString(), style: TextStyle(color: color));
-                }).toList(),
-              ),
-            ),
-        ],
+        ),
       ),
     );
   }
 }
 
-class _StatusBar extends StatelessWidget {
-  final EngineeringEngine engine;
-  final GraphSelection selection;
+/// A thin draggable divider between side panels — "Resizable side panels...
+/// Basic implementation only. Do NOT implement a docking framework"
+/// (WORK_PACKAGE_022, ENGINE-TASK-000097).
+class _ResizeHandle extends StatelessWidget {
+  final void Function(double dx) onDrag;
 
-  const _StatusBar({required this.engine, required this.selection});
+  const _ResizeHandle({required this.onDrag});
 
   @override
   Widget build(BuildContext context) {
-    final diagnostics = engine.diagnostics();
-    return Container(
-      color: Theme.of(context).colorScheme.surfaceContainerHighest,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      child: Row(
-        children: [
-          Text('Engine: ${diagnostics.state.name}'),
-          const SizedBox(width: 16),
-          Text('v${diagnostics.version}'),
-          const SizedBox(width: 16),
-          Text('Symbols: ${diagnostics.registeredSymbolCount}'),
-          const SizedBox(width: 16),
-          Text('Selected: ${selection.length}'),
-          const SizedBox(width: 16),
-          Text(
-            'Undo: ${engine.editing.canUndo ? engine.editing.nextUndoDescription : "—"}',
-          ),
-          const SizedBox(width: 16),
-          Text(
-            'Redo: ${engine.editing.canRedo ? engine.editing.nextRedoDescription : "—"}',
-          ),
-        ],
+    return MouseRegion(
+      cursor: SystemMouseCursors.resizeColumn,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onPanUpdate: (details) => onDrag(details.delta.dx),
+        child: const SizedBox(width: 6, child: VerticalDivider(width: 6)),
       ),
-    );
-  }
-}
-
-class _KeyValueList extends StatelessWidget {
-  final Map<String, String> entries;
-
-  const _KeyValueList({required this.entries});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: entries.entries
-          .map((e) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 2),
-                child: Text('${e.key}: ${e.value}'),
-              ))
-          .toList(),
     );
   }
 }

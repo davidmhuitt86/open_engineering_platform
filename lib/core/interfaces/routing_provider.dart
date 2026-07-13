@@ -8,6 +8,14 @@ import '../views/diagram/routing_request.dart';
 /// explicitly requires to be Marketplace-replaceable: "the routing engine
 /// shall remain replaceable. Future routing engines may register through
 /// EngineRegistry."
+///
+/// **Determinism contract** (WORK_PACKAGE_022, ENGINE-TASK-000094): given
+/// an identical Engineering Graph, Diagram Layout, and routing
+/// configuration, a `RoutingProvider` implementation shall always produce
+/// identical routing output. This applies to every implementation
+/// registered through `EngineRegistry`, not just the default — no
+/// wall-clock reads, no randomness, no hidden mutable state outside the
+/// [RoutingContext] the caller supplies.
 abstract class RoutingProvider {
   String get id;
   String get displayName;

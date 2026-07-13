@@ -28,6 +28,7 @@ import 'interfaces/serialization_provider.dart';
 import 'interfaces/simulation_provider.dart';
 import 'interfaces/symbol_provider.dart';
 import 'interfaces/validation_provider.dart';
+import 'interfaces/view_state_provider.dart';
 import 'navigation/navigation_service.dart';
 import 'selection/selection_service.dart';
 import 'shared/ids.dart';
@@ -39,6 +40,7 @@ import 'views/diagram/diagram_renderer.dart';
 import 'views/diagram/diagram_view.dart';
 import 'views/diagram/in_memory_layout_provider.dart';
 import 'views/diagram/orthogonal_routing_provider.dart';
+import 'viewstate/view_state_service.dart';
 
 /// Primary runtime object of the Engineering Engine (SDD-025/026,
 /// STUDIO-TASK-000060).
@@ -51,7 +53,7 @@ import 'views/diagram/orthogonal_routing_provider.dart';
 /// No Flutter Widgets. No `BuildContext`. No Widget dependencies
 /// (SDD-025/026) — this entire `lib/core` tree is plain Dart.
 class EngineeringEngine {
-  static const String version = '0.2.0';
+  static const String version = '0.3.0';
 
   final EngineRegistry registry;
   final EngineEventBus _events = EngineEventBus();
@@ -60,6 +62,7 @@ class EngineeringEngine {
 
   final SelectionService? _selectionService;
   final NavigationService? _navigationService;
+  final ViewStateService? _viewStateService;
 
   EngineState _state = EngineState.uninitialized;
 
@@ -83,17 +86,19 @@ class EngineeringEngine {
     this.registry, {
     SelectionService? selectionService,
     NavigationService? navigationService,
+    ViewStateService? viewStateService,
   })  : _selectionService = selectionService,
-        _navigationService = navigationService;
+        _navigationService = navigationService,
+        _viewStateService = viewStateService;
 
   /// Builds an engine wired with default providers: [InMemoryGraphProvider]
   /// + [JsonFileSerializationProvider] for the graph, [SymbolLibrary]
   /// loading from [symbolsDirectory], [ValidationService],
   /// [NavigationService], [SelectionService],
   /// [JsonImportProvider]/[JsonExportProvider], [NoOpSimulationProvider],
-  /// [InMemoryLayoutProvider], [InMemoryClipboardProvider], and
-  /// [OrthogonalRoutingProvider] (WORK_PACKAGE_021). Call [initialize]
-  /// before use.
+  /// [InMemoryLayoutProvider], [InMemoryClipboardProvider],
+  /// [OrthogonalRoutingProvider] (WORK_PACKAGE_021), and [ViewStateService]
+  /// (WORK_PACKAGE_022). Call [initialize] before use.
   factory EngineeringEngine.create({String symbolsDirectory = 'assets/symbols'}) {
     final registry = EngineRegistry();
     final events = EngineEventBus();
@@ -102,6 +107,7 @@ class EngineeringEngine {
     final symbols = SymbolLibrary(symbolsDirectory: symbolsDirectory);
     final selectionService = SelectionService(events: events);
     final navigationService = NavigationService();
+    final viewStateService = ViewStateService();
 
     registry
       ..register<SerializationProvider>(serialization)
@@ -115,12 +121,14 @@ class EngineeringEngine {
       ..register<SimulationProvider>(NoOpSimulationProvider())
       ..register<LayoutProvider>(InMemoryLayoutProvider())
       ..register<ClipboardProvider>(InMemoryClipboardProvider())
-      ..register<RoutingProvider>(OrthogonalRoutingProvider());
+      ..register<RoutingProvider>(OrthogonalRoutingProvider())
+      ..register<ViewStateProvider>(viewStateService);
 
     return EngineeringEngine(
       registry,
       selectionService: selectionService,
       navigationService: navigationService,
+      viewStateService: viewStateService,
     );
   }
 
@@ -145,6 +153,7 @@ class EngineeringEngine {
     if (_state == EngineState.shutdown) return;
     await _selectionService?.dispose();
     await _navigationService?.dispose();
+    await _viewStateService?.dispose();
     await editing.dispose();
     await _events.dispose();
     _state = EngineState.shutdown;

@@ -10,6 +10,7 @@ import 'interfaces/serialization_provider.dart';
 import 'interfaces/simulation_provider.dart';
 import 'interfaces/symbol_provider.dart';
 import 'interfaces/validation_provider.dart';
+import 'interfaces/view_state_provider.dart';
 
 /// Thrown when [EngineRegistry.require] is called for a provider that was
 /// never registered.
@@ -43,6 +44,7 @@ class ProviderNotRegisteredException implements Exception {
 ///         -> LayoutProvider
 ///         -> ClipboardProvider
 ///         -> RoutingProvider
+///         -> ViewStateProvider
 /// ```
 ///
 /// Registration is by interface type. A future Marketplace package, an
@@ -80,6 +82,7 @@ class EngineRegistry {
   LayoutProvider get layout => require<LayoutProvider>();
   ClipboardProvider get clipboard => require<ClipboardProvider>();
   RoutingProvider get routing => require<RoutingProvider>();
+  ViewStateProvider get viewState => require<ViewStateProvider>();
 
   List<Type> get registeredTypes => _providers.keys.toList(growable: false);
 }

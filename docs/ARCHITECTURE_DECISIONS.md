@@ -321,3 +321,120 @@ object-model amendment itself, reviewed on its own.
 
 **Status.** Accepted (as a scoping decision) — Net/Confidence editing
 remains blocked on SDD-027A's approval, tracked in ADR-009/ADR-010.
+
+---
+
+## ADR-014 — ViewState as a Fifth, Permanently Separate Runtime Concern (WORK_PACKAGE_022)
+
+**Context.** WORK_PACKAGE_022 introduces zoom/pan/viewport size/visible
+layers/grid/guides-visible/theme/render options/hovered-port — none of
+which is Engineering Graph knowledge (SDD-024/025), Diagram Layout
+(ADR-011), or `GraphSelection`/`FocusState` (`docs/SELECTION_MODEL.md`).
+The spec is explicit: "Maintain the architectural separation between:
+Engineering Graph, Diagram Layout, ViewState, Selection, Undo/Redo... Do
+not merge responsibilities between these systems... ViewState and
+Selection shall never pass through the Command system."
+
+**Decision.** `ViewState`/`ViewStateProvider`/`ViewStateService`
+(`docs/VIEW_STATE.md`) are built structurally identical to
+`SelectionService` — a single live value, a change stream, explicit
+setters, resolved through `EngineRegistry` (`registry.viewState`) exactly
+like every other capability (ADR-001) — and never touch
+`CommandHistory`/`EditingService`. This makes five runtime systems, each
+with one job and one boundary:
+
+```
+Engineering Graph  — knowledge
+Diagram Layout     — node positions
+ViewState          — viewport/grid/guides/theme/hover (new)
+Selection          — GraphSelection/FocusState
+Undo/Redo          — CommandHistory over {graph, layout} only
+```
+
+The precedent wasn't new to invent — WORK_PACKAGE_021 already established
+that Selection and group collapse/expand/visibility stay outside command
+history because they're runtime view concerns, not engineering edits
+(`docs/UNDO_REDO.md`, "What's deliberately outside undo/redo"). ViewState
+is the same argument applied to a new category of runtime state.
+
+**Status.** Accepted. See `lib/core/viewstate/`, `lib/viewstate/viewstate.dart`.
+
+---
+
+## ADR-015 — Port Hover/Identity Stays View-Layer, Confirming the ADR-012 Boundary (WORK_PACKAGE_022)
+
+**Context.** ENGINE-TASK-000092 asks for port hover/highlight/drag-to-port
+interaction. The obvious naive approach — giving
+`EngineeringRelationship` named `sourcePort`/`targetPort` fields — would
+be an SDD-027 object-model change, and SDD-027 is frozen.
+`docs/ROUTING_ENGINE.md` (WORK_PACKAGE_021) already flagged this exact
+tension for routing's "nearest port" behavior and deliberately scoped
+around it rather than amending SDD-027.
+
+**Decision.** `PortReference{nodeId, portId}` (`docs/PORT_INTERACTION.md`)
+is a View-layer-only value type — never added to
+`EngineeringRelationship`. `ViewState.hoveredPort` carries hover;
+`FocusState.port` (unchanged, WORK_PACKAGE_021) continues to carry
+selection. Drag-to-connect/reconnect commits through the **existing**
+`CreateRelationshipCommand`/`ReconnectRelationshipCommand` — no new
+command type, because the underlying graph mutation isn't new, only the
+gesture that triggers it is.
+
+**Status.** Accepted — consistent with, and reconfirming, the WORK_PACKAGE_021
+port-snapping scoping decision in `docs/ROUTING_ENGINE.md`. If a future
+work package needs true named-port binding on relationships, that remains
+a separate SDD-027 amendment, reviewed on its own.
+
+---
+
+## ADR-016 — Routing Determinism and Shared Trunks Confirm the Provider Architecture Again (WORK_PACKAGE_022)
+
+**Context.** ADR-012 confirmed the provider/registry architecture absorbed
+`RoutingProvider` cleanly in WORK_PACKAGE_021. WORK_PACKAGE_022 adds a
+harder requirement: "Given identical Engineering Graph, Diagram Layout and
+routing configuration, identical routing output shall always be
+produced" — applying not just to today's `OrthogonalRoutingProvider` but
+to every future `RoutingProvider` implementation.
+
+**Decision/Finding.** Confirmed achievable with no interface-breaking
+change: the determinism contract is documented directly on
+`RoutingProvider` (`lib/core/interfaces/routing_provider.dart`) so it
+travels with the interface, `DiagramView.render` sorts relationships by
+`id` before routing (closing a `Map`-iteration-order determinism leak that
+had nothing to do with any specific routing algorithm), and "Shared
+Trunks" was added via one new **optional** field
+(`RoutingRequest.trunkKey`) plus one new `RoutingContext` method
+(`allocateTrunkColumn`) — existing callers and any future provider that
+ignores `trunkKey` see no behavior change. See
+`docs/ROUTING_ARCHITECTURE.md`.
+
+**Status.** Confirmed. Third work package in a row (after ADR-008,
+ADR-012) where a new requirement was absorbed by the existing
+provider/registry design without structural strain.
+
+---
+
+## ADR-017 — Ephemeral Guides vs. Undoable Align/Distribute: Two Different Kinds of "Alignment" (WORK_PACKAGE_022)
+
+**Context.** ENGINE-TASK-000091 bundles two behaviors under "Alignment &
+Guides" that are easy to conflate but architecturally distinct: smart
+guides shown *while dragging* (a visual hint, discarded the instant the
+drag ends) and Align/Distribute *actions* (a deliberate, explicit,
+permanent layout mutation the user invokes from a menu).
+
+**Decision.** `AlignmentGuideComputer` (pure function: dragged bounds +
+sibling bounds + threshold → guide lines, and a `snapToGuides` helper) is
+**not** a command and produces no history entry — it's recomputed on
+every drag frame and never stored, exactly like `GridComputer`'s snap
+math (`docs/GRID_SYSTEM.md`). `AlignNodesCommand`/`DistributeNodesCommand`,
+by contrast, are real `EditingCommand` implementations following the same
+capture-previous-position/apply/revert shape as WORK_PACKAGE_021's
+`MoveNodesCommand` — because they permanently change `DiagramLayoutState`
+and the user must be able to undo them. The dividing line is not "does
+this involve alignment," it's "does this durably change layout state" —
+the same test that already separates hover (ViewState) from a committed
+connection (a command), per ADR-014/ADR-015.
+
+**Status.** Accepted. See `lib/core/views/diagram/alignment_guide_computer.dart`,
+`lib/core/editing/commands/align_nodes_command.dart`,
+`lib/core/editing/commands/distribute_nodes_command.dart`.

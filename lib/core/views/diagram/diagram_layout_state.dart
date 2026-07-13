@@ -30,4 +30,21 @@ class DiagramLayoutState {
     final next = {...positions}..remove(nodeId);
     return DiagramLayoutState(positions: next);
   }
+
+  Map<String, Object?> toJson() => {
+        'positions': positions.map((id, p) => MapEntry(id, {'dx': p.dx, 'dy': p.dy})),
+      };
+
+  factory DiagramLayoutState.fromJson(Map<String, Object?> json) {
+    final raw = json['positions'] as Map? ?? const {};
+    return DiagramLayoutState(
+      positions: raw.map((id, value) {
+        final point = value as Map;
+        return MapEntry(
+          id as String,
+          Point2D((point['dx'] as num).toDouble(), (point['dy'] as num).toDouble()),
+        );
+      }),
+    );
+  }
 }

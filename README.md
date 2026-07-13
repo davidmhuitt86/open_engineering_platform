@@ -7,10 +7,20 @@ selection, import/export, and a simulation framework placeholder.
 Status: **Phase 1 (WORK_PACKAGE_019) implemented.** **WORK_PACKAGE_020**
 (EKE architectural analysis) **complete** — documentation only, no engine
 code changes (see `docs/EKE_*.md` below). **WORK_PACKAGE_021** (Engineering
-Graph Editing) **implemented** — the engine is now a fully interactive,
+Graph Editing) **implemented** — the engine is a fully interactive,
 undoable editor: create/delete/move/duplicate nodes and relationships,
 multi/box selection, grouping, clipboard, deterministic undo/redo, and a
-replaceable orthogonal routing engine.
+replaceable orthogonal routing engine. **WORK_PACKAGE_022** (Diagram
+Editing Environment) **implemented** — a professional editing/drafting
+experience around that stable Engineering Graph: `ViewState` (zoom/pan/
+viewport/grid/guides/theme, a fifth permanently-separate runtime system,
+never in undo/redo), named layout persistence, a computed grid/snap
+system, ephemeral alignment guides plus real undoable Align/Distribute
+commands, port hover and drag-to-connect/reconnect (reusing the existing
+relationship commands), routing improvements (shared trunks, two-axis
+corner cleanup, an explicit determinism contract), viewport navigation
+math with back/forward history, and a drafting-tool Demonstration Host
+(rulers, coordinate readout, resizable panels).
 
 Governed by SDD-024 through SDD-030 plus amendments SDD-024A/027A/028A
 (`docs/specifications/`, `docs/amendments/`). Implementation reasoning
@@ -52,11 +62,16 @@ See `docs/ENGINEERING_ENGINE.md` for the full public API.
 | `docs/DIAGRAM_STUDIO.md` | The View layer, Diagram View, and the Demonstration Host (**not** Diagram Studio) |
 | `docs/GRAPH_EDITING.md` | Editing philosophy, what's editable, movement-as-layout, grouping, clipboard |
 | `docs/UNDO_REDO.md` | The command model, `CommandHistory`, `EditingService`, what's outside undo/redo |
-| `docs/ROUTING_ENGINE.md` | `RoutingProvider`, the default orthogonal router, port-snapping scoping |
+| `docs/ROUTING_ENGINE.md` | `RoutingProvider`, the default orthogonal router, port-snapping scoping (WORK_PACKAGE_021 base) |
 | `docs/SELECTION_MODEL.md` | `GraphSelection` vs. `FocusState`, multi/box/toggle selection |
+| `docs/VIEW_STATE.md` | `ViewState`/`ViewStateProvider`, the fifth runtime concern, viewport navigation, serialization |
+| `docs/LAYOUT_SYSTEM.md` | Named layout persistence, `JsonFileLayoutSerializer`, why three parallel serializers |
+| `docs/GRID_SYSTEM.md` | `GridSettings`/`GridComputer`, plus Alignment & Guides (smart guides vs. Align/Distribute commands) |
+| `docs/ROUTING_ARCHITECTURE.md` | WORK_PACKAGE_022 routing additions: determinism contract, two-axis corner cleanup, Shared Trunks |
+| `docs/PORT_INTERACTION.md` | `PortReference`, hover vs. selection, drag-to-connect/reconnect, `ConnectionValidator` |
 | `docs/ARCHITECTURE_DECISIONS.md` | Why — the ADR log for implementation decisions |
 | `docs/specifications/SDD-0{24..30}-*.md`, `docs/amendments/SDD-0{24,27,28}A-*.md` | The architecture itself |
-| `docs/tasks/WORK_PACKAGE_019.md`, `WORK_PACKAGE_020.md`, `WORK_PACKAGE_021.md` | The governing work packages |
+| `docs/tasks/WORK_PACKAGE_019.md`, `WORK_PACKAGE_020.md`, `WORK_PACKAGE_021.md`, `WORK_PACKAGE_022.md` | The governing work packages |
 
 ### EKE reference-implementation analysis (WORK_PACKAGE_020)
 
@@ -88,7 +103,7 @@ flutter test
 
 cd example
 flutter analyze
-flutter test integration_test/app_test.dart -d windows
+flutter test integration_test/ -d windows
 flutter build windows
 ```
 

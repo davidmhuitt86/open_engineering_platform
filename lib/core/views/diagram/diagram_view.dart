@@ -64,8 +64,15 @@ class DiagramView implements EngineeringView<DiagramScene> {
       );
     }).toList();
 
+    // Sorted by id, not raw Map iteration order — routing is required to
+    // be deterministic (WORK_PACKAGE_022, ENGINE-TASK-000094): identical
+    // graph content must always route identically, independent of
+    // incidental insertion order.
+    final orderedRelationships = graph.relationships.values.toList()
+      ..sort((a, b) => a.id.compareTo(b.id));
+
     final routingContext = RoutingContext();
-    final wireVisuals = graph.relationships.values.map((relationship) {
+    final wireVisuals = orderedRelationships.map((relationship) {
       final sourceNode = graph.nodes[relationship.sourceNode];
       final targetNode = graph.nodes[relationship.targetNode];
       final sourceAnchor = _anchorFor(
@@ -88,6 +95,7 @@ class DiagramView implements EngineeringView<DiagramScene> {
                 relationshipId: relationship.id,
                 source: sourceAnchor,
                 target: targetAnchor,
+                trunkKey: relationship.sourceNode,
               ),
               routingContext,
             );

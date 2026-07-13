@@ -4,6 +4,7 @@
 /// consumers (the Demonstration Host, tests, and eventually Studio) import.
 library;
 
+export '../core/graph/algorithms/connection_validator.dart';
 export '../core/graph/algorithms/graph_query.dart';
 export '../core/graph/algorithms/graph_traversal.dart';
 export '../core/graph/builders/graph_builder.dart';

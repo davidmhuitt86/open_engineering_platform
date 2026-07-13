@@ -3,6 +3,7 @@
 library;
 
 export '../core/editing/command_history.dart';
+export '../core/editing/commands/align_nodes_command.dart';
 export '../core/editing/commands/change_node_category_command.dart';
 export '../core/editing/commands/create_group_command.dart';
 export '../core/editing/commands/create_node_command.dart';
@@ -10,6 +11,7 @@ export '../core/editing/commands/create_relationship_command.dart';
 export '../core/editing/commands/delete_many_command.dart';
 export '../core/editing/commands/delete_node_command.dart';
 export '../core/editing/commands/delete_relationship_command.dart';
+export '../core/editing/commands/distribute_nodes_command.dart';
 export '../core/editing/commands/duplicate_node_command.dart';
 export '../core/editing/commands/duplicate_selection_command.dart';
 export '../core/editing/commands/move_node_command.dart';

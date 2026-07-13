@@ -16,11 +16,6 @@ Rect rect2DToRect(Rect2D rect) {
   return Rect.fromLTRB(rect.left, rect.top, rect.right, rect.bottom);
 }
 
-/// Snaps a point to a square grid (WORK_PACKAGE_021 ENGINE-TASK-000081:
-/// "Snap Preview").
-Point2D snapToGrid(Point2D point, double gridSize) {
-  return Point2D(
-    (point.dx / gridSize).round() * gridSize,
-    (point.dy / gridSize).round() * gridSize,
-  );
-}
+// Grid snapping moved to the engine's `GridComputer.snap` (WORK_PACKAGE_022,
+// ENGINE-TASK-000090) — configurable spacing/toggle via ViewState.GridSettings
+// rather than this package's own fixed constant.
