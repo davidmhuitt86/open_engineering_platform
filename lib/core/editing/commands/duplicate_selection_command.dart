@@ -18,6 +18,7 @@ class DuplicateSelectionCommand implements EditingCommand {
   DuplicateSelectionCommand(this.selection, {this.offset = const Point2D(24, 24)});
 
   List<String> get duplicatedNodeIds => _paste.pastedNodeIds;
+  List<String> get duplicatedAnnotationIds => _paste.pastedAnnotationIds;
 
   @override
   String get description => 'Duplicate';

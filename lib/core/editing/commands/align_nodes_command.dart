@@ -28,8 +28,11 @@ class AlignNodesCommand implements EditingCommand {
 
     final bounds = <String, Rect2D>{};
     for (final id in nodeIds) {
-      final position = session.layout.positionOf(id);
-      if (position == null) continue;
+      if (!session.graph.nodes.containsKey(id)) continue;
+      // Resolves the effective position (tracked, or the same
+      // auto-layout fallback DiagramView renders with) so aligning a
+      // never-moved node still works (WORK_PACKAGE_023 finding).
+      final position = DiagramLayout.resolvePosition(session.graph, session.layout, id);
       bounds[id] = Rect2D(
         left: position.dx,
         top: position.dy,
@@ -47,7 +50,8 @@ class AlignNodesCommand implements EditingCommand {
     final centerY = (minTop + maxBottom) / 2;
 
     _previousPositions = {
-      for (final id in bounds.keys) id: session.layout.positionOf(id)!,
+      for (final id in bounds.keys)
+        id: DiagramLayout.resolvePosition(session.graph, session.layout, id),
     };
 
     final newPositions = <String, Point2D>{};

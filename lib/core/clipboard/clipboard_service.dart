@@ -35,6 +35,7 @@ class ClipboardService {
       nodeIds: selection.nodeIds,
       relationshipIds: selection.relationshipIds,
       groupIds: selection.groupIds,
+      annotationIds: selection.annotationIds,
     );
   }
 

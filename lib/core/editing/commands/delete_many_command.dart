@@ -1,29 +1,35 @@
 import '../../graph/models/engineering_group.dart';
 import '../../graph/models/engineering_node.dart';
 import '../../graph/models/engineering_relationship.dart';
+import '../../views/diagram/diagram_annotation.dart';
 import '../../views/diagram/diagram_geometry.dart';
 import '../editing_command.dart';
 import '../editing_session.dart';
 
-/// Deletes a batch of nodes/relationships/groups as one undoable step
-/// (used by Cut and multi-selection Delete). Snapshots the full
-/// `graph.groups` map before mutating (node deletion cascades into every
-/// surviving group's `memberNodeIds`, not just the explicitly deleted
-/// ones — see `DeleteNodeCommand`) so revert is exact.
+/// Deletes a batch of nodes/relationships/groups/annotations as one
+/// undoable step (used by Cut and multi-selection Delete). Snapshots the
+/// full `graph.groups` map before mutating (node deletion cascades into
+/// every surviving group's `memberNodeIds`, not just the explicitly
+/// deleted ones — see `DeleteNodeCommand`) so revert is exact.
+/// [annotationIds] (WORK_PACKAGE_023) is a Diagram Layout deletion,
+/// captured and restored the same way removed positions are.
 class DeleteManyCommand implements EditingCommand {
   final Set<String> nodeIds;
   final Set<String> relationshipIds;
   final Set<String> groupIds;
+  final Set<String> annotationIds;
 
   Map<String, EngineeringNode> _removedNodes = const {};
   Map<String, EngineeringRelationship> _removedRelationships = const {};
   Map<String, EngineeringGroup>? _groupsSnapshot;
   Map<String, Point2D> _removedPositions = const {};
+  Map<String, DiagramAnnotation> _removedAnnotations = const {};
 
   DeleteManyCommand({
     this.nodeIds = const {},
     this.relationshipIds = const {},
     this.groupIds = const {},
+    this.annotationIds = const {},
   });
 
   @override
@@ -63,6 +69,14 @@ class DeleteManyCommand implements EditingCommand {
       graph = graph.withoutGroup(id);
     }
 
+    _removedAnnotations = {
+      for (final id in annotationIds)
+        if (layout.annotationOf(id) != null) id: layout.annotationOf(id)!,
+    };
+    for (final id in annotationIds) {
+      layout = layout.withoutAnnotation(id);
+    }
+
     return session.copyWith(graph: graph, layout: layout);
   }
 
@@ -83,6 +97,9 @@ class DeleteManyCommand implements EditingCommand {
     var layout = session.layout;
     for (final entry in _removedPositions.entries) {
       layout = layout.withPosition(entry.key, entry.value);
+    }
+    for (final annotation in _removedAnnotations.values) {
+      layout = layout.withAnnotation(annotation);
     }
 
     return session.copyWith(graph: graph, layout: layout);

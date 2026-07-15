@@ -3,6 +3,7 @@ import '../../graph/models/engineering_group.dart';
 import '../../graph/models/engineering_node.dart';
 import '../../graph/models/engineering_relationship.dart';
 import '../../shared/ids.dart';
+import '../../views/diagram/diagram_annotation.dart';
 import '../../views/diagram/diagram_geometry.dart';
 import '../editing_command.dart';
 import '../editing_session.dart';
@@ -10,7 +11,8 @@ import '../editing_session.dart';
 /// Pastes a [ClipboardEntry], generating fresh ids for every object and
 /// remapping relationship/group-membership references accordingly
 /// (ENGINE-TASK-000083: "Generate new identifiers. Preserve relationships
-/// where possible.").
+/// where possible."). Extended in WORK_PACKAGE_023, ENGINE-TASK-000100 to
+/// also paste copied annotations, offset the same way nodes are.
 class PasteCommand implements EditingCommand {
   final ClipboardEntry entry;
   final Point2D offset;
@@ -18,6 +20,7 @@ class PasteCommand implements EditingCommand {
   List<String> _pastedNodeIds = const [];
   List<String> _pastedRelationshipIds = const [];
   List<String> _pastedGroupIds = const [];
+  List<String> _pastedAnnotationIds = const [];
 
   PasteCommand(this.entry, {this.offset = const Point2D(24, 24)});
 
@@ -25,6 +28,8 @@ class PasteCommand implements EditingCommand {
   /// [apply], read by the caller to select the pasted copies (selection
   /// itself stays outside the command system).
   List<String> get pastedNodeIds => _pastedNodeIds;
+
+  List<String> get pastedAnnotationIds => _pastedAnnotationIds;
 
   @override
   String get description => 'Paste';
@@ -80,9 +85,31 @@ class PasteCommand implements EditingCommand {
       ));
     }
 
+    final pastedAnnotationIds = <String>[];
+    for (final annotation in entry.annotations) {
+      final newId = EngineIds.generate('annotation');
+      layout = layout.withAnnotation(DiagramAnnotation(
+        id: newId,
+        type: annotation.type,
+        text: annotation.text,
+        position: annotation.position.translate(offset.dx, offset.dy),
+        rotation: annotation.rotation,
+        // Only remap the anchor when the anchored node/relationship was
+        // itself part of this same copy — otherwise the anchor is
+        // dropped rather than silently pointing at an unrelated original
+        // object outside the pasted selection.
+        anchorNodeId: annotation.anchorNodeId == null
+            ? null
+            : nodeIdMap[annotation.anchorNodeId],
+        metadata: annotation.metadata,
+      ));
+      pastedAnnotationIds.add(newId);
+    }
+
     _pastedNodeIds = nodeIdMap.values.toList();
     _pastedRelationshipIds = pastedRelationshipIds;
     _pastedGroupIds = groupIdMap.values.toList();
+    _pastedAnnotationIds = pastedAnnotationIds;
 
     return session.copyWith(graph: graph, layout: layout);
   }
@@ -100,6 +127,9 @@ class PasteCommand implements EditingCommand {
     for (final id in _pastedNodeIds) {
       graph = graph.withoutNode(id);
       layout = layout.withoutPosition(id);
+    }
+    for (final id in _pastedAnnotationIds) {
+      layout = layout.withoutAnnotation(id);
     }
     return session.copyWith(graph: graph, layout: layout);
   }

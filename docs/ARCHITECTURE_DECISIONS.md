@@ -438,3 +438,140 @@ connection (a command), per ADR-014/ADR-015.
 **Status.** Accepted. See `lib/core/views/diagram/alignment_guide_computer.dart`,
 `lib/core/editing/commands/align_nodes_command.dart`,
 `lib/core/editing/commands/distribute_nodes_command.dart`.
+
+---
+
+## ADR-018 — Wire Overrides, Annotations, Layers, and Transforms Join Diagram Layout (WORK_PACKAGE_023)
+
+**Context.** WORK_PACKAGE_023 needs four new pieces of visual state:
+manual wire routes (ENGINE-TASK-000099), annotations
+(ENGINE-TASK-000100), layers (ENGINE-TASK-000101), and per-node rotation/
+mirror transforms (ENGINE-TASK-000102). The work package is explicit:
+"No new architectural subsystems shall be introduced." SDD-024 itself
+lists Rotation/Layer/Visibility as example Visual Layout data, alongside
+Position — the same category ADR-011 already put `positions` in.
+
+**Decision.** All four become new sibling maps on `DiagramLayoutState`
+(`wireOverrides`, `annotations`, `layers`/`layerAssignments`,
+`transforms`), following `positions`' exact shape: plain data, `withX`/
+`withoutX` accessors, `toJson`/`fromJson`. None of it touches
+`EngineeringGraph`. This is the fourth work package running the ADR-011
+pattern (position → layout, not graph) against new kinds of visual
+state, each time confirming the same container absorbs it without
+strain.
+
+**Status.** Accepted. See `lib/core/views/diagram/diagram_layout_state.dart`,
+`docs/WIRE_EDITING.md`, `docs/ANNOTATION_SYSTEM.md`, `docs/LAYER_SYSTEM.md`.
+
+---
+
+## ADR-019 — Productivity Features Stay Host-Side; `EditingCommand`'s Interface Is Not Touched (WORK_PACKAGE_023)
+
+**Context.** ENGINE-TASK-000105 asks for "Repeat Last Command," "Recent
+Commands," "Favorites," "Custom Tool Palette," "Keyboard Shortcut
+Manager," and "Context Menus." The obvious implementation of "Repeat
+Last Command" would add a `repeat()` method to `EditingCommand`. Dart's
+`implements` clause never inherits behavior — every one of the ~25
+existing command classes uses `implements EditingCommand`, so adding any
+new method to that interface, even with a default body written on the
+abstract class, would force an edit to all ~25 files to satisfy the
+interface contract.
+
+**Decision.** `EditingCommand` is unchanged. `CommandHistory`/
+`EditingService` gained one additive getter, `recentDescriptions` (built
+from the *existing* undo stack, not a new tracking structure) for Recent
+Commands. Everything else — Repeat, Favorites, Custom Tool Palette,
+Keyboard Shortcut Manager, Context Menus — is Demonstration Host UI that
+reuses the host's own existing action methods (each of which already
+calls `engine.editing.execute(...)`), which is "reuse the existing
+Command architecture" read literally rather than as a gap to fill with
+new engine surface.
+
+**Status.** Accepted — a scoping decision favoring a contained, additive
+change over a mechanical edit to every command file for a
+productivity nice-to-have. See `lib/core/editing/command_history.dart`.
+
+---
+
+## ADR-020 — `SearchProvider` Implements an SDD-026 Service That Was Never Built (WORK_PACKAGE_023)
+
+**Context.** SDD-026 (frozen) already names a "Search Engine" and a
+public `SearchService` in its Public Interface list — this predates
+WORK_PACKAGE_023 entirely. WP019–022 never implemented it. WP023
+(ENGINE-TASK-000104) requires Engineering Graph + Diagram Layout search
+with Next/Previous/Zoom-To/Select/Center Result navigation.
+
+**Decision.** `SearchProvider`/`SearchService`, registered through
+`EngineRegistry` exactly like every other capability (ADR-001) — the one
+new registry entry this work package adds, flagged explicitly here for
+the reviewer even though it is implementing a spec entry that already
+existed, not introducing new architecture. Result navigation
+(Next/Previous/current) was added to the existing `NavigationService`
+rather than invented as new state, since it's the same category of
+runtime, non-persisted index `NavigationService` already tracked for
+highlight paths. "Zoom To/Select/Center Result" were **not** built as
+new engine methods — they're Demonstration Host compositions of
+`ViewStateService.centerSelection`/`SelectionService.selectNode`, so
+there is exactly one implementation of "select and center on this
+thing," not two to keep in sync.
+
+**Status.** Accepted. See `lib/core/interfaces/search_provider.dart`,
+`lib/core/search/`, `docs/SEARCH_AND_NAVIGATION.md`.
+
+---
+
+## ADR-021 — Editing Constraints Are Advisory, Living in ViewState Like GridSettings (WORK_PACKAGE_023)
+
+**Context.** ENGINE-TASK-000103 asks for Orthogonal Movement, Axis Lock,
+Angle Constraint, Snap Priority, Connection Protection, and Minimum Wire
+Length. The naive implementation would have commands (`MoveNodesCommand`,
+wire-editing) read constraint state and conditionally change their own
+behavior — which would mean `EditingCommand`s depending on `ViewState`,
+breaking the boundary this entire work package (and WP022 before it) is
+built to hold: Command History owns Graph/Layout mutations, ViewState is
+a separate, permanently non-command runtime concern.
+
+**Decision.** `EditingConstraints` lives on `ViewState` (identical role
+to `GridSettings`, WORK_PACKAGE_022). `ConstraintMath`'s pure functions
+(`applyOrthogonalLock`, `lockToAxis`, `snapAngle`,
+`hasProtectedConnections`, `resolveDragPosition`) are called by the
+Demonstration Host *before* it constructs a command — the command itself
+never reads a constraint, never rejects anything, and stays exactly what
+it has always been: a pure, unconditional function of its
+`EditingSession`. Layer lock (ADR-018/`docs/LAYER_SYSTEM.md`) follows the
+identical advisory pattern for the same reason.
+
+**Status.** Accepted. See `lib/core/editing/editing_constraints.dart`,
+`lib/core/editing/constraint_math.dart`, `docs/EDITING_CONSTRAINTS.md`.
+
+---
+
+## ADR-022 — Layout-Mutating Commands Must Resolve a Fallback Position, Not Assume a Tracked One (WORK_PACKAGE_023)
+
+**Context.** While building and integration-testing the new Rotate/
+Mirror/Array-Place commands, array-placing a node from the unmodified
+seed graph silently produced no duplicate. The root cause turned out to
+predate this work package: `AlignNodesCommand`/`DistributeNodesCommand`
+(WORK_PACKAGE_022) read `DiagramLayoutState.positionOf(id)` directly and
+silently skipped any node where it returned `null` — which is every node
+that has never been dragged, since `DiagramLayoutState.positions` starts
+empty and `DiagramView` only ever *renders* the auto-layout fallback
+(`DiagramLayout.compute`) without persisting it back into the layout.
+`CommandHistory.execute` pushes onto the undo stack unconditionally, so
+undo becoming enabled never proved the operation actually did anything —
+this dormant no-op had gone unnoticed since WORK_PACKAGE_022.
+
+**Decision.** Added `DiagramLayout.resolvePosition(graph, layout,
+nodeId)` — tracked position if present, else the identical fallback
+`DiagramView` already renders with — and switched all five affected
+commands (`AlignNodesCommand`, `DistributeNodesCommand`,
+`RotateNodesCommand`, `MirrorNodesCommand`, `ArrayPlaceCommand`) to use
+it. Fixed the two WORK_PACKAGE_022 commands as well as the three new
+ones, rather than leaving an inconsistency where old and new
+layout-mutating commands behave differently on a never-moved node.
+
+**Status.** Accepted — a bug fix within the existing architecture, not a
+new subsystem. See `lib/core/views/diagram/diagram_layout.dart`,
+`docs/GRAPH_EDITING.md`. Regression-tested in
+`test/editing/align_distribute_commands_test.dart` and
+`test/editing/placement_commands_test.dart` ("Never-moved nodes" groups).

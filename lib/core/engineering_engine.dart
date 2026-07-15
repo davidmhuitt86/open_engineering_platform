@@ -23,6 +23,7 @@ import 'interfaces/import_provider.dart';
 import 'interfaces/layout_provider.dart';
 import 'interfaces/navigation_provider.dart';
 import 'interfaces/routing_provider.dart';
+import 'interfaces/search_provider.dart';
 import 'interfaces/selection_provider.dart';
 import 'interfaces/serialization_provider.dart';
 import 'interfaces/simulation_provider.dart';
@@ -30,6 +31,7 @@ import 'interfaces/symbol_provider.dart';
 import 'interfaces/validation_provider.dart';
 import 'interfaces/view_state_provider.dart';
 import 'navigation/navigation_service.dart';
+import 'search/search_service.dart';
 import 'selection/selection_service.dart';
 import 'shared/ids.dart';
 import 'simulation/no_op_simulation_provider.dart';
@@ -53,7 +55,7 @@ import 'viewstate/view_state_service.dart';
 /// No Flutter Widgets. No `BuildContext`. No Widget dependencies
 /// (SDD-025/026) — this entire `lib/core` tree is plain Dart.
 class EngineeringEngine {
-  static const String version = '0.3.0';
+  static const String version = '0.4.0';
 
   final EngineRegistry registry;
   final EngineEventBus _events = EngineEventBus();
@@ -97,8 +99,10 @@ class EngineeringEngine {
   /// [NavigationService], [SelectionService],
   /// [JsonImportProvider]/[JsonExportProvider], [NoOpSimulationProvider],
   /// [InMemoryLayoutProvider], [InMemoryClipboardProvider],
-  /// [OrthogonalRoutingProvider] (WORK_PACKAGE_021), and [ViewStateService]
-  /// (WORK_PACKAGE_022). Call [initialize] before use.
+  /// [OrthogonalRoutingProvider] (WORK_PACKAGE_021), [ViewStateService]
+  /// (WORK_PACKAGE_022), and [SearchService] (WORK_PACKAGE_023 —
+  /// implementing SDD-026's previously-unbuilt "Search Engine"). Call
+  /// [initialize] before use.
   factory EngineeringEngine.create({String symbolsDirectory = 'assets/symbols'}) {
     final registry = EngineRegistry();
     final events = EngineEventBus();
@@ -122,7 +126,8 @@ class EngineeringEngine {
       ..register<LayoutProvider>(InMemoryLayoutProvider())
       ..register<ClipboardProvider>(InMemoryClipboardProvider())
       ..register<RoutingProvider>(OrthogonalRoutingProvider())
-      ..register<ViewStateProvider>(viewStateService);
+      ..register<ViewStateProvider>(viewStateService)
+      ..register<SearchProvider>(SearchService(symbols: symbols));
 
     return EngineeringEngine(
       registry,

@@ -23,6 +23,13 @@ class CommandHistory {
   String? get nextRedoDescription =>
       _redoStack.isEmpty ? null : _redoStack.last.description;
 
+  /// Descriptions of every executed command still on the undo stack,
+  /// most-recent-first (WORK_PACKAGE_023, ENGINE-TASK-000105: "Recent
+  /// Commands") — reuses the undo stack the history already maintains
+  /// rather than tracking a second, parallel list.
+  List<String> get recentDescriptions =>
+      _undoStack.reversed.map((c) => c.description).toList(growable: false);
+
   EditingSession execute(EditingCommand command, EditingSession session) {
     final next = command.apply(session);
     _undoStack.add(command);

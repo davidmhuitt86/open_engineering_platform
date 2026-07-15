@@ -20,7 +20,22 @@ commands, port hover and drag-to-connect/reconnect (reusing the existing
 relationship commands), routing improvements (shared trunks, two-axis
 corner cleanup, an explicit determinism contract), viewport navigation
 math with back/forward history, and a drafting-tool Demonstration Host
-(rulers, coordinate readout, resizable panels).
+(rulers, coordinate readout, resizable panels). **WORK_PACKAGE_023**
+(Professional Engineering Editing) **implemented** — professional
+drafting capability on top of that stable diagram editing environment:
+advanced selection (lasso/crossing/window/connected-component/similar/
+category/layer/invert), manual wire editing (insert/remove vertex, drag
+segment/corner, restore automatic routing — all through one
+`SetWireRouteCommand`), a full annotation system (text labels, leader
+notes, callouts, wire/component labels, revision notes — Diagram Layout
+data, undoable, selectable, copy/paste-able), drafting layers (create/
+delete/rename/visibility/lock/print-visibility/assignment), placement
+tools (rotate/mirror/array-place/replace-symbol), advisory editing
+constraints (orthogonal movement/axis lock/angle constraint/snap
+priority/minimum wire length/connection protection), Engineering Graph +
+Diagram Layout search (implementing SDD-026's previously-unbuilt Search
+Engine) with result navigation, and Demonstration Host productivity
+tooling (recent commands).
 
 Governed by SDD-024 through SDD-030 plus amendments SDD-024A/027A/028A
 (`docs/specifications/`, `docs/amendments/`). Implementation reasoning
@@ -69,9 +84,14 @@ See `docs/ENGINEERING_ENGINE.md` for the full public API.
 | `docs/GRID_SYSTEM.md` | `GridSettings`/`GridComputer`, plus Alignment & Guides (smart guides vs. Align/Distribute commands) |
 | `docs/ROUTING_ARCHITECTURE.md` | WORK_PACKAGE_022 routing additions: determinism contract, two-axis corner cleanup, Shared Trunks |
 | `docs/PORT_INTERACTION.md` | `PortReference`, hover vs. selection, drag-to-connect/reconnect, `ConnectionValidator` |
+| `docs/WIRE_EDITING.md` | Manual wire routes, `WireEditing` geometry (insert/remove/drag-segment/drag-corner/cleanup), `SetWireRouteCommand` |
+| `docs/ANNOTATION_SYSTEM.md` | `DiagramAnnotation`, annotation commands, selection/clipboard integration |
+| `docs/LAYER_SYSTEM.md` | `DiagramLayer`, layer commands, visibility filtering, advisory lock |
+| `docs/EDITING_CONSTRAINTS.md` | `EditingConstraints`, `ConstraintMath`, Snap Priority, why constraints are advisory |
+| `docs/SEARCH_AND_NAVIGATION.md` | `SearchProvider`/`SearchService`, result navigation on `NavigationService` |
 | `docs/ARCHITECTURE_DECISIONS.md` | Why — the ADR log for implementation decisions |
 | `docs/specifications/SDD-0{24..30}-*.md`, `docs/amendments/SDD-0{24,27,28}A-*.md` | The architecture itself |
-| `docs/tasks/WORK_PACKAGE_019.md`, `WORK_PACKAGE_020.md`, `WORK_PACKAGE_021.md`, `WORK_PACKAGE_022.md` | The governing work packages |
+| `docs/tasks/WORK_PACKAGE_019.md` … `WORK_PACKAGE_023.md` | The governing work packages |
 
 ### EKE reference-implementation analysis (WORK_PACKAGE_020)
 

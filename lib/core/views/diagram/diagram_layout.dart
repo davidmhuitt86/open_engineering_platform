@@ -1,5 +1,6 @@
 import '../../graph/models/engineering_graph.dart';
 import 'diagram_geometry.dart';
+import 'diagram_layout_state.dart';
 
 /// Deterministic auto-layout for [DiagramView].
 ///
@@ -25,5 +26,21 @@ class DiagramLayout {
       index++;
     }
     return positions;
+  }
+
+  /// A node's effective position — [layout]'s tracked position if it has
+  /// one, otherwise the same deterministic auto-layout fallback
+  /// [DiagramView] already renders with. Layout-mutating commands
+  /// (Align/Distribute/Rotate/Mirror/Array) use this instead of reading
+  /// `layout.positionOf` directly, so they work correctly even on nodes
+  /// that have never been explicitly moved — otherwise a node with no
+  /// tracked position silently drops out of the operation (WORK_PACKAGE_023
+  /// found this affecting a fresh, never-dragged seed graph).
+  static Point2D resolvePosition(
+    EngineeringGraph graph,
+    DiagramLayoutState layout,
+    String nodeId,
+  ) {
+    return layout.positionOf(nodeId) ?? compute(graph)[nodeId] ?? const Point2D(0, 0);
   }
 }

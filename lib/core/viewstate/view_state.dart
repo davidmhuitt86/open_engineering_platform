@@ -1,3 +1,4 @@
+import '../editing/editing_constraints.dart';
 import '../views/diagram/diagram_geometry.dart';
 import '../views/diagram/port_reference.dart';
 import 'grid_settings.dart';
@@ -5,7 +6,8 @@ import 'view_theme.dart';
 
 /// Runtime-only visualization state — zoom, pan, viewport size, visible
 /// layers, grid, guides, theme, render options, hovered port
-/// (WORK_PACKAGE_022, ENGINE-TASK-000088).
+/// (WORK_PACKAGE_022, ENGINE-TASK-000088), plus editing constraints
+/// (WORK_PACKAGE_023, ENGINE-TASK-000103).
 ///
 /// **Not** Engineering Knowledge (SDD-024) and **not** Diagram Layout
 /// (WP021) — a third, permanently separate concern (see
@@ -24,6 +26,7 @@ class ViewState {
   final ViewTheme theme;
   final Map<String, Object?> renderOptions;
   final PortReference? hoveredPort;
+  final EditingConstraints constraints;
 
   const ViewState({
     this.zoom = 1.0,
@@ -36,6 +39,7 @@ class ViewState {
     this.theme = ViewTheme.system,
     this.renderOptions = const {},
     this.hoveredPort,
+    this.constraints = EditingConstraints.defaults,
   });
 
   static const ViewState initial = ViewState();
@@ -52,6 +56,7 @@ class ViewState {
     Map<String, Object?>? renderOptions,
     PortReference? hoveredPort,
     bool clearHoveredPort = false,
+    EditingConstraints? constraints,
   }) {
     return ViewState(
       zoom: zoom ?? this.zoom,
@@ -64,6 +69,7 @@ class ViewState {
       theme: theme ?? this.theme,
       renderOptions: renderOptions ?? this.renderOptions,
       hoveredPort: clearHoveredPort ? null : (hoveredPort ?? this.hoveredPort),
+      constraints: constraints ?? this.constraints,
     );
   }
 
@@ -80,6 +86,7 @@ class ViewState {
         'hoveredPort': hoveredPort == null
             ? null
             : {'nodeId': hoveredPort!.nodeId, 'portId': hoveredPort!.portId},
+        'constraints': constraints.toJson(),
       };
 
   factory ViewState.fromJson(Map<String, Object?> json) {
@@ -108,6 +115,9 @@ class ViewState {
               nodeId: hoveredPortJson['nodeId'] as String,
               portId: hoveredPortJson['portId'] as String,
             ),
+      constraints: json['constraints'] == null
+          ? EditingConstraints.defaults
+          : EditingConstraints.fromJson(Map<String, Object?>.from(json['constraints'] as Map)),
     );
   }
 }

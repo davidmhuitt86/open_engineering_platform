@@ -76,6 +76,19 @@ void main() {
       session = history.redo(session);
       expect(session.graph.metadata['count'], 3);
     });
+
+    test('recentDescriptions lists the undo stack most-recent-first (WORK_PACKAGE_023)', () {
+      session = history.execute(_AddOneCommand(), session);
+      session = history.execute(_AddOneCommand(), session);
+      expect(history.recentDescriptions, ['add one', 'add one']);
+
+      session = history.undo(session);
+      expect(
+        history.recentDescriptions,
+        ['add one'],
+        reason: 'undo pops the stack recentDescriptions reads from',
+      );
+    });
   });
 
   group('EditingService', () {

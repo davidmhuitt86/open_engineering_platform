@@ -52,4 +52,19 @@ class GraphQuery {
         .whereType<EngineeringNode>()
         .toList();
   }
+
+  /// Nodes "similar to" [node] (WORK_PACKAGE_023, ENGINE-TASK-000098:
+  /// "Select Similar") — same [NodeCategory], and, when [node] has a
+  /// symbol assigned, also the same `symbolId` (a tighter match once a
+  /// concrete symbol is known; category alone is the fallback for
+  /// symbol-less nodes). Includes [node] itself, since it trivially
+  /// matches its own category/symbol — the expected "select similar"
+  /// result set already contains the node you started from.
+  List<EngineeringNode> similarTo(EngineeringNode node) {
+    return graph.nodes.values.where((candidate) {
+      if (candidate.category != node.category) return false;
+      if (node.symbolId != null) return candidate.symbolId == node.symbolId;
+      return true;
+    }).toList();
+  }
 }

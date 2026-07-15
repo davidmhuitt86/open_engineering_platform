@@ -26,6 +26,16 @@ import 'routing_request.dart';
 /// passed explicitly take precedence over — but fall back to — each
 /// node/relationship's own `runtime.selected`/`runtime.highlighted`
 /// flags, preserving Phase 1 callers.
+///
+/// WORK_PACKAGE_023 additions, both purely a matter of consulting
+/// [layout] data this View already reads (no new subsystem): a
+/// relationship with a manual [DiagramLayoutState.wireOverrideOf] entry
+/// (ENGINE-TASK-000099) uses that point list verbatim instead of calling
+/// [routing] — the deterministic auto-router path is otherwise untouched.
+/// A node assigned to a layer whose [DiagramLayer.visible] is `false`
+/// (ENGINE-TASK-000101) is excluded from the rendered [DiagramScene]
+/// entirely, the same way a View has always decided what to draw from
+/// layout data.
 class DiagramView implements EngineeringView<DiagramScene> {
   @override
   final String id = 'diagram';
@@ -49,7 +59,16 @@ class DiagramView implements EngineeringView<DiagramScene> {
     Point2D positionOf(String nodeId) =>
         layout?.positionOf(nodeId) ?? fallbackPositions[nodeId] ?? const Point2D(0, 0);
 
-    final nodeVisuals = graph.nodes.values.map((node) {
+    // WORK_PACKAGE_023, ENGINE-TASK-000101: a node assigned to a hidden
+    // layer is excluded from the scene entirely. Unassigned nodes are
+    // always visible.
+    bool isNodeVisible(String nodeId) {
+      final layerId = layout?.layerOf(nodeId);
+      if (layerId == null) return true;
+      return layout?.layerById(layerId)?.visible ?? true;
+    }
+
+    final nodeVisuals = graph.nodes.values.where((node) => isNodeVisible(node.id)).map((node) {
       final position = positionOf(node.id);
       final selected = selection?.containsNode(node.id) ?? node.runtime.selected;
       final highlighted = highlightedNodeIds.contains(node.id) || node.runtime.highlighted;
@@ -88,17 +107,24 @@ class DiagramView implements EngineeringView<DiagramScene> {
         towards: positionOf(relationship.sourceNode),
       );
 
-      final points = routing == null
-          ? [sourceAnchor, targetAnchor]
-          : routing.route(
-              RoutingRequest(
-                relationshipId: relationship.id,
-                source: sourceAnchor,
-                target: targetAnchor,
-                trunkKey: relationship.sourceNode,
-              ),
-              routingContext,
-            );
+      // WORK_PACKAGE_023, ENGINE-TASK-000099: a manual wire override
+      // (Insert/Remove Vertex, Drag Segment/Corner, Manual Route
+      // Override) is used verbatim, bypassing the router entirely. The
+      // auto-routed path stays deterministic (ADR-016) because this
+      // check only ever short-circuits it — it never changes what the
+      // router itself computes for un-overridden relationships.
+      final points = layout?.wireOverrideOf(relationship.id) ??
+          (routing == null
+              ? [sourceAnchor, targetAnchor]
+              : routing.route(
+                  RoutingRequest(
+                    relationshipId: relationship.id,
+                    source: sourceAnchor,
+                    target: targetAnchor,
+                    trunkKey: relationship.sourceNode,
+                  ),
+                  routingContext,
+                ));
 
       final selected =
           selection?.containsRelationship(relationship.id) ?? relationship.runtime.selected;

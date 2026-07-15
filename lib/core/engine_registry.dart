@@ -5,6 +5,7 @@ import 'interfaces/import_provider.dart';
 import 'interfaces/layout_provider.dart';
 import 'interfaces/navigation_provider.dart';
 import 'interfaces/routing_provider.dart';
+import 'interfaces/search_provider.dart';
 import 'interfaces/selection_provider.dart';
 import 'interfaces/serialization_provider.dart';
 import 'interfaces/simulation_provider.dart';
@@ -45,6 +46,7 @@ class ProviderNotRegisteredException implements Exception {
 ///         -> ClipboardProvider
 ///         -> RoutingProvider
 ///         -> ViewStateProvider
+///         -> SearchProvider
 /// ```
 ///
 /// Registration is by interface type. A future Marketplace package, an
@@ -83,6 +85,7 @@ class EngineRegistry {
   ClipboardProvider get clipboard => require<ClipboardProvider>();
   RoutingProvider get routing => require<RoutingProvider>();
   ViewStateProvider get viewState => require<ViewStateProvider>();
+  SearchProvider get search => require<SearchProvider>();
 
   List<Type> get registeredTypes => _providers.keys.toList(growable: false);
 }

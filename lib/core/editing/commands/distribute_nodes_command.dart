@@ -1,4 +1,5 @@
 import '../../views/diagram/diagram_geometry.dart';
+import '../../views/diagram/diagram_layout.dart';
 import '../editing_command.dart';
 import '../editing_session.dart';
 
@@ -21,9 +22,13 @@ class DistributeNodesCommand implements EditingCommand {
 
   @override
   EditingSession apply(EditingSession session) {
+    // Resolves each node's *effective* position (tracked, or the same
+    // auto-layout fallback DiagramView renders with) so distributing
+    // never-moved nodes still works (WORK_PACKAGE_023 finding).
     final positions = <String, Point2D>{
       for (final id in nodeIds)
-        if (session.layout.positionOf(id) != null) id: session.layout.positionOf(id)!,
+        if (session.graph.nodes.containsKey(id))
+          id: DiagramLayout.resolvePosition(session.graph, session.layout, id),
     };
     if (positions.length < 3) return session;
 

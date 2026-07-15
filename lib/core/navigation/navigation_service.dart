@@ -3,6 +3,7 @@ import 'dart:async';
 import '../graph/algorithms/graph_traversal.dart';
 import '../graph/models/engineering_graph.dart';
 import '../interfaces/navigation_provider.dart';
+import '../search/search_result.dart';
 import 'navigation_event.dart';
 
 /// Navigation/highlight/evidence-sync coordination (SDD-026
@@ -13,12 +14,50 @@ import 'navigation_event.dart';
 /// the one architectural behavior deliberately carried over from the
 /// reference implementation's `path-highlighter.js` (traversal-only) vs.
 /// its renderer (paint-only).
+///
+/// WORK_PACKAGE_023, ENGINE-TASK-000104 adds search-result navigation:
+/// [searchResults]/[currentResult] track *which* result of the last
+/// search is current — purely an index into that list, runtime-only, not
+/// persisted, not a command, the same category as the existing
+/// highlight-path state above. "Zoom To Result"/"Select Result"/"Center
+/// Result" are deliberately not implemented here — they're host-level
+/// combinations of [currentResult] with the existing
+/// `ViewStateService.fitSelection`/`SelectionService.selectNode`, so
+/// there is no duplicate zoom/select/center logic to maintain.
 class NavigationService implements NavigationProvider {
   final StreamController<NavigationEvent> _controller =
       StreamController<NavigationEvent>.broadcast();
 
+  List<SearchResult> _searchResults = const [];
+  int _currentResultIndex = -1;
+
   @override
   Stream<NavigationEvent> get events => _controller.stream;
+
+  List<SearchResult> get searchResults => _searchResults;
+
+  SearchResult? get currentResult =>
+      _currentResultIndex >= 0 && _currentResultIndex < _searchResults.length
+          ? _searchResults[_currentResultIndex]
+          : null;
+
+  /// Replaces the tracked result set (a fresh search) and resets to the
+  /// first result, if any.
+  void setSearchResults(List<SearchResult> results) {
+    _searchResults = results;
+    _currentResultIndex = results.isEmpty ? -1 : 0;
+  }
+
+  void nextResult() {
+    if (_searchResults.isEmpty) return;
+    _currentResultIndex = (_currentResultIndex + 1) % _searchResults.length;
+  }
+
+  void previousResult() {
+    if (_searchResults.isEmpty) return;
+    _currentResultIndex =
+        (_currentResultIndex - 1 + _searchResults.length) % _searchResults.length;
+  }
 
   @override
   void focusNode(String nodeId) {

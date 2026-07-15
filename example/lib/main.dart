@@ -4,14 +4,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:engineering_engine/engineering_engine.dart';
 
+import 'dialogs/array_placement_dialog.dart';
 import 'dialogs/grid_settings_dialog.dart';
+import 'dialogs/layer_panel_dialog.dart';
 import 'dialogs/named_layouts_dialog.dart';
+import 'dialogs/search_panel_dialog.dart';
 import 'geometry_utils.dart';
 import 'seed_graph.dart';
 import 'symbol_bundle_loader.dart';
 import 'widgets/graph_view_panel.dart';
 import 'widgets/inspector_panels.dart';
 import 'widgets/rulers.dart';
+import 'widgets/secondary_toolbar.dart';
 import 'widgets/status_bar.dart';
 import 'widgets/toolbar.dart';
 
@@ -95,6 +99,20 @@ class _HostShellState extends State<HostShell> {
   double _explorerWidth = 220;
   double _inspectorWidth = 320;
 
+  // WORK_PACKAGE_023: annotation drag state (ENGINE-TASK-000100).
+  String? _draggingAnnotationId;
+  Point2D? _annotationDragStartPosition;
+  Point2D _annotationDragTotalDelta = const Point2D(0, 0);
+
+  // WORK_PACKAGE_023: "Edit Route" mode (ENGINE-TASK-000099).
+  bool _wireEditModeActive = false;
+  List<Point2D>? _wireEditWorkingPoints;
+  int? _wireEditSelectedVertex;
+  int? _wireDragCornerIndex;
+  int? _wireDragSegmentIndex;
+  List<Point2D>? _wireDragBasePoints;
+  Point2D _wireDragTotalDelta = const Point2D(0, 0);
+
   StreamSubscription<EditingSession>? _sessionSub;
   StreamSubscription<GraphSelection>? _selectionSub;
   StreamSubscription<FocusState>? _focusSub;
@@ -123,6 +141,7 @@ class _HostShellState extends State<HostShell> {
     });
     _selectionSub = engine.registry.selection.changes.listen((s) {
       setState(() => selection = s);
+      if (_wireEditModeActive) _reseedWireEditPoints();
     });
     _focusSub = engine.registry.selection.focusChanges.listen((f) {
       setState(() => focus = f);
@@ -250,6 +269,7 @@ class _HostShellState extends State<HostShell> {
       nodeIds: selection.nodeIds,
       relationshipIds: selection.relationshipIds,
       groupIds: selection.groupIds,
+      annotationIds: selection.annotationIds,
     ));
     engine.registry.selection.deselectAll();
   }
@@ -337,7 +357,20 @@ class _HostShellState extends State<HostShell> {
     }
   }
 
-  void _handleBackgroundTap() {
+  // WORK_PACKAGE_023: clicking near a wire selects its relationship —
+  // without this, a relationship could never be selected via the canvas,
+  // making "Edit Route" mode (ENGINE-TASK-000099) unreachable.
+  void _handleBackgroundTap(Offset localPosition, DiagramScene scene) {
+    final relationshipId =
+        DiagramHitTesting.relationshipAt(scene, offsetToPoint(localPosition));
+    if (relationshipId != null) {
+      if (_toggleModifierPressed) {
+        engine.registry.selection.toggleRelationship(relationshipId);
+      } else {
+        engine.registry.selection.selectRelationship(relationshipId);
+      }
+      return;
+    }
     if (!_additiveModifierPressed) {
       engine.registry.selection.deselectAll();
     }
@@ -611,7 +644,340 @@ class _HostShellState extends State<HostShell> {
     });
   }
 
+  // --- Annotations (ENGINE-TASK-000100) --------------------------------
+
+  List<DiagramAnnotation> _effectiveAnnotations() {
+    final annotations = session!.layout.annotations.values.toList();
+    final draggingId = _draggingAnnotationId;
+    final start = _annotationDragStartPosition;
+    if (draggingId == null || start == null) return annotations;
+    return [
+      for (final a in annotations)
+        if (a.id == draggingId)
+          a.copyWith(
+              position: start.translate(_annotationDragTotalDelta.dx, _annotationDragTotalDelta.dy))
+        else
+          a,
+    ];
+  }
+
+  void _addAnnotation(AnnotationType type) {
+    final id = engine.graph.generateId('annotation');
+    final position = _cursorScenePosition ?? const Point2D(40, 40);
+    engine.editing.execute(CreateAnnotationCommand(DiagramAnnotation(
+      id: id,
+      type: type,
+      text: 'New ${type.name}',
+      position: position,
+    )));
+    engine.registry.selection.selectAnnotation(id);
+  }
+
+  void _handleAnnotationTap(String id) {
+    if (_toggleModifierPressed) {
+      engine.registry.selection.toggleAnnotation(id);
+    } else if (_additiveModifierPressed) {
+      engine.registry.selection.selectAnnotation(id, additive: true);
+    } else {
+      engine.registry.selection.selectAnnotation(id);
+    }
+  }
+
+  void _handleAnnotationDragStart(String id) {
+    final annotation = session!.layout.annotationOf(id);
+    if (annotation == null) return;
+    if (!selection.annotationIds.contains(id)) {
+      engine.registry.selection.selectAnnotation(id);
+    }
+    setState(() {
+      _draggingAnnotationId = id;
+      _annotationDragStartPosition = annotation.position;
+      _annotationDragTotalDelta = const Point2D(0, 0);
+    });
+  }
+
+  void _handleAnnotationDragUpdate(Offset delta) {
+    if (_draggingAnnotationId == null) return;
+    setState(() =>
+        _annotationDragTotalDelta = _annotationDragTotalDelta.translate(delta.dx, delta.dy));
+  }
+
+  void _handleAnnotationDragEnd() {
+    final id = _draggingAnnotationId;
+    final start = _annotationDragStartPosition;
+    if (id == null || start == null) return;
+    final newPosition = GridComputer.snap(
+      start.translate(_annotationDragTotalDelta.dx, _annotationDragTotalDelta.dy),
+      viewState.grid,
+    );
+    engine.editing.execute(UpdateAnnotationCommand(id, position: newPosition));
+    setState(() {
+      _draggingAnnotationId = null;
+      _annotationDragStartPosition = null;
+      _annotationDragTotalDelta = const Point2D(0, 0);
+    });
+  }
+
+  Future<void> _editAnnotationText(String id) async {
+    final annotation = session!.layout.annotationOf(id);
+    if (annotation == null) return;
+    final controller = TextEditingController(text: annotation.text);
+    final newText = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Edit annotation'),
+        content: TextField(controller: controller, autofocus: true, maxLines: 3),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(controller.text),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    if (newText != null) {
+      engine.editing.execute(UpdateAnnotationCommand(id, text: newText));
+    }
+  }
+
+  // --- Wire editing / "Edit Route" mode (ENGINE-TASK-000099) ------------
+
+  bool get _wireEditActive => _wireEditModeActive && selection.relationshipIds.length == 1;
+
+  void _reseedWireEditPoints() {
+    if (selection.relationshipIds.length != 1) {
+      setState(() {
+        _wireEditModeActive = false;
+        _wireEditWorkingPoints = null;
+        _wireEditSelectedVertex = null;
+      });
+      return;
+    }
+    final relationshipId = selection.relationshipIds.single;
+    final scene = engine.diagramView.render(
+      session!.graph,
+      layout: session!.layout,
+      routing: engine.registry.routing,
+      symbols: engine.registry.symbols,
+    );
+    final matches = scene.wires.where((w) => w.relationshipId == relationshipId).toList();
+    if (matches.isEmpty) return;
+    setState(() {
+      _wireEditWorkingPoints = List.of(matches.first.points);
+      _wireEditSelectedVertex = null;
+    });
+  }
+
+  void _toggleWireEditMode() {
+    if (_wireEditModeActive) {
+      setState(() {
+        _wireEditModeActive = false;
+        _wireEditWorkingPoints = null;
+        _wireEditSelectedVertex = null;
+      });
+      return;
+    }
+    if (selection.relationshipIds.length != 1) return;
+    setState(() => _wireEditModeActive = true);
+    _reseedWireEditPoints();
+  }
+
+  void _handleWireVertexTap(int index) => setState(() => _wireEditSelectedVertex = index);
+
+  void _insertWireVertex() {
+    final points = _wireEditWorkingPoints;
+    if (points == null || selection.relationshipIds.length != 1 || points.length < 2) return;
+    final relationshipId = selection.relationshipIds.single;
+    final afterIndex = (_wireEditSelectedVertex ?? 0).clamp(0, points.length - 2);
+    final a = points[afterIndex];
+    final b = points[afterIndex + 1];
+    final midpoint = Point2D((a.dx + b.dx) / 2, (a.dy + b.dy) / 2);
+    final updated = WireEditing.insertVertex(points, afterIndex, midpoint);
+    engine.editing.execute(SetWireRouteCommand(relationshipId, updated));
+    setState(() {
+      _wireEditWorkingPoints = updated;
+      _wireEditSelectedVertex = afterIndex + 1;
+    });
+  }
+
+  void _removeWireVertex() {
+    final points = _wireEditWorkingPoints;
+    final index = _wireEditSelectedVertex;
+    if (points == null || index == null || selection.relationshipIds.length != 1) return;
+    final relationshipId = selection.relationshipIds.single;
+    final updated = WireEditing.removeVertex(points, index);
+    engine.editing.execute(SetWireRouteCommand(relationshipId, updated));
+    setState(() {
+      _wireEditWorkingPoints = updated;
+      _wireEditSelectedVertex = null;
+    });
+  }
+
+  void _restoreAutomaticRouting() {
+    if (selection.relationshipIds.length != 1) return;
+    final relationshipId = selection.relationshipIds.single;
+    engine.editing.execute(SetWireRouteCommand(relationshipId, null));
+    _reseedWireEditPoints();
+  }
+
+  void _handleWireCornerDragStart(int index) {
+    final points = _wireEditWorkingPoints;
+    if (points == null) return;
+    setState(() {
+      _wireDragCornerIndex = index;
+      _wireDragBasePoints = List.of(points);
+      _wireDragTotalDelta = const Point2D(0, 0);
+    });
+  }
+
+  void _handleWireCornerDragUpdate(Offset delta) {
+    final index = _wireDragCornerIndex;
+    final base = _wireDragBasePoints;
+    if (index == null || base == null) return;
+    setState(() {
+      _wireDragTotalDelta = _wireDragTotalDelta.translate(delta.dx, delta.dy);
+      final candidate = base[index].translate(_wireDragTotalDelta.dx, _wireDragTotalDelta.dy);
+      _wireEditWorkingPoints = WireEditing.dragCorner(
+        base,
+        index,
+        candidate,
+        minimumWireLength: viewState.constraints.minimumWireLength,
+      );
+    });
+  }
+
+  void _handleWireCornerDragEnd() {
+    final points = _wireEditWorkingPoints;
+    if (points != null && selection.relationshipIds.length == 1) {
+      engine.editing.execute(SetWireRouteCommand(selection.relationshipIds.single, points));
+    }
+    setState(() {
+      _wireDragCornerIndex = null;
+      _wireDragBasePoints = null;
+      _wireDragTotalDelta = const Point2D(0, 0);
+    });
+  }
+
+  void _handleWireSegmentDragStart(int segmentIndex) {
+    final points = _wireEditWorkingPoints;
+    if (points == null) return;
+    setState(() {
+      _wireDragSegmentIndex = segmentIndex;
+      _wireDragBasePoints = List.of(points);
+      _wireDragTotalDelta = const Point2D(0, 0);
+    });
+  }
+
+  void _handleWireSegmentDragUpdate(Offset delta) {
+    final segmentIndex = _wireDragSegmentIndex;
+    final base = _wireDragBasePoints;
+    if (segmentIndex == null || base == null) return;
+    setState(() {
+      _wireDragTotalDelta = _wireDragTotalDelta.translate(delta.dx, delta.dy);
+      _wireEditWorkingPoints = WireEditing.dragSegment(
+        base,
+        segmentIndex,
+        _wireDragTotalDelta,
+        minimumWireLength: viewState.constraints.minimumWireLength,
+      );
+    });
+  }
+
+  void _handleWireSegmentDragEnd() {
+    final points = _wireEditWorkingPoints;
+    if (points != null && selection.relationshipIds.length == 1) {
+      engine.editing.execute(SetWireRouteCommand(selection.relationshipIds.single, points));
+    }
+    setState(() {
+      _wireDragSegmentIndex = null;
+      _wireDragBasePoints = null;
+      _wireDragTotalDelta = const Point2D(0, 0);
+    });
+  }
+
+  // --- Placement tools (ENGINE-TASK-000102) ------------------------------
+
+  void _rotateSelection(double degrees) {
+    if (selection.nodeIds.isEmpty) return;
+    engine.editing.execute(RotateNodesCommand(selection.nodeIds, degrees));
+  }
+
+  void _mirrorSelection(MirrorAxis axis) {
+    if (selection.nodeIds.isEmpty) return;
+    engine.editing.execute(MirrorNodesCommand(selection.nodeIds, axis));
+  }
+
+  Future<void> _openArrayPlacement() async {
+    if (selection.nodeIds.isEmpty) return;
+    final result = await showArrayPlacementDialog(context);
+    if (result == null) return;
+    engine.editing.execute(ArrayPlaceCommand(
+      selection.nodeIds,
+      countX: result.countX,
+      countY: result.countY,
+      spacingX: result.spacingX,
+      spacingY: result.spacingY,
+    ));
+  }
+
+  void _replaceSymbol(String symbolId) {
+    if (selection.nodeIds.length != 1) return;
+    engine.editing.execute(ReplaceSymbolCommand(selection.nodeIds.single, symbolId));
+  }
+
+  // --- Search (ENGINE-TASK-000104) ---------------------------------------
+
+  Future<void> _openSearch() => showSearchPanelDialog(
+        context,
+        engine: engine,
+        session: () => session!,
+        onGoToResult: _goToSearchResult,
+      );
+
+  void _goToSearchResult(SearchResult result) {
+    switch (result.kind) {
+      case SearchResultKind.node:
+        engine.registry.selection.selectNode(result.id);
+        final position = session!.layout.positionOf(result.id);
+        if (position != null) {
+          _viewStateService.centerSelection(Rect2D(
+            left: position.dx,
+            top: position.dy,
+            right: position.dx + _nodeSize,
+            bottom: position.dy + _nodeSize,
+          ));
+        }
+      case SearchResultKind.relationship:
+        engine.registry.selection.selectRelationship(result.id);
+      case SearchResultKind.annotation:
+        engine.registry.selection.selectAnnotation(result.id);
+        final annotation = session!.layout.annotationOf(result.id);
+        if (annotation != null) {
+          _viewStateService.centerSelection(Rect2D(
+            left: annotation.position.dx,
+            top: annotation.position.dy,
+            right: annotation.position.dx + 40,
+            bottom: annotation.position.dy + 20,
+          ));
+        }
+      case SearchResultKind.symbol:
+      case SearchResultKind.layer:
+        break;
+    }
+  }
+
   // --- Layouts / dialogs -------------------------------------------------
+
+  Future<void> _openLayers() => showLayerPanelDialog(
+        context,
+        engine: engine,
+        session: () => session!,
+        selection: () => selection,
+      );
 
   Future<void> _openGridSettings() => showGridSettingsDialog(context, _viewStateService);
 
@@ -653,7 +1019,7 @@ class _HostShellState extends State<HostShell> {
           const SingleActivator(LogicalKeyboardKey.keyV, control: true): _paste,
           const SingleActivator(LogicalKeyboardKey.keyD, control: true): _duplicateSelection,
           const SingleActivator(LogicalKeyboardKey.keyA, control: true): () =>
-              engine.registry.selection.selectAll(currentGraph),
+              engine.registry.selection.selectAll(currentGraph, layout: session!.layout),
           const SingleActivator(LogicalKeyboardKey.delete): _deleteSelection,
           const SingleActivator(LogicalKeyboardKey.backspace): _deleteSelection,
           const SingleActivator(LogicalKeyboardKey.escape): () =>
@@ -706,6 +1072,33 @@ class _HostShellState extends State<HostShell> {
                 onOpenNamedLayouts: _openNamedLayouts,
               ),
               const Divider(height: 1),
+              SecondaryToolbar(
+                onOpenLayers: _openLayers,
+                onOpenSearch: _openSearch,
+                onAddAnnotation: _addAnnotation,
+                wireEditModeActive: _wireEditActive,
+                onToggleWireEditMode:
+                    selection.relationshipIds.length == 1 ? _toggleWireEditMode : null,
+                onInsertVertex: _wireEditActive ? _insertWireVertex : null,
+                onRemoveVertex:
+                    _wireEditActive && _wireEditSelectedVertex != null ? _removeWireVertex : null,
+                onRestoreAutomaticRouting: _wireEditActive ? _restoreAutomaticRouting : null,
+                onRotate90: selection.nodeIds.isEmpty ? null : () => _rotateSelection(90),
+                onRotate180: selection.nodeIds.isEmpty ? null : () => _rotateSelection(180),
+                onRotateArbitrary: selection.nodeIds.isEmpty ? null : _rotateSelection,
+                onMirrorHorizontal:
+                    selection.nodeIds.isEmpty ? null : () => _mirrorSelection(MirrorAxis.horizontal),
+                onMirrorVertical:
+                    selection.nodeIds.isEmpty ? null : () => _mirrorSelection(MirrorAxis.vertical),
+                onArrayPlace: selection.nodeIds.isEmpty ? null : _openArrayPlacement,
+                onReplaceSymbol: selection.nodeIds.length == 1 ? _replaceSymbol : null,
+                symbolChoices: seedSymbolIdentifiers,
+                resolveSymbolName: (id) => engine.registry.symbols.resolve(id).name,
+                constraints: viewState.constraints,
+                onConstraintsChanged: _viewStateService.setConstraints,
+                recentDescriptions: engine.editing.recentDescriptions,
+              ),
+              const Divider(height: 1),
               Expanded(
                 child: Row(
                   children: [
@@ -736,11 +1129,27 @@ class _HostShellState extends State<HostShell> {
                             connectionPreviewTo: _connectionCurrentPoint,
                             connectionPreviewValid: _connectionValid,
                             reconnectingWire: reconnectingWire,
+                            annotations: _effectiveAnnotations(),
+                            selectedAnnotationIds: selection.annotationIds,
+                            onAnnotationTap: _handleAnnotationTap,
+                            onAnnotationDragStart: _handleAnnotationDragStart,
+                            onAnnotationDragUpdate: _handleAnnotationDragUpdate,
+                            onAnnotationDragEnd: _handleAnnotationDragEnd,
+                            onAnnotationEditRequested: _editAnnotationText,
+                            editingWirePoints: _wireEditActive ? _wireEditWorkingPoints : null,
+                            editingWireSelectedVertex: _wireEditSelectedVertex,
+                            onWireVertexTap: _handleWireVertexTap,
+                            onWireCornerDragStart: _handleWireCornerDragStart,
+                            onWireCornerDragUpdate: _handleWireCornerDragUpdate,
+                            onWireCornerDragEnd: _handleWireCornerDragEnd,
+                            onWireSegmentDragStart: _handleWireSegmentDragStart,
+                            onWireSegmentDragUpdate: _handleWireSegmentDragUpdate,
+                            onWireSegmentDragEnd: _handleWireSegmentDragEnd,
                             onNodeTap: _handleNodeTap,
                             onNodeDragStart: _handleNodeDragStart,
                             onNodeDragUpdate: _handleNodeDragUpdate,
                             onNodeDragEnd: _handleNodeDragEnd,
-                            onBackgroundTap: _handleBackgroundTap,
+                            onBackgroundTap: (position) => _handleBackgroundTap(position, scene),
                             onBackgroundPanStart: _handleBackgroundPanStart,
                             onBackgroundPanUpdate: _handleBackgroundPanUpdate,
                             onBackgroundPanEnd: () => _handleBackgroundPanEnd(scene),
@@ -806,6 +1215,9 @@ class _HostShellState extends State<HostShell> {
                 selection: selection,
                 viewState: viewState,
                 cursorScenePosition: _cursorScenePosition,
+                layerCount: session!.layout.layers.length,
+                searchResultCount:
+                    (engine.registry.navigation as NavigationService).searchResults.length,
               ),
             ],
           ),

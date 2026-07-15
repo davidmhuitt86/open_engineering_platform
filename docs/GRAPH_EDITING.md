@@ -39,6 +39,12 @@ interactive editing.
 | Rename / lock a group | `RenameGroupCommand` / `SetGroupLockedCommand` |
 | Batch delete (Cut, multi-select Delete) | `DeleteManyCommand` |
 | Paste / duplicate a selection | `PasteCommand` / `DuplicateSelectionCommand` |
+| Rotate / mirror a selection (WORK_PACKAGE_023) | `RotateNodesCommand` / `MirrorNodesCommand` |
+| Array-place a selection (WORK_PACKAGE_023) | `ArrayPlaceCommand` |
+| Replace a node's symbol (WORK_PACKAGE_023) | `ReplaceSymbolCommand` |
+| Set / restore a manual wire route (WORK_PACKAGE_023) | `SetWireRouteCommand` |
+| Create / delete / update an annotation (WORK_PACKAGE_023) | `CreateAnnotationCommand` / `DeleteAnnotationCommand` / `UpdateAnnotationCommand` |
+| Create / delete / update a layer, assign an entity to one (WORK_PACKAGE_023) | `CreateLayerCommand` / `DeleteLayerCommand` / `UpdateLayerCommand` / `AssignLayerCommand` |
 
 **Not editable in this work package:** `Net` and `Confidence` properties
 — SDD-027A is still `Status: Proposed`. `UpdateNodePropertiesCommand`
@@ -100,6 +106,25 @@ Selection and Navigation keep their own existing streams from Phase 1
 (SDD-026) — nothing about "Views observe the graph" required merging
 every stream into one; it required removing the *manual* synchronization
 Phase 1 had, which is done.
+
+## Layout-mutating commands resolve a fallback position (WORK_PACKAGE_023 fix)
+
+`AlignNodesCommand`/`DistributeNodesCommand` (WORK_PACKAGE_022) and the
+new Rotate/Mirror/Array commands all need *some* position for every node
+they operate on. A node that has never been dragged has no entry in
+`DiagramLayoutState.positions` at all — `DiagramView` already handles
+this by falling back to `DiagramLayout.compute`'s deterministic grid, but
+these commands previously read `layout.positionOf(id)` directly and
+silently skipped any node where that returned `null`, which is every node
+in a freshly-seeded, never-touched graph.
+
+`DiagramLayout.resolvePosition(graph, layout, nodeId)` — tracked position
+if present, else the same `compute()` fallback `DiagramView` renders
+with — is now used by all five commands, so they behave correctly
+immediately after a graph is created, not only after every node has been
+manually moved at least once. Discovered via the WORK_PACKAGE_023
+integration test (array-placing a never-moved seed node produced no
+duplicate).
 
 ## Scope notes
 

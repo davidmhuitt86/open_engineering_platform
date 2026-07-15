@@ -30,11 +30,16 @@ class ClipboardExtraction {
         if (session.layout.positionOf(node.id) != null)
           node.id: session.layout.positionOf(node.id)!,
     };
+    final annotations = [
+      for (final id in selection.annotationIds)
+        if (session.layout.annotationOf(id) != null) session.layout.annotationOf(id)!,
+    ];
     return ClipboardEntry(
       nodes: selectedNodes,
       relationships: relationships,
       groups: groups,
       positions: positions,
+      annotations: annotations,
     );
   }
 }

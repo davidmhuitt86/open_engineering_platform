@@ -226,5 +226,18 @@ void main() {
       final rect = Rect2D(left: -10, top: -10, right: 110, bottom: 110);
       expect(DiagramHitTesting.nodesInRect(scene, rect), {'a'});
     });
+
+    test('relationshipAt finds the wire whose segment passes near the point', () {
+      final scene = DiagramScene(
+        nodes: const [],
+        wires: const [
+          DiagramWireVisual(relationshipId: 'r1', points: [Point2D(0, 0), Point2D(100, 0)]),
+        ],
+        contentWidth: 200,
+        contentHeight: 200,
+      );
+      expect(DiagramHitTesting.relationshipAt(scene, const Point2D(50, 2)), 'r1');
+      expect(DiagramHitTesting.relationshipAt(scene, const Point2D(50, 50)), isNull);
+    });
   });
 }

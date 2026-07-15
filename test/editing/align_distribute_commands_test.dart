@@ -74,4 +74,40 @@ void main() {
       expect(after.layout.positionOf('b'), const Point2D(50, 80));
     });
   });
+
+  group('Never-moved nodes (WORK_PACKAGE_023 regression)', () {
+    // A freshly-created graph has no tracked layout positions at all —
+    // DiagramView falls back to DiagramLayout.compute for rendering.
+    // Align/Distribute must resolve that same fallback rather than
+    // silently skipping nodes with no explicit position.
+    late EditingSession freshSession;
+
+    setUp(() {
+      final graph = (GraphBuilder(id: 'g')
+            ..addNode(id: 'a', category: NodeCategory.component, displayName: 'A')
+            ..addNode(id: 'b', category: NodeCategory.component, displayName: 'B')
+            ..addNode(id: 'c', category: NodeCategory.component, displayName: 'C'))
+          .build();
+      freshSession = EditingSession.initial(graph); // layout is DiagramLayoutState.empty
+    });
+
+    test('AlignNodesCommand aligns nodes that have never been moved', () {
+      final command = AlignNodesCommand({'a', 'b', 'c'}, AlignmentMode.top);
+      final after = command.apply(freshSession);
+      final y = after.layout.positionOf('a')!.dy;
+      expect(after.layout.positionOf('b')!.dy, y);
+      expect(after.layout.positionOf('c')!.dy, y);
+    });
+
+    test('DistributeNodesCommand distributes nodes that have never been moved', () {
+      final command = DistributeNodesCommand({'a', 'b', 'c'}, DistributionAxis.horizontal);
+      final after = command.apply(freshSession);
+      // DiagramLayout.compute places a/b/c at columns 0/1/2 (160px apart);
+      // distributing horizontally should leave them evenly spaced.
+      final xa = after.layout.positionOf('a')!.dx;
+      final xb = after.layout.positionOf('b')!.dx;
+      final xc = after.layout.positionOf('c')!.dx;
+      expect(xb - xa, closeTo(xc - xb, 0.01));
+    });
+  });
 }

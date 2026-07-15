@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
 import 'package:engineering_engine_demonstration_host/main.dart' as app;
+import 'package:engineering_engine_demonstration_host/widgets/inspector_panels.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -239,5 +240,172 @@ void main() {
     await tester.tap(find.widgetWithText(TextButton, 'Reset Layout'));
     await tester.pumpAndSettle();
     expect(find.text('Named Layouts'), findsNothing);
+  });
+
+  testWidgets(
+      'WORK_PACKAGE_023: layers, search, annotations, placement tools, and '
+      'constraints all work end to end', (tester) async {
+    app.main();
+    await tester.pump();
+    await tester.pumpAndSettle(const Duration(seconds: 2));
+
+    Object? undoState() =>
+        tester.widget<IconButton>(find.widgetWithIcon(IconButton, Icons.undo)).onPressed;
+    // Scoped to the Graph Explorer list — once Battery is selected, the
+    // Property Inspector also renders an editable "Battery" TextField, so
+    // an unscoped find.text('Battery') becomes ambiguous.
+    Finder explorerText(String text) =>
+        find.descendant(of: find.byType(GraphExplorerPanel), matching: find.text(text));
+
+    // --- Wire Editing Toolbar is present and correctly gated -------------
+    // No relationship is selected yet, so "Edit Route" must be disabled —
+    // this is the one wire-editing assertion made here; the underlying
+    // geometry (insert/remove/drag-segment/drag-corner) is covered
+    // exhaustively by test/views/wire_editing_test.dart.
+    expect(
+      tester.widget<IconButton>(find.widgetWithIcon(IconButton, Icons.polyline_outlined)).onPressed,
+      isNull,
+    );
+
+    // --- Placement tools: Rotate / Mirror / Array / Replace Symbol -------
+    await tester.tap(find.text('Battery'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Rotate 90°'));
+    await tester.pumpAndSettle();
+    expect(undoState(), isNotNull);
+    await tester.tap(find.widgetWithIcon(IconButton, Icons.undo));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Mirror horizontal'));
+    await tester.pumpAndSettle();
+    expect(undoState(), isNotNull);
+    await tester.tap(find.widgetWithIcon(IconButton, Icons.undo));
+    await tester.pumpAndSettle();
+
+    expect(explorerText('Battery'), findsOneWidget);
+    await tester.tap(find.byTooltip('Array placement...'));
+    await tester.pumpAndSettle();
+    expect(find.text('Array Placement'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Place'));
+    await tester.pumpAndSettle();
+    expect(explorerText('Battery'), findsNWidgets(2), reason: 'array placed one duplicate');
+    await tester.tap(find.widgetWithIcon(IconButton, Icons.undo));
+    await tester.pumpAndSettle();
+    expect(explorerText('Battery'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Replace symbol'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Resistor').last);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Symbol: resistor'), findsOneWidget);
+
+    // --- Editing constraints: orthogonal-movement toggle -----------------
+    expect(find.textContaining('Constraints: —'), findsOneWidget);
+    await tester.tap(find.byType(Checkbox));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Constraints: Ortho'), findsOneWidget);
+    await tester.tap(find.byType(Checkbox));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Constraints: —'), findsOneWidget);
+
+    // --- Recent Commands (fed by editing.recentDescriptions) -------------
+    // recentDescriptions mirrors the *undo stack*, not a historical log —
+    // every earlier rotate/mirror/array above was immediately undone, so
+    // it only has content because the Replace Symbol above was left
+    // un-undone.
+    final recentButton = tester.widget<PopupMenuButton<String>>(
+      find.byWidgetPredicate(
+        (w) => w is PopupMenuButton<String> && w.tooltip == 'Recent commands',
+      ),
+    );
+    expect(recentButton.enabled, isTrue, reason: 'several commands already executed above');
+
+    // --- Layers: create, list, assign, visibility toggle ------------------
+    expect(find.textContaining('Layers: 0'), findsOneWidget);
+    await tester.tap(find.byTooltip('Layers'));
+    await tester.pumpAndSettle();
+    expect(find.text('Layers'), findsOneWidget);
+    expect(find.text('No layers yet.'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Create layer'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.descendant(of: find.byType(AlertDialog), matching: find.byType(TextField)),
+      'Power',
+    );
+    await tester.tap(find.widgetWithText(FilledButton, 'Create'));
+    await tester.pumpAndSettle();
+    expect(find.text('Power'), findsOneWidget);
+
+    // Battery is still selected — assign it to the new layer.
+    await tester.tap(find.byTooltip('Assign selection to this layer'));
+    await tester.pumpAndSettle();
+
+    // Toggle the layer's visibility off then back on.
+    await tester.tap(find.widgetWithIcon(IconButton, Icons.visibility));
+    await tester.pumpAndSettle();
+    expect(find.widgetWithIcon(IconButton, Icons.visibility_off), findsOneWidget);
+    await tester.tap(find.widgetWithIcon(IconButton, Icons.visibility_off));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Close'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Layers: 1'), findsOneWidget);
+
+    // --- Search: query, results, navigate -----------------------------
+    await tester.tap(find.byTooltip('Search'));
+    await tester.pumpAndSettle();
+    expect(find.text('Search'), findsOneWidget);
+    // Scoped to the Search AlertDialog: the Property Inspector also has a
+    // persistent TextField (editable displayName) for the still-selected
+    // node.
+    final searchField = find.descendant(
+      of: find.byType(AlertDialog),
+      matching: find.byType(TextField),
+    );
+    await tester.enterText(searchField, 'Battery');
+    await tester.pumpAndSettle();
+    expect(find.textContaining('result(s)'), findsOneWidget);
+    final resultCountText =
+        tester.widget<Text>(find.textContaining('result(s)')).data ?? '';
+    expect(resultCountText.startsWith('0'), isFalse, reason: 'Battery should match at least one result');
+    await tester.tap(find.widgetWithText(FilledButton, 'Close'));
+    await tester.pumpAndSettle();
+
+    // --- Annotations: add, edit, select, delete ---------------------------
+    await tester.tap(find.byTooltip('Add annotation'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Text Label'));
+    await tester.pumpAndSettle();
+    expect(find.text('New textLabel'), findsOneWidget);
+
+    // Double-tap (two taps within the double-tap timeout) to open the
+    // inline edit dialog.
+    await tester.tap(find.text('New textLabel'));
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(find.text('New textLabel'));
+    await tester.pumpAndSettle();
+    expect(find.text('Edit annotation'), findsOneWidget);
+    final editField = find.descendant(
+      of: find.widgetWithText(AlertDialog, 'Edit annotation'),
+      matching: find.byType(TextField),
+    );
+    await tester.enterText(editField, 'Test Note');
+    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+    await tester.pumpAndSettle();
+    expect(find.text('Test Note'), findsOneWidget);
+    expect(find.text('New textLabel'), findsNothing);
+
+    await tester.tap(find.text('Test Note'));
+    await tester.pumpAndSettle();
+    // The Delete *key* relies on CallbackShortcuts holding keyboard focus,
+    // which is fragile this deep into a test full of dialog interactions
+    // (same reasoning as the WP022 test's Ctrl+A note above) — use the
+    // toolbar's Delete button instead, which drives the identical
+    // `_deleteSelection` (now annotation-aware) directly.
+    await tester.tap(find.widgetWithIcon(IconButton, Icons.delete));
+    await tester.pumpAndSettle();
+    expect(find.text('Test Note'), findsNothing);
   });
 }

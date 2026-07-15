@@ -3,12 +3,14 @@ import 'package:engineering_engine/engineering_engine.dart';
 
 import '../geometry_utils.dart';
 import '../wire_painter.dart';
+import 'annotation_widget.dart';
 import 'connection_preview_painter.dart';
 import 'grid_painter.dart';
 import 'guides_painter.dart';
 import 'origin_indicator.dart';
 import 'reconnect_handle.dart';
 import 'symbol_node_widget.dart';
+import 'wire_edit_handles.dart';
 
 /// The Graph View canvas: grid, wires, symbol nodes with ports, smart
 /// guides, box-select rectangle, connection preview, and reconnect
@@ -28,11 +30,32 @@ class GraphViewPanel extends StatelessWidget {
 
   final DiagramWireVisual? reconnectingWire;
 
+  // WORK_PACKAGE_023: annotations (ENGINE-TASK-000100).
+  final List<DiagramAnnotation> annotations;
+  final Set<String> selectedAnnotationIds;
+  final void Function(String annotationId) onAnnotationTap;
+  final void Function(String annotationId) onAnnotationDragStart;
+  final void Function(Offset delta) onAnnotationDragUpdate;
+  final VoidCallback onAnnotationDragEnd;
+  final void Function(String annotationId) onAnnotationEditRequested;
+
+  // WORK_PACKAGE_023: manual wire editing, "Edit Route" mode
+  // (ENGINE-TASK-000099).
+  final List<Point2D>? editingWirePoints;
+  final int? editingWireSelectedVertex;
+  final void Function(int index) onWireVertexTap;
+  final void Function(int index) onWireCornerDragStart;
+  final void Function(Offset delta) onWireCornerDragUpdate;
+  final VoidCallback onWireCornerDragEnd;
+  final void Function(int segmentIndex) onWireSegmentDragStart;
+  final void Function(Offset delta) onWireSegmentDragUpdate;
+  final VoidCallback onWireSegmentDragEnd;
+
   final void Function(String nodeId) onNodeTap;
   final void Function(String nodeId) onNodeDragStart;
   final void Function(Offset delta) onNodeDragUpdate;
   final VoidCallback onNodeDragEnd;
-  final VoidCallback onBackgroundTap;
+  final void Function(Offset localPosition) onBackgroundTap;
   final void Function(Offset localPosition) onBackgroundPanStart;
   final void Function(Offset localPosition, Offset delta) onBackgroundPanUpdate;
   final VoidCallback onBackgroundPanEnd;
@@ -65,6 +88,22 @@ class GraphViewPanel extends StatelessWidget {
     required this.connectionPreviewTo,
     required this.connectionPreviewValid,
     required this.reconnectingWire,
+    required this.annotations,
+    required this.selectedAnnotationIds,
+    required this.onAnnotationTap,
+    required this.onAnnotationDragStart,
+    required this.onAnnotationDragUpdate,
+    required this.onAnnotationDragEnd,
+    required this.onAnnotationEditRequested,
+    required this.editingWirePoints,
+    required this.editingWireSelectedVertex,
+    required this.onWireVertexTap,
+    required this.onWireCornerDragStart,
+    required this.onWireCornerDragUpdate,
+    required this.onWireCornerDragEnd,
+    required this.onWireSegmentDragStart,
+    required this.onWireSegmentDragUpdate,
+    required this.onWireSegmentDragEnd,
     required this.onNodeTap,
     required this.onNodeDragStart,
     required this.onNodeDragUpdate,
@@ -124,7 +163,7 @@ class GraphViewPanel extends StatelessWidget {
                 Positioned.fill(
                   child: GestureDetector(
                     behavior: HitTestBehavior.opaque,
-                    onTap: onBackgroundTap,
+                    onTapUp: (details) => onBackgroundTap(details.localPosition),
                     onPanStart: (details) => onBackgroundPanStart(details.localPosition),
                     onPanUpdate: (details) =>
                         onBackgroundPanUpdate(details.localPosition, details.delta),
@@ -162,6 +201,28 @@ class GraphViewPanel extends StatelessWidget {
                       onPortDragUpdate: onPortDragUpdate,
                       onPortDragEnd: onPortDragEnd,
                     ),
+                  ),
+                for (final annotation in annotations)
+                  AnnotationWidget(
+                    annotation: annotation,
+                    selected: selectedAnnotationIds.contains(annotation.id),
+                    onTap: () => onAnnotationTap(annotation.id),
+                    onDragStart: () => onAnnotationDragStart(annotation.id),
+                    onDragUpdate: onAnnotationDragUpdate,
+                    onDragEnd: onAnnotationDragEnd,
+                    onEditRequested: () => onAnnotationEditRequested(annotation.id),
+                  ),
+                if (editingWirePoints != null && editingWirePoints!.length >= 2)
+                  WireEditHandles(
+                    points: editingWirePoints!,
+                    selectedVertexIndex: editingWireSelectedVertex,
+                    onVertexTap: onWireVertexTap,
+                    onCornerDragStart: onWireCornerDragStart,
+                    onCornerDragUpdate: onWireCornerDragUpdate,
+                    onCornerDragEnd: onWireCornerDragEnd,
+                    onSegmentDragStart: onWireSegmentDragStart,
+                    onSegmentDragUpdate: onWireSegmentDragUpdate,
+                    onSegmentDragEnd: onWireSegmentDragEnd,
                   ),
                 if (reconnectingWire != null && reconnectingWire!.points.length >= 2) ...[
                   ReconnectHandle(

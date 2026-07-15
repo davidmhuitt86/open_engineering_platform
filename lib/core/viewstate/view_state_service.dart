@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import '../editing/editing_constraints.dart';
 import '../interfaces/view_state_provider.dart';
 import '../views/diagram/diagram_geometry.dart';
 import '../views/diagram/rect2d.dart';
@@ -69,6 +70,10 @@ class ViewStateService implements ViewStateProvider {
   void hoverPort(PortReference? port) {
     _set(_current.copyWith(hoveredPort: port, clearHoveredPort: port == null));
   }
+
+  @override
+  void setConstraints(EditingConstraints constraints) =>
+      _set(_current.copyWith(constraints: constraints));
 
   // --- Viewport navigation (ENGINE-TASK-000095) --------------------------
   // Pure computation lives in ViewportMath; this just applies the result

@@ -2,13 +2,22 @@ import 'dart:async';
 
 import '../events/engine_event.dart';
 import '../events/engine_event_bus.dart';
+import '../graph/algorithms/graph_query.dart';
 import '../graph/models/engineering_graph.dart';
+import '../graph/models/engineering_node.dart';
 import '../interfaces/selection_provider.dart';
+import '../views/diagram/diagram_geometry.dart';
+import '../views/diagram/diagram_hit_testing.dart';
+import '../views/diagram/diagram_layout_state.dart';
+import '../views/diagram/diagram_scene.dart';
+import '../views/diagram/rect2d.dart';
 import 'focus_state.dart';
 import 'graph_selection.dart';
 
 /// Runtime multi-select selection state (SDD-026 `SelectionEngine`,
-/// extended in WORK_PACKAGE_021 ENGINE-TASK-000080).
+/// extended in WORK_PACKAGE_021 ENGINE-TASK-000080, and again in
+/// WORK_PACKAGE_023 ENGINE-TASK-000098 with query-driven selection
+/// modes).
 ///
 /// Deliberately holds only *which* things are selected — never computes
 /// highlight sets or paths. That responsibility belongs to
@@ -66,6 +75,7 @@ class SelectionService implements SelectionProvider {
               nodeIds: {..._current.nodeIds, nodeId},
               relationshipIds: _current.relationshipIds,
               groupIds: _current.groupIds,
+              annotationIds: _current.annotationIds,
             )
           : GraphSelection(nodeIds: {nodeId}),
       subjectId: nodeId,
@@ -80,6 +90,7 @@ class SelectionService implements SelectionProvider {
               nodeIds: _current.nodeIds,
               relationshipIds: {..._current.relationshipIds, relationshipId},
               groupIds: _current.groupIds,
+              annotationIds: _current.annotationIds,
             )
           : GraphSelection(relationshipIds: {relationshipId}),
     );
@@ -93,8 +104,23 @@ class SelectionService implements SelectionProvider {
               nodeIds: _current.nodeIds,
               relationshipIds: _current.relationshipIds,
               groupIds: {..._current.groupIds, groupId},
+              annotationIds: _current.annotationIds,
             )
           : GraphSelection(groupIds: {groupId}),
+    );
+  }
+
+  @override
+  void selectAnnotation(String annotationId, {bool additive = false}) {
+    _setSelection(
+      additive
+          ? GraphSelection(
+              nodeIds: _current.nodeIds,
+              relationshipIds: _current.relationshipIds,
+              groupIds: _current.groupIds,
+              annotationIds: {..._current.annotationIds, annotationId},
+            )
+          : GraphSelection(annotationIds: {annotationId}),
     );
   }
 
@@ -103,6 +129,7 @@ class SelectionService implements SelectionProvider {
     Set<String> nodeIds = const {},
     Set<String> relationshipIds = const {},
     Set<String> groupIds = const {},
+    Set<String> annotationIds = const {},
     bool additive = false,
   }) {
     _setSelection(
@@ -111,11 +138,13 @@ class SelectionService implements SelectionProvider {
               nodeIds: {..._current.nodeIds, ...nodeIds},
               relationshipIds: {..._current.relationshipIds, ...relationshipIds},
               groupIds: {..._current.groupIds, ...groupIds},
+              annotationIds: {..._current.annotationIds, ...annotationIds},
             )
           : GraphSelection(
               nodeIds: nodeIds,
               relationshipIds: relationshipIds,
               groupIds: groupIds,
+              annotationIds: annotationIds,
             ),
     );
   }
@@ -128,6 +157,7 @@ class SelectionService implements SelectionProvider {
       nodeIds: nodeIds,
       relationshipIds: _current.relationshipIds,
       groupIds: _current.groupIds,
+      annotationIds: _current.annotationIds,
     ));
   }
 
@@ -139,6 +169,7 @@ class SelectionService implements SelectionProvider {
       nodeIds: _current.nodeIds,
       relationshipIds: relationshipIds,
       groupIds: _current.groupIds,
+      annotationIds: _current.annotationIds,
     ));
   }
 
@@ -150,20 +181,95 @@ class SelectionService implements SelectionProvider {
       nodeIds: _current.nodeIds,
       relationshipIds: _current.relationshipIds,
       groupIds: groupIds,
+      annotationIds: _current.annotationIds,
     ));
   }
 
   @override
-  void selectAll(EngineeringGraph graph) {
+  void toggleAnnotation(String annotationId) {
+    final annotationIds = {..._current.annotationIds};
+    if (!annotationIds.remove(annotationId)) annotationIds.add(annotationId);
+    _setSelection(GraphSelection(
+      nodeIds: _current.nodeIds,
+      relationshipIds: _current.relationshipIds,
+      groupIds: _current.groupIds,
+      annotationIds: annotationIds,
+    ));
+  }
+
+  @override
+  void selectAll(EngineeringGraph graph, {DiagramLayoutState? layout}) {
     _setSelection(GraphSelection(
       nodeIds: graph.nodes.keys.toSet(),
       relationshipIds: graph.relationships.keys.toSet(),
       groupIds: graph.groups.keys.toSet(),
+      annotationIds: layout?.annotations.keys.toSet() ?? const {},
     ));
   }
 
   @override
   void deselectAll() => _setSelection(GraphSelection.empty);
+
+  @override
+  void invertSelection(EngineeringGraph graph, DiagramLayoutState layout) {
+    _setSelection(GraphSelection(
+      nodeIds: graph.nodes.keys.toSet().difference(_current.nodeIds),
+      relationshipIds:
+          graph.relationships.keys.toSet().difference(_current.relationshipIds),
+      groupIds: graph.groups.keys.toSet().difference(_current.groupIds),
+      annotationIds: layout.annotations.keys.toSet().difference(_current.annotationIds),
+    ));
+  }
+
+  @override
+  void selectByLasso(DiagramScene scene, List<Point2D> polygon, {bool additive = false}) {
+    selectMany(nodeIds: DiagramHitTesting.nodesInPolygon(scene, polygon), additive: additive);
+  }
+
+  @override
+  void selectByRect(DiagramScene scene, Rect2D rect,
+      {bool crossing = true, bool additive = false}) {
+    final ids = crossing
+        ? DiagramHitTesting.nodesInRect(scene, rect)
+        : DiagramHitTesting.nodesFullyInRect(scene, rect);
+    selectMany(nodeIds: ids, additive: additive);
+  }
+
+  @override
+  void selectConnectedComponent(EngineeringGraph graph, String seedNodeId,
+      {bool additive = false}) {
+    selectMany(
+      nodeIds: GraphQuery(graph).reachableFrom(seedNodeId),
+      additive: additive,
+    );
+  }
+
+  @override
+  void selectSimilar(EngineeringGraph graph, EngineeringNode node, {bool additive = false}) {
+    selectMany(
+      nodeIds: GraphQuery(graph).similarTo(node).map((n) => n.id).toSet(),
+      additive: additive,
+    );
+  }
+
+  @override
+  void selectByCategory(EngineeringGraph graph, NodeCategory category,
+      {bool additive = false}) {
+    selectMany(
+      nodeIds: GraphQuery(graph).nodesByCategory(category).map((n) => n.id).toSet(),
+      additive: additive,
+    );
+  }
+
+  @override
+  void selectByLayer(DiagramLayoutState layout, String layerId, {bool additive = false}) {
+    final entityIds = layout.entitiesOnLayer(layerId);
+    selectMany(
+      nodeIds: entityIds.where((id) => !layout.annotations.containsKey(id)).toSet(),
+      annotationIds: entityIds.where((id) => layout.annotations.containsKey(id)).toSet(),
+      additive: additive,
+    );
+  }
 
   @override
   void focusPort(String nodeId, String portId) => _setFocus(FocusState.port(nodeId, portId));

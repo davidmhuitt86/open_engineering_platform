@@ -36,6 +36,9 @@ class EditingService {
   String? get nextUndoDescription => _history.nextUndoDescription;
   String? get nextRedoDescription => _history.nextRedoDescription;
 
+  /// "Recent Commands" (WORK_PACKAGE_023, ENGINE-TASK-000105).
+  List<String> get recentDescriptions => _history.recentDescriptions;
+
   Stream<EditingSession> get sessionChanges => _controller.stream;
 
   EditingSession execute(EditingCommand command) {
