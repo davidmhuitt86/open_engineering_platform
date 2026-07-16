@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "properties.schema.json",
+  "title": "Engineering Properties -- properties.yaml",
+  "description": "SDD-R001 §9. A list of typed, measurable characteristics of the owning Engineering Knowledge Object.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["name", "value_type", "required", "read_only"],
+    "properties": {
+      "name": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_]*$",
+        "description": "Stable, machine-readable property key (snake_case)."
+      },
+      "display_name": { "type": "string", "minLength": 1 },
+      "value_type": {
+        "type": "string",
+        "enum": ["number", "integer", "string", "boolean", "enum"],
+        "description": "SDD-R001 §9 Value Type."
+      },
+      "units": {
+        "type": ["string", "null"],
+        "description": "Either a plain unit symbol (e.g. \"Ω\") or an Object ID of a Unit EKO (e.g. \"unit.volt\") when one is compiled into the library. Null for dimensionless/non-numeric properties."
+      },
+      "default": {
+        "description": "SDD-R001 §9 Default. Any JSON type, or null if the property has no default."
+      },
+      "range": {
+        "type": ["object", "null"],
+        "additionalProperties": false,
+        "properties": {
+          "min": { "type": ["number", "null"] },
+          "max": { "type": ["number", "null"] }
+        },
+        "description": "SDD-R001 §9 Range. Null when not applicable (e.g. string/boolean/enum properties)."
+      },
+      "enum_values": {
+        "type": "array",
+        "items": { "type": "string", "minLength": 1 },
+        "default": [],
+        "description": "Populated only when value_type is \"enum\"."
+      },
+      "required": { "type": "boolean" },
+      "read_only": { "type": "boolean" },
+      "description": { "type": "string" }
+    }
+  }
+}

@@ -1,0 +1,24 @@
+examples:
+  - title: Common voltage levels
+    description: >-
+      A single AA battery cell provides approximately 1.5 V; USB power
+      delivery commonly uses 5 V; residential mains supply in North
+      America is nominally 120 V.
+
+worked_problems:
+  - title: Converting millivolts to volts
+    problem: A sensor reports 250 mV. Express this in volts.
+    solution: 250 mV = 250 / 1000 V = 0.25 V.
+
+exercises:
+  - Convert 3.3 kV to volts.
+  - Convert 0.012 V to millivolts.
+
+references:
+  - International System of Units (SI), Bureau International des Poids
+    et Mesures
+
+learning_path:
+  - Electric charge and potential
+  - The volt as an SI derived unit
+  - Ohm's Law

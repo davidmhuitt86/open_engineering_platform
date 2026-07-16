@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "oep-reference"
+version = "0.1.0"
+description = "Engineering Reference Library authoring toolchain: Reference Validator and Reference Compiler (WORK_PACKAGE_001)"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Proprietary - Divad Technology Group, LLC." }
+dependencies = [
+    "PyYAML>=6.0",
+    "jsonschema>=4.18",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4",
+    "pytest-cov>=4.1",
+]
+
+[project.scripts]
+oep-validate = "validator.cli:main"
+oep-compile = "compiler.cli:main"
+
+[tool.setuptools]
+packages = ["oep_reference_core", "validator", "compiler"]
+
+[tool.setuptools.package-dir]
+oep_reference_core = "tools/oep_reference_core"
+validator = "validator"
+compiler = "compiler"
+
+[tool.pytest.ini_options]
+testpaths = ["test"]
+
+[tool.coverage.run]
+source = ["oep_reference_core", "validator", "compiler"]

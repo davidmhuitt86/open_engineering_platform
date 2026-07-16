@@ -1,0 +1,4 @@
+# symbol.iec.resistor is the target of component.passive.resistor's
+# REPRESENTED_BY relationship -- it has no outgoing relationships of
+# its own in this vertical slice.
+[]

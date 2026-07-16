@@ -1,0 +1,30 @@
+examples:
+  - title: Sizing a copper wire for a power run
+    description: >-
+      A long, low-gauge copper wire carrying significant current can
+      develop a meaningful voltage drop; engineers size wire gauge to
+      keep both voltage drop and operating temperature within limits.
+
+worked_problems:
+  - title: Resistance of a copper conductor
+    problem: >-
+      A 10 m length of copper wire has a cross-sectional area of 2 x
+      10^-6 m² at 20°C. What is its resistance?
+    solution: >-
+      R = resistivity x length / area = (1.68 x 10^-8 Ω·m x 10 m) /
+      (2 x 10^-6 m²) = 0.084 Ω.
+
+exercises:
+  - How does copper's resistance change if its operating temperature
+    rises from 20°C to 60°C, given its temperature coefficient?
+  - Compare the resistance of two copper wires of equal length but
+    different cross-sectional area.
+
+references:
+  - ASTM B3 -- Standard Specification for Soft or Annealed Copper Wire
+  - IEC 60228 -- Conductors of insulated cables
+
+learning_path:
+  - Electrical conductivity and resistivity
+  - Temperature dependence of resistance
+  - Wire gauge and ampacity

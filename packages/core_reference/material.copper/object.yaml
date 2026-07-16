@@ -1,0 +1,168 @@
+identity:
+  object_id: material.copper
+  canonical_name: copper
+  display_name: Copper
+  object_type: Material
+  version: "1.0.0"
+  status: Published
+
+classification:
+  domain: Materials
+  discipline: Electronics
+  family: Conductors
+  category: Elemental Conductors
+  subcategory: Pure Copper
+  tags:
+    - conductor
+    - metal
+    - elemental
+  keywords:
+    - copper
+    - conductor
+    - conductivity
+    - resistivity
+  aliases:
+    - Cu
+  roles:
+    - Design
+    - Simulation
+    - Education
+    - Manufacturing
+    - Reference
+  capabilities:
+    - Searchable
+    - Simulatable
+    - Explainable
+    - Exportable
+  authority: Core OEP
+  visibility: Public
+  ownership: Divad Technology Group
+  standards:
+    - ASTM
+    - IEC
+  industries:
+    - Automotive
+    - Industrial
+    - Consumer Electronics
+    - Energy
+  technologies: []
+
+description:
+  short_definition: >-
+    A highly conductive elemental metal, the most widely used
+    conductor material in electrical and electronic engineering.
+  detailed_description: >-
+    Copper is used extensively for wiring, printed circuit board
+    traces, component leads, windings, and connectors due to its high
+    electrical conductivity, good thermal conductivity, ductility, and
+    relatively low cost compared to other high-conductivity metals such
+    as silver. Its electrical resistivity increases predictably with
+    temperature, described by a linear temperature coefficient over
+    normal operating ranges.
+  engineering_notes: >-
+    Annealed copper (fully softened) is the reference standard against
+    which the International Annealed Copper Standard (IACS)
+    conductivity scale is defined (100% IACS). Alloying or work
+    hardening copper reduces its conductivity relative to this
+    reference.
+  typical_applications:
+    - Hookup and power wiring
+    - Printed circuit board traces and planes
+    - Component leads and terminations
+    - Transformer and motor windings
+  limitations:
+    - Susceptible to oxidation without protective plating or finishing.
+    - Lower conductivity than silver, though far less costly.
+
+search_metadata:
+  keywords:
+    - copper
+    - cu
+    - electrical conductor material
+  aliases:
+    - Cu
+  abbreviations:
+    - Cu
+  alternate_names:
+    - electrolytic copper
+  manufacturer_terms:
+    - ETP copper
+    - OFC copper
+  standards_references:
+    - ASTM B3
+    - IEC 60228
+
+ai_context:
+  definition: >-
+    Copper is an elemental metal prized in electrical engineering for
+    its high electrical and thermal conductivity.
+  engineering_explanation: >-
+    Copper's resistivity at a reference temperature, combined with its
+    temperature coefficient of resistance, allows the resistance of a
+    copper conductor of known length and cross-sectional area to be
+    calculated at any operating temperature within its normal range.
+  common_mistakes:
+    - Neglecting the increase in copper's resistance at elevated
+      operating temperature when sizing wiring for high-current
+      applications.
+    - Confusing conductivity (% IACS) with resistivity -- they are
+      inversely related, not independent figures.
+  design_considerations:
+    - Conductor cross-sectional area versus expected current and
+      acceptable voltage drop.
+    - Operating temperature range and its effect on resistance.
+    - Corrosion protection (plating, insulation) in the target
+      environment.
+  troubleshooting:
+    - Higher-than-expected voltage drop along a copper conductor often
+      indicates undersized wire gauge, a poor connection, or elevated
+      operating temperature.
+  frequently_asked_questions:
+    - question: Why is copper used instead of silver, which conducts better?
+      answer: >-
+        Silver has slightly higher conductivity, but copper offers a
+        much better cost-to-conductivity ratio for nearly all
+        electrical applications.
+
+simulation:
+  simulation_model: linear_temperature_dependent_resistivity
+  parameters:
+    - resistivity_at_20c
+    - temperature_coefficient
+  state_variables:
+    - temperature
+  failure_modes:
+    - oxidation_corrosion
+  default_values:
+    resistivity_at_20c: 1.68e-8
+    temperature_coefficient: 0.00393
+  runtime_properties:
+    - temperature
+
+visualization:
+  icon: null
+  preview_image: null
+  three_d_model: null
+  footprint: null
+  assets: []
+
+provenance:
+  author: OEP Reference Authoring Team
+  reviewer: Divad Technology Group Engineering Review
+  created_date: "2026-07-16"
+  revision_date: "2026-07-16"
+  sources_consulted:
+    - Standard published physical constants for elemental copper
+      (public domain physical data; no copyrighted text reproduced)
+  review_status: Published
+  confidence: high
+  content_license: CC-BY-4.0
+
+version:
+  major: 1
+  minor: 0
+  patch: 0
+  revision_notes: >-
+    Initial gold-standard reference implementation
+    (WORK_PACKAGE_001, ENGINE-TASK-000005).
+  compatibility: []

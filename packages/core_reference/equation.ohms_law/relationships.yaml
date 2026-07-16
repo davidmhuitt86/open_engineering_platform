@@ -1,0 +1,20 @@
+# Source is implicit: equation.ohms_law.
+- relationship_id: equation.ohms_law.has_unit.volt
+  type: HAS_UNIT
+  category: Engineering
+  target: unit.volt
+  multiplicity: many_to_one
+  metadata:
+    applies_to_property: voltage
+  constraints: []
+  provenance:
+    author: OEP Reference Authoring Team
+    reviewer: Divad Technology Group Engineering Review
+    created_date: "2026-07-16"
+    review_status: Published
+    confidence: high
+    content_license: CC-BY-4.0
+  version:
+    major: 1
+    minor: 0
+    patch: 0

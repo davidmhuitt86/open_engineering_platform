@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "behaviors.schema.json",
+  "title": "Engineering Behaviors -- behaviors.yaml",
+  "description": "SDD-R001 §11/§12 and SDD-R005. Declarative behavior metadata only -- no executable solver implementation. SDD-R005 §11: \"The implementation language is intentionally unspecified,\" and Engineering Behaviors (execution) are out of scope for WORK_PACKAGE_001.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["behavior_id", "name", "type", "description", "inputs", "outputs"],
+    "properties": {
+      "behavior_id": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$"
+      },
+      "name": { "type": "string", "minLength": 1 },
+      "type": {
+        "type": "string",
+        "description": "SDD-R005 §5 Behavior Type. Checked against the known list by the validator (soft, extensible)."
+      },
+      "description": { "type": "string", "minLength": 1 },
+      "inputs": {
+        "type": "array",
+        "items": { "$ref": "#/$defs/variable" },
+        "default": []
+      },
+      "outputs": {
+        "type": "array",
+        "items": { "$ref": "#/$defs/variable" },
+        "default": []
+      },
+      "constraints": {
+        "type": "array",
+        "items": { "type": "string", "minLength": 1 },
+        "default": [],
+        "description": "SDD-R005 §8."
+      },
+      "depends_on": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$"
+        },
+        "default": [],
+        "description": "SDD-R005 §10 -- Object IDs this behavior's calculation depends upon."
+      }
+    }
+  },
+  "$defs": {
+    "variable": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "value_type"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "value_type": { "type": "string", "enum": ["number", "integer", "string", "boolean"] },
+        "units": {
+          "type": ["string", "null"],
+          "description": "SDD-R005 §9 -- \"Behavior shall never assume units.\""
+        },
+        "required": { "type": "boolean", "default": true },
+        "description": { "type": "string" }
+      }
+    }
+  }
+}

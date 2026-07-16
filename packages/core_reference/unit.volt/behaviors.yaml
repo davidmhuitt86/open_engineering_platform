@@ -1,0 +1,26 @@
+- behavior_id: unit.volt.convert_prefix
+  name: Convert SI Prefix
+  type: Conversion
+  description: >-
+    Converts a value expressed in volts with one SI prefix (e.g.
+    milli-) to another (e.g. kilo-).
+  inputs:
+    - name: value
+      value_type: number
+      units: unit.volt
+      required: true
+    - name: from_prefix
+      value_type: string
+      units: null
+      required: true
+      description: 'e.g. "milli", "kilo", "" for the base unit.'
+    - name: to_prefix
+      value_type: string
+      units: null
+      required: true
+  outputs:
+    - name: converted_value
+      value_type: number
+      units: unit.volt
+  constraints: []
+  depends_on: []

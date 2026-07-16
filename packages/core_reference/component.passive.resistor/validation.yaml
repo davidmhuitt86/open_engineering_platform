@@ -1,0 +1,26 @@
+# Validation Rules (SDD-R001 §13). Declarative only -- consumed by
+# Diagram Studio / Engineering Engine validation, never duplicated
+# there (SDD-R001 §13).
+- rule_id: component.passive.resistor.resistance_positive
+  description: Resistance shall be greater than zero.
+  expression: "resistance > 0"
+  severity: error
+  applies_to: resistance
+
+- rule_id: component.passive.resistor.power_rating_positive
+  description: Power Rating shall be greater than zero.
+  expression: "power_rating > 0"
+  severity: error
+  applies_to: power_rating
+
+- rule_id: component.passive.resistor.tolerance_bounded
+  description: Tolerance shall not exceed 20%.
+  expression: "tolerance <= 20"
+  severity: error
+  applies_to: tolerance
+
+- rule_id: component.passive.resistor.maximum_voltage_non_negative
+  description: Maximum Voltage, when specified, shall not be negative.
+  expression: "maximum_voltage >= 0"
+  severity: warning
+  applies_to: maximum_voltage

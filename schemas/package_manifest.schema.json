@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "package_manifest.schema.json",
+  "title": "Package Source Manifest -- packages/<package>/manifest.yaml",
+  "description": "SDD-R004 §4 Package Identity, authored alongside the package's Engineering Knowledge Objects. Not one of the seven schemas ENGINE-TASK-000002 names explicitly, but required supporting infrastructure for the Reference Compiler (ENGINE-TASK-000004) to produce the runtime manifest.json SDD-R004 §8 describes -- a package cannot compile without declaring its own identity.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["package_id", "display_name", "publisher", "version", "release_date", "package_type", "license"],
+  "properties": {
+    "package_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$"
+    },
+    "display_name": { "type": "string", "minLength": 1 },
+    "publisher": { "type": "string", "minLength": 1 },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "SDD-R004 §16 Semantic Versioning."
+    },
+    "release_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Pinned, source-controlled release date -- not derived from wall-clock build time, so compiled packages remain byte-for-byte reproducible (SDD-R004 §7) regardless of when the compiler happens to run."
+    },
+    "package_type": {
+      "type": "string",
+      "description": "SDD-R004 §3. Checked against the known list by the validator (soft, extensible)."
+    },
+    "language": { "type": "string", "default": "en" },
+    "license": { "type": "string", "minLength": 1 },
+    "minimum_oep_version": { "type": ["string", "null"], "default": null },
+    "target_domains": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "default": []
+    },
+    "dependencies": {
+      "type": "array",
+      "default": [],
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["package_id", "version"],
+        "properties": {
+          "package_id": { "type": "string", "minLength": 1 },
+          "version": { "type": "string", "minLength": 1 }
+        }
+      },
+      "description": "SDD-R004 §14. Circular dependencies are prohibited (checked by the validator across all installed packages)."
+    }
+  }
+}

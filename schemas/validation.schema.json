@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "validation.schema.json",
+  "title": "Validation Rules -- validation.yaml",
+  "description": "SDD-R001 §13. Reusable engineering validation rules the owning object contributes to the Engineering Reference Library. Distinct from the Reference Validator (ENGINE-TASK-000003), which checks the authoring files themselves -- these are engineering rules the compiled object exposes for Diagram Studio / Engineering Engine validation to consume (SDD-R001 §13: \"Validation shall never be duplicated inside Diagram Studio\").",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["rule_id", "description", "expression", "severity"],
+    "properties": {
+      "rule_id": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$"
+      },
+      "description": { "type": "string", "minLength": 1 },
+      "expression": {
+        "type": "string",
+        "minLength": 1,
+        "description": "A human/tool-readable boolean expression over this object's own properties (e.g. \"resistance > 0\"). Not executed by WORK_PACKAGE_001 -- recorded declaratively only."
+      },
+      "severity": {
+        "type": "string",
+        "enum": ["info", "warning", "error"]
+      },
+      "applies_to": {
+        "type": ["string", "null"],
+        "default": null,
+        "description": "The property name (from properties.yaml) this rule concerns, if any."
+      }
+    }
+  }
+}

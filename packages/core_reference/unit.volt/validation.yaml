@@ -1,0 +1,5 @@
+- rule_id: unit.volt.conversion_factor_positive
+  description: Conversion Factor to SI shall be greater than zero.
+  expression: "conversion_factor_to_si > 0"
+  severity: error
+  applies_to: conversion_factor_to_si

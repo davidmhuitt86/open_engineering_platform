@@ -1,0 +1,28 @@
+examples:
+  - title: Finding current through a simple resistor
+    description: >-
+      A 12 V supply is connected across a 6 Ω resistor. By Ohm's Law,
+      the current is 12 V / 6 Ω = 2 A.
+
+worked_problems:
+  - title: Solving for resistance
+    problem: >-
+      A circuit draws 0.5 A from a 9 V battery through a single
+      resistor. What is the resistor's value?
+    solution: >-
+      R = V / I = 9 V / 0.5 A = 18 Ω.
+
+exercises:
+  - A resistor drops 3.3 V while carrying 150 mA. Calculate its
+    resistance.
+  - A 47 Ω resistor is connected across a 24 V supply. Calculate the
+    current through it.
+
+references:
+  - General DC circuit theory (public domain physical law)
+
+learning_path:
+  - Voltage, current, and resistance definitions
+  - Ohm's Law
+  - Series and parallel resistance
+  - Kirchhoff's Voltage and Current Laws

@@ -1,0 +1,35 @@
+# Educational Context (SDD-R001 §18).
+examples:
+  - title: LED current-limiting resistor
+    description: >-
+      A 220 Ω resistor in series with an LED and a 5 V supply limits
+      the LED current to a safe value, protecting the LED from
+      excessive current.
+
+worked_problems:
+  - title: Selecting a current-limiting resistor for an LED
+    problem: >-
+      A red LED has a forward voltage of 2.0 V and a rated forward
+      current of 20 mA. It is driven from a 5 V supply. What resistor
+      value and power rating are required?
+    solution: >-
+      The resistor must drop the remaining 3.0 V (5 V - 2 V) at 20 mA.
+      By Ohm's Law, R = V / I = 3.0 V / 0.020 A = 150 Ω. Power
+      dissipated is P = V x I = 3.0 V x 0.020 A = 0.06 W, so a
+      standard 0.25 W (or larger) resistor provides adequate margin.
+
+exercises:
+  - Two 100 Ω resistors are connected in series across a 9 V supply.
+    Calculate the voltage across each resistor.
+  - A 330 Ω resistor is rated for 0.25 W. What is the maximum current
+    it can safely carry?
+
+references:
+  - IEC 60115 -- Fixed resistors for use in electronic equipment
+  - IEC 60063 -- Preferred number series for resistors and capacitors
+
+learning_path:
+  - Ohm's Law
+  - Series and parallel resistance
+  - Power dissipation and derating
+  - Voltage divider networks

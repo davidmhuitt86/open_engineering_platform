@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "provenance.schema.json",
+  "title": "Provenance",
+  "description": "SDD-R001 §21 (object provenance) and SDD-R003 §13 (relationship provenance). Objects without provenance shall never become official OEP Reference Library objects (SDD-R001 §21).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["author", "created_date", "review_status", "confidence", "content_license"],
+  "properties": {
+    "author": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The individual or organization that authored this Engineering Knowledge Object or relationship."
+    },
+    "reviewer": {
+      "type": ["string", "null"],
+      "description": "The individual or organization that performed engineering review. Required before status may be Published (SDD-R008 §13)."
+    },
+    "created_date": {
+      "type": "string",
+      "format": "date",
+      "description": "ISO-8601 date this content was first authored."
+    },
+    "revision_date": {
+      "type": ["string", "null"],
+      "format": "date",
+      "description": "ISO-8601 date of the most recent substantive revision."
+    },
+    "sources_consulted": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "default": []
+    },
+    "review_status": {
+      "type": "string",
+      "enum": ["Draft", "Under Review", "Technically Verified", "Approved", "Published", "Deprecated", "Superseded", "Archived"],
+      "description": "Mirrors the SDD-R008 §4 lifecycle states."
+    },
+    "confidence": {
+      "type": "string",
+      "enum": ["low", "medium", "high", "verified"],
+      "description": "Qualitative confidence in engineering accuracy, distinct from review_status."
+    },
+    "content_license": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The license under which this authored content (not the engineering fact itself) is distributed."
+    }
+  }
+}

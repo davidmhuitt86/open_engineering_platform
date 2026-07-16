@@ -1,0 +1,28 @@
+- behavior_id: material.copper.calculate_wire_resistance
+  name: Calculate Wire Resistance
+  type: Calculation
+  description: >-
+    Computes the DC resistance of a copper conductor from its length,
+    cross-sectional area, and operating temperature.
+  inputs:
+    - name: length
+      value_type: number
+      units: m
+      required: true
+    - name: cross_sectional_area
+      value_type: number
+      units: "m²"
+      required: true
+    - name: temperature
+      value_type: number
+      units: "°C"
+      required: false
+      description: Defaults to 20°C when omitted.
+  outputs:
+    - name: resistance
+      value_type: number
+      units: "Ω"
+  constraints:
+    - Length shall be greater than zero.
+    - Cross-sectional area shall be greater than zero.
+  depends_on: []

@@ -1,0 +1,131 @@
+# Engineering Behaviors (SDD-R001 §11, SDD-R005). Declarative metadata
+# only -- no executable solver. Execution (Engineering Behaviors
+# runtime) is out of scope for WORK_PACKAGE_001.
+- behavior_id: component.passive.resistor.calculate_current
+  name: Calculate Current
+  type: Calculation
+  description: >-
+    Computes the current through the resistor given the voltage across
+    it, using Ohm's Law.
+  inputs:
+    - name: voltage
+      value_type: number
+      units: unit.volt
+      required: true
+    - name: resistance
+      value_type: number
+      units: "Ω"
+      required: true
+  outputs:
+    - name: current
+      value_type: number
+      units: A
+  constraints:
+    - Resistance shall not equal zero.
+  depends_on:
+    - equation.ohms_law
+
+- behavior_id: component.passive.resistor.calculate_voltage
+  name: Calculate Voltage
+  type: Calculation
+  description: Computes the voltage across the resistor given the current through it.
+  inputs:
+    - name: current
+      value_type: number
+      units: A
+      required: true
+    - name: resistance
+      value_type: number
+      units: "Ω"
+      required: true
+  outputs:
+    - name: voltage
+      value_type: number
+      units: unit.volt
+  constraints: []
+  depends_on:
+    - equation.ohms_law
+
+- behavior_id: component.passive.resistor.calculate_power
+  name: Calculate Power
+  type: Calculation
+  description: Computes power dissipated by the resistor given voltage and current.
+  inputs:
+    - name: voltage
+      value_type: number
+      units: unit.volt
+      required: true
+    - name: current
+      value_type: number
+      units: A
+      required: true
+  outputs:
+    - name: power
+      value_type: number
+      units: W
+  constraints:
+    - Result shall not exceed the resistor's power_rating property.
+  depends_on: []
+
+- behavior_id: component.passive.resistor.voltage_divider
+  name: Voltage Divider
+  type: Calculation
+  description: >-
+    Computes the output voltage of a two-resistor voltage divider
+    formed with a second resistor.
+  inputs:
+    - name: input_voltage
+      value_type: number
+      units: unit.volt
+      required: true
+    - name: resistance
+      value_type: number
+      units: "Ω"
+      required: true
+    - name: second_resistance
+      value_type: number
+      units: "Ω"
+      required: true
+  outputs:
+    - name: output_voltage
+      value_type: number
+      units: unit.volt
+  constraints:
+    - Sum of the two resistances shall not equal zero.
+  depends_on:
+    - equation.ohms_law
+
+- behavior_id: component.passive.resistor.series_resistance
+  name: Series Resistance
+  type: Calculation
+  description: Computes the total resistance of resistors combined in series.
+  inputs:
+    - name: resistances
+      value_type: string
+      units: null
+      required: true
+      description: Ordered list of resistance values, encoded by the caller.
+  outputs:
+    - name: total_resistance
+      value_type: number
+      units: "Ω"
+  constraints: []
+  depends_on: []
+
+- behavior_id: component.passive.resistor.parallel_resistance
+  name: Parallel Resistance
+  type: Calculation
+  description: Computes the total resistance of resistors combined in parallel.
+  inputs:
+    - name: resistances
+      value_type: string
+      units: null
+      required: true
+      description: Ordered list of resistance values, encoded by the caller.
+  outputs:
+    - name: total_resistance
+      value_type: number
+      units: "Ω"
+  constraints:
+    - No individual resistance shall equal zero.
+  depends_on: []

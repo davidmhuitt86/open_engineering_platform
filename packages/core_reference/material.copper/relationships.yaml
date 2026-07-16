@@ -1,0 +1,20 @@
+# Source is implicit: material.copper.
+- relationship_id: material.copper.used_by.resistor
+  type: USED_BY
+  category: Manufacturing
+  target: component.passive.resistor
+  multiplicity: one_to_many
+  metadata:
+    context: Component leads and terminations.
+  constraints: []
+  provenance:
+    author: OEP Reference Authoring Team
+    reviewer: Divad Technology Group Engineering Review
+    created_date: "2026-07-16"
+    review_status: Published
+    confidence: medium
+    content_license: CC-BY-4.0
+  version:
+    major: 1
+    minor: 0
+    patch: 0

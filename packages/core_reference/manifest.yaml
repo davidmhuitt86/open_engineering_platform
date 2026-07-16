@@ -1,0 +1,20 @@
+# Package Source Manifest (SDD-R004 §4). See schemas/package_manifest.schema.json.
+#
+# release_date is pinned, source-controlled metadata -- set by whoever
+# authors/releases this version of the package, never derived from
+# wall-clock build time. This is what keeps compiled builds
+# byte-for-byte reproducible regardless of when the compiler runs
+# (SDD-R004 §7; ENGINE-TASK-000007).
+
+package_id: core_reference
+display_name: OEP Core Reference Library (Vertical Slice)
+publisher: Divad Technology Group, LLC.
+version: "0.1.0"
+release_date: "2026-07-16"
+package_type: Core Library
+language: en
+license: Proprietary - Divad Technology Group, LLC.
+minimum_oep_version: null
+target_domains:
+  - Electrical
+dependencies: []

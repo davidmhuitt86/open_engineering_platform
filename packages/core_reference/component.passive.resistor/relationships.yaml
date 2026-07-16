@@ -1,0 +1,60 @@
+# Relationships (SDD-R003). Source is implicit: component.passive.resistor.
+- relationship_id: component.passive.resistor.uses_equation.ohms_law
+  type: USES_EQUATION
+  category: Engineering
+  target: equation.ohms_law
+  multiplicity: many_to_one
+  metadata:
+    priority: primary
+  constraints: []
+  provenance:
+    author: OEP Reference Authoring Team
+    reviewer: Divad Technology Group Engineering Review
+    created_date: "2026-07-16"
+    review_status: Published
+    confidence: high
+    content_license: CC-BY-4.0
+  version:
+    major: 1
+    minor: 0
+    patch: 0
+
+- relationship_id: component.passive.resistor.has_unit.volt
+  type: HAS_UNIT
+  category: Engineering
+  target: unit.volt
+  multiplicity: many_to_one
+  metadata:
+    applies_to_property: maximum_voltage
+  constraints: []
+  provenance:
+    author: OEP Reference Authoring Team
+    reviewer: Divad Technology Group Engineering Review
+    created_date: "2026-07-16"
+    review_status: Published
+    confidence: high
+    content_license: CC-BY-4.0
+  version:
+    major: 1
+    minor: 0
+    patch: 0
+
+- relationship_id: component.passive.resistor.represented_by.symbol_iec
+  type: REPRESENTED_BY
+  category: Visualization
+  target: symbol.iec.resistor
+  multiplicity: many_to_many
+  metadata:
+    primary_symbol: true
+  constraints: []
+  provenance:
+    author: OEP Reference Authoring Team
+    reviewer: Divad Technology Group Engineering Review
+    created_date: "2026-07-16"
+    review_status: Published
+    confidence: high
+    content_license: CC-BY-4.0
+  version:
+    major: 1
+    minor: 0
+    patch: 0

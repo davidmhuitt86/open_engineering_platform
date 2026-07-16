@@ -1,0 +1,44 @@
+# Engineering Properties describing the unit itself (SDD-R001 §9).
+- name: symbol
+  display_name: Symbol
+  value_type: string
+  units: null
+  default: V
+  range: null
+  required: true
+  read_only: true
+  description: The standard unit symbol.
+
+- name: quantity_measured
+  display_name: Quantity Measured
+  value_type: string
+  units: null
+  default: Voltage
+  range: null
+  required: true
+  read_only: true
+  description: The physical quantity this unit measures.
+
+- name: si_base_expression
+  display_name: SI Base Expression
+  value_type: string
+  units: null
+  default: "kg*m^2*s^-3*A^-1"
+  range: null
+  required: true
+  read_only: true
+  description: The volt expressed in SI base units.
+
+- name: conversion_factor_to_si
+  display_name: Conversion Factor to SI
+  value_type: number
+  units: null
+  default: 1.0
+  range:
+    min: 0
+    max: null
+  required: true
+  read_only: true
+  description: >-
+    Multiplier converting one of this unit into the SI base
+    expression. The volt is itself an SI derived unit, so this is 1.0.

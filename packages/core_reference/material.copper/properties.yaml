@@ -1,0 +1,71 @@
+- name: resistivity_at_20c
+  display_name: Resistivity at 20°C
+  value_type: number
+  units: "Ω·m"
+  default: 1.68e-8
+  range:
+    min: 0
+    max: null
+  required: true
+  read_only: false
+  description: Electrical resistivity at 20 degrees Celsius.
+
+- name: temperature_coefficient
+  display_name: Temperature Coefficient of Resistance
+  value_type: number
+  units: "1/°C"
+  default: 0.00393
+  range:
+    min: null
+    max: null
+  required: true
+  read_only: false
+  description: Fractional change in resistance per degree Celsius.
+
+- name: conductivity_iacs
+  display_name: Conductivity (IACS)
+  value_type: number
+  units: "%"
+  default: 100
+  range:
+    min: 0
+    max: null
+  required: false
+  read_only: false
+  description: Conductivity relative to the International Annealed Copper Standard.
+
+- name: melting_point
+  display_name: Melting Point
+  value_type: number
+  units: "°C"
+  default: 1085
+  range:
+    min: null
+    max: null
+  required: true
+  read_only: true
+  description: Melting point at standard atmospheric pressure.
+
+- name: density
+  display_name: Density
+  value_type: number
+  units: "g/cm³"
+  default: 8.96
+  range:
+    min: 0
+    max: null
+  required: false
+  read_only: true
+  description: Density at room temperature.
+
+- name: thermal_conductivity
+  display_name: Thermal Conductivity
+  value_type: number
+  units: "W/(m·K)"
+  default: 401
+  range:
+    min: 0
+    max: null
+  required: false
+  read_only: true
+  description: Thermal conductivity at room temperature.

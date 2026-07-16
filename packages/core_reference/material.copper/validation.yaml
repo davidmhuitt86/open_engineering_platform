@@ -1,0 +1,13 @@
+- rule_id: material.copper.resistivity_positive
+  description: Resistivity at 20°C shall be greater than zero.
+  expression: "resistivity_at_20c > 0"
+  severity: error
+  applies_to: resistivity_at_20c
+
+- rule_id: material.copper.melting_point_above_ambient
+  description: >-
+    Melting Point shall be well above typical ambient operating
+    temperature.
+  expression: "melting_point > 100"
+  severity: warning
+  applies_to: melting_point

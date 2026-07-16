@@ -1,0 +1,37 @@
+# The three variables Ohm's Law relates, modeled as Engineering
+# Properties of the equation itself (SDD-R001 §9).
+- name: voltage
+  display_name: Voltage
+  value_type: number
+  units: unit.volt
+  default: null
+  range:
+    min: null
+    max: null
+  required: true
+  read_only: false
+  description: Potential difference across the two points.
+
+- name: current
+  display_name: Current
+  value_type: number
+  units: A
+  default: null
+  range:
+    min: null
+    max: null
+  required: true
+  read_only: false
+  description: Current flowing between the two points.
+
+- name: resistance
+  display_name: Resistance
+  value_type: number
+  units: "Ω"
+  default: null
+  range:
+    min: 0
+    max: null
+  required: true
+  read_only: false
+  description: Resistance between the two points.

@@ -1,0 +1,33 @@
+- name: default_scale
+  display_name: Default Scale
+  value_type: number
+  units: null
+  default: 1.0
+  range:
+    min: 0
+    max: null
+  required: true
+  read_only: false
+  description: Default rendering scale factor applied when this symbol is placed.
+
+- name: view_box
+  display_name: View Box
+  value_type: string
+  units: null
+  default: "0 0 100 40"
+  range: null
+  required: true
+  read_only: true
+  description: The SVG viewBox this symbol's asset was authored against.
+
+- name: lead_count
+  display_name: Lead Count
+  value_type: integer
+  units: null
+  default: 2
+  range:
+    min: 2
+    max: 2
+  required: true
+  read_only: true
+  description: Number of connection leads this symbol exposes.

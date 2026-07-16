@@ -1,0 +1,105 @@
+# SDD-R001 §11 Equation example: Forward Solver, Inverse Solver, Unit
+# Conversion, Variable Validation. Declarative metadata only.
+- behavior_id: equation.ohms_law.forward_solver
+  name: Forward Solver
+  type: Calculation
+  description: Solves for voltage given current and resistance (V = I x R).
+  inputs:
+    - name: current
+      value_type: number
+      units: A
+      required: true
+    - name: resistance
+      value_type: number
+      units: "Ω"
+      required: true
+  outputs:
+    - name: voltage
+      value_type: number
+      units: unit.volt
+  constraints: []
+  depends_on: []
+
+- behavior_id: equation.ohms_law.inverse_solver
+  name: Inverse Solver
+  type: Calculation
+  description: Solves for current or resistance given the other two known variables.
+  inputs:
+    - name: voltage
+      value_type: number
+      units: unit.volt
+      required: true
+    - name: known_variable
+      value_type: string
+      units: null
+      required: true
+      description: '"current" or "resistance" -- which of the remaining two is known.'
+    - name: known_value
+      value_type: number
+      units: null
+      required: true
+  outputs:
+    - name: solved_value
+      value_type: number
+      units: null
+  constraints:
+    - Resistance shall not equal zero when solving for current.
+  depends_on: []
+
+- behavior_id: equation.ohms_law.unit_conversion
+  name: Unit Conversion
+  type: Conversion
+  description: >-
+    Converts voltage, current, or resistance values between SI prefix
+    scales (e.g. millivolts to volts) before or after applying the
+    equation.
+  inputs:
+    - name: value
+      value_type: number
+      units: null
+      required: true
+    - name: from_prefix
+      value_type: string
+      units: null
+      required: true
+    - name: to_prefix
+      value_type: string
+      units: null
+      required: true
+  outputs:
+    - name: converted_value
+      value_type: number
+      units: null
+  constraints: []
+  depends_on:
+    - unit.volt
+
+- behavior_id: equation.ohms_law.variable_validation
+  name: Variable Validation
+  type: Validation
+  description: >-
+    Confirms that the supplied voltage, current, and resistance values
+    are individually well-formed (correct sign, non-zero where
+    required) before a solver runs.
+  inputs:
+    - name: voltage
+      value_type: number
+      units: unit.volt
+      required: false
+    - name: current
+      value_type: number
+      units: A
+      required: false
+    - name: resistance
+      value_type: number
+      units: "Ω"
+      required: false
+  outputs:
+    - name: is_valid
+      value_type: boolean
+      units: null
+    - name: validation_message
+      value_type: string
+      units: null
+  constraints: []
+  depends_on: []

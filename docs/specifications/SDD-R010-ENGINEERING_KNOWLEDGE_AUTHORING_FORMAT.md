@@ -289,6 +289,12 @@ Sign package
 
 Create .oerp
 
+Reference Compiler Implementation
+
+The Reference Compiler and Validator are implemented in Python.
+
+This implementation language applies only to the authoring toolchain and imposes no requirements on the runtime. Compiled .oerp packages are language-independent and may be consumed by any conforming runtime implementation.
+
 ---
 
 # 13. Review Workflow

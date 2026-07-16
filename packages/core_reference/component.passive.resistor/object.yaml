@@ -1,0 +1,190 @@
+identity:
+  object_id: component.passive.resistor
+  canonical_name: resistor
+  display_name: Resistor
+  object_type: Component
+  version: "1.0.0"
+  status: Published
+
+classification:
+  domain: Electrical
+  discipline: Electronics
+  family: Passive Components
+  category: Resistors
+  subcategory: Fixed Resistor
+  tags:
+    - passive
+    - two-terminal
+    - linear
+    - fixed
+  keywords:
+    - resistance
+    - resistor
+    - ohmic
+    - carbon film
+    - metal film
+  aliases:
+    - fixed resistor
+  roles:
+    - Design
+    - Simulation
+    - Education
+    - Manufacturing
+  capabilities:
+    - Searchable
+    - Renderable
+    - Simulatable
+    - Validatable
+    - Explainable
+    - Exportable
+    - Printable
+  authority: Core OEP
+  visibility: Public
+  ownership: Divad Technology Group
+  standards:
+    - IEC
+    - IEEE
+  industries:
+    - Automotive
+    - Industrial
+    - Consumer Electronics
+  technologies: []
+
+description:
+  short_definition: >-
+    A passive two-terminal electrical component that introduces a
+    specified amount of electrical resistance into a circuit.
+  detailed_description: >-
+    A resistor opposes the flow of electric current, converting
+    electrical energy into heat in proportion to the square of the
+    current through it. Its defining electrical behavior is governed
+    by Ohm's Law, which relates the voltage across the resistor to the
+    current through it via its resistance value. Fixed resistors
+    present a constant resistance across their rated operating range,
+    distinguishing them from variable resistors (potentiometers,
+    rheostats), whose resistance is intentionally adjustable.
+  engineering_notes: >-
+    Real resistors deviate from the ideal linear model at temperature
+    extremes (temperature coefficient), at high frequency (parasitic
+    inductance and capacitance become significant), and under
+    excessive power dissipation (thermal derating). Preferred value
+    series (e.g. E12, E24, E96) constrain the discrete resistance
+    values manufacturers actually produce.
+  typical_applications:
+    - Current limiting
+    - Voltage division
+    - Pull-up and pull-down configuration for digital logic inputs
+    - Bias networks for active devices
+    - Precision measurement (current sensing, reference dividers)
+  limitations:
+    - Dissipates energy as heat; not lossless.
+    - Fixed resistance value cannot be adjusted once manufactured.
+    - Real components carry manufacturing tolerance and thermal drift.
+
+search_metadata:
+  keywords:
+    - resistor
+    - resistance
+    - ohmic device
+    - fixed resistor
+  aliases:
+    - fixed resistor
+  abbreviations:
+    - R
+  alternate_names:
+    - carbon film resistor
+    - metal film resistor
+  manufacturer_terms:
+    - chip resistor
+    - through-hole resistor
+  standards_references:
+    - IEC 60115
+    - IEEE 315
+
+ai_context:
+  definition: >-
+    A resistor is a passive component that limits or sets current flow
+    by presenting a fixed electrical resistance, measured in ohms.
+  engineering_explanation: >-
+    The relationship between the voltage across a resistor and the
+    current through it is linear and given by Ohm's Law (V = I x R).
+    Because a resistor is passive, it can only dissipate power (as
+    heat) -- it never supplies energy to the circuit. Selecting a
+    resistor for a design requires matching both its resistance value
+    and its power rating to the circuit's expected operating
+    conditions.
+  common_mistakes:
+    - Ignoring power dissipation and selecting a resistor whose power
+      rating is exceeded under normal operating conditions.
+    - Assuming a resistor's tolerance means the nominal value is exact,
+      rather than a manufacturing range around the nominal value.
+    - Neglecting temperature coefficient in precision or
+      high-temperature designs.
+  design_considerations:
+    - Resistance value and tolerance required by the circuit.
+    - Power rating margin above worst-case dissipation.
+    - Temperature coefficient for precision applications.
+    - Package style and footprint for the target assembly process.
+  troubleshooting:
+    - A resistor reading far higher than its nominal value (often
+      "open") frequently indicates thermal or overcurrent failure.
+    - Visible discoloration or a burnt smell indicates the power
+      rating was exceeded.
+  frequently_asked_questions:
+    - question: How is a resistor's resistance value identified?
+      answer: >-
+        Through-hole resistors typically use a color band code;
+        surface-mount resistors typically use a printed numeric code.
+        Both encode the same nominal resistance and tolerance.
+    - question: Does a resistor's resistance change with temperature?
+      answer: >-
+        Yes. The magnitude of the change is described by the
+        resistor's temperature coefficient, typically expressed in
+        parts-per-million per degree Celsius.
+
+simulation:
+  simulation_model: linear_ohmic
+  parameters:
+    - resistance
+    - temperature_coefficient
+  state_variables:
+    - voltage
+    - current
+    - power_dissipated
+  failure_modes:
+    - open_circuit_overcurrent
+    - thermal_degradation
+  default_values:
+    resistance: 1000
+    temperature_coefficient: 100
+  runtime_properties:
+    - temperature
+
+visualization:
+  icon: null
+  preview_image: null
+  three_d_model: null
+  footprint: null
+  assets: []
+
+provenance:
+  author: OEP Reference Authoring Team
+  reviewer: Divad Technology Group Engineering Review
+  created_date: "2026-07-16"
+  revision_date: "2026-07-16"
+  sources_consulted:
+    - IEC 60115 (Fixed resistors for use in electronic equipment)
+    - General electrical engineering fundamentals (public domain
+      principles; no copyrighted text reproduced)
+  review_status: Published
+  confidence: high
+  content_license: CC-BY-4.0
+
+version:
+  major: 1
+  minor: 0
+  patch: 0
+  revision_notes: >-
+    Initial gold-standard reference implementation
+    (WORK_PACKAGE_001, ENGINE-TASK-000005).
+  compatibility: []

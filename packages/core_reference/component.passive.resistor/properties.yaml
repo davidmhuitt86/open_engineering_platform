@@ -1,0 +1,99 @@
+# Engineering Properties (SDD-R001 §9).
+- name: resistance
+  display_name: Resistance
+  value_type: number
+  units: "Ω"
+  default: 1000
+  range:
+    min: 0
+    max: null
+  required: true
+  read_only: false
+  description: Nominal resistance value.
+
+- name: tolerance
+  display_name: Tolerance
+  value_type: number
+  units: "%"
+  default: 5
+  range:
+    min: 0
+    max: 20
+  required: true
+  read_only: false
+  description: Maximum permitted deviation from the nominal resistance value.
+
+- name: power_rating
+  display_name: Power Rating
+  value_type: number
+  units: W
+  default: 0.25
+  range:
+    min: 0
+    max: null
+  required: true
+  read_only: false
+  description: Maximum continuous power the resistor may safely dissipate.
+
+- name: temperature_coefficient
+  display_name: Temperature Coefficient
+  value_type: number
+  units: ppm/°C
+  default: 100
+  range:
+    min: null
+    max: null
+  required: false
+  read_only: false
+  description: Change in resistance per degree Celsius, in parts per million.
+
+- name: maximum_voltage
+  display_name: Maximum Voltage
+  value_type: number
+  units: unit.volt
+  default: 200
+  range:
+    min: 0
+    max: null
+  required: false
+  read_only: false
+  description: >-
+    Maximum voltage the resistor may safely be operated at, expressed
+    in the same unit as unit.volt.
+
+- name: preferred_series
+  display_name: Preferred Series
+  value_type: enum
+  units: null
+  default: E24
+  range: null
+  enum_values:
+    - E6
+    - E12
+    - E24
+    - E96
+  required: false
+  read_only: false
+  description: The IEC 60063 preferred-value series this part is drawn from.
+
+- name: package_style
+  display_name: Package Style
+  value_type: string
+  units: null
+  default: THT-axial
+  range: null
+  required: false
+  read_only: false
+  description: Physical package/footprint style (e.g. axial through-hole, 0603 SMD).
+
+- name: noise
+  display_name: Noise
+  value_type: number
+  units: μV/V
+  default: null
+  range:
+    min: 0
+    max: null
+  required: false
+  read_only: false
+  description: Excess (current) noise, typically specified per volt applied.

@@ -1,0 +1,20 @@
+examples:
+  - title: IEC vs. ANSI resistor symbols
+    description: >-
+      The IEC convention draws a fixed resistor as a plain rectangle;
+      the ANSI/IEEE convention draws the same component as a zig-zag
+      line. Both represent identical engineering behavior -- only the
+      drawing convention differs.
+
+worked_problems: []
+
+exercises:
+  - Identify whether a schematic using zig-zag resistor symbols is
+    drawn to the IEC or ANSI convention.
+
+references:
+  - IEC 60617 -- Graphical symbols for diagrams
+
+learning_path:
+  - Reading schematic symbols
+  - IEC vs. ANSI symbol conventions

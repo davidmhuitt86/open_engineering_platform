@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "relationships.schema.json",
+  "title": "Relationships -- relationships.yaml",
+  "description": "SDD-R003 Universal Relationship Model. The source of every entry is implicit -- the owning Engineering Knowledge Object (SDD-R010 §6: relationships are authored per-object, one file per object, listing only relationships where that object is the source).",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["relationship_id", "type", "target", "provenance"],
+    "properties": {
+      "relationship_id": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+        "description": "SDD-R003 §4 -- globally unique."
+      },
+      "type": {
+        "type": "string",
+        "minLength": 1,
+        "description": "SDD-R003 §8. Checked against the known Relationship Type list by the validator (soft, extensible)."
+      },
+      "category": {
+        "type": "string",
+        "description": "SDD-R003 §9. Organizational only; engineering meaning comes from `type`."
+      },
+      "target": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+        "description": "Object ID of the target Engineering Knowledge Object (SDD-R003 §7)."
+      },
+      "multiplicity": {
+        "type": "string",
+        "enum": ["one_to_one", "one_to_many", "many_to_one", "many_to_many"],
+        "description": "SDD-R003 §14."
+      },
+      "metadata": {
+        "type": "object",
+        "default": {},
+        "description": "SDD-R003 §10 -- e.g. priority, weight, confidence, strength, directionality, optional, deprecated."
+      },
+      "behavior": {
+        "type": ["string", "null"],
+        "default": null,
+        "description": "SDD-R003 §11 -- present only when behavior cannot be attributed to either endpoint independently."
+      },
+      "constraints": {
+        "type": "array",
+        "items": { "type": "string", "minLength": 1 },
+        "default": [],
+        "description": "SDD-R003 §12."
+      },
+      "provenance": { "$ref": "provenance.schema.json" },
+      "version": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "major": { "type": "integer", "minimum": 0 },
+          "minor": { "type": "integer", "minimum": 0 },
+          "patch": { "type": "integer", "minimum": 0 }
+        }
+      }
+    }
+  }
+}
