@@ -35,7 +35,17 @@ constraints (orthogonal movement/axis lock/angle constraint/snap
 priority/minimum wire length/connection protection), Engineering Graph +
 Diagram Layout search (implementing SDD-026's previously-unbuilt Search
 Engine) with result navigation, and Demonstration Host productivity
-tooling (recent commands).
+tooling (recent commands). **WORK_PACKAGE_024** (Diagram Studio
+Integration) **implemented** — the first work package spanning
+repositories: this Engine is now consumed by `oep_studio`'s production
+"Diagram Studio" workspace, entirely through the existing public API
+(no engine behavior changed). The Demonstration Host's canvas
+presentation widgets and three drafting dialogs were promoted from
+`example/lib/` into this package (`lib/views/widgets/`,
+`lib/views/dialogs/`) so both hosts render/edit identically instead of
+maintaining parallel copies (ADR-023); the Demonstration Host itself is
+now formally scoped to regression testing, architectural validation, and
+Engine development support only.
 
 Governed by SDD-024 through SDD-030 plus amendments SDD-024A/027A/028A
 (`docs/specifications/`, `docs/amendments/`). Implementation reasoning
@@ -74,7 +84,7 @@ See `docs/ENGINEERING_ENGINE.md` for the full public API.
 | `docs/ENGINEERING_ENGINE.md` | Runtime architecture, entry point, package layout |
 | `docs/ENGINEERING_GRAPH.md` | Graph object model, building, querying, validation |
 | `docs/SYMBOL_LIBRARY.md` | Symbol Definition schema, the 14 seed symbols, loading |
-| `docs/DIAGRAM_STUDIO.md` | The View layer, Diagram View, and the Demonstration Host (**not** Diagram Studio) |
+| `docs/DIAGRAM_STUDIO.md` | The View layer, Diagram View, and the now-regression-only Demonstration Host (**not** the real Diagram Studio, which lives in `oep_studio`) |
 | `docs/GRAPH_EDITING.md` | Editing philosophy, what's editable, movement-as-layout, grouping, clipboard |
 | `docs/UNDO_REDO.md` | The command model, `CommandHistory`, `EditingService`, what's outside undo/redo |
 | `docs/ROUTING_ENGINE.md` | `RoutingProvider`, the default orthogonal router, port-snapping scoping (WORK_PACKAGE_021 base) |

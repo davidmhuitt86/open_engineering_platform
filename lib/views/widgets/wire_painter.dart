@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:engineering_engine/engineering_engine.dart' show DiagramWireVisual;
 
 /// Paints [DiagramWireVisual]s as straight polylines. Node symbols are
-/// rendered as ordinary positioned widgets (see `main.dart`) so
+/// rendered as ordinary positioned widgets (see [SymbolNodeWidget]) so
 /// `flutter_svg` can do the actual symbol drawing — this painter only
 /// draws the connections between them.
 class WirePainter extends CustomPainter {

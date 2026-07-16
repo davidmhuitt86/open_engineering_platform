@@ -1,21 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:engineering_engine/engineering_engine.dart';
 
-import '../geometry_utils.dart';
-import '../wire_painter.dart';
-import 'annotation_widget.dart';
-import 'connection_preview_painter.dart';
-import 'grid_painter.dart';
-import 'guides_painter.dart';
-import 'origin_indicator.dart';
-import 'reconnect_handle.dart';
-import 'symbol_node_widget.dart';
-import 'wire_edit_handles.dart';
-
 /// The Graph View canvas: grid, wires, symbol nodes with ports, smart
 /// guides, box-select rectangle, connection preview, and reconnect
 /// handles (WORK_PACKAGE_021/022). A crosshair cursor is shown while a
 /// connection drag is in progress (ENGINE-TASK-000096).
+///
+/// Promoted from the Demonstration Host into the Engine package itself
+/// (WORK_PACKAGE_024) — it depends only on Engine data types
+/// (`DiagramScene`, `ViewState`, `SymbolProvider`, ...) plus plain
+/// callbacks, with zero Demonstration-Host-specific state, so both the
+/// Demonstration Host and Diagram Studio consume this exact same class
+/// rather than each maintaining their own copy of ~900 lines of canvas
+/// painting code. This is the "Rendering model" half of the ownership
+/// model's Engine column; only Studio-specific chrome (toolbars, panel
+/// framing, property inspector) is re-authored per-host.
 class GraphViewPanel extends StatelessWidget {
   final DiagramScene scene;
   final ViewState viewState;

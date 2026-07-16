@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:engineering_engine/engineering_engine.dart';
 
 /// Save/Load/Delete/Reset named layouts (WORK_PACKAGE_022,
-/// ENGINE-TASK-000089/000097).
+/// ENGINE-TASK-000089/000097). Promoted into the Engine package
+/// (WORK_PACKAGE_024) — see `array_placement_dialog.dart`'s doc comment
+/// for why.
 Future<void> showNamedLayoutsDialog(
   BuildContext context, {
   required LayoutProvider layoutProvider,

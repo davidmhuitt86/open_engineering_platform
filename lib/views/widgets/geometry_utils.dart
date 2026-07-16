@@ -15,7 +15,3 @@ Rect2D rectFromOffsets(Offset a, Offset b) {
 Rect rect2DToRect(Rect2D rect) {
   return Rect.fromLTRB(rect.left, rect.top, rect.right, rect.bottom);
 }
-
-// Grid snapping moved to the engine's `GridComputer.snap` (WORK_PACKAGE_022,
-// ENGINE-TASK-000090) — configurable spacing/toggle via ViewState.GridSettings
-// rather than this package's own fixed constant.

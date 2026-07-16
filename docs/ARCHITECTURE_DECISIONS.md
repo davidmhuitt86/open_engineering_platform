@@ -575,3 +575,58 @@ new subsystem. See `lib/core/views/diagram/diagram_layout.dart`,
 `docs/GRAPH_EDITING.md`. Regression-tested in
 `test/editing/align_distribute_commands_test.dart` and
 `test/editing/placement_commands_test.dart` ("Never-moved nodes" groups).
+
+## ADR-023 — Canvas Presentation Widgets Promoted to `lib/views/`; Demonstration Host Downgraded to Regression-Only (WORK_PACKAGE_024)
+
+**Context.** WORK_PACKAGE_024 integrated the Engineering Engine into
+`oep_studio` as "Diagram Studio," the production diagram-editing
+workspace. The plan going in assumed no Engine code changes would be
+needed — Diagram Studio would consume only the existing public API.
+While building Diagram Studio's canvas, it became clear that the
+Demonstration Host's own `GraphViewPanel` (plus its ten supporting
+painters/widgets: `WirePainter`, `GridPainter`, `GuidesPainter`,
+`OriginIndicator`, `ConnectionPreviewPainter`, `SymbolNodeWidget`,
+`ReconnectHandle`, `WireEditHandles`, `AnnotationWidget`,
+`geometry_utils.dart`) and three of its dialogs (`array_placement_dialog.dart`,
+`grid_settings_dialog.dart`, `named_layouts_dialog.dart`) had **zero**
+Demonstration-Host-specific dependencies — every one imports only
+`package:flutter/material.dart` (plus `flutter_svg`) and
+`package:engineering_engine/engineering_engine.dart`. They existed only
+in `example/lib/`, which is not part of the published package and
+cannot be imported by `oep_studio`.
+
+**Decision.** Rather than hand-duplicating ~1,000 lines of rendering and
+dialog code into `oep_studio` (a second, drifting copy of how a
+`DiagramScene`/`ViewState` gets painted), these files were promoted into
+the Engine package itself, under new non-`core` directories
+`lib/views/widgets/` and `lib/views/dialogs/`, exported from
+`package:engineering_engine/engineering_engine.dart`, and removed from
+`example/lib/`. The Demonstration Host now consumes them via the public
+API exactly like Diagram Studio does. `lib/core/` itself is untouched —
+it still contains no Flutter Widgets (SDD-025/026); the promoted widgets
+sit in a Flutter-dependent, non-core presentation layer, which is
+consistent with the ownership model's own "Rendering model" being listed
+under Engine ownership. `flutter_svg` was added to this package's own
+`pubspec.yaml` (previously only `example/pubspec.yaml` depended on it)
+since `SymbolNodeWidget` needs it.
+
+This is the one deviation from the original WP024 plan text ("no engine
+code changes are anticipated") — an "unavoidable issue discovered
+during implementation" in the sense WORK_PACKAGE_023's own frozen-
+architecture instruction anticipated: additive, non-`core`, doesn't
+touch any of the five permanently-separate runtime systems, and avoids
+a much worse outcome (two independently-maintained diagram renderers).
+
+Separately, the Demonstration Host's own doc comments (`main.dart`) and
+`docs/DIAGRAM_STUDIO.md` were updated to state its narrowed purpose
+explicitly: regression testing, architectural validation, and Engine
+development support, never the production user experience now that one
+genuinely exists. No functional changes were made to the Demonstration
+Host beyond the import updates the promotion required — its own test
+suite (`example/integration_test/app_test.dart`) still passes unmodified.
+
+**Status.** Accepted. See `lib/views/widgets/widgets.dart`,
+`lib/views/dialogs/dialogs.dart`, `docs/DIAGRAM_STUDIO.md`,
+`oep_studio/docs/REPOSITORY_INTEGRATION.md`. Regression-tested: the full
+existing `flutter test` suite (191 tests) and `example`'s own
+`flutter analyze`/tests pass unchanged after the move.

@@ -2,7 +2,11 @@ import 'package:flutter/material.dart';
 
 /// Array Placement dialog (WORK_PACKAGE_023, ENGINE-TASK-000102/000106) —
 /// prompts for a grid count/spacing, then hands the values back so the
-/// caller can execute `ArrayPlaceCommand`.
+/// caller can execute `ArrayPlaceCommand`. Promoted into the Engine
+/// package (WORK_PACKAGE_024) alongside the other generic, host-agnostic
+/// drafting dialogs — plain Material, no Demonstration-Host-specific
+/// dependencies, so both the Demonstration Host and Diagram Studio use
+/// this exact class rather than each maintaining their own copy.
 Future<({int countX, int countY, double spacingX, double spacingY})?> showArrayPlacementDialog(
   BuildContext context,
 ) {

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:engineering_engine/engineering_engine.dart';
 
 /// Grid/Snap settings dialog (WORK_PACKAGE_022, ENGINE-TASK-000097).
+/// Promoted into the Engine package (WORK_PACKAGE_024) — see
+/// `array_placement_dialog.dart`'s doc comment for why.
 Future<void> showGridSettingsDialog(BuildContext context, ViewStateService viewState) async {
   var settings = viewState.current.grid;
   await showDialog<void>(

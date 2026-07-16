@@ -1,11 +1,15 @@
 # Diagram View (formerly "Diagram Studio Shell")
 
 **This document does not describe Diagram Studio.** Diagram Studio is a
-Studio-side workspace and belongs to `oep_studio`, which this work package
-is explicitly forbidden from modifying. What follows is (1) the View layer
-inside the Engineering Engine, and (2) the Demonstration Host that
-exercises it for Phase 1 verification. See
-`docs/ARCHITECTURE_DECISIONS.md` ADR-003 and ADR-006.
+real, shipping Studio-side workspace in `oep_studio`
+(`lib/diagram_studio/`, built in WORK_PACKAGE_024) — this repository
+never implements it and may not be modified to do so. What follows is
+(1) the View layer inside the Engineering Engine, which Diagram Studio
+consumes via this package's public API exactly like the Demonstration
+Host does, and (2) the Demonstration Host itself, now formally scoped to
+regression testing, architectural validation, and Engine development
+support only (ADR-023). See `docs/ARCHITECTURE_DECISIONS.md` ADR-003,
+ADR-006, and ADR-023.
 
 ---
 

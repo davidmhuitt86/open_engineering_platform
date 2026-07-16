@@ -24,3 +24,5 @@ export 'shared/shared.dart';
 export 'simulation/simulation.dart';
 export 'symbols/symbols.dart';
 export 'viewstate/viewstate.dart';
+export 'views/dialogs/dialogs.dart';
+export 'views/widgets/widgets.dart';

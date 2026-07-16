@@ -4,15 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:engineering_engine/engineering_engine.dart';
 
-import 'dialogs/array_placement_dialog.dart';
-import 'dialogs/grid_settings_dialog.dart';
 import 'dialogs/layer_panel_dialog.dart';
-import 'dialogs/named_layouts_dialog.dart';
 import 'dialogs/search_panel_dialog.dart';
-import 'geometry_utils.dart';
 import 'seed_graph.dart';
 import 'symbol_bundle_loader.dart';
-import 'widgets/graph_view_panel.dart';
 import 'widgets/inspector_panels.dart';
 import 'widgets/rulers.dart';
 import 'widgets/secondary_toolbar.dart';
@@ -21,11 +16,21 @@ import 'widgets/toolbar.dart';
 
 /// Engineering Engine Demonstration Host.
 ///
-/// This is NOT Diagram Studio — Diagram Studio belongs to `oep_studio` and
-/// is out of scope here (STUDIO-TASK-000063, reaffirmed WORK_PACKAGE_021/
-/// 022). This app exists only to verify the Engineering Engine, and
-/// consumes ONLY its public API
-/// (`package:engineering_engine/engineering_engine.dart`).
+/// This is NOT Diagram Studio. As of WORK_PACKAGE_024, Diagram Studio is
+/// a real, shipping production workspace in `oep_studio`
+/// (`lib/diagram_studio/`) — this app's role is now formally narrowed to
+/// regression testing, architectural validation, and Engine development
+/// support only (see `docs/ARCHITECTURE_DECISIONS.md` ADR-023). It is
+/// never the primary user experience and is not evolved for end-user
+/// polish; new user-facing capability belongs in Diagram Studio, calling
+/// straight into this same public API
+/// (`package:engineering_engine/engineering_engine.dart`). This app
+/// still consumes ONLY that public API, and its own canvas-rendering
+/// widgets (`GraphViewPanel` and friends) were promoted into
+/// `lib/views/widgets/` in WORK_PACKAGE_024 specifically so Diagram
+/// Studio reuses them rather than duplicating them — this Demonstration
+/// Host and Diagram Studio render `DiagramScene`/`ViewState` through the
+/// exact same classes.
 ///
 /// WORK_PACKAGE_022 adds the professional editing environment around the
 /// WP021 command/selection/clipboard/routing foundation: grid/snap,
