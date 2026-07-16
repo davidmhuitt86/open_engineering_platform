@@ -45,7 +45,15 @@ presentation widgets and three drafting dialogs were promoted from
 `lib/views/dialogs/`) so both hosts render/edit identically instead of
 maintaining parallel copies (ADR-023); the Demonstration Host itself is
 now formally scoped to regression testing, architectural validation, and
-Engine development support only.
+Engine development support only. **WORK_PACKAGE_025** (Unified
+Engineering Workspace) **implemented** — pure Studio-side workflow
+integration (Engine hoisted into a shared, app-lifetime service; Search/
+Validation/Property Inspector/AI unified across Knowledge Studio and
+Diagram Studio; a new Project Explorer workspace) built entirely on
+this Engine's existing public API. No Engine code changed; the
+architectural decisions this work package's Studio-side code embodies
+are nonetheless recorded here, since `oep_studio` keeps no decision log
+of its own — see ADR-024 through ADR-027.
 
 Governed by SDD-024 through SDD-030 plus amendments SDD-024A/027A/028A
 (`docs/specifications/`, `docs/amendments/`). Implementation reasoning

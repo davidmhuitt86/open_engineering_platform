@@ -630,3 +630,135 @@ suite (`example/integration_test/app_test.dart`) still passes unmodified.
 `oep_studio/docs/REPOSITORY_INTEGRATION.md`. Regression-tested: the full
 existing `flutter test` suite (191 tests) and `example`'s own
 `flutter analyze`/tests pass unchanged after the move.
+
+## ADR-024 — `EngineHost` Ownership Hoisted Out of `DiagramStudioPage` Into a Shared, App-Lifetime Service (WORK_PACKAGE_025)
+
+**Context.** WORK_PACKAGE_025 unifies Knowledge Studio and Diagram
+Studio into synchronized views of one Engineering Project. A global
+Validation page, a unified Search page, and a new Project Explorer
+workspace all need to read — and, for selection, sometimes write — the
+same live `EngineeringEngine` instance, editing session, selection, and
+validation report Diagram Studio already maintains. Through
+WORK_PACKAGE_024, `DiagramStudioPage` created its own `EngineHost` in
+`initState` and disposed it in `dispose`, making all of that state
+unreachable from any route other than `/diagram`.
+
+This is a Studio-side (`oep_studio`) architectural decision — no Engine
+code changed. It is recorded here, rather than left undocumented in
+`oep_studio`, because `oep_studio` has no architecture decision log of
+its own (see `docs/ENGINEERING_PROJECT.md` in that repository) and this
+platform's Constitution treats this file as the one place load-bearing
+architectural reasoning gets recorded, regardless of which repository's
+code embodies it.
+
+**Decision.** `EngineHost`, `DiagramDocument`, and mirrors of the
+Engine's own `EditingSession`/`GraphSelection`/`ViewState`/
+`ValidationReport` streams moved from `DiagramStudioPage`'s private
+`State` into a new, app-lifetime Riverpod `Notifier`
+(`EngineeringProjectNotifier`/`engineeringProjectServiceProvider`),
+sibling to the pre-existing `foundationRuntimeServiceProvider`.
+`ensureEngineStarted()` is idempotent, so `DiagramStudioPage` can call
+it every time it mounts without recreating anything; the Engine keeps
+running when the user navigates to any other workspace.
+`DiagramStudioPage` became a *reader* of this shared state rather than
+an *owner* — its own previously-private fields became plain getters
+reading through the provider, which meant its existing ~900 lines of
+gesture/editing-action code needed no changes to their bodies, only to
+how six values are obtained.
+
+This changes nothing about the Engine's own public API or the
+Provider Architecture rules that API already satisfies (Graph/Layout/
+ViewState/Selection/Commands remain exactly as SDD-024 through SDD-030
+define them) — it changes only *which Studio-side object holds the
+reference* to an `EngineeringEngine` instance, a decision the Engine
+itself has no opinion about.
+
+**Status.** Accepted. See `oep_studio/lib/core/services/
+engineering_project_service.dart`, `oep_studio/docs/
+WORKSPACE_SYNCHRONIZATION.md`. Regression-tested: full `oep_studio`
+`flutter analyze`/`flutter test` suite passes, including a new
+composition test (`test/workflow/unified_workflow_test.dart`) exercising
+selection/validation/evidence/AI/history across a full multi-workspace
+navigation sequence.
+
+## ADR-025 — `EngineeringProject` Is Studio-Side Reference Data, Never a New Engine or Foundation Concept (WORK_PACKAGE_025)
+
+**Context.** WORK_PACKAGE_025 introduces the idea of an "Engineering
+Project" coordinating Knowledge, Diagrams, Evidence, Validation, and AI
+Sessions. Three repositories could plausibly own this concept:
+Foundation (repository-of-record), the Engineering Engine (owns Graph/
+Layout/Commands), or Studio (owns orchestration/UI/persistence).
+
+**Decision.** `EngineeringProject` lives in `oep_studio` only, as
+reference data: an id, a name, and three independently-nullable
+pointers (`repositoryPath`, `knowledgeSessionId`, `diagramDocumentPath`)
+into systems that already own that data. It is never a container that
+duplicates Knowledge Session, Engineering Graph, or Evidence content.
+Foundation is read-only and has no concept of a Knowledge Session, so a
+Project referencing one would be meaningless to it. The Engineering
+Engine owns Graph/Layout/ViewState/Commands/Search/Validation — none of
+which are Foundation- or Knowledge-Session-aware — so putting
+`EngineeringProject` there would force the Engine to learn about
+Studio-only concepts it has no other reason to know about, weakening
+the ownership boundary this Constitution otherwise keeps clean.
+
+**Status.** Accepted. No Engine code changed as a result of this
+decision — it is recorded here per the same reasoning as ADR-024. See
+`oep_studio/lib/core/models/engineering_project.dart`,
+`oep_studio/docs/ENGINEERING_PROJECT.md`.
+
+## ADR-026 — `UnifiedSearchResult` Wraps, Rather Than Merges, Two Pre-Existing `SearchResult` Types (WORK_PACKAGE_025)
+
+**Context.** `oep_studio` and `oep_engine` each already ship an
+unrelated, same-named `SearchResult` type: Studio's own (decoding
+Foundation's native FFI search structs, two kinds) and the Engine's own
+`SearchProvider` result (SDD-026, five kinds — node/relationship/
+symbol/annotation/layer). WORK_PACKAGE_025 requires one unified search
+page covering both, and requires results to identify Object Type,
+Owning Workspace, and Repository Location — none of which either
+source type carries today.
+
+**Decision.** Neither source `SearchResult` type was renamed, merged,
+or extended. A new wrapper class, `UnifiedSearchResult`
+(`oep_studio/lib/core/models/unified_search_result.dart`), carries
+`.fromFoundation()`/`.fromEngine()` factories and a new,
+unambiguous `UnifiedSearchResultCategory` enum computed once at
+construction time, so every consumer of unified search results
+switches on that one category rather than on either wrapped, same-named
+`SearchResultKind` enum directly. This keeps both existing,
+already-shipped search implementations (Foundation's native search,
+the Engine's `SearchProvider`, implementing SDD-026) completely
+untouched — WORK_PACKAGE_025 adds a presentation-layer merge, not a
+protocol-level one.
+
+**Status.** Accepted. Engine-side `SearchResult`/`SearchProvider`
+(`oep_engine/lib/core/search/`) unchanged. See `oep_studio/docs/
+UNIFIED_SEARCH.md`.
+
+## ADR-027 — `EvidenceLink.sourceReference`/`locator` Get a Studio-Side Interpretation Convention, Not a Schema Change (WORK_PACKAGE_025)
+
+**Context.** `EvidenceLink` (`lib/core/graph/models/evidence_link.dart`)
+declares `sourceReference` and `locator` as deliberately opaque to the
+Engine — "interpreted by whatever produced the evidence" and
+"producer-defined shape," respectively (SDD-024 Architecture Rule 7:
+evidence is never edited, only referenced). WORK_PACKAGE_025's Evidence
+Integration needs a concrete way to navigate from an `EvidenceLink` on
+a graph node to the actual Knowledge Session material it references.
+
+**Decision.** Rather than adding Studio-specific fields to
+`EvidenceLink` or teaching the Engine about `SourceMaterial`/
+`EvidenceRegion` (both Studio-only concepts), WORK_PACKAGE_025
+establishes a convention, enforced only by the Studio-side code that
+reads it, never by the Engine: `sourceReference` holds a Knowledge
+Session `SourceMaterial.id`; `locator['regionId']`, when present, holds
+an `EvidenceRegion.id`. `EvidenceLink` itself is unchanged — this ADR
+records an interpretation of two fields whose shape was already
+declared producer-defined, not a new capability. Two pre-existing
+Engine hooks with no callers anywhere in Studio before this work
+package — `SelectionService.focusEvidence(String)` and
+`NavigationService.syncEvidence(String)` — are reused as-is to mirror
+the resolved evidence reference onto the diagram canvas.
+
+**Status.** Accepted. No Engine code changed. See
+`oep_studio/lib/shared/navigation/evidence_navigation.dart`,
+`oep_studio/docs/WORKFLOW_ARCHITECTURE.md`.
