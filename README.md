@@ -8,20 +8,27 @@ and this repository's own `docs/architecture/SDD-R013` through
 
 ## Status
 
-**WORK_PACKAGE_001 through WORK_PACKAGE_006 implemented, plus ADR-0008
-(Connector Content Retrieval Interface).** WORK_PACKAGE_006 (Engineering
+**WORK_PACKAGE_001 through WORK_PACKAGE_007 implemented, plus ADR-0008
+(Connector Content Retrieval Interface).** WORK_PACKAGE_007 (Engineering
+Integrity Verification Engine) validates artifacts the Engineering
+Downloader has already retrieved: it resolves a Download Session,
+computes a SHA-256 hash of the file at its `local_storage_path`, and
+records the outcome (`verified`/`failed`) as an immutable Verification
+row -- entirely synchronously, mirroring WORK_PACKAGE_006's own
+`POST /downloads`. It performs no metadata extraction, document parsing,
+engineering object creation, or Reference Vault publication -- those
+remain later, unimplemented pipeline stages. WORK_PACKAGE_006 (Engineering
 Downloader) retrieves engineering artifacts exclusively through the
 Source Connector Framework's `fetch` operation (ADR-0008), validates the
 requesting Job and Connector, stores the artifact in a configurable
 local workspace, and tracks progress/history -- but, like every work
 package before it, `StubConnector` remains the only connector type and
 performs no real network communication (`fetch` writes a small
-placeholder file locally). Integrity verification, metadata extraction,
-Reference Vault publication, and Engineering Object creation are
-explicitly out of scope for the Downloader; browser automation, license
-management, and the Reference Vault itself remain out of scope
-platform-wide -- see `docs/tasks/WORK_PACKAGE_001.md` through
-`docs/tasks/WORK_PACKAGE_006.md` and
+placeholder file locally). Metadata extraction, Reference Vault
+publication, and Engineering Object creation are explicitly out of scope
+platform-wide; browser automation and license management also remain out
+of scope -- see `docs/tasks/WORK_PACKAGE_001.md` through
+`docs/tasks/WORK_PACKAGE_007.md` and
 `docs/decisions/ADR-0002-PROPOSED-CONNECTOR-CONTENT-RETRIEVAL.md`
 (superseded by `oep_architecture`'s ratified ADR-0008).
 
@@ -35,8 +42,8 @@ Requires:
   [postgresql.org/download](https://www.postgresql.org/download/); on
   Windows this ships with the standard installer
 - Network access the first time you configure (CMake's `FetchContent`
-  downloads spdlog, nlohmann/json, tomlplusplus, cpp-httplib, and
-  Catch2 -- see "Implementation Decisions" below)
+  downloads spdlog, nlohmann/json, tomlplusplus, cpp-httplib, Catch2,
+  libpqxx, and PicoSHA2 -- see "Implementation Decisions" below)
 
 From a shell with your C++ toolchain on `PATH` (e.g. a Visual Studio
 Developer Command Prompt on Windows):
@@ -242,6 +249,37 @@ client could ever call cancel -- see "Implementation Decisions" and
 "Future Considerations"). All routes return `404` for an unknown
 download id.
 
+### Engineering Integrity Verification Engine API
+
+```
+POST /verifications                Verify a Download Session's artifact (JSON body)
+GET  /verifications                List verifications; optional query filters:
+                                    status, download_session_id
+GET  /verifications/{id}           Fetch one verification
+GET  /verifications/{id}/status    Status + hash + timing only
+```
+
+```
+curl -X POST http://127.0.0.1:8080/verifications \
+  -H "Content-Type: application/json" \
+  -d '{"download_session_id":"<a Download id from /downloads>"}'
+```
+
+`download_session_id` is required and must reference an existing
+Download Session (`422 unknown_download_session` otherwise). `POST
+/verifications` runs **synchronously**: it resolves the Download's
+`local_storage_path`, computes a SHA-256 hash, and returns the
+Verification already in its final state (`verified` or `failed`) --
+mirroring `POST /downloads`. A missing, empty, or unreadable artifact is
+recorded as `failed` with a descriptive `error_message`, not rejected as
+invalid input (see "Implementation Decisions"). Re-verifying a Download
+Session that already has a prior `verified` hash on record recomputes
+the hash and compares it against that prior value, flagging a mismatch
+as `failed` (corruption detected) -- see "Implementation Decisions" for
+why this is how "Verify Existing Hashes"/"Detect Corrupt Files" map onto
+the single creation route. All routes return `404` for an unknown
+verification id.
+
 ## Test
 
 ```
@@ -283,7 +321,20 @@ Repository-layer tests, migration/schema-shape tests, and a REST API
 test covering the full lifecycle plus cancelling a `Pending` download
 seeded directly via the repository (see "Implementation Decisions" for
 why that's the only deterministic way to test cancellation with a
-synchronous, instant `StubConnector`).
+synchronous, instant `StubConnector`). WORK_PACKAGE-007 adds a dedicated
+`hash_file_sha256` unit-test suite (a known SHA-256 test vector,
+determinism across repeated reads, content larger than the streaming
+read buffer, a missing file, and a path that is a directory rather than
+a regular file -- entirely in-memory/local-disk, no database needed),
+validation tests, Service-layer tests (against an in-memory fake
+Verification repository and the existing fake Download repository,
+covering the full Verified/Failed paths, missing-file and corrupt-file
+detection, an empty-artifact rejection, and both re-verification
+outcomes -- unchanged-artifact-stays-verified and
+tampered-artifact-detected-as-failed), Repository-layer tests,
+migration/schema-shape tests, and a REST API test seeding a real
+Download Session (with a real file on disk) and exercising the full
+`POST`/`GET` lifecycle plus every rejection case end to end.
 
 The Repository/API/migration categories need a real PostgreSQL database
 and `SKIP` (not fail) if one isn't reachable, continuing
@@ -306,7 +357,7 @@ OEP_TEST_DB_USER, OEP_TEST_DB_PASSWORD
 ```
 
 The Repository/API/migration tests apply `migrations/V1__initial_schema.sql`
-through `migrations/V5__download_sessions.sql` verbatim from disk the
+through `migrations/V6__integrity_verifications.sql` verbatim from disk the
 first time they run against a given database (so they exercise the
 real, committed migration files) and `TRUNCATE ... CASCADE` the
 affected tables between test runs -- `CASCADE` matters here: once
@@ -315,7 +366,11 @@ affected tables between test runs -- `CASCADE` matters here: once
 dependent tables are truncated too (or `CASCADE` is used), which is
 exactly what happened when WORK_PACKAGE_004's history table first made
 the chain three tables deep -- see `tests/registry_test_support.cpp`,
-`tests/jobs_test_support.cpp`, and `tests/downloads_test_support.cpp`.
+`tests/jobs_test_support.cpp`, `tests/downloads_test_support.cpp`, and
+`tests/integrity_test_support.cpp`. The latter also seeds a full Source
+-> Job -> Download chain with a real file written to the Download's
+`local_storage_path`, since WORK_PACKAGE-007's Repository/API/migration
+tests need an actual artifact on disk to hash.
 No Flyway CLI install is required to run these tests, though a
 production deployment should still apply migrations via Flyway
 (`migrations/flyway.toml`).
@@ -345,9 +400,13 @@ include/oep/acquisition/  Public headers, one subdirectory per module
   downloads/               Engineering Downloader: Download domain model,
                            validation, Repository interface + PostgreSQL
                            implementation (libpqxx), Service
+  integrity/               Integrity Verification Engine: Verification
+                           domain model, validation, SHA-256 hashing
+                           utility (PicoSHA2), Repository interface +
+                           PostgreSQL implementation (libpqxx), Service
   api/                     ApiServer (GET /health, /sources, /jobs,
                            /jobs/{id}/execute|cancel|status, /connectors,
-                           /downloads routes)
+                           /downloads, /verifications routes)
 src/
   common/                 Logging + TOML configuration loading + uuid + time
   database/                PostgreSQL connection management (libpq)
@@ -361,14 +420,18 @@ src/
                            reserved names fit (see "Implementation Decisions")
   downloads/               Engineering Downloader (WORK_PACKAGE_006) --
                            also a new directory, for the same reason
+  integrity/               Integrity Verification Engine (WORK_PACKAGE_007)
+                           -- reuses the directory WORK_PACKAGE_001
+                           reserved under this exact name (see
+                           "Implementation Decisions")
   api/                     Embedded HTTP server: GET /health, /sources,
                            /jobs, /jobs/{id}/execute|cancel|status,
-                           /connectors, /downloads
+                           /connectors, /downloads, /verifications
   app/                     main() -- wires the above together
-  browser/ integrity/ licensing/ metadata/
+  browser/ licensing/ metadata/
   vault/ workspace/        Reserved for future work packages (empty --
                            see "Out of Scope" in WORK_PACKAGE_001.md
-                           through WORK_PACKAGE_006.md). Distinct from
+                           through WORK_PACKAGE_007.md). Distinct from
                            `[storage] workspace_path` below, which is a
                            runtime filesystem path, not a source directory.
 migrations/
@@ -377,6 +440,7 @@ migrations/
   V3__acquisition_jobs.sql        acquisition_jobs table (WORK_PACKAGE_003)
   V4__job_execution_history.sql   acquisition_job_execution_history table (WORK_PACKAGE_004)
   V5__download_sessions.sql       download_sessions table (WORK_PACKAGE_006)
+  V6__integrity_verifications.sql integrity_verifications table (WORK_PACKAGE_007)
   flyway.toml                     Flyway configuration (not yet invoked)
 tests/                    Catch2 test suite
 docs/
@@ -698,12 +762,107 @@ needs no additional tool install, and pins every dependency to an
 explicit tagged version (never a floating branch) for reproducible
 builds.
 
+**Hashing library: PicoSHA2, a single-header, dependency-free SHA-256
+implementation, fetched and pinned like every other dependency.**
+`PROJECT_CONTEXT.md` names "SHA-256 (Primary), BLAKE3 (Secondary)" in
+the platform's technology stack but no specific library -- WORK_PACKAGE-007
+is the first work package that actually needs to compute a cryptographic
+hash. Hand-rolling SHA-256 was rejected (Engineering Principle 6,
+Security by Design: don't reimplement cryptographic primitives when a
+vetted library is readily available); pulling in all of OpenSSL was
+rejected as disproportionate to "generate one hash algorithm" and
+inconsistent with this project's existing lightweight-dependency pattern
+(`cpp-httplib` itself is fetched with `HTTPLIB_REQUIRE_OPENSSL OFF` to
+avoid exactly that dependency). PicoSHA2 has no version tags, so it is
+pinned to a specific commit (`161cb3fc4170fa7a3eca9e582cebd27cc4d1fe29`,
+the tip of its default branch at the time of this work package) rather
+than a tag, the same way any other untagged dependency would be handled.
+Its own `CMakeLists.txt` already defines a clean `picosha2` `INTERFACE`
+target with tests/examples off by default, so no wrapper target was
+needed.
+
+**`src/integrity/` reuses the directory WORK_PACKAGE_001 reserved under
+that exact name, rather than inventing a new one.** WORK_PACKAGE_001's
+reserved-but-empty directories (`registry`, `acquisition`, `browser`,
+`integrity`, `licensing`, `vault`, `workspace`) were named after items in
+its own "Out of Scope"
+list ("Official Source Registry, Reference Vault, Integrity, Metadata,
+Browser, Licensing, Workspace, Engineering Objects"). Unlike
+WORK_PACKAGE-003's `acquisition` reuse (which required inferring that
+"acquisition" meant the Job Engine) or WORK_PACKAGE-005/006's `connectors`/
+`downloads` (new directories, since nothing reserved fit), "Integrity" is
+an exact, literal match for WORK_PACKAGE-007's "Integrity Verification
+Engine" -- the strongest-possible case for directory reuse in this
+codebase so far.
+
+**A missing/empty/unreadable/hash-mismatched artifact is recorded as a
+`Failed` Verification, not thrown as a validation error -- but a
+nonexistent `download_session_id` is rejected outright.** WORK_PACKAGE-007's
+"Validation Rules" list "Download session shall exist" alongside
+"Downloaded artifact shall exist," "Artifact shall not be empty,"
+"Missing files shall fail verification," and "Corrupt files shall fail
+verification" as if they were all the same kind of rule, but they are
+not: whether a *request* names a real Download Session is a property of
+the request (mirroring WORK_PACKAGE-006's `UnknownJobError` -- a `422`),
+while whether that session's *artifact* still exists, is non-empty, and
+reads back cleanly are properties of the artifact's current condition on
+disk, discovered only by trying to hash it -- exactly analogous to how
+`downloads::DownloadService` records a connector fetch failure as a
+terminal `Failed` `Download`, not an exception. Collapsing all five into
+uniform `422`s would have made "Missing Files"/"Detect Corrupt Files"
+(both explicitly listed Functional Requirements, each with its own named
+test category) unobservable as Verification history -- there would be no
+record of the attempt at all, only an HTTP error response.
+
+**"Verify Existing Hashes" and "Detect Corrupt Files" are implemented as
+re-verification against a download session's own prior verified hash,
+not against a client-supplied "expected hash."** WORK_PACKAGE-007 lists
+"Generate Cryptographic Hashes," "Verify Existing Hashes," and "Detect
+Corrupt Files" as three distinct Functional Requirements, but defines
+only one creation route (`POST /verifications`) and no "expected hash"
+field anywhere in the Verification Model or REST API section. The
+self-consistent reading used here: the first `POST /verifications` for a
+Download Session computes and stores a hash (Generate); a later `POST
+/verifications` for the *same* Download Session recomputes the hash and
+compares it against that Download Session's own most recent `verified`
+hash (Verify Existing Hashes), flagging a mismatch as `failed` with an
+explanatory `error_message` (Detect Corrupt Files) -- self-referential
+integrity monitoring over time, not comparison against an
+externally-supplied value the spec never asks the client to provide.
+
+**`POST /verifications` runs entirely synchronously -- no background
+thread, no async execution model.** Same reasoning as WORK_PACKAGE-006's
+`POST /downloads`: WORK_PACKAGE-007 has no second endpoint analogous to
+`POST /jobs/{id}/execute`'s repeatable-step pattern, and building genuine
+async hashing infrastructure for an artifact-hashing operation that
+already completes in milliseconds against `StubConnector`-sized test
+files would be speculative engineering. `Verification` still models
+`Pending` as a real, distinct state (persisted briefly between `create`
+and the finalizing `update`, mirroring `Download`'s `Pending` ->
+`Downloading` step), but "Invalid transitions shall be rejected" is
+enforced structurally rather than by an explicit guard: the REST API
+exposes no route that can mutate an existing Verification, so
+`IntegrityVerificationService::verify`'s own two internal transitions
+(`Pending` -> `Verified`, `Pending` -> `Failed`) are the only ones that
+can ever occur.
+
+**"Corrupt Files" is tested via a path that is a directory rather than a
+regular file, not via fabricated bit-level corruption.** WORK_PACKAGE-007's
+Objective explicitly excludes document parsing and metadata extraction,
+so this engine has no format-aware notion of a "corrupted PDF" or
+similar -- "corrupt," for its purposes, can only mean "exists on disk but
+cannot be read back as artifact content." `hash_file_sha256` rejects
+anything that isn't `std::filesystem::is_regular_file` (a directory, in
+the test suite) or that fails to open as a stream, which reproduces that
+condition deterministically without inventing fake byte-level damage to
+a format this engine doesn't parse anyway.
+
 ## TODOs
 
-- WORK_PACKAGE_007 onward: real connector types (HTTP, FTP, browser
+- WORK_PACKAGE_008 onward: real connector types (HTTP, FTP, browser
   automation) implementing `IConnector`/`fetch`, wiring Connectors to
-  Official Sources/Acquisition Jobs, Integrity Verification, Metadata
-  Extraction, Reference Vault publication -- per
+  Official Sources/Acquisition Jobs, Metadata Extraction, Reference
+  Vault publication, Engineering Object creation -- per
   `docs/architecture/SDD-R013` through `SDD-R019`.
 - `migrations/flyway.toml` is still not invoked by any automated
   process (see Future Considerations below).
@@ -713,8 +872,27 @@ builds.
 - `migrations/flyway.toml` is not yet invoked by any automated process
   -- a future work package should wire `flyway migrate` into the build
   or a deployment step. Repository/API/migration tests currently apply
-  `V1__initial_schema.sql` through `V5__download_sessions.sql`
+  `V1__initial_schema.sql` through `V6__integrity_verifications.sql`
   verbatim themselves (see "Test" above) as a stand-in.
+- The Integrity Verification Engine only ever compares a re-verification
+  against the *most recent* prior `verified` hash for a Download Session,
+  not the full verification history -- if a Download Session is verified
+  three times and the second verification was itself `failed` (e.g. a
+  transient read error), the third verification still compares against
+  the first (last-known-good) hash, since `Failed` verifications are
+  excluded from `latest_verified_hash`'s filter. This matches WORK_PACKAGE-007's
+  text (which never describes multi-hash reconciliation), but a future
+  work package that needs finer-grained drift analysis across a longer
+  history should revisit `IntegrityVerificationService`'s re-verification
+  lookup.
+- Only SHA-256 is implemented, though WORK_PACKAGE-007 requires
+  "Architecture shall support additional algorithms in future revisions
+  without redesign." `Verification` has no `algorithm` column -- adding a
+  second algorithm (e.g. BLAKE3, per `PROJECT_CONTEXT.md`'s "Secondary"
+  hash algorithm) would need an additive migration and a corresponding
+  field/column, which the existing `CHECK`-constrained-`TEXT`-over-native-`ENUM`
+  precedent (see WORK_PACKAGE-002's Implementation Decisions) already
+  supports without redesigning `integrity_verifications`.
 - Moving `fetch` execution onto a background thread once a real, slow
   connector type exists -- see "Implementation Decisions" for why
   `POST /downloads` is fully synchronous today and why that makes

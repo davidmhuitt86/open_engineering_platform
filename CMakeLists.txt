@@ -69,6 +69,22 @@ FetchContent_Declare(
   GIT_SHALLOW TRUE
 )
 
+# WORK_PACKAGE_007 (Integrity Verification Engine) needs SHA-256 hash
+# generation. PicoSHA2 is a single-header, MIT-licensed, dependency-free
+# implementation -- avoids hand-rolling cryptographic code (Engineering
+# Principle 6, Security by Design) while staying far lighter than pulling in
+# all of OpenSSL for one hash algorithm (this project's cpp-httplib fetch
+# above already deliberately disables OpenSSL to keep the build simple; see
+# README.md "Implementation Decisions"). PicoSHA2 has no version tags, so it
+# is pinned to a specific commit rather than a tag, same as any other
+# untagged dependency would be.
+FetchContent_Declare(
+  picosha2
+  GIT_REPOSITORY https://github.com/okdshin/PicoSHA2.git
+  GIT_TAG 161cb3fc4170fa7a3eca9e582cebd27cc4d1fe29
+  GIT_SHALLOW TRUE
+)
+
 find_package(PostgreSQL REQUIRED)
 
 set(SKIP_BUILD_TEST ON CACHE BOOL "" FORCE)
@@ -81,7 +97,7 @@ FetchContent_Declare(
   GIT_SHALLOW TRUE
 )
 
-FetchContent_MakeAvailable(spdlog nlohmann_json tomlplusplus httplib Catch2 libpqxx)
+FetchContent_MakeAvailable(spdlog nlohmann_json tomlplusplus httplib Catch2 libpqxx picosha2)
 
 # Catch2's CTest integration (catch_discover_tests) lives in a CMake module
 # shipped alongside Catch2's own sources, not on CMake's default module path.
@@ -93,6 +109,7 @@ add_subdirectory(src/registry)
 add_subdirectory(src/acquisition)
 add_subdirectory(src/connectors)
 add_subdirectory(src/downloads)
+add_subdirectory(src/integrity)
 add_subdirectory(src/api)
 add_subdirectory(src/app)
 add_subdirectory(tests)

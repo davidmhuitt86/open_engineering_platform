@@ -19,6 +19,8 @@
 #include "oep/acquisition/database/database_connection.hpp"
 #include "oep/acquisition/downloads/download_service.hpp"
 #include "oep/acquisition/downloads/postgres_download_repository.hpp"
+#include "oep/acquisition/integrity/integrity_verification_service.hpp"
+#include "oep/acquisition/integrity/postgres_verification_repository.hpp"
 #include "oep/acquisition/registry/official_source_service.hpp"
 #include "oep/acquisition/registry/postgres_official_source_repository.hpp"
 
@@ -169,8 +171,33 @@ int main(int argc, char** argv) {
     log.warn("engineering downloader disabled this run: job repository unavailable");
   }
 
+  // The Integrity Verification Engine (WORK_PACKAGE_007) needs the
+  // Download repository (to resolve "Download session shall exist" and
+  // locate the artifact to hash) plus its own verification-history
+  // repository, so it is only constructed when the Engineering Downloader
+  // already connected successfully -- same non-fatal-database precedent as
+  // the Execution Engine and Engineering Downloader above.
+  std::unique_ptr<oep::acquisition::integrity::PostgresVerificationRepository> verification_repository;
+  std::unique_ptr<oep::acquisition::integrity::IntegrityVerificationService> verification_service;
+  if (download_repository) {
+    try {
+      verification_repository =
+          std::make_unique<oep::acquisition::integrity::PostgresVerificationRepository>(config.database);
+      verification_service = std::make_unique<oep::acquisition::integrity::IntegrityVerificationService>(
+          *verification_repository, *download_repository);
+      log.info("integrity verification engine repository connected");
+    } catch (const std::exception& ex) {
+      log.warn(
+          "integrity verification engine repository unavailable: {} -- /verifications routes disabled "
+          "this run",
+          ex.what());
+    }
+  } else {
+    log.warn("integrity verification engine disabled this run: download repository unavailable");
+  }
+
   ApiServer server(config.server, source_service.get(), job_service.get(), execution_service.get(),
-                    &connector_registry, download_service.get());
+                    &connector_registry, download_service.get(), verification_service.get());
   if (!server.start()) {
     log.error("failed to start API server on {}:{}", config.server.host, config.server.port);
     return 1;

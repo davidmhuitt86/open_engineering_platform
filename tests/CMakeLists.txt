@@ -31,6 +31,13 @@ add_executable(oep_acquisition_tests
   test_download_repository.cpp
   test_download_migration.cpp
   test_download_api.cpp
+  integrity_test_support.cpp
+  test_hashing.cpp
+  test_verification_validation.cpp
+  test_verification_service.cpp
+  test_verification_repository.cpp
+  test_verification_migration.cpp
+  test_verification_api.cpp
 )
 
 target_link_libraries(oep_acquisition_tests
@@ -41,6 +48,7 @@ target_link_libraries(oep_acquisition_tests
     oep_acquisition_jobs
     oep_acquisition_connectors
     oep_acquisition_downloads
+    oep_acquisition_integrity
     oep_acquisition_api
     Catch2::Catch2WithMain
     httplib::httplib

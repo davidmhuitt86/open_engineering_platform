@@ -28,6 +28,10 @@ namespace oep::acquisition::downloads {
 class DownloadService;
 }
 
+namespace oep::acquisition::integrity {
+class IntegrityVerificationService;
+}
+
 namespace oep::acquisition::api {
 
 /// The Engineering Acquisition Manager's HTTP API.
@@ -39,16 +43,16 @@ namespace oep::acquisition::api {
 /// `GET /health` (WORK_PACKAGE_001) is always registered. The `/sources`
 /// routes (WORK_PACKAGE_002), `/jobs` routes (WORK_PACKAGE_003),
 /// `/jobs/{id}/execute`, `/jobs/{id}/cancel`, `/jobs/{id}/status` routes
-/// (WORK_PACKAGE_004), `/connectors` routes (WORK_PACKAGE_005), and
-/// `/downloads` routes (WORK_PACKAGE_006) are each registered only when
-/// their respective service/registry pointer is non-null -- `main.cpp`
-/// passes `nullptr` if a PostgreSQL repository could not be constructed
-/// at startup, so a database outage degrades the process rather than
-/// preventing it from starting at all (continuing WORK_PACKAGE_001's
-/// non-fatal-database precedent). Unlike the others, `connector_registry`
-/// has no PostgreSQL dependency (WORK_PACKAGE_005 keeps connector
-/// registration in-memory) and so is effectively always non-null in
-/// practice.
+/// (WORK_PACKAGE_004), `/connectors` routes (WORK_PACKAGE_005),
+/// `/downloads` routes (WORK_PACKAGE_006), and `/verifications` routes
+/// (WORK_PACKAGE_007) are each registered only when their respective
+/// service/registry pointer is non-null -- `main.cpp` passes `nullptr` if
+/// a PostgreSQL repository could not be constructed at startup, so a
+/// database outage degrades the process rather than preventing it from
+/// starting at all (continuing WORK_PACKAGE_001's non-fatal-database
+/// precedent). Unlike the others, `connector_registry` has no PostgreSQL
+/// dependency (WORK_PACKAGE_005 keeps connector registration in-memory)
+/// and so is effectively always non-null in practice.
 class ApiServer {
  public:
   explicit ApiServer(const common::ServerConfig& config,
@@ -56,7 +60,8 @@ class ApiServer {
                       acquisition::AcquisitionJobService* job_service = nullptr,
                       acquisition::AcquisitionExecutionService* execution_service = nullptr,
                       connectors::ConnectorRegistry* connector_registry = nullptr,
-                      downloads::DownloadService* download_service = nullptr);
+                      downloads::DownloadService* download_service = nullptr,
+                      integrity::IntegrityVerificationService* verification_service = nullptr);
   ~ApiServer();
 
   ApiServer(const ApiServer&) = delete;
@@ -85,6 +90,7 @@ class ApiServer {
   acquisition::AcquisitionExecutionService* execution_service_;
   connectors::ConnectorRegistry* connector_registry_;
   downloads::DownloadService* download_service_;
+  integrity::IntegrityVerificationService* verification_service_;
   std::unique_ptr<httplib::Server> server_;
   std::thread thread_;
   std::atomic<bool> running_{false};

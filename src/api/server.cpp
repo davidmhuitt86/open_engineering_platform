@@ -18,6 +18,10 @@
 #include "oep/acquisition/downloads/download_json.hpp"
 #include "oep/acquisition/downloads/download_service.hpp"
 #include "oep/acquisition/downloads/validation.hpp"
+#include "oep/acquisition/integrity/integrity_verification_service.hpp"
+#include "oep/acquisition/integrity/validation.hpp"
+#include "oep/acquisition/integrity/verification_errors.hpp"
+#include "oep/acquisition/integrity/verification_json.hpp"
 #include "oep/acquisition/registry/official_source_json.hpp"
 #include "oep/acquisition/registry/official_source_service.hpp"
 #include "oep/acquisition/registry/validation.hpp"
@@ -32,6 +36,8 @@ using acquisition::JobFilter;
 using connectors::ConnectorRegistry;
 using downloads::DownloadFilter;
 using downloads::DownloadService;
+using integrity::IntegrityVerificationService;
+using integrity::VerificationFilter;
 using registry::OfficialSourceService;
 using registry::SourceFilter;
 
@@ -541,9 +547,109 @@ void register_downloads_routes(httplib::Server& server, DownloadService& service
   });
 }
 
+// Same idea as guard_downloads, for WORK_PACKAGE-007's Validation Rules:
+// - ValidationError -> 422 (missing download_session_id).
+// - UnknownDownloadSessionError -> 422 ("Download session shall exist").
+// A missing/empty/unreadable/corrupt artifact is NOT an exception here --
+// IntegrityVerificationService records those as a Failed Verification and
+// returns normally (see its header comment), so no additional catch clause
+// is needed for them.
+template <typename Fn>
+void guard_verifications(httplib::Response& response, Fn&& fn) {
+  try {
+    fn();
+  } catch (const integrity::ValidationError& error) {
+    respond_validation_error(response, error.violations());
+  } catch (const integrity::UnknownDownloadSessionError& ex) {
+    respond_error(response, 422, "unknown_download_session", ex.what());
+  } catch (const std::exception& ex) {
+    respond_error(response, 503, "service_unavailable", ex.what());
+  }
+}
+
+std::optional<VerificationFilter> parse_verification_filter(const httplib::Request& request,
+                                                                httplib::Response& response) {
+  VerificationFilter filter;
+
+  if (request.has_param("status")) {
+    const auto status = integrity::verification_status_from_string(request.get_param_value("status"));
+    if (!status.has_value()) {
+      respond_error(response, 400, "invalid_query_parameter",
+                     "status is not a recognized Verification Status.");
+      return std::nullopt;
+    }
+    filter.status = status;
+  }
+
+  if (request.has_param("download_session_id")) {
+    filter.download_session_id = request.get_param_value("download_session_id");
+  }
+
+  return filter;
+}
+
+void register_verifications_routes(httplib::Server& server, IntegrityVerificationService& service) {
+  server.Post("/verifications", [&service](const httplib::Request& request, httplib::Response& response) {
+    nlohmann::json body;
+    try {
+      body = nlohmann::json::parse(request.body);
+    } catch (const nlohmann::json::exception&) {
+      respond_error(response, 400, "invalid_json", "Request body is not valid JSON.");
+      return;
+    }
+    guard_verifications(response, [&] {
+      const auto created = service.verify(body);
+      response.set_header("Location", "/verifications/" + created.id);
+      respond_json(response, 201, integrity::to_json(created));
+    });
+  });
+
+  server.Get("/verifications", [&service](const httplib::Request& request, httplib::Response& response) {
+    const auto filter = parse_verification_filter(request, response);
+    if (!filter.has_value()) {
+      return;  // parse_verification_filter already populated a 400 response.
+    }
+    guard_verifications(response, [&] {
+      const auto verifications = service.list(*filter);
+      nlohmann::json body = nlohmann::json::array();
+      for (const auto& verification : verifications) {
+        body.push_back(integrity::to_json(verification));
+      }
+      respond_json(response, 200, body);
+    });
+  });
+
+  server.Get(R"(/verifications/([^/]+))", [&service](const httplib::Request& request,
+                                                         httplib::Response& response) {
+    const std::string id = request.matches[1];
+    guard_verifications(response, [&] {
+      const auto verification = service.get(id);
+      if (!verification.has_value()) {
+        respond_error(response, 404, "not_found", "No verification exists with that id.");
+        return;
+      }
+      respond_json(response, 200, integrity::to_json(*verification));
+    });
+  });
+
+  server.Get(R"(/verifications/([^/]+)/status)", [&service](const httplib::Request& request,
+                                                                 httplib::Response& response) {
+    const std::string id = request.matches[1];
+    guard_verifications(response, [&] {
+      const auto verification = service.get(id);
+      if (!verification.has_value()) {
+        respond_error(response, 404, "not_found", "No verification exists with that id.");
+        return;
+      }
+      respond_json(response, 200, integrity::status_to_json(*verification));
+    });
+  });
+}
+
 void register_routes(httplib::Server& server, OfficialSourceService* source_service,
                       AcquisitionJobService* job_service, AcquisitionExecutionService* execution_service,
-                      ConnectorRegistry* connector_registry, DownloadService* download_service) {
+                      ConnectorRegistry* connector_registry, DownloadService* download_service,
+                      IntegrityVerificationService* verification_service) {
   server.Get("/health", [](const httplib::Request&, httplib::Response& response) {
     const nlohmann::json body{{"status", "ok"}};
     response.set_content(body.dump(), "application/json");
@@ -564,6 +670,9 @@ void register_routes(httplib::Server& server, OfficialSourceService* source_serv
   if (download_service != nullptr) {
     register_downloads_routes(server, *download_service);
   }
+  if (verification_service != nullptr) {
+    register_verifications_routes(server, *verification_service);
+  }
 }
 
 }  // namespace
@@ -572,16 +681,18 @@ ApiServer::ApiServer(const common::ServerConfig& config, registry::OfficialSourc
                       acquisition::AcquisitionJobService* job_service,
                       acquisition::AcquisitionExecutionService* execution_service,
                       connectors::ConnectorRegistry* connector_registry,
-                      downloads::DownloadService* download_service)
+                      downloads::DownloadService* download_service,
+                      integrity::IntegrityVerificationService* verification_service)
     : config_(config),
       source_service_(source_service),
       job_service_(job_service),
       execution_service_(execution_service),
       connector_registry_(connector_registry),
       download_service_(download_service),
+      verification_service_(verification_service),
       server_(std::make_unique<httplib::Server>()) {
   register_routes(*server_, source_service_, job_service_, execution_service_, connector_registry_,
-                   download_service_);
+                   download_service_, verification_service_);
 }
 
 ApiServer::~ApiServer() {
