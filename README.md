@@ -9,17 +9,23 @@ and this repository's own `docs/architecture/SDD-R013` through
 ## Status
 
 **WORK_PACKAGE_001 (Repository Bootstrap) through WORK_PACKAGE_005
-(Engineering Source Connector Framework) implemented.** The Connector
-Framework provides a common `IConnector` abstraction (connect,
-disconnect, health check, capability discovery, configuration
-validation) plus a Factory and Registry for constructing and resolving
-connector instances -- but, like the Execution Engine before it, it is
-architecture only: no implementation registered so far performs actual
-network communication, and connectors aren't yet wired to Official
-Sources or Acquisition Jobs at all. Browser automation, the download
+(Engineering Source Connector Framework) implemented, plus ADR-0008
+(Connector Content Retrieval Interface).** The Connector Framework
+provides a common `IConnector` abstraction (connect, disconnect, health
+check, capability discovery, configuration validation, and -- per
+ADR-0008 -- a standardized `fetch` content-retrieval operation) plus a
+Factory and Registry for constructing and resolving connector instances.
+`StubConnector` remains the only registered connector type and performs
+no real network communication (`fetch` writes a small placeholder file
+locally rather than retrieving anything remote), and connectors aren't
+yet wired to Official Sources or Acquisition Jobs at all -- WORK_PACKAGE_006
+(Engineering Downloader), which consumes `fetch`, is paused pending this
+ADR (now implemented) and resumes next. Browser automation, the download
 engine, metadata extraction, integrity verification, license management,
 and the Reference Vault remain out of scope -- see
-`docs/tasks/WORK_PACKAGE_001.md` through `docs/tasks/WORK_PACKAGE_005.md`.
+`docs/tasks/WORK_PACKAGE_001.md` through `docs/tasks/WORK_PACKAGE_006.md`
+and `docs/decisions/ADR-0002-PROPOSED-CONNECTOR-CONTENT-RETRIEVAL.md`
+(superseded by `oep_architecture`'s ratified ADR-0008).
 
 ## Build
 
@@ -195,6 +201,12 @@ proves the framework end to end) so `/connectors` is never empty in a
 fresh checkout. All four routes return `404` for an unknown connector
 id.
 
+`IConnector` also exposes `fetch(const AcquisitionRequest&) ->
+AcquisitionResult` (ADR-0008), but there is no REST route for it yet --
+retrieving content is WORK_PACKAGE_006's (Engineering Downloader)
+concern, not this framework's; `fetch` is reachable today only in-process
+(e.g. from tests, or a future Downloader service).
+
 ## Test
 
 ```
@@ -219,7 +231,13 @@ unknown-type, and failed-validation rejection), `StubConnector` tests
 and a REST API test that doubles as WORK_PACKAGE-005's integration test
 (Factory + Registry + REST layer wired together exactly as `main.cpp`
 wires them) -- entirely in-memory, so unlike every other category above,
-none of it needs a database and none of it ever `SKIP`s.
+none of it needs a database and none of it ever `SKIP`s. ADR-0008 adds
+`StubConnector.fetch` tests: successful write-to-disk with a real
+temporary file, configurable MIME type and failure outcome, the
+overwrite guard (both respected and bypassed), an already-cancelled
+`std::stop_token` short-circuiting before any file is written, and
+progress-callback invocation -- also entirely in-memory/local-disk, no
+database needed.
 
 The Repository/API/migration categories need a real PostgreSQL database
 and `SKIP` (not fail) if one isn't reachable, continuing
@@ -273,7 +291,9 @@ include/oep/acquisition/  Public headers, one subdirectory per module
                            interfaces + PostgreSQL implementations
                            (libpqxx), Services
   connectors/              Source Connector Framework: IConnector
-                           interface, ConnectorFactory, ConnectorRegistry,
+                           interface (incl. ADR-0008's fetch/
+                           AcquisitionRequest/AcquisitionResult),
+                           ConnectorFactory, ConnectorRegistry,
                            StubConnector (no PostgreSQL dependency)
   api/                     ApiServer (GET /health, /sources, /jobs,
                            /jobs/{id}/execute|cancel|status, /connectors routes)
@@ -509,6 +529,46 @@ that relationship (e.g. adding a `source_id` field to
 `ConnectorConfig`, or a foreign key) would be inventing architecture a
 future work package hasn't asked for yet -- see "Future Considerations."
 
+**ADR-0008 (Connector Content Retrieval Interface): `IConnector` gains
+`fetch(const AcquisitionRequest&) -> AcquisitionResult`.** WORK_PACKAGE-006
+(Engineering Downloader) paused when it became clear it needed to
+retrieve content "exclusively through the Source Connector Framework,"
+but `IConnector` had no such operation -- WORK_PACKAGE-005 deliberately
+scoped it out. `oep_architecture` ratified ADR-0008 to close that gap
+(superseding this repository's own proposed
+`docs/decisions/ADR-0002-PROPOSED-CONNECTOR-CONTENT-RETRIEVAL.md`,
+written while the gap was still unresolved). Implemented here exactly as
+ADR-0008 decided -- a request/result object pair rather than a primitive
+parameter list, so future fields never change `fetch`'s signature -- with
+two casing/type choices left to this repository's own conventions, since
+ADR-0008's interface listing (like every SDD/ADR in `oep_architecture`)
+is illustrative pseudocode, not literal target-language code:
+
+- Method and member names stay `snake_case` (`fetch`, `job_id`,
+  `source_uri`, ...), matching every other method and struct member in
+  this codebase, rather than the ADR listing's `PascalCase`/`camelCase`
+  (`Fetch`, `jobId`). The existing `connect`/`disconnect`/`health_check`/
+  `capabilities`/`validate_configuration` methods were *not* renamed to
+  match the ADR's casing -- ADR-0008 only decided to add `fetch`, not to
+  rename WORK_PACKAGE-005's already-shipped methods.
+- `cancellation` is a real `std::stop_token` (`<stop_token>`, standard
+  since C++20) rather than a custom `CancellationToken` type -- the
+  standard library already provides exactly what ADR-0008 asks for.
+- `ProgressCallback`'s signature (`void(bytes_transferred, total_bytes)`)
+  and `AcquisitionResult::checksum`'s meaning (a transfer-level checksum
+  the connector reports as a byproduct of the fetch, not a cryptographic
+  hash and explicitly not the platform's Integrity Verification stage,
+  which ADR-0008 itself excludes from Connector Responsibilities) fill in
+  details ADR-0008 left unspecified, the same way Job Priority's value
+  range (WORK_PACKAGE-003) and `execute`'s single-step semantics
+  (WORK_PACKAGE-004) did.
+
+`StubConnector::fetch` writes a small, deterministic placeholder file to
+`request.destination` -- still no real network communication (only a
+local write), configurable via new `ConnectorConfig::settings` keys
+(`"fetch_outcome"`, `"fetch_mime_type"`) following the same pattern
+`"health_status"` already established.
+
 **Dependency management: CMake `FetchContent`, not vcpkg/Conan.** No
 package manager was already set up in this environment or evidenced
 elsewhere in the platform. `FetchContent` is built into CMake itself,
@@ -518,11 +578,11 @@ builds.
 
 ## TODOs
 
-- WORK_PACKAGE_006 onward: real connector types (HTTP, FTP, browser
-  automation) implementing `IConnector`, wiring Connectors to Official
-  Sources/Acquisition Jobs, Integrity, Licensing, Reference Vault,
-  Metadata Extraction -- per `docs/architecture/SDD-R013` through
-  `SDD-R019`.
+- WORK_PACKAGE_006 (Engineering Downloader), now unblocked by ADR-0008,
+  then real connector types (HTTP, FTP, browser automation) implementing
+  `IConnector`, wiring Connectors to Official Sources/Acquisition Jobs,
+  Integrity, Licensing, Reference Vault, Metadata Extraction -- per
+  `docs/architecture/SDD-R013` through `SDD-R019`.
 - `migrations/flyway.toml` is still not invoked by any automated
   process (see Future Considerations below).
 

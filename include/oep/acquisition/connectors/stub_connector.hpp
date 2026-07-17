@@ -20,6 +20,16 @@ namespace oep::acquisition::connectors {
 /// - `"health_status"`: one of `"healthy"`, `"unhealthy"`, `"unknown"`
 ///   (default `"healthy"`) -- lets tests and the REST layer exercise
 ///   every health state without a real health check existing yet.
+/// - `"fetch_outcome"`: one of `"success"` (default), `"failure"` -- lets
+///   tests exercise `fetch`'s failure path without a real failure
+///   condition existing yet.
+/// - `"fetch_mime_type"`: reported as `AcquisitionResult::mime_type` on
+///   success (default `"text/plain"`).
+///
+/// `fetch` (ADR-0008) writes a small, deterministic placeholder file to
+/// `request.destination` -- still no real network communication, just a
+/// local write standing in for one, so WORK_PACKAGE-006's Downloader has
+/// something real on disk to assert against in its own tests.
 class StubConnector : public IConnector {
  public:
   explicit StubConnector(ConnectorConfig config);
@@ -32,6 +42,7 @@ class StubConnector : public IConnector {
   [[nodiscard]] std::set<std::string> capabilities() const override;
   [[nodiscard]] bool validate_configuration() const override;
   [[nodiscard]] const ConnectorConfig& config() const override;
+  [[nodiscard]] AcquisitionResult fetch(const AcquisitionRequest& request) override;
 
  private:
   ConnectorConfig config_;

@@ -1,7 +1,12 @@
 #pragma once
 
+#include <cstdint>
+#include <filesystem>
+#include <functional>
 #include <map>
+#include <optional>
 #include <set>
+#include <stop_token>
 #include <string>
 
 namespace oep::acquisition::connectors {
@@ -48,12 +53,57 @@ struct HealthCheckResult {
   std::string checked_at;
 };
 
+/// `bytes_transferred`, `total_bytes` -- `total_bytes` is 0 if unknown.
+/// ADR-0008 lists "progress callbacks" as a field of `AcquisitionRequest`
+/// without specifying a signature; this is the one this codebase uses.
+using ProgressCallback = std::function<void(std::uint64_t bytes_transferred, std::uint64_t total_bytes)>;
+
+/// ADR-0008 "Connector Content Retrieval Interface": the standardized
+/// request object for `IConnector::fetch`. Intentionally extensible --
+/// additional fields may be added without changing `IConnector::fetch`'s
+/// signature, which is the whole point of using a request object instead
+/// of a primitive parameter list (ADR-0008 Rationale).
+///
+/// `cancellation` uses the standard library's own `std::stop_token`
+/// rather than a platform-specific cancellation type, since it already
+/// does exactly what ADR-0008 asks for.
+struct AcquisitionRequest {
+  std::string job_id;
+  std::string source_uri;
+  std::filesystem::path destination;
+  bool overwrite = false;
+  // Reserved for future connector implementations that support resumable
+  // transfers -- ADR-0008 lists "resume operations" as a future
+  // extensibility example, not a requirement of this ADR. StubConnector
+  // does not implement partial-resume semantics.
+  bool resume = false;
+  ProgressCallback progress;
+  std::stop_token cancellation;
+  std::map<std::string, std::string> properties;
+};
+
+/// ADR-0008's standardized result object for `IConnector::fetch`.
+struct AcquisitionResult {
+  bool success = false;
+  std::filesystem::path downloaded_file;
+  std::uint64_t bytes_transferred = 0;
+  std::string mime_type;
+  // A transfer-level checksum reported by the connector as a byproduct of
+  // the fetch itself -- not the platform's Integrity Verification stage,
+  // which ADR-0008 explicitly excludes from Connector Responsibilities
+  // and which remains a later pipeline stage's job to perform against
+  // this value.
+  std::string checksum;
+  std::optional<std::string> error_message;
+};
+
 /// The common abstraction WORK_PACKAGE-005 establishes for communicating
-/// with an engineering information source. No implementation registered
-/// in this work package performs actual network communication -- see
-/// `StubConnector` -- this interface exists so future work packages can
-/// add real transports (HTTP, FTP, browser automation, ...) without the
-/// Registry, Factory, or REST layer changing.
+/// with an engineering information source, extended by ADR-0008 with a
+/// standardized content-retrieval operation. No implementation registered
+/// so far performs actual network communication -- see `StubConnector`
+/// -- this interface exists so future work packages can add real
+/// transports (HTTP, FTP, browser automation, ...) without the Registry,
+/// Factory, or REST layer changing.
 ///
 /// Capabilities are fixed at construction time (from `config()`) and
 /// exposed only through the read-only `capabilities()` accessor -- there
@@ -81,6 +131,17 @@ class IConnector {
   [[nodiscard]] virtual bool validate_configuration() const = 0;
 
   [[nodiscard]] virtual const ConnectorConfig& config() const = 0;
+
+  /// ADR-0008 "Connector Content Retrieval Interface": the standardized
+  /// mechanism for retrieving an engineering artifact through this
+  /// connector. Per that ADR, connectors are responsible only for
+  /// establishing communication, retrieving the artifact, reporting
+  /// progress, and returning this result -- integrity verification,
+  /// metadata extraction, engineering object creation, Reference Vault
+  /// publication, repository persistence, job scheduling, and workflow
+  /// orchestration all belong to later pipeline stages, not to `fetch`
+  /// or any `IConnector` implementation.
+  [[nodiscard]] virtual AcquisitionResult fetch(const AcquisitionRequest& request) = 0;
 };
 
 }  // namespace oep::acquisition::connectors
