@@ -8,6 +8,7 @@ target_link_libraries(oep_acquisition
     oep_acquisition_database
     oep_acquisition_registry
     oep_acquisition_jobs
+    oep_acquisition_connectors
     oep_acquisition_api
 )
 

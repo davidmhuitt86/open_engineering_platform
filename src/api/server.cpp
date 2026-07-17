@@ -12,6 +12,8 @@
 #include "oep/acquisition/acquisition/acquisition_job_json.hpp"
 #include "oep/acquisition/acquisition/acquisition_job_service.hpp"
 #include "oep/acquisition/acquisition/validation.hpp"
+#include "oep/acquisition/connectors/connector_json.hpp"
+#include "oep/acquisition/connectors/connector_registry.hpp"
 #include "oep/acquisition/registry/official_source_json.hpp"
 #include "oep/acquisition/registry/official_source_service.hpp"
 #include "oep/acquisition/registry/validation.hpp"
@@ -23,6 +25,7 @@ namespace {
 using acquisition::AcquisitionExecutionService;
 using acquisition::AcquisitionJobService;
 using acquisition::JobFilter;
+using connectors::ConnectorRegistry;
 using registry::OfficialSourceService;
 using registry::SourceFilter;
 
@@ -341,8 +344,73 @@ void register_execution_routes(httplib::Server& server, AcquisitionExecutionServ
   });
 }
 
+// Every /connectors handler is read-only (WORK_PACKAGE-005's REST API
+// section lists only GET routes -- connectors are registered by
+// main.cpp at startup, not created through this API), so the only
+// failure mode besides "not found" is an unexpected exception.
+template <typename Fn>
+void guard_connectors(httplib::Response& response, Fn&& fn) {
+  try {
+    fn();
+  } catch (const std::exception& ex) {
+    respond_error(response, 503, "service_unavailable", ex.what());
+  }
+}
+
+void register_connectors_routes(httplib::Server& server, ConnectorRegistry& registry) {
+  server.Get("/connectors", [&registry](const httplib::Request&, httplib::Response& response) {
+    guard_connectors(response, [&] {
+      nlohmann::json body = nlohmann::json::array();
+      for (const connectors::IConnector* connector : registry.list()) {
+        body.push_back(connectors::to_json(connector->config()));
+      }
+      respond_json(response, 200, body);
+    });
+  });
+
+  server.Get(R"(/connectors/([^/]+))", [&registry](const httplib::Request& request,
+                                                       httplib::Response& response) {
+    const std::string id = request.matches[1];
+    guard_connectors(response, [&] {
+      const connectors::IConnector* connector = registry.resolve(id);
+      if (connector == nullptr) {
+        respond_error(response, 404, "not_found", "No connector exists with that id.");
+        return;
+      }
+      respond_json(response, 200, connectors::to_json(connector->config()));
+    });
+  });
+
+  server.Get(R"(/connectors/([^/]+)/capabilities)", [&registry](const httplib::Request& request,
+                                                                    httplib::Response& response) {
+    const std::string id = request.matches[1];
+    guard_connectors(response, [&] {
+      const connectors::IConnector* connector = registry.resolve(id);
+      if (connector == nullptr) {
+        respond_error(response, 404, "not_found", "No connector exists with that id.");
+        return;
+      }
+      respond_json(response, 200, connectors::capabilities_to_json(id, connector->capabilities()));
+    });
+  });
+
+  server.Get(R"(/connectors/([^/]+)/health)", [&registry](const httplib::Request& request,
+                                                              httplib::Response& response) {
+    const std::string id = request.matches[1];
+    guard_connectors(response, [&] {
+      const connectors::IConnector* connector = registry.resolve(id);
+      if (connector == nullptr) {
+        respond_error(response, 404, "not_found", "No connector exists with that id.");
+        return;
+      }
+      respond_json(response, 200, connectors::health_to_json(id, connector->health_check()));
+    });
+  });
+}
+
 void register_routes(httplib::Server& server, OfficialSourceService* source_service,
-                      AcquisitionJobService* job_service, AcquisitionExecutionService* execution_service) {
+                      AcquisitionJobService* job_service, AcquisitionExecutionService* execution_service,
+                      ConnectorRegistry* connector_registry) {
   server.Get("/health", [](const httplib::Request&, httplib::Response& response) {
     const nlohmann::json body{{"status", "ok"}};
     response.set_content(body.dump(), "application/json");
@@ -357,19 +425,24 @@ void register_routes(httplib::Server& server, OfficialSourceService* source_serv
   if (execution_service != nullptr) {
     register_execution_routes(server, *execution_service);
   }
+  if (connector_registry != nullptr) {
+    register_connectors_routes(server, *connector_registry);
+  }
 }
 
 }  // namespace
 
 ApiServer::ApiServer(const common::ServerConfig& config, registry::OfficialSourceService* source_service,
                       acquisition::AcquisitionJobService* job_service,
-                      acquisition::AcquisitionExecutionService* execution_service)
+                      acquisition::AcquisitionExecutionService* execution_service,
+                      connectors::ConnectorRegistry* connector_registry)
     : config_(config),
       source_service_(source_service),
       job_service_(job_service),
       execution_service_(execution_service),
+      connector_registry_(connector_registry),
       server_(std::make_unique<httplib::Server>()) {
-  register_routes(*server_, source_service_, job_service_, execution_service_);
+  register_routes(*server_, source_service_, job_service_, execution_service_, connector_registry_);
 }
 
 ApiServer::~ApiServer() {

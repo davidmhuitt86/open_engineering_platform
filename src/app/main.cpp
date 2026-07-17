@@ -13,6 +13,9 @@
 #include "oep/acquisition/api/server.hpp"
 #include "oep/acquisition/common/config.hpp"
 #include "oep/acquisition/common/logger.hpp"
+#include "oep/acquisition/connectors/connector_factory.hpp"
+#include "oep/acquisition/connectors/connector_registry.hpp"
+#include "oep/acquisition/connectors/stub_connector.hpp"
 #include "oep/acquisition/database/database_connection.hpp"
 #include "oep/acquisition/registry/official_source_service.hpp"
 #include "oep/acquisition/registry/postgres_official_source_repository.hpp"
@@ -122,7 +125,27 @@ int main(int argc, char** argv) {
     log.warn("acquisition execution engine disabled this run: source and/or job repository unavailable");
   }
 
-  ApiServer server(config.server, source_service.get(), job_service.get(), execution_service.get());
+  // The Source Connector Framework (WORK_PACKAGE-005) has no PostgreSQL
+  // dependency -- connectors are registered in-memory at startup, not
+  // through the (read-only) REST API -- so it does not follow the
+  // non-fatal-database pattern above and is always available.
+  oep::acquisition::connectors::ConnectorFactory connector_factory;
+  connector_factory.register_type(
+      "stub", [](const oep::acquisition::connectors::ConnectorConfig& connector_config) {
+        return std::make_unique<oep::acquisition::connectors::StubConnector>(connector_config);
+      });
+  oep::acquisition::connectors::ConnectorRegistry connector_registry(connector_factory);
+  connector_registry.register_connector(oep::acquisition::connectors::ConnectorConfig{
+      .connector_id = "example-stub",
+      .type = "stub",
+      .name = "Example Stub Connector",
+      .description = "Demonstrates the Connector Framework; performs no real network communication.",
+      .settings = {{"capabilities", "download_files,search"}},
+  });
+  log.info("connector framework initialized ({} connector(s) registered)", connector_registry.list().size());
+
+  ApiServer server(config.server, source_service.get(), job_service.get(), execution_service.get(),
+                    &connector_registry);
   if (!server.start()) {
     log.error("failed to start API server on {}:{}", config.server.host, config.server.port);
     return 1;

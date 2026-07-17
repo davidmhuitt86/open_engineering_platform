@@ -8,19 +8,18 @@ and this repository's own `docs/architecture/SDD-R013` through
 
 ## Status
 
-**WORK_PACKAGE_001 (Repository Bootstrap), WORK_PACKAGE_002 (Official
-Source Registry), WORK_PACKAGE_003 (Engineering Acquisition Job Engine),
-and WORK_PACKAGE_004 (Engineering Acquisition Execution Engine)
-implemented.** The Execution Engine manages an Acquisition Job's runtime
-lifecycle (queueing, running, completing, cancelling) and records its
-execution history, but still performs no actual network communication,
-downloading, metadata extraction, or integrity verification -- no
-background workers, scheduler, parallel execution, or retry policies
-exist yet either; this work package is the execution *framework* future
-work packages will plug real work into. Browser automation, the download
+**WORK_PACKAGE_001 (Repository Bootstrap) through WORK_PACKAGE_005
+(Engineering Source Connector Framework) implemented.** The Connector
+Framework provides a common `IConnector` abstraction (connect,
+disconnect, health check, capability discovery, configuration
+validation) plus a Factory and Registry for constructing and resolving
+connector instances -- but, like the Execution Engine before it, it is
+architecture only: no implementation registered so far performs actual
+network communication, and connectors aren't yet wired to Official
+Sources or Acquisition Jobs at all. Browser automation, the download
 engine, metadata extraction, integrity verification, license management,
 and the Reference Vault remain out of scope -- see
-`docs/tasks/WORK_PACKAGE_001.md` through `docs/tasks/WORK_PACKAGE_004.md`.
+`docs/tasks/WORK_PACKAGE_001.md` through `docs/tasks/WORK_PACKAGE_005.md`.
 
 ## Build
 
@@ -173,6 +172,29 @@ or no longer exists (soft-deleted). Both return `404` if the job doesn't
 exist or is soft-deleted. Every transition is appended to an immutable
 execution history, returned in order by `GET /jobs/{id}/status`.
 
+### Source Connector Framework API
+
+Connectors are registered in-memory by `main.cpp` at startup (there is
+no `POST /connectors` -- see "Implementation Decisions"), so this API
+is read-only:
+
+```
+GET /connectors                      List every registered connector
+GET /connectors/{id}                 Fetch one connector's configuration
+GET /connectors/{id}/capabilities    That connector's declared capabilities
+GET /connectors/{id}/health          That connector's current health check result
+```
+
+```
+curl http://127.0.0.1:8080/connectors
+```
+
+The process registers one example connector of type `"stub"` at
+startup (`StubConnector` -- performs no real network communication,
+proves the framework end to end) so `/connectors` is never empty in a
+fresh checkout. All four routes return `404` for an unknown connector
+id.
+
 ## Test
 
 ```
@@ -190,7 +212,14 @@ transition unit tests, Service-layer tests (against in-memory fakes for
 all three of its repository dependencies), a Repository-layer test for
 the execution history table, and REST API tests covering the full
 execute-to-completion lifecycle, cancellation, and every rejection case
-(terminal state, archived/deleted source, unknown/deleted job).
+(terminal state, archived/deleted source, unknown/deleted job). The
+Connector Framework adds Factory tests, Registry tests (unique-id,
+unknown-type, and failed-validation rejection), `StubConnector` tests
+(capability parsing, configurable health status, validate_configuration),
+and a REST API test that doubles as WORK_PACKAGE-005's integration test
+(Factory + Registry + REST layer wired together exactly as `main.cpp`
+wires them) -- entirely in-memory, so unlike every other category above,
+none of it needs a database and none of it ever `SKIP`s.
 
 The Repository/API/migration categories need a real PostgreSQL database
 and `SKIP` (not fail) if one isn't reachable, continuing
@@ -233,7 +262,8 @@ CMakeLists.txt          Root build: C++23, FetchContent dependencies, subdirecto
 config/
   config.toml            Example/default process configuration
 include/oep/acquisition/  Public headers, one subdirectory per module
-  common/                 Config, Logger, uuid (shared UUID-shape check)
+  common/                 Config, Logger, uuid (shared UUID-shape check),
+                           time (shared UTC timestamp formatting)
   database/                DatabaseConnection (connection only, libpq)
   registry/                Official Source Registry domain model,
                            validation, Repository interface + PostgreSQL
@@ -242,29 +272,37 @@ include/oep/acquisition/  Public headers, one subdirectory per module
                            domain models, validation, Repository
                            interfaces + PostgreSQL implementations
                            (libpqxx), Services
+  connectors/              Source Connector Framework: IConnector
+                           interface, ConnectorFactory, ConnectorRegistry,
+                           StubConnector (no PostgreSQL dependency)
   api/                     ApiServer (GET /health, /sources, /jobs,
-                           /jobs/{id}/execute|cancel|status routes)
+                           /jobs/{id}/execute|cancel|status, /connectors routes)
 src/
-  common/                 Logging + TOML configuration loading + uuid
+  common/                 Logging + TOML configuration loading + uuid + time
   database/                PostgreSQL connection management (libpq)
   registry/                Official Source Registry (WORK_PACKAGE_002)
   acquisition/             Acquisition Job Engine (WORK_PACKAGE_003) +
                            Execution Engine (WORK_PACKAGE_004) -- reuses
                            the directory WORK_PACKAGE_001 reserved under
                            this name (see "Implementation Decisions")
+  connectors/              Source Connector Framework (WORK_PACKAGE_005)
+                           -- a new directory; none of WORK_PACKAGE_001's
+                           reserved names fit (see "Implementation Decisions")
   api/                     Embedded HTTP server: GET /health, /sources,
-                           /jobs, /jobs/{id}/execute|cancel|status
+                           /jobs, /jobs/{id}/execute|cancel|status, /connectors
   app/                     main() -- wires the above together
   browser/ integrity/ licensing/ metadata/
   vault/ workspace/        Reserved for future work packages (empty --
                            see "Out of Scope" in WORK_PACKAGE_001.md
-                           through WORK_PACKAGE_004.md)
+                           through WORK_PACKAGE_005.md)
 migrations/
   V1__initial_schema.sql          Flyway migration placeholder (WORK_PACKAGE_001)
   V2__official_sources.sql        official_sources table (WORK_PACKAGE_002)
   V3__acquisition_jobs.sql        acquisition_jobs table (WORK_PACKAGE_003)
   V4__job_execution_history.sql   acquisition_job_execution_history table (WORK_PACKAGE_004)
-  flyway.toml                     Flyway configuration (not yet invoked)
+  flyway.toml                     Flyway configuration (not yet invoked;
+                                   WORK_PACKAGE_005 added no migration --
+                                   see "Implementation Decisions")
 tests/                    Catch2 test suite
 docs/
   architecture/            SDD-R013 through SDD-R019 (ratified architecture)
@@ -413,6 +451,64 @@ without redesigning it. A separate table is additive metadata, not a
 redesign, and rows are never updated or deleted (Engineering Principle
 8: Engineering Evidence Is Immutable).
 
+**`src/connectors/` is a new directory, not a reuse of any
+WORK_PACKAGE_001-reserved name.** Unlike WORK_PACKAGE_003's `acquisition`
+reuse, none of the remaining reserved directories (`browser`,
+`integrity`, `licensing`, `metadata`, `vault`, `workspace`) fit: `browser`
+is reserved for `docs/architecture/SDD-R019`'s much heavier future
+Browser & Acquisition Engine (sessions, certificates, downloads, browser
+automation) -- a *consumer* this framework would eventually serve, not
+the framework itself. WORK_PACKAGE_001's reserved list was a one-time
+guess at WORK_PACKAGE_001-era future needs, not a closed set implicitly
+constraining every later work package; introducing a new, clearly-named
+directory when nothing reserved fits is expected growth, not a
+deviation.
+
+**No Flyway migration; the Connector Registry is in-memory only,
+populated by `main.cpp` at startup.** WORK_PACKAGE-005 says "Create a
+Flyway migration only if persistent connector configuration metadata is
+required. Avoid schema changes unless necessary" -- and since its own
+REST API section is entirely `GET` (connectors are never created
+through the API, only queried), there is no requirement forcing
+connector configuration to survive a process restart via a mechanism
+other than the compiled-in registration code itself. A future work
+package that adds a `POST /connectors` endpoint (or otherwise needs
+connector configuration to be user-editable at runtime) would be the
+point to reassess this.
+
+**Connector capabilities are `std::set<std::string>`, not a closed C++
+enum.** WORK_PACKAGE-005 explicitly states "Capabilities shall be
+extensible," unlike Job/Source Status or Trust Level, which were never
+described that way. A closed enum would require a code change (and a
+recompile) to add a capability a future connector type needs; a string
+set lets any future connector type declare a novel capability with zero
+change to `IConnector`, `ConnectorFactory`, or `ConnectorRegistry`. The
+six capabilities WORK_PACKAGE-005 lists as examples are provided as
+named `constexpr` string constants (`connector.hpp`'s `capability::`
+namespace) purely for convenience and typo-safety, not as a closed set.
+
+**`StubConnector` is the only connector type this work package ships,
+and is explicitly a framework-validation vehicle, not a preview of a
+real connector.** WORK_PACKAGE-005 excludes an HTTP client, FTP client,
+browser automation, and authentication protocols, and states "No
+implementation shall perform actual network communication" -- so
+whatever concrete `IConnector` exists here cannot do real work. Naming
+it `"stub"` rather than something like `"http"` (with a subset of real
+HTTP-connector fields) avoids presupposing a future work package's
+design for a real transport; its `connect`/`disconnect` only toggle an
+in-memory flag, and its `health_check`/`capabilities` are entirely
+driven by `ConnectorConfig::settings` so tests (and this framework's own
+`GET /connectors/{id}/health` route) can exercise every response shape
+without a real check ever existing.
+
+**Connectors are not yet associated with Official Sources or
+Acquisition Jobs.** WORK_PACKAGE-005's own text never mentions
+`source_id` or any relationship to `official_sources`/`acquisition_jobs`,
+unlike WORK_PACKAGE-003's explicit "Source ID required." Presupposing
+that relationship (e.g. adding a `source_id` field to
+`ConnectorConfig`, or a foreign key) would be inventing architecture a
+future work package hasn't asked for yet -- see "Future Considerations."
+
 **Dependency management: CMake `FetchContent`, not vcpkg/Conan.** No
 package manager was already set up in this environment or evidenced
 elsewhere in the platform. `FetchContent` is built into CMake itself,
@@ -422,9 +518,9 @@ builds.
 
 ## TODOs
 
-- WORK_PACKAGE_005 onward: real networking/downloading behind
-  `POST /jobs/{id}/execute`'s `queued->running` and `running->completed`
-  edges, Browser automation, Integrity, Licensing, Reference Vault,
+- WORK_PACKAGE_006 onward: real connector types (HTTP, FTP, browser
+  automation) implementing `IConnector`, wiring Connectors to Official
+  Sources/Acquisition Jobs, Integrity, Licensing, Reference Vault,
   Metadata Extraction -- per `docs/architecture/SDD-R013` through
   `SDD-R019`.
 - `migrations/flyway.toml` is still not invoked by any automated
@@ -437,6 +533,21 @@ builds.
   or a deployment step. Repository/API/migration tests currently apply
   `V1__initial_schema.sql` through `V4__job_execution_history.sql`
   verbatim themselves (see "Test" above) as a stand-in.
+- Connectors have no relationship to Official Sources or Acquisition
+  Jobs yet (see "Implementation Decisions") -- a future work package
+  will need to decide how a Source or a Job selects which connector
+  services it (e.g. a `connector_id` field on `OfficialSource`, or
+  resolving by matching capabilities).
+- The Connector Registry is populated once at process startup with no
+  way to add, remove, or reconfigure a connector without a restart --
+  WORK_PACKAGE-005's REST API section is entirely read-only, so this
+  wasn't in scope to change. A future work package should decide
+  whether connector management needs its own write API (and, if so,
+  whether that revisits the "no persistence" decision above) or remains
+  purely a startup-time/configuration-file concern.
+- `StubConnector` is the only registered connector type; real transports
+  (HTTP, FTP, browser automation) are explicitly excluded from
+  WORK_PACKAGE-005 and remain future work.
 - A connection pool for `PostgresOfficialSourceRepository`,
   `PostgresAcquisitionJobRepository`, and
   `PostgresJobExecutionHistoryRepository` (each currently one

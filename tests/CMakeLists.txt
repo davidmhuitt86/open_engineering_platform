@@ -20,6 +20,10 @@ add_executable(oep_acquisition_tests
   test_acquisition_execution_service.cpp
   test_job_execution_history_repository.cpp
   test_acquisition_execution_api.cpp
+  test_connector_factory.cpp
+  test_connector_registry.cpp
+  test_stub_connector.cpp
+  test_connector_api.cpp
 )
 
 target_link_libraries(oep_acquisition_tests
@@ -28,6 +32,7 @@ target_link_libraries(oep_acquisition_tests
     oep_acquisition_database
     oep_acquisition_registry
     oep_acquisition_jobs
+    oep_acquisition_connectors
     oep_acquisition_api
     Catch2::Catch2WithMain
     httplib::httplib

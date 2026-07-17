@@ -20,6 +20,10 @@ class AcquisitionJobService;
 class AcquisitionExecutionService;
 }
 
+namespace oep::acquisition::connectors {
+class ConnectorRegistry;
+}
+
 namespace oep::acquisition::api {
 
 /// The Engineering Acquisition Manager's HTTP API.
@@ -29,20 +33,24 @@ namespace oep::acquisition::api {
 /// "Implementation Decisions" and ADR-0007 (Platform API Strategy) for why.
 ///
 /// `GET /health` (WORK_PACKAGE_001) is always registered. The `/sources`
-/// routes (WORK_PACKAGE_002), `/jobs` routes (WORK_PACKAGE_003), and
+/// routes (WORK_PACKAGE_002), `/jobs` routes (WORK_PACKAGE_003),
 /// `/jobs/{id}/execute`, `/jobs/{id}/cancel`, `/jobs/{id}/status` routes
-/// (WORK_PACKAGE_004) are each registered only when their respective
-/// service pointer is non-null -- `main.cpp` passes `nullptr` if a
-/// PostgreSQL repository could not be constructed at startup, so a
-/// database outage degrades the process rather than preventing it from
-/// starting at all (continuing WORK_PACKAGE_001's non-fatal-database
-/// precedent).
+/// (WORK_PACKAGE_004), and `/connectors` routes (WORK_PACKAGE_005) are
+/// each registered only when their respective service/registry pointer
+/// is non-null -- `main.cpp` passes `nullptr` if a PostgreSQL repository
+/// could not be constructed at startup, so a database outage degrades
+/// the process rather than preventing it from starting at all
+/// (continuing WORK_PACKAGE_001's non-fatal-database precedent). Unlike
+/// the other three, `connector_registry` has no PostgreSQL dependency
+/// (WORK_PACKAGE_005 keeps connector registration in-memory) and so is
+/// effectively always non-null in practice.
 class ApiServer {
  public:
   explicit ApiServer(const common::ServerConfig& config,
                       registry::OfficialSourceService* source_service = nullptr,
                       acquisition::AcquisitionJobService* job_service = nullptr,
-                      acquisition::AcquisitionExecutionService* execution_service = nullptr);
+                      acquisition::AcquisitionExecutionService* execution_service = nullptr,
+                      connectors::ConnectorRegistry* connector_registry = nullptr);
   ~ApiServer();
 
   ApiServer(const ApiServer&) = delete;
@@ -69,6 +77,7 @@ class ApiServer {
   registry::OfficialSourceService* source_service_;
   acquisition::AcquisitionJobService* job_service_;
   acquisition::AcquisitionExecutionService* execution_service_;
+  connectors::ConnectorRegistry* connector_registry_;
   std::unique_ptr<httplib::Server> server_;
   std::thread thread_;
   std::atomic<bool> running_{false};

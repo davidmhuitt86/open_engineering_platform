@@ -1,30 +1,11 @@
 #include "oep/acquisition/acquisition/acquisition_execution_service.hpp"
 
-#include <chrono>
-#include <ctime>
+#include "oep/acquisition/common/time.hpp"
 
 namespace oep::acquisition::acquisition {
 
 namespace {
-
-// Matches the "YYYY-MM-DDTHH:MM:SSZ" format the Repository layer's SQL
-// `to_char(... , 'YYYY-MM-DD"T"HH24:MI:SS"Z"')` produces (see
-// PostgresAcquisitionJobRepository), so a job updated by the Execution
-// Engine looks identical to one updated via a client-supplied timestamp
-// through PUT /jobs/{id}.
-std::string current_timestamp_utc() {
-  const std::time_t now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-  std::tm utc_tm{};
-#ifdef _WIN32
-  gmtime_s(&utc_tm, &now);
-#else
-  gmtime_r(&now, &utc_tm);
-#endif
-  char buffer[32];
-  std::strftime(buffer, sizeof(buffer), "%Y-%m-%dT%H:%M:%SZ", &utc_tm);
-  return buffer;
-}
-
+using common::current_timestamp_utc;
 }  // namespace
 
 AcquisitionExecutionService::AcquisitionExecutionService(IAcquisitionJobRepository& jobs,
