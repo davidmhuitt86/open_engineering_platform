@@ -8,14 +8,18 @@ and this repository's own `docs/architecture/SDD-R013` through
 
 ## Status
 
-**WORK_PACKAGE_001 (Repository Bootstrap) and WORK-PACKAGE-002
-(Official Source Registry) implemented.** The Official Source Registry
-is the platform's first persistent engineering domain service: a
-PostgreSQL-backed CRUD service with a REST API for maintaining the
-catalog of trusted engineering information sources. Browser automation,
-the download engine, metadata extraction, integrity verification,
-license management, and the Reference Vault remain out of scope --
-see `docs/tasks/WORK_PACKAGE_001.md` and `docs/tasks/WORK-PACKAGE-002.md`.
+**WORK_PACKAGE_001 (Repository Bootstrap), WORK_PACKAGE_002 (Official
+Source Registry), and WORK_PACKAGE_003 (Engineering Acquisition Job
+Engine) implemented.** The Job Engine is the orchestration layer for
+future acquisition operations: it creates, tracks, and validates
+acquisition jobs, each referencing a registered Official Source, but
+performs no network communication, downloading, metadata extraction, or
+integrity verification itself -- no background workers, scheduling, or
+parallel execution exist yet either. Browser automation, the download
+engine, metadata extraction, integrity verification, license management,
+and the Reference Vault remain out of scope -- see
+`docs/tasks/WORK_PACKAGE_001.md`, `docs/tasks/WORK_PACKAGE_002.md`, and
+`docs/tasks/WORK_PACKAGE_003.md`.
 
 ## Build
 
@@ -104,6 +108,40 @@ required; `authentication_type` (`none`, `username_password`,
 `created_at` are assigned by the database and immutable afterward --
 attempting to change either on `PUT` returns `422`.
 
+### Acquisition Job Engine API
+
+Once a database with the `acquisition_jobs` table (see
+`migrations/V3__acquisition_jobs.sql`) is reachable:
+
+```
+GET    /jobs                   List jobs; optional query filters:
+                                status, priority, source_id, requested_by
+GET    /jobs/{id}               Fetch one job by UUID
+POST   /jobs                   Create a job (JSON body) -- always starts
+                                in the "created" status
+PUT    /jobs/{id}               Replace a job (JSON body); this is how a
+                                job's status/started_at/completed_at/
+                                error_message are changed
+DELETE /jobs/{id}               Soft-delete a job
+```
+
+```
+curl -X POST http://127.0.0.1:8080/jobs \
+  -H "Content-Type: application/json" \
+  -d '{"source_id":"<a Source id from /sources>","name":"Acquire IEEE 802.11","priority":2}'
+```
+
+`name`, `source_id`, and `priority` (0-3) are required; `source_id` must
+reference an existing Official Source (`/sources/{id}`) or the request
+returns `422` (`"error":"unknown_source"`). `status` is never accepted
+on `POST` -- a job always starts in the `created` status ("Jobs shall
+remain in the Created state unless explicitly changed through the
+API" -- WORK_PACKAGE_003) -- and is only changed via a subsequent `PUT`,
+which requires `status` (`created`, `queued`, `running`, `completed`,
+`failed`, `cancelled`) and accepts optional `started_at`/`completed_at`/
+`error_message`. As with Sources, `id` and `created_at` are immutable
+after creation.
+
 ## Test
 
 ```
@@ -113,16 +151,16 @@ ctest --test-dir build --output-on-failure
 Configuration parsing, the database connection wrapper's failure path,
 a real end-to-end `GET /health` request against the embedded HTTP
 server (bound to an OS-assigned ephemeral port, so tests never collide
-with a fixed port number or each other), and -- for the Official Source
-Registry -- validation, Service-layer (against an in-memory fake
-repository), Repository-layer, REST API, and migration/schema-shape
-tests.
+with a fixed port number or each other), and -- for both the Official
+Source Registry and the Acquisition Job Engine -- validation,
+Service-layer (against an in-memory fake repository), Repository-layer,
+REST API, and migration/schema-shape tests.
 
-The last three categories need a real PostgreSQL database and `SKIP`
-(not fail) if one isn't reachable, continuing WORK_PACKAGE_001's
-precedent that the suite stays runnable without a live database, just
-less exercised. To run them for real, create a role and database
-matching `config/config.toml`'s defaults:
+The Repository/API/migration categories need a real PostgreSQL database
+and `SKIP` (not fail) if one isn't reachable, continuing
+WORK_PACKAGE_001's precedent that the suite stays runnable without a
+live database, just less exercised. To run them for real, create a
+role and database matching `config/config.toml`'s defaults:
 
 ```sql
 CREATE ROLE oep_acquisition LOGIN PASSWORD 'your-local-dev-password';
@@ -138,12 +176,14 @@ OEP_TEST_DB_HOST, OEP_TEST_DB_PORT, OEP_TEST_DB_NAME,
 OEP_TEST_DB_USER, OEP_TEST_DB_PASSWORD
 ```
 
-The Repository/API/migration tests apply `migrations/V1__initial_schema.sql`
-and `migrations/V2__official_sources.sql` verbatim from disk the first
-time they run against a given database (so they exercise the real,
-committed migration files) and `TRUNCATE` the table between test runs
--- no Flyway CLI install is required to run them, though a production
-deployment should still apply migrations via Flyway (`migrations/flyway.toml`).
+The Repository/API/migration tests apply `migrations/V1__initial_schema.sql`,
+`migrations/V2__official_sources.sql`, and (for the Job Engine's own
+tests) `migrations/V3__acquisition_jobs.sql` verbatim from disk the
+first time they run against a given database (so they exercise the
+real, committed migration files) and `TRUNCATE` the affected tables
+between test runs -- no Flyway CLI install is required to run them,
+though a production deployment should still apply migrations via
+Flyway (`migrations/flyway.toml`).
 
 ## Directory Layout
 
@@ -152,25 +192,32 @@ CMakeLists.txt          Root build: C++23, FetchContent dependencies, subdirecto
 config/
   config.toml            Example/default process configuration
 include/oep/acquisition/  Public headers, one subdirectory per module
-  common/                 Config, Logger
+  common/                 Config, Logger, uuid (shared UUID-shape check)
   database/                DatabaseConnection (connection only, libpq)
   registry/                Official Source Registry domain model,
                            validation, Repository interface + PostgreSQL
                            implementation (libpqxx), Service
-  api/                     ApiServer (GET /health, /sources routes)
+  acquisition/             Acquisition Job Engine domain model,
+                           validation, Repository interface + PostgreSQL
+                           implementation (libpqxx), Service
+  api/                     ApiServer (GET /health, /sources, /jobs routes)
 src/
-  common/                 Logging + TOML configuration loading
+  common/                 Logging + TOML configuration loading + uuid
   database/                PostgreSQL connection management (libpq)
-  registry/                Official Source Registry (WORK-PACKAGE-002)
-  api/                     Embedded HTTP server: GET /health, /sources
+  registry/                Official Source Registry (WORK_PACKAGE_002)
+  acquisition/             Acquisition Job Engine (WORK_PACKAGE_003) --
+                           reuses the directory WORK_PACKAGE_001 reserved
+                           under this name (see "Implementation Decisions")
+  api/                     Embedded HTTP server: GET /health, /sources, /jobs
   app/                     main() -- wires the above together
-  acquisition/ browser/ integrity/ licensing/ metadata/
+  browser/ integrity/ licensing/ metadata/
   vault/ workspace/        Reserved for future work packages (empty --
-                           see "Out of Scope" in WORK_PACKAGE_001.md
-                           and WORK-PACKAGE-002.md)
+                           see "Out of Scope" in WORK_PACKAGE_001.md,
+                           WORK_PACKAGE_002.md, and WORK_PACKAGE_003.md)
 migrations/
   V1__initial_schema.sql       Flyway migration placeholder (WORK_PACKAGE_001)
-  V2__official_sources.sql     official_sources table (WORK-PACKAGE-002)
+  V2__official_sources.sql     official_sources table (WORK_PACKAGE_002)
+  V3__acquisition_jobs.sql     acquisition_jobs table (WORK_PACKAGE_003)
   flyway.toml                  Flyway configuration (not yet invoked)
 tests/                    Catch2 test suite
 docs/
@@ -235,6 +282,51 @@ addressed by a natural/opaque key rather than a sequential row number,
 and because a sequential id would leak the row-insertion order and
 approximate total row count to any API client.
 
+**`src/acquisition/` reuses the directory WORK_PACKAGE_001 reserved
+under that name, rather than a new `src/jobs/`.** WORK_PACKAGE_001's
+reserved-but-empty directories were named after Out-of-Scope items it
+listed (`registry`, `vault`, `integrity`, `metadata`, `browser`,
+`licensing`, `workspace`) plus one extra, `acquisition`, with no
+corresponding named item -- the natural reading is that it was reserved
+for the acquisition orchestration work itself (what SDD-A001 calls the
+"Engineering Acquisition Manager": "Create acquisition jobs, monitor
+acquisition progress"), which is exactly WORK_PACKAGE_003's Job Engine.
+Reusing it keeps the directory-name -> namespace -> CMake-target
+convention established by `registry` without introducing a directory
+WORK_PACKAGE_001 didn't already anticipate. The one cost is a namespace
+stutter, `oep::acquisition::acquisition::AcquisitionJob` -- accepted as
+the smaller deviation. The CMake target itself is named
+`oep_acquisition_jobs` rather than the doubled `oep_acquisition_acquisition`,
+since the target name is an internal build detail, not part of the
+public API surface.
+
+**`source_id` is a real PostgreSQL foreign key to `official_sources(uuid)`,
+not just an application-level presence check.** WORK_PACKAGE_003's only
+stated rule is "Source ID required," but both tables live in this same
+repository/database, so a genuine `REFERENCES` constraint (see
+`migrations/V3__acquisition_jobs.sql`) enforces that a job's source
+actually exists as real relational integrity (Engineering Principle 5:
+Deterministic Systems) rather than a second, potentially-divergent
+check reimplemented in the Job Engine's own service layer. A foreign
+key violation is caught and re-thrown as a domain-specific
+`UnknownSourceError`, surfaced over REST as `422`, so callers don't need
+to know the Job repository is backed by PostgreSQL to handle it.
+
+**Job `Priority` is a small integer enum (`Low`/`Normal`/`High`/`Urgent`,
+0-3), an assumption filling a genuine gap.** Unlike Job Status,
+WORK_PACKAGE_003's own text never enumerates Priority's allowed values
+-- it only says "Priority required." A small ordered scale matching
+Trust Level's precedent (WORK_PACKAGE_002) was chosen over an
+unconstrained integer so "required" has a concrete, validated meaning
+and "Future fields shall not require schema redesign" is satisfied by a
+`CHECK` constraint the same way Status/Trust Level are. `Requested By`
+is treated as a free-text field (no validation beyond optional), since
+no identity/session system exists anywhere in the platform yet for a
+job's requester to be derived from (SDD-P002 is listed as a
+WORK_PACKAGE_003 dependency for context, not as something this work
+package implements -- consistent with how WORK_PACKAGE_002 treated the
+same five platform SDDs).
+
 **Dependency management: CMake `FetchContent`, not vcpkg/Conan.** No
 package manager was already set up in this environment or evidenced
 elsewhere in the platform. `FetchContent` is built into CMake itself,
@@ -244,8 +336,9 @@ builds.
 
 ## TODOs
 
-- WORK_PACKAGE_003 onward: Browser, Acquisition (download engine),
-  Integrity, Licensing, Reference Vault, Metadata Extraction -- per
+- WORK_PACKAGE_004 onward: Browser automation, the download engine
+  itself (an HTTP client acquiring real evidence via a Job), Integrity,
+  Licensing, Reference Vault, Metadata Extraction -- per
   `docs/architecture/SDD-R013` through `SDD-R019`.
 - `migrations/flyway.toml` is still not invoked by any automated
   process (see Future Considerations below).
@@ -255,12 +348,24 @@ builds.
 - `migrations/flyway.toml` is not yet invoked by any automated process
   -- a future work package should wire `flyway migrate` into the build
   or a deployment step. Repository/API/migration tests currently apply
-  `V1__initial_schema.sql` and `V2__official_sources.sql` verbatim
-  themselves (see "Test" above) as a stand-in.
-- A connection pool for `PostgresOfficialSourceRepository` (currently
-  one `pqxx::connection` per repository instance, held for the
-  process's lifetime) should be reassessed once concurrent request
-  volume makes single-connection serialization a bottleneck.
+  `V1__initial_schema.sql`, `V2__official_sources.sql`, and
+  `V3__acquisition_jobs.sql` verbatim themselves (see "Test" above) as a
+  stand-in.
+- A connection pool for `PostgresOfficialSourceRepository` and
+  `PostgresAcquisitionJobRepository` (each currently one
+  `pqxx::connection` per repository instance, held for the process's
+  lifetime) should be reassessed once concurrent request volume makes
+  single-connection serialization a bottleneck.
+- No background workers, scheduling, or parallel execution exist to
+  actually run a Job -- WORK_PACKAGE_003 explicitly excludes them. A
+  Job's `status`/`started_at`/`completed_at`/`error_message` are only
+  ever changed by whatever calls `PUT /jobs/{id}` today; the future work
+  package that adds an execution engine will need to decide who calls
+  that (or an equivalent internal API) and whether any transition
+  restrictions belong on top of what's currently an unrestricted manual
+  state change (WORK_PACKAGE_003: "No automatic state transitions are
+  required," which this reads as also meaning no restriction on which
+  manual transitions are valid).
 - WORK-PACKAGE-002's REST API section lists exactly five `/sources`
   routes plus `/health`, with no dedicated enable/disable endpoints,
   even though its Functional Requirements section separately lists

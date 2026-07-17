@@ -6,6 +6,8 @@
 #include <memory>
 #include <thread>
 
+#include "oep/acquisition/acquisition/acquisition_job_service.hpp"
+#include "oep/acquisition/acquisition/postgres_acquisition_job_repository.hpp"
 #include "oep/acquisition/api/server.hpp"
 #include "oep/acquisition/common/config.hpp"
 #include "oep/acquisition/common/logger.hpp"
@@ -80,7 +82,20 @@ int main(int argc, char** argv) {
               ex.what());
   }
 
-  ApiServer server(config.server, source_service.get());
+  // The Acquisition Job Engine (WORK_PACKAGE-003) follows the same
+  // non-fatal-database precedent as the Official Source Registry above.
+  std::unique_ptr<oep::acquisition::acquisition::PostgresAcquisitionJobRepository> job_repository;
+  std::unique_ptr<oep::acquisition::acquisition::AcquisitionJobService> job_service;
+  try {
+    job_repository =
+        std::make_unique<oep::acquisition::acquisition::PostgresAcquisitionJobRepository>(config.database);
+    job_service = std::make_unique<oep::acquisition::acquisition::AcquisitionJobService>(*job_repository);
+    log.info("acquisition job engine repository connected");
+  } catch (const std::exception& ex) {
+    log.warn("acquisition job engine repository unavailable: {} -- /jobs routes disabled this run", ex.what());
+  }
+
+  ApiServer server(config.server, source_service.get(), job_service.get());
   if (!server.start()) {
     log.error("failed to start API server on {}:{}", config.server.host, config.server.port);
     return 1;

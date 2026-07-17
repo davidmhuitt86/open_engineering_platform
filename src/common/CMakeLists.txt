@@ -1,6 +1,7 @@
 add_library(oep_acquisition_common STATIC
   config.cpp
   logger.cpp
+  uuid.cpp
 )
 
 target_include_directories(oep_acquisition_common

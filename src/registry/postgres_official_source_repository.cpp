@@ -1,8 +1,8 @@
 #include "oep/acquisition/registry/postgres_official_source_repository.hpp"
 
-#include <cctype>
-
 #include <pqxx/pqxx>
+
+#include "oep/acquisition/common/uuid.hpp"
 
 namespace oep::acquisition::registry {
 
@@ -36,28 +36,6 @@ OfficialSource row_to_official_source(const pqxx::row& row) {
   return source;
 }
 
-// Validated locally (rather than relying on PostgreSQL's `uuid` cast to
-// reject bad input) so a malformed `{id}` path segment resolves
-// deterministically to "not found" instead of surfacing a SQL error from
-// deep inside the Repository layer.
-bool is_uuid_like(const std::string& id) {
-  if (id.size() != 36) {
-    return false;
-  }
-  for (std::size_t i = 0; i < id.size(); ++i) {
-    if (i == 8 || i == 13 || i == 18 || i == 23) {
-      if (id[i] != '-') {
-        return false;
-      }
-      continue;
-    }
-    if (std::isxdigit(static_cast<unsigned char>(id[i])) == 0) {
-      return false;
-    }
-  }
-  return true;
-}
-
 }  // namespace
 
 PostgresOfficialSourceRepository::PostgresOfficialSourceRepository(const common::DatabaseConfig& config)
@@ -83,7 +61,7 @@ OfficialSource PostgresOfficialSourceRepository::create(const OfficialSource& so
 }
 
 std::optional<OfficialSource> PostgresOfficialSourceRepository::find_by_id(const std::string& id) {
-  if (!is_uuid_like(id)) {
+  if (!common::is_uuid_like(id)) {
     return std::nullopt;
   }
   pqxx::work txn(*connection_);
@@ -135,7 +113,7 @@ std::vector<OfficialSource> PostgresOfficialSourceRepository::list(const SourceF
 
 std::optional<OfficialSource> PostgresOfficialSourceRepository::update(const std::string& id,
                                                                          const OfficialSource& source) {
-  if (!is_uuid_like(id)) {
+  if (!common::is_uuid_like(id)) {
     return std::nullopt;
   }
   pqxx::work txn(*connection_);
@@ -157,7 +135,7 @@ std::optional<OfficialSource> PostgresOfficialSourceRepository::update(const std
 }
 
 bool PostgresOfficialSourceRepository::soft_delete(const std::string& id) {
-  if (!is_uuid_like(id)) {
+  if (!common::is_uuid_like(id)) {
     return false;
   }
   pqxx::work txn(*connection_);

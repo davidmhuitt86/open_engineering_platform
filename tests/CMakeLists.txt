@@ -9,6 +9,12 @@ add_executable(oep_acquisition_tests
   test_official_source_repository.cpp
   test_official_source_migration.cpp
   test_official_source_api.cpp
+  jobs_test_support.cpp
+  test_acquisition_job_validation.cpp
+  test_acquisition_job_service.cpp
+  test_acquisition_job_repository.cpp
+  test_acquisition_job_migration.cpp
+  test_acquisition_job_api.cpp
 )
 
 target_link_libraries(oep_acquisition_tests
@@ -16,6 +22,7 @@ target_link_libraries(oep_acquisition_tests
     oep_acquisition_common
     oep_acquisition_database
     oep_acquisition_registry
+    oep_acquisition_jobs
     oep_acquisition_api
     Catch2::Catch2WithMain
     httplib::httplib
