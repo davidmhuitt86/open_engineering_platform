@@ -38,6 +38,14 @@ add_executable(oep_acquisition_tests
   test_verification_repository.cpp
   test_verification_migration.cpp
   test_verification_api.cpp
+  metadata_test_support.cpp
+  test_metadata_validation.cpp
+  test_file_type_detector.cpp
+  test_document_inspector.cpp
+  test_metadata_extraction_service.cpp
+  test_metadata_repository.cpp
+  test_metadata_migration.cpp
+  test_metadata_api.cpp
 )
 
 target_link_libraries(oep_acquisition_tests
@@ -49,6 +57,7 @@ target_link_libraries(oep_acquisition_tests
     oep_acquisition_connectors
     oep_acquisition_downloads
     oep_acquisition_integrity
+    oep_acquisition_metadata
     oep_acquisition_api
     Catch2::Catch2WithMain
     httplib::httplib

@@ -22,6 +22,10 @@
 #include "oep/acquisition/integrity/validation.hpp"
 #include "oep/acquisition/integrity/verification_errors.hpp"
 #include "oep/acquisition/integrity/verification_json.hpp"
+#include "oep/acquisition/metadata/artifact_metadata_errors.hpp"
+#include "oep/acquisition/metadata/artifact_metadata_json.hpp"
+#include "oep/acquisition/metadata/metadata_extraction_service.hpp"
+#include "oep/acquisition/metadata/validation.hpp"
 #include "oep/acquisition/registry/official_source_json.hpp"
 #include "oep/acquisition/registry/official_source_service.hpp"
 #include "oep/acquisition/registry/validation.hpp"
@@ -38,6 +42,8 @@ using downloads::DownloadFilter;
 using downloads::DownloadService;
 using integrity::IntegrityVerificationService;
 using integrity::VerificationFilter;
+using metadata::MetadataExtractionService;
+using metadata::MetadataFilter;
 using registry::OfficialSourceService;
 using registry::SourceFilter;
 
@@ -646,10 +652,117 @@ void register_verifications_routes(httplib::Server& server, IntegrityVerificatio
   });
 }
 
+// Same idea as guard_verifications, for WORK_PACKAGE-008's Validation
+// Rules:
+// - ValidationError -> 422 (missing verification_id).
+// - UnknownVerificationError -> 422 ("Verification shall exist").
+// - VerificationNotSuccessfulError -> 409 ("Verification shall be
+//   successful" -- a state conflict on an otherwise-valid reference,
+//   mirroring guard_downloads' job_not_executable/connector_unhealthy).
+// A missing/unreadable artifact or an unrecognized file type is NOT an
+// exception here -- MetadataExtractionService records those as a
+// Failed/Extracted-with-type-Unknown ArtifactMetadata and returns
+// normally (see its header comment), so no additional catch clause is
+// needed for them.
+template <typename Fn>
+void guard_metadata(httplib::Response& response, Fn&& fn) {
+  try {
+    fn();
+  } catch (const metadata::ValidationError& error) {
+    respond_validation_error(response, error.violations());
+  } catch (const metadata::UnknownVerificationError& ex) {
+    respond_error(response, 422, "unknown_verification", ex.what());
+  } catch (const metadata::VerificationNotSuccessfulError& ex) {
+    respond_error(response, 409, "verification_not_successful", ex.what());
+  } catch (const std::exception& ex) {
+    respond_error(response, 503, "service_unavailable", ex.what());
+  }
+}
+
+std::optional<MetadataFilter> parse_metadata_filter(const httplib::Request& request,
+                                                        httplib::Response& response) {
+  MetadataFilter filter;
+
+  if (request.has_param("status")) {
+    const auto status = metadata::extraction_status_from_string(request.get_param_value("status"));
+    if (!status.has_value()) {
+      respond_error(response, 400, "invalid_query_parameter",
+                     "status is not a recognized Extraction Status.");
+      return std::nullopt;
+    }
+    filter.status = status;
+  }
+
+  if (request.has_param("verification_id")) {
+    filter.verification_id = request.get_param_value("verification_id");
+  }
+
+  return filter;
+}
+
+void register_metadata_routes(httplib::Server& server, MetadataExtractionService& service) {
+  server.Post("/metadata", [&service](const httplib::Request& request, httplib::Response& response) {
+    nlohmann::json body;
+    try {
+      body = nlohmann::json::parse(request.body);
+    } catch (const nlohmann::json::exception&) {
+      respond_error(response, 400, "invalid_json", "Request body is not valid JSON.");
+      return;
+    }
+    guard_metadata(response, [&] {
+      const auto created = service.extract(body);
+      response.set_header("Location", "/metadata/" + created.id);
+      respond_json(response, 201, metadata::to_json(created));
+    });
+  });
+
+  server.Get("/metadata", [&service](const httplib::Request& request, httplib::Response& response) {
+    const auto filter = parse_metadata_filter(request, response);
+    if (!filter.has_value()) {
+      return;  // parse_metadata_filter already populated a 400 response.
+    }
+    guard_metadata(response, [&] {
+      const auto records = service.list(*filter);
+      nlohmann::json body = nlohmann::json::array();
+      for (const auto& record : records) {
+        body.push_back(metadata::to_json(record));
+      }
+      respond_json(response, 200, body);
+    });
+  });
+
+  server.Get(R"(/metadata/([^/]+))", [&service](const httplib::Request& request,
+                                                    httplib::Response& response) {
+    const std::string id = request.matches[1];
+    guard_metadata(response, [&] {
+      const auto record = service.get(id);
+      if (!record.has_value()) {
+        respond_error(response, 404, "not_found", "No metadata record exists with that id.");
+        return;
+      }
+      respond_json(response, 200, metadata::to_json(*record));
+    });
+  });
+
+  server.Get(R"(/metadata/([^/]+)/status)", [&service](const httplib::Request& request,
+                                                           httplib::Response& response) {
+    const std::string id = request.matches[1];
+    guard_metadata(response, [&] {
+      const auto record = service.get(id);
+      if (!record.has_value()) {
+        respond_error(response, 404, "not_found", "No metadata record exists with that id.");
+        return;
+      }
+      respond_json(response, 200, metadata::status_to_json(*record));
+    });
+  });
+}
+
 void register_routes(httplib::Server& server, OfficialSourceService* source_service,
                       AcquisitionJobService* job_service, AcquisitionExecutionService* execution_service,
                       ConnectorRegistry* connector_registry, DownloadService* download_service,
-                      IntegrityVerificationService* verification_service) {
+                      IntegrityVerificationService* verification_service,
+                      MetadataExtractionService* metadata_service) {
   server.Get("/health", [](const httplib::Request&, httplib::Response& response) {
     const nlohmann::json body{{"status", "ok"}};
     response.set_content(body.dump(), "application/json");
@@ -673,6 +786,9 @@ void register_routes(httplib::Server& server, OfficialSourceService* source_serv
   if (verification_service != nullptr) {
     register_verifications_routes(server, *verification_service);
   }
+  if (metadata_service != nullptr) {
+    register_metadata_routes(server, *metadata_service);
+  }
 }
 
 }  // namespace
@@ -682,7 +798,8 @@ ApiServer::ApiServer(const common::ServerConfig& config, registry::OfficialSourc
                       acquisition::AcquisitionExecutionService* execution_service,
                       connectors::ConnectorRegistry* connector_registry,
                       downloads::DownloadService* download_service,
-                      integrity::IntegrityVerificationService* verification_service)
+                      integrity::IntegrityVerificationService* verification_service,
+                      metadata::MetadataExtractionService* metadata_service)
     : config_(config),
       source_service_(source_service),
       job_service_(job_service),
@@ -690,9 +807,10 @@ ApiServer::ApiServer(const common::ServerConfig& config, registry::OfficialSourc
       connector_registry_(connector_registry),
       download_service_(download_service),
       verification_service_(verification_service),
+      metadata_service_(metadata_service),
       server_(std::make_unique<httplib::Server>()) {
   register_routes(*server_, source_service_, job_service_, execution_service_, connector_registry_,
-                   download_service_, verification_service_);
+                   download_service_, verification_service_, metadata_service_);
 }
 
 ApiServer::~ApiServer() {

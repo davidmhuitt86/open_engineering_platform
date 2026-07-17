@@ -8,27 +8,38 @@ and this repository's own `docs/architecture/SDD-R013` through
 
 ## Status
 
-**WORK_PACKAGE_001 through WORK_PACKAGE_007 implemented, plus ADR-0008
-(Connector Content Retrieval Interface).** WORK_PACKAGE_007 (Engineering
-Integrity Verification Engine) validates artifacts the Engineering
-Downloader has already retrieved: it resolves a Download Session,
-computes a SHA-256 hash of the file at its `local_storage_path`, and
-records the outcome (`verified`/`failed`) as an immutable Verification
-row -- entirely synchronously, mirroring WORK_PACKAGE_006's own
-`POST /downloads`. It performs no metadata extraction, document parsing,
-engineering object creation, or Reference Vault publication -- those
-remain later, unimplemented pipeline stages. WORK_PACKAGE_006 (Engineering
-Downloader) retrieves engineering artifacts exclusively through the
-Source Connector Framework's `fetch` operation (ADR-0008), validates the
-requesting Job and Connector, stores the artifact in a configurable
-local workspace, and tracks progress/history -- but, like every work
-package before it, `StubConnector` remains the only connector type and
-performs no real network communication (`fetch` writes a small
-placeholder file locally). Metadata extraction, Reference Vault
-publication, and Engineering Object creation are explicitly out of scope
+**WORK_PACKAGE_001 through WORK_PACKAGE_008 implemented, plus ADR-0008
+(Connector Content Retrieval Interface).** WORK_PACKAGE_008 (Engineering
+Metadata Extraction Engine) records descriptive metadata about artifacts
+the Integrity Verification Engine has already verified: it resolves a
+Verification (rejecting one that doesn't exist or wasn't successful),
+resolves the underlying Download's artifact, runs File Type Detection
+(magic-byte signatures with an extension-based fallback, across at least
+PDF/ZIP/7Z/TAR/GZIP/PNG/JPEG/SVG/XML/JSON/YAML/CSV/TXT/HTML/Markdown) and
+Basic Document Inspection (PDF version/page count today), and records the
+outcome as an immutable ArtifactMetadata row -- entirely synchronously,
+mirroring WORK_PACKAGE_007's own `POST /verifications`. It performs no
+OCR, AI analysis, semantic interpretation, document classification,
+Engineering Object creation, knowledge graph generation, search indexing,
+or Reference Vault publication -- those remain later, unimplemented
+pipeline stages (the Engineering Knowledge Engine). WORK_PACKAGE_007
+(Engineering Integrity Verification Engine) validates artifacts the
+Engineering Downloader has already retrieved: it resolves a Download
+Session, computes a SHA-256 hash of the file at its `local_storage_path`,
+and records the outcome (`verified`/`failed`) as an immutable
+Verification row -- entirely synchronously, mirroring WORK_PACKAGE_006's
+own `POST /downloads`. WORK_PACKAGE_006 (Engineering Downloader) retrieves
+engineering artifacts exclusively through the Source Connector
+Framework's `fetch` operation (ADR-0008), validates the requesting Job
+and Connector, stores the artifact in a configurable local workspace, and
+tracks progress/history -- but, like every work package before it,
+`StubConnector` remains the only connector type and performs no real
+network communication (`fetch` writes a small placeholder file locally).
+Engineering Object creation, Reference Vault publication, and everything
+the Engineering Knowledge Engine covers are explicitly out of scope
 platform-wide; browser automation and license management also remain out
 of scope -- see `docs/tasks/WORK_PACKAGE_001.md` through
-`docs/tasks/WORK_PACKAGE_007.md` and
+`docs/tasks/WORK_PACKAGE_008.md` and
 `docs/decisions/ADR-0002-PROPOSED-CONNECTOR-CONTENT-RETRIEVAL.md`
 (superseded by `oep_architecture`'s ratified ADR-0008).
 
@@ -280,6 +291,42 @@ why this is how "Verify Existing Hashes"/"Detect Corrupt Files" map onto
 the single creation route. All routes return `404` for an unknown
 verification id.
 
+### Engineering Metadata Extraction Engine API
+
+```
+POST /metadata                Extract metadata from a Verification's artifact (JSON body)
+GET  /metadata                List metadata records; optional query filters:
+                               status, verification_id
+GET  /metadata/{id}           Fetch one metadata record
+GET  /metadata/{id}/status    Status + timestamp + error only
+```
+
+```
+curl -X POST http://127.0.0.1:8080/metadata \
+  -H "Content-Type: application/json" \
+  -d '{"verification_id":"<a Verification id from /verifications>"}'
+```
+
+`verification_id` is required and must reference an existing Verification
+(`422 unknown_verification`) whose status is `verified` (`409
+verification_not_successful` otherwise -- "Metadata extraction shall
+operate only on successfully verified artifacts"). `POST /metadata` runs
+**synchronously**: it resolves the underlying Download's artifact, copies
+`sha256_hash`/`file_size_bytes` straight from the Verification record
+(no re-hashing -- that's Integrity Verification's job, not this one's),
+runs File Type Detection and Basic Document Inspection against the file,
+and returns the ArtifactMetadata already in its final state (`extracted`
+or `failed`) -- mirroring `POST /verifications`. A missing or unreadable
+artifact is recorded as `failed` with a descriptive `error_message`; an
+unrecognized file type is recorded as `extracted` with type `"Unknown"`/
+MIME type `application/octet-stream`, not as a failure ("Unsupported file
+types shall still produce metadata when possible" -- see "Implementation
+Decisions"). Calling `POST /metadata` again for the same `verification_id`
+creates a *new* record rather than overwriting the previous one, so
+`GET /metadata?verification_id=...` returns the full extraction history
+("Re-extract Metadata" / "Metadata history shall be preserved"). All
+routes return `404` for an unknown metadata id.
+
 ## Test
 
 ```
@@ -335,6 +382,23 @@ tampered-artifact-detected-as-failed), Repository-layer tests,
 migration/schema-shape tests, and a REST API test seeding a real
 Download Session (with a real file on disk) and exercising the full
 `POST`/`GET` lifecycle plus every rejection case end to end.
+WORK_PACKAGE-008 adds a dedicated `detect_file_type` unit-test suite
+(magic-byte signatures for PDF/PNG/JPEG/ZIP/7Z/GZIP/TAR, content-prefix
+detection for XML/SVG/HTML, extension fallback for JSON/YAML/CSV/TXT/
+Markdown, and both an unrecognized type and a missing file each falling
+back to `"Unknown"` -- entirely in-memory/local-disk, no database
+needed), a dedicated `inspect_pdf` unit-test suite (version parsing,
+page-count parsing via a `/Pages`/`/Count` fixture, and graceful empty
+results for a non-PDF or missing file), validation tests, Service-layer
+tests (against an in-memory fake Metadata repository plus the existing
+fake Verification and Download repositories, covering the full
+Extracted/Failed paths, the two Validation-Rules exceptions, missing-file
+handling, an unsupported-file-type non-failure, PDF document inspection,
+and re-extraction history), Repository-layer tests, migration/schema-shape
+tests, and a REST API test seeding a real Verification (backed by a real
+Download and a real file on disk) and exercising the full `POST`/`GET`
+lifecycle, every rejection case, and history preservation across repeated
+extraction end to end.
 
 The Repository/API/migration categories need a real PostgreSQL database
 and `SKIP` (not fail) if one isn't reachable, continuing
@@ -357,7 +421,7 @@ OEP_TEST_DB_USER, OEP_TEST_DB_PASSWORD
 ```
 
 The Repository/API/migration tests apply `migrations/V1__initial_schema.sql`
-through `migrations/V6__integrity_verifications.sql` verbatim from disk the
+through `migrations/V7__artifact_metadata.sql` verbatim from disk the
 first time they run against a given database (so they exercise the
 real, committed migration files) and `TRUNCATE ... CASCADE` the
 affected tables between test runs -- `CASCADE` matters here: once
@@ -366,11 +430,13 @@ affected tables between test runs -- `CASCADE` matters here: once
 dependent tables are truncated too (or `CASCADE` is used), which is
 exactly what happened when WORK_PACKAGE_004's history table first made
 the chain three tables deep -- see `tests/registry_test_support.cpp`,
-`tests/jobs_test_support.cpp`, `tests/downloads_test_support.cpp`, and
-`tests/integrity_test_support.cpp`. The latter also seeds a full Source
--> Job -> Download chain with a real file written to the Download's
-`local_storage_path`, since WORK_PACKAGE-007's Repository/API/migration
-tests need an actual artifact on disk to hash.
+`tests/jobs_test_support.cpp`, `tests/downloads_test_support.cpp`,
+`tests/integrity_test_support.cpp`, and `tests/metadata_test_support.cpp`.
+The latter two also seed a full Source -> Job -> Download (->
+Verification, for metadata tests) chain with a real file written to the
+Download's `local_storage_path`, since WORK_PACKAGE-007's and
+WORK_PACKAGE-008's Repository/API/migration tests need an actual artifact
+on disk to hash/inspect.
 No Flyway CLI install is required to run these tests, though a
 production deployment should still apply migrations via Flyway
 (`migrations/flyway.toml`).
@@ -404,9 +470,14 @@ include/oep/acquisition/  Public headers, one subdirectory per module
                            domain model, validation, SHA-256 hashing
                            utility (PicoSHA2), Repository interface +
                            PostgreSQL implementation (libpqxx), Service
+  metadata/                Metadata Extraction Engine: ArtifactMetadata
+                           domain model, validation, File Type Detection,
+                           Basic Document Inspection (PDF), Repository
+                           interface + PostgreSQL implementation (libpqxx),
+                           Service
   api/                     ApiServer (GET /health, /sources, /jobs,
                            /jobs/{id}/execute|cancel|status, /connectors,
-                           /downloads, /verifications routes)
+                           /downloads, /verifications, /metadata routes)
 src/
   common/                 Logging + TOML configuration loading + uuid + time
   database/                PostgreSQL connection management (libpq)
@@ -424,14 +495,17 @@ src/
                            -- reuses the directory WORK_PACKAGE_001
                            reserved under this exact name (see
                            "Implementation Decisions")
+  metadata/                Metadata Extraction Engine (WORK_PACKAGE_008)
+                           -- also reuses the directory WORK_PACKAGE_001
+                           reserved under this exact name
   api/                     Embedded HTTP server: GET /health, /sources,
                            /jobs, /jobs/{id}/execute|cancel|status,
-                           /connectors, /downloads, /verifications
+                           /connectors, /downloads, /verifications, /metadata
   app/                     main() -- wires the above together
-  browser/ licensing/ metadata/
+  browser/ licensing/
   vault/ workspace/        Reserved for future work packages (empty --
                            see "Out of Scope" in WORK_PACKAGE_001.md
-                           through WORK_PACKAGE_007.md). Distinct from
+                           through WORK_PACKAGE_008.md). Distinct from
                            `[storage] workspace_path` below, which is a
                            runtime filesystem path, not a source directory.
 migrations/
@@ -441,6 +515,7 @@ migrations/
   V4__job_execution_history.sql   acquisition_job_execution_history table (WORK_PACKAGE_004)
   V5__download_sessions.sql       download_sessions table (WORK_PACKAGE_006)
   V6__integrity_verifications.sql integrity_verifications table (WORK_PACKAGE_007)
+  V7__artifact_metadata.sql       artifact_metadata table (WORK_PACKAGE_008)
   flyway.toml                     Flyway configuration (not yet invoked)
 tests/                    Catch2 test suite
 docs/
@@ -857,12 +932,97 @@ the test suite) or that fails to open as a stream, which reproduces that
 condition deterministically without inventing fake byte-level damage to
 a format this engine doesn't parse anyway.
 
+**`src/metadata/` reuses the directory WORK_PACKAGE_001 reserved under
+that exact name.** Same reasoning as WORK_PACKAGE-007's `src/integrity/`
+reuse -- "Metadata" is an exact, literal match for WORK_PACKAGE-008's
+"Metadata Extraction Engine," the strongest directory-reuse case
+available.
+
+**"Verification shall exist" and "Verification shall be successful" are
+both thrown (422/409); "Artifact shall exist" is recorded as `Failed`.**
+WORK_PACKAGE-008's Validation Rules list all three together, but they are
+not the same kind of rule: whether a request names a real, successfully
+verified Verification is knowable immediately from the Verification
+record itself (mirroring WORK_PACKAGE-006's `UnknownJobError`/
+`JobNotExecutableError` pair -- both properties of the reference, thrown
+as `422`/`409` respectively), while whether the underlying artifact still
+exists on disk is only discoverable by trying to read it -- mirroring
+WORK_PACKAGE-007's own "Downloaded artifact shall exist" (recorded as
+`Failed`, not thrown). This is the same reasoning WORK_PACKAGE-007's
+README applied to its own Validation Rules, now applied one stage further
+down the pipeline.
+
+**`file_size_bytes` and `sha256_hash` are copied from the Verification
+record, never recomputed.** The artifact was already hashed by the
+Integrity Verification Engine; recomputing that hash here would duplicate
+work that engine already owns and would blur WORK_PACKAGE-008's own
+Objective ("descriptive metadata," not re-verification) with
+WORK_PACKAGE-007's responsibility. `MetadataExtractionService` only reads
+the file to run File Type Detection, Basic Document Inspection, and
+`std::filesystem::last_write_time` -- never to hash it again.
+
+**File Type Detection is magic-byte signatures with an extension-based
+fallback, implemented as a plain, appendable internal table -- not a
+runtime plugin-loading system.** WORK_PACKAGE-008 requires "Architecture
+shall support future file type plugins," but binary formats (PDF, PNG,
+JPEG, ZIP, 7Z, GZIP) have reliable magic bytes while several required
+text formats (JSON, YAML, CSV, TXT, Markdown) do not, so a signature-only
+design could not satisfy the full "at minimum" list on its own. A future
+file type is added by appending one entry to `file_type_detector.cpp`'s
+internal table, without changing `detect_file_type`'s signature or any
+caller -- the same bar WORK_PACKAGE-005 set for "Capabilities shall be
+extensible" with a plain `std::set<std::string>` rather than a dynamic
+plugin system, applied here to file type detection instead.
+
+**Basic Document Inspection is implemented only for PDF (version + a
+best-effort page count), not a generic extensible "document properties"
+mechanism.** WORK_PACKAGE-008's own text gives exactly one example
+("PDF version or page count") and its canonical Metadata Model field list
+does not itself enumerate a document-properties field at all -- two
+narrow, explicitly-typed optional columns (`pdf_version`, `pdf_page_count`)
+fulfill the example literally without inventing a generic bag of
+properties nothing has asked for yet. Page count is read via the same
+low-level trick minimal PDF readers use (the `/Pages` object's `/Count`
+entry) rather than a real PDF parsing library, since "Document parsing"
+is explicitly out of scope; a malformed or unusual PDF simply yields a
+missing `pdf_page_count` rather than an error, consistent with
+"Unsupported file types shall still produce metadata when possible."
+A future file type needing its own basic properties (e.g. image
+dimensions, a ZIP entry count) is the natural point to generalize this
+into a broader mechanism.
+
+**Extraction States (`Pending`/`Extracted`/`Failed`) are inferred by
+direct analogy with `DownloadStatus`/`VerificationStatus`, since
+WORK_PACKAGE-008's text names "Extraction Status" as a Metadata Model
+field but never enumerates its values the way WORK_PACKAGE-006/007 each
+had a dedicated "States" section.** The three-state Pending/
+terminal-success/terminal-failure shape is the one every prior stage in
+this exact pipeline uses; inventing a different shape here (e.g. more
+states, or a different terminal-state split) would have been a genuine
+architectural deviation with no textual basis, whereas reusing the
+established shape is filling a real but narrow gap. "Invalid transitions
+shall be rejected" is satisfied the same structural way
+WORK_PACKAGE-007's `VerificationStatus` is: the REST API has no route
+that mutates an existing ArtifactMetadata record, so the only transitions
+that occur are `MetadataExtractionService::extract`'s own two internal
+ones.
+
+**"Re-extract Metadata" / "Metadata history shall be preserved" is
+satisfied by `POST /metadata` always inserting a new row, never updating
+an existing one in place -- exactly mirroring WORK_PACKAGE-007's
+"Verify Existing Hashes" re-verification pattern.** There is no separate
+"re-extract" REST route; calling `POST /metadata` again for a
+`verification_id` that already has metadata simply creates another,
+independently queryable record (Engineering Principle 8: Engineering
+Evidence Is Immutable), and `GET /metadata?verification_id=...` returns
+every one of them in creation order.
+
 ## TODOs
 
-- WORK_PACKAGE_008 onward: real connector types (HTTP, FTP, browser
+- WORK_PACKAGE_009 onward: real connector types (HTTP, FTP, browser
   automation) implementing `IConnector`/`fetch`, wiring Connectors to
-  Official Sources/Acquisition Jobs, Metadata Extraction, Reference
-  Vault publication, Engineering Object creation -- per
+  Official Sources/Acquisition Jobs, Engineering Object creation, and
+  Reference Vault publication (the Engineering Knowledge Engine) -- per
   `docs/architecture/SDD-R013` through `SDD-R019`.
 - `migrations/flyway.toml` is still not invoked by any automated
   process (see Future Considerations below).
@@ -872,8 +1032,41 @@ a format this engine doesn't parse anyway.
 - `migrations/flyway.toml` is not yet invoked by any automated process
   -- a future work package should wire `flyway migrate` into the build
   or a deployment step. Repository/API/migration tests currently apply
-  `V1__initial_schema.sql` through `V6__integrity_verifications.sql`
+  `V1__initial_schema.sql` through `V7__artifact_metadata.sql`
   verbatim themselves (see "Test" above) as a stand-in.
+- Basic Document Inspection only covers PDF (version + best-effort page
+  count) -- see "Implementation Decisions." A future work package adding
+  richer per-type inspection (image dimensions for PNG/JPEG, entry counts
+  for ZIP/TAR/GZIP, etc.) should decide whether to keep adding narrow,
+  explicitly-typed columns to `artifact_metadata` (this repository's
+  existing precedent) or generalize into a broader properties mechanism
+  once enough types need one.
+- `inspect_pdf`'s page-count heuristic (locate `/Pages`, then the nearest
+  following `/Count`) reads only the first 2 MiB of the file and does not
+  walk cross-reference tables or object streams -- it will miss the page
+  count for a large, non-linearized PDF whose `/Pages` object falls later
+  in the file, or one using compressed object streams (common in newer
+  PDF producers). This is accepted as "best-effort" per WORK_PACKAGE-008's
+  own "Basic Document Inspection" framing; a future work package needing
+  reliable page counts across arbitrary PDFs should adopt a real PDF
+  parsing library instead (a larger dependency and a different scope than
+  "basic" inspection).
+- File Type Detection has no signature for DOCX/XLSX/PPTX (ZIP-based
+  Office formats) -- they will currently detect as plain `"ZIP"`. Adding
+  container-aware detection (checking for `[Content_Types].xml` inside
+  the ZIP) is a natural extension of the signature table once those
+  formats are actually expected to arrive as engineering artifacts.
+- The Integrity Verification Engine only ever compares a re-verification
+  against the *most recent* prior `verified` hash for a Download Session,
+  not the full verification history -- if a Download Session is verified
+  three times and the second verification was itself `failed` (e.g. a
+  transient read error), the third verification still compares against
+  the first (last-known-good) hash, since `Failed` verifications are
+  excluded from `latest_verified_hash`'s filter. This matches WORK_PACKAGE-007's
+  text (which never describes multi-hash reconciliation), but a future
+  work package that needs finer-grained drift analysis across a longer
+  history should revisit `IntegrityVerificationService`'s re-verification
+  lookup.
 - The Integrity Verification Engine only ever compares a re-verification
   against the *most recent* prior `verified` hash for a Download Session,
   not the full verification history -- if a Download Session is verified
@@ -921,8 +1114,9 @@ a format this engine doesn't parse anyway.
   WORK_PACKAGE-005 and remain future work.
 - A connection pool for `PostgresOfficialSourceRepository`,
   `PostgresAcquisitionJobRepository`, `PostgresJobExecutionHistoryRepository`,
-  and `PostgresDownloadRepository` (each currently one `pqxx::connection`
-  per repository instance, held for the process's lifetime) should be
+  `PostgresDownloadRepository`, `PostgresVerificationRepository`, and
+  `PostgresMetadataRepository` (each currently one `pqxx::connection` per
+  repository instance, held for the process's lifetime) should be
   reassessed once concurrent request volume makes single-connection
   serialization a bottleneck.
 - `PUT /jobs/{id}` (WORK_PACKAGE_003) still accepts any status value

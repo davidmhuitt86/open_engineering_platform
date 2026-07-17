@@ -21,6 +21,8 @@
 #include "oep/acquisition/downloads/postgres_download_repository.hpp"
 #include "oep/acquisition/integrity/integrity_verification_service.hpp"
 #include "oep/acquisition/integrity/postgres_verification_repository.hpp"
+#include "oep/acquisition/metadata/metadata_extraction_service.hpp"
+#include "oep/acquisition/metadata/postgres_metadata_repository.hpp"
 #include "oep/acquisition/registry/official_source_service.hpp"
 #include "oep/acquisition/registry/postgres_official_source_repository.hpp"
 
@@ -196,8 +198,34 @@ int main(int argc, char** argv) {
     log.warn("integrity verification engine disabled this run: download repository unavailable");
   }
 
+  // The Metadata Extraction Engine (WORK_PACKAGE_008) needs both the
+  // Verification repository (to resolve "Verification shall exist"/"shall
+  // be successful") and the Download repository (to locate the artifact
+  // to inspect) plus its own metadata-history repository, so it is only
+  // constructed when the Integrity Verification Engine already connected
+  // successfully -- same non-fatal-database precedent as every engine
+  // above.
+  std::unique_ptr<oep::acquisition::metadata::PostgresMetadataRepository> metadata_repository;
+  std::unique_ptr<oep::acquisition::metadata::MetadataExtractionService> metadata_service;
+  if (verification_repository && download_repository) {
+    try {
+      metadata_repository =
+          std::make_unique<oep::acquisition::metadata::PostgresMetadataRepository>(config.database);
+      metadata_service = std::make_unique<oep::acquisition::metadata::MetadataExtractionService>(
+          *metadata_repository, *verification_repository, *download_repository);
+      log.info("metadata extraction engine repository connected");
+    } catch (const std::exception& ex) {
+      log.warn(
+          "metadata extraction engine repository unavailable: {} -- /metadata routes disabled this run",
+          ex.what());
+    }
+  } else {
+    log.warn("metadata extraction engine disabled this run: verification and/or download repository unavailable");
+  }
+
   ApiServer server(config.server, source_service.get(), job_service.get(), execution_service.get(),
-                    &connector_registry, download_service.get(), verification_service.get());
+                    &connector_registry, download_service.get(), verification_service.get(),
+                    metadata_service.get());
   if (!server.start()) {
     log.error("failed to start API server on {}:{}", config.server.host, config.server.port);
     return 1;
