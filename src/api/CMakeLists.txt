@@ -13,6 +13,7 @@ target_link_libraries(oep_acquisition_api
     oep_acquisition_registry
     oep_acquisition_jobs
     oep_acquisition_connectors
+    oep_acquisition_downloads
   PRIVATE
     httplib::httplib
     nlohmann_json::nlohmann_json

@@ -17,6 +17,8 @@
 #include "oep/acquisition/connectors/connector_registry.hpp"
 #include "oep/acquisition/connectors/stub_connector.hpp"
 #include "oep/acquisition/database/database_connection.hpp"
+#include "oep/acquisition/downloads/download_service.hpp"
+#include "oep/acquisition/downloads/postgres_download_repository.hpp"
 #include "oep/acquisition/registry/official_source_service.hpp"
 #include "oep/acquisition/registry/postgres_official_source_repository.hpp"
 
@@ -144,8 +146,31 @@ int main(int argc, char** argv) {
   });
   log.info("connector framework initialized ({} connector(s) registered)", connector_registry.list().size());
 
+  // The Engineering Downloader (WORK_PACKAGE_006) needs the Job
+  // repository (to validate "Job shall exist"/"Job shall be executable")
+  // plus its own download-session repository, so it is only constructed
+  // when the Job Engine already connected successfully -- same
+  // non-fatal-database precedent as the Execution Engine above. It uses
+  // the live `connector_registry` directly (no database dependency there).
+  std::unique_ptr<oep::acquisition::downloads::PostgresDownloadRepository> download_repository;
+  std::unique_ptr<oep::acquisition::downloads::DownloadService> download_service;
+  if (job_repository) {
+    try {
+      download_repository =
+          std::make_unique<oep::acquisition::downloads::PostgresDownloadRepository>(config.database);
+      download_service = std::make_unique<oep::acquisition::downloads::DownloadService>(
+          *download_repository, *job_repository, connector_registry, config.storage);
+      log.info("engineering downloader repository connected");
+    } catch (const std::exception& ex) {
+      log.warn("engineering downloader repository unavailable: {} -- /downloads routes disabled this run",
+                ex.what());
+    }
+  } else {
+    log.warn("engineering downloader disabled this run: job repository unavailable");
+  }
+
   ApiServer server(config.server, source_service.get(), job_service.get(), execution_service.get(),
-                    &connector_registry);
+                    &connector_registry, download_service.get());
   if (!server.start()) {
     log.error("failed to start API server on {}:{}", config.server.host, config.server.port);
     return 1;

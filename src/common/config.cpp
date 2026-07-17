@@ -46,6 +46,7 @@ void apply_storage(const toml::table& root, StorageConfig& out) {
     return;
   }
   out.root_path = read_or<std::string>(*section, "root_path", out.root_path);
+  out.workspace_path = read_or<std::string>(*section, "workspace_path", out.workspace_path);
 }
 
 void apply_server(const toml::table& root, ServerConfig& out) {

@@ -35,6 +35,13 @@ struct StorageConfig {
   // out of scope for WORK_PACKAGE_001) -- recorded now so later work
   // packages have a configuration section to extend rather than invent.
   std::string root_path = "./data/vault";
+
+  // WORK_PACKAGE-006's "temporary acquisition workspace" -- distinct from
+  // `root_path` above, since that field was reserved specifically for the
+  // Reference Vault's eventual permanent storage, and WORK_PACKAGE-006
+  // explicitly must not publish downloaded artifacts there
+  // ("The downloader shall not publish files into the Reference Vault").
+  std::string workspace_path = "./data/workspace";
 };
 
 struct ServerConfig {

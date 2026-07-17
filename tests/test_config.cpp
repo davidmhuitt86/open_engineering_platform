@@ -22,6 +22,7 @@ TEST_CASE("Config::load_from_string applies every declared section", "[config]")
 
     [storage]
     root_path = "/mnt/vault"
+    workspace_path = "/mnt/workspace"
 
     [server]
     host = "127.0.0.1"
@@ -40,6 +41,7 @@ TEST_CASE("Config::load_from_string applies every declared section", "[config]")
   CHECK(config.logging.file == "logs/test.log");
 
   CHECK(config.storage.root_path == "/mnt/vault");
+  CHECK(config.storage.workspace_path == "/mnt/workspace");
 
   CHECK(config.server.host == "127.0.0.1");
   CHECK(config.server.port == 9090);
@@ -53,6 +55,7 @@ TEST_CASE("Config defaults apply when a section is entirely absent", "[config]")
   CHECK(config.logging.level == "info");
   CHECK(config.logging.console == true);
   CHECK(config.storage.root_path == "./data/vault");
+  CHECK(config.storage.workspace_path == "./data/workspace");
   CHECK(config.server.port == 8080);
 }
 

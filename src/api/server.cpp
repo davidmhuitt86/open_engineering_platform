@@ -14,6 +14,10 @@
 #include "oep/acquisition/acquisition/validation.hpp"
 #include "oep/acquisition/connectors/connector_json.hpp"
 #include "oep/acquisition/connectors/connector_registry.hpp"
+#include "oep/acquisition/downloads/download_errors.hpp"
+#include "oep/acquisition/downloads/download_json.hpp"
+#include "oep/acquisition/downloads/download_service.hpp"
+#include "oep/acquisition/downloads/validation.hpp"
 #include "oep/acquisition/registry/official_source_json.hpp"
 #include "oep/acquisition/registry/official_source_service.hpp"
 #include "oep/acquisition/registry/validation.hpp"
@@ -26,6 +30,8 @@ using acquisition::AcquisitionExecutionService;
 using acquisition::AcquisitionJobService;
 using acquisition::JobFilter;
 using connectors::ConnectorRegistry;
+using downloads::DownloadFilter;
+using downloads::DownloadService;
 using registry::OfficialSourceService;
 using registry::SourceFilter;
 
@@ -408,9 +414,136 @@ void register_connectors_routes(httplib::Server& server, ConnectorRegistry& regi
   });
 }
 
+// Same idea as guard_jobs, for WORK_PACKAGE-006's Validation Rules and
+// state transitions:
+// - ValidationError -> 422 (missing job_id/connector_id/source_uri).
+// - UnknownJobError / UnknownConnectorError -> 422 ("Job shall exist" /
+//   "Connector shall exist").
+// - JobNotExecutableError / ConnectorUnhealthyError -> 409 ("Job shall
+//   be executable" / "Connector shall be healthy").
+// - InvalidDestinationError -> 422 ("Download destination shall
+//   validate").
+// - InvalidTransitionError -> 409 (cancelling a terminal download).
+template <typename Fn>
+void guard_downloads(httplib::Response& response, Fn&& fn) {
+  try {
+    fn();
+  } catch (const downloads::ValidationError& error) {
+    respond_validation_error(response, error.violations());
+  } catch (const downloads::UnknownJobError& ex) {
+    respond_error(response, 422, "unknown_job", ex.what());
+  } catch (const downloads::UnknownConnectorError& ex) {
+    respond_error(response, 422, "unknown_connector", ex.what());
+  } catch (const downloads::InvalidDestinationError& ex) {
+    respond_error(response, 422, "invalid_destination", ex.what());
+  } catch (const downloads::JobNotExecutableError& ex) {
+    respond_error(response, 409, "job_not_executable", ex.what());
+  } catch (const downloads::ConnectorUnhealthyError& ex) {
+    respond_error(response, 409, "connector_unhealthy", ex.what());
+  } catch (const downloads::InvalidTransitionError& ex) {
+    respond_error(response, 409, "invalid_transition", ex.what());
+  } catch (const std::exception& ex) {
+    respond_error(response, 503, "service_unavailable", ex.what());
+  }
+}
+
+std::optional<DownloadFilter> parse_download_filter(const httplib::Request& request,
+                                                       httplib::Response& response) {
+  DownloadFilter filter;
+
+  if (request.has_param("status")) {
+    const auto status = downloads::download_status_from_string(request.get_param_value("status"));
+    if (!status.has_value()) {
+      respond_error(response, 400, "invalid_query_parameter", "status is not a recognized Download Status.");
+      return std::nullopt;
+    }
+    filter.status = status;
+  }
+
+  if (request.has_param("job_id")) {
+    filter.job_id = request.get_param_value("job_id");
+  }
+  if (request.has_param("connector_id")) {
+    filter.connector_id = request.get_param_value("connector_id");
+  }
+
+  return filter;
+}
+
+void register_downloads_routes(httplib::Server& server, DownloadService& service) {
+  server.Post("/downloads", [&service](const httplib::Request& request, httplib::Response& response) {
+    nlohmann::json body;
+    try {
+      body = nlohmann::json::parse(request.body);
+    } catch (const nlohmann::json::exception&) {
+      respond_error(response, 400, "invalid_json", "Request body is not valid JSON.");
+      return;
+    }
+    guard_downloads(response, [&] {
+      const auto created = service.start_download(body);
+      response.set_header("Location", "/downloads/" + created.id);
+      respond_json(response, 201, downloads::to_json(created));
+    });
+  });
+
+  server.Get("/downloads", [&service](const httplib::Request& request, httplib::Response& response) {
+    const auto filter = parse_download_filter(request, response);
+    if (!filter.has_value()) {
+      return;  // parse_download_filter already populated a 400 response.
+    }
+    guard_downloads(response, [&] {
+      const auto downloads_list = service.list(*filter);
+      nlohmann::json body = nlohmann::json::array();
+      for (const auto& download : downloads_list) {
+        body.push_back(downloads::to_json(download));
+      }
+      respond_json(response, 200, body);
+    });
+  });
+
+  server.Get(R"(/downloads/([^/]+))", [&service](const httplib::Request& request,
+                                                    httplib::Response& response) {
+    const std::string id = request.matches[1];
+    guard_downloads(response, [&] {
+      const auto download = service.get(id);
+      if (!download.has_value()) {
+        respond_error(response, 404, "not_found", "No download exists with that id.");
+        return;
+      }
+      respond_json(response, 200, downloads::to_json(*download));
+    });
+  });
+
+  server.Get(R"(/downloads/([^/]+)/status)", [&service](const httplib::Request& request,
+                                                            httplib::Response& response) {
+    const std::string id = request.matches[1];
+    guard_downloads(response, [&] {
+      const auto download = service.get(id);
+      if (!download.has_value()) {
+        respond_error(response, 404, "not_found", "No download exists with that id.");
+        return;
+      }
+      respond_json(response, 200, downloads::status_to_json(*download));
+    });
+  });
+
+  server.Post(R"(/downloads/([^/]+)/cancel)", [&service](const httplib::Request& request,
+                                                             httplib::Response& response) {
+    const std::string id = request.matches[1];
+    guard_downloads(response, [&] {
+      const auto download = service.cancel(id);
+      if (!download.has_value()) {
+        respond_error(response, 404, "not_found", "No download exists with that id.");
+        return;
+      }
+      respond_json(response, 200, downloads::to_json(*download));
+    });
+  });
+}
+
 void register_routes(httplib::Server& server, OfficialSourceService* source_service,
                       AcquisitionJobService* job_service, AcquisitionExecutionService* execution_service,
-                      ConnectorRegistry* connector_registry) {
+                      ConnectorRegistry* connector_registry, DownloadService* download_service) {
   server.Get("/health", [](const httplib::Request&, httplib::Response& response) {
     const nlohmann::json body{{"status", "ok"}};
     response.set_content(body.dump(), "application/json");
@@ -428,6 +561,9 @@ void register_routes(httplib::Server& server, OfficialSourceService* source_serv
   if (connector_registry != nullptr) {
     register_connectors_routes(server, *connector_registry);
   }
+  if (download_service != nullptr) {
+    register_downloads_routes(server, *download_service);
+  }
 }
 
 }  // namespace
@@ -435,14 +571,17 @@ void register_routes(httplib::Server& server, OfficialSourceService* source_serv
 ApiServer::ApiServer(const common::ServerConfig& config, registry::OfficialSourceService* source_service,
                       acquisition::AcquisitionJobService* job_service,
                       acquisition::AcquisitionExecutionService* execution_service,
-                      connectors::ConnectorRegistry* connector_registry)
+                      connectors::ConnectorRegistry* connector_registry,
+                      downloads::DownloadService* download_service)
     : config_(config),
       source_service_(source_service),
       job_service_(job_service),
       execution_service_(execution_service),
       connector_registry_(connector_registry),
+      download_service_(download_service),
       server_(std::make_unique<httplib::Server>()) {
-  register_routes(*server_, source_service_, job_service_, execution_service_, connector_registry_);
+  register_routes(*server_, source_service_, job_service_, execution_service_, connector_registry_,
+                   download_service_);
 }
 
 ApiServer::~ApiServer() {

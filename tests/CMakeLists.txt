@@ -24,6 +24,13 @@ add_executable(oep_acquisition_tests
   test_connector_registry.cpp
   test_stub_connector.cpp
   test_connector_api.cpp
+  downloads_test_support.cpp
+  test_download_validation.cpp
+  test_download_progress.cpp
+  test_download_service.cpp
+  test_download_repository.cpp
+  test_download_migration.cpp
+  test_download_api.cpp
 )
 
 target_link_libraries(oep_acquisition_tests
@@ -33,6 +40,7 @@ target_link_libraries(oep_acquisition_tests
     oep_acquisition_registry
     oep_acquisition_jobs
     oep_acquisition_connectors
+    oep_acquisition_downloads
     oep_acquisition_api
     Catch2::Catch2WithMain
     httplib::httplib

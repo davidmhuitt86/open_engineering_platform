@@ -8,23 +8,21 @@ and this repository's own `docs/architecture/SDD-R013` through
 
 ## Status
 
-**WORK_PACKAGE_001 (Repository Bootstrap) through WORK_PACKAGE_005
-(Engineering Source Connector Framework) implemented, plus ADR-0008
-(Connector Content Retrieval Interface).** The Connector Framework
-provides a common `IConnector` abstraction (connect, disconnect, health
-check, capability discovery, configuration validation, and -- per
-ADR-0008 -- a standardized `fetch` content-retrieval operation) plus a
-Factory and Registry for constructing and resolving connector instances.
-`StubConnector` remains the only registered connector type and performs
-no real network communication (`fetch` writes a small placeholder file
-locally rather than retrieving anything remote), and connectors aren't
-yet wired to Official Sources or Acquisition Jobs at all -- WORK_PACKAGE_006
-(Engineering Downloader), which consumes `fetch`, is paused pending this
-ADR (now implemented) and resumes next. Browser automation, the download
-engine, metadata extraction, integrity verification, license management,
-and the Reference Vault remain out of scope -- see
-`docs/tasks/WORK_PACKAGE_001.md` through `docs/tasks/WORK_PACKAGE_006.md`
-and `docs/decisions/ADR-0002-PROPOSED-CONNECTOR-CONTENT-RETRIEVAL.md`
+**WORK_PACKAGE_001 through WORK_PACKAGE_006 implemented, plus ADR-0008
+(Connector Content Retrieval Interface).** WORK_PACKAGE_006 (Engineering
+Downloader) retrieves engineering artifacts exclusively through the
+Source Connector Framework's `fetch` operation (ADR-0008), validates the
+requesting Job and Connector, stores the artifact in a configurable
+local workspace, and tracks progress/history -- but, like every work
+package before it, `StubConnector` remains the only connector type and
+performs no real network communication (`fetch` writes a small
+placeholder file locally). Integrity verification, metadata extraction,
+Reference Vault publication, and Engineering Object creation are
+explicitly out of scope for the Downloader; browser automation, license
+management, and the Reference Vault itself remain out of scope
+platform-wide -- see `docs/tasks/WORK_PACKAGE_001.md` through
+`docs/tasks/WORK_PACKAGE_006.md` and
+`docs/decisions/ADR-0002-PROPOSED-CONNECTOR-CONTENT-RETRIEVAL.md`
 (superseded by `oep_architecture`'s ratified ADR-0008).
 
 ## Build
@@ -202,10 +200,47 @@ fresh checkout. All four routes return `404` for an unknown connector
 id.
 
 `IConnector` also exposes `fetch(const AcquisitionRequest&) ->
-AcquisitionResult` (ADR-0008), but there is no REST route for it yet --
-retrieving content is WORK_PACKAGE_006's (Engineering Downloader)
-concern, not this framework's; `fetch` is reachable today only in-process
-(e.g. from tests, or a future Downloader service).
+AcquisitionResult` (ADR-0008) -- there is still no REST route for it on
+`/connectors` itself (retrieving content is the Downloader's concern,
+below, not this framework's), but it is no longer only reachable from
+tests: `POST /downloads` now calls it for real.
+
+### Engineering Downloader API
+
+```
+POST /downloads                   Start a download (JSON body)
+GET  /downloads                   List downloads; optional query filters:
+                                   status, job_id, connector_id
+GET  /downloads/{id}              Fetch one download
+GET  /downloads/{id}/status       Status + progress + timing only
+POST /downloads/{id}/cancel       Cancel a Pending or Downloading download
+```
+
+```
+curl -X POST http://127.0.0.1:8080/downloads \
+  -H "Content-Type: application/json" \
+  -d '{"job_id":"<a Job id from /jobs>","connector_id":"example-stub","source_uri":"stub://example/artifact.pdf"}'
+```
+
+`job_id`, `connector_id`, and `source_uri` are required; `file_name` is
+optional (derived from `source_uri`'s last path segment if omitted).
+`POST /downloads` validates, in order (WORK_PACKAGE-006 Validation
+Rules), that the job exists (`422 unknown_job`) and is executable (`409
+job_not_executable` -- reuses `next_execution_status`'s definition of
+"executable": Created, Queued, or Running, i.e. not yet terminal), that
+the connector exists (`422 unknown_connector`) and is healthy (`409
+connector_unhealthy`), and that the computed local storage destination
+is usable (`422 invalid_destination`). It then **synchronously**
+resolves the destination under `[storage] workspace_path`, calls
+`fetch`, and returns the Download in its final state (`completed` or
+`failed`) -- see "Implementation Decisions" for why this is synchronous
+rather than backgrounded. `POST .../cancel` returns `409
+invalid_transition` for a download that isn't `pending` or
+`downloading` (in practice, with only the instant `StubConnector`
+available, every download normally reaches a terminal state before a
+client could ever call cancel -- see "Implementation Decisions" and
+"Future Considerations"). All routes return `404` for an unknown
+download id.
 
 ## Test
 
@@ -237,7 +272,18 @@ temporary file, configurable MIME type and failure outcome, the
 overwrite guard (both respected and bypassed), an already-cancelled
 `std::stop_token` short-circuiting before any file is written, and
 progress-callback invocation -- also entirely in-memory/local-disk, no
-database needed.
+database needed. WORK_PACKAGE-006 adds validation tests, a dedicated
+progress-tracking test suite for `clamp_progress_percentage` (pure,
+in-memory -- exact percentages, an unknown-total edge case, and the
+over/under-100 clamping rule), Service-layer tests (against an
+in-memory fake Download repository, a fake Job repository, and a real
+in-memory `ConnectorRegistry`/`StubConnector`, covering the full
+success/failure path and every Validation Rule rejection),
+Repository-layer tests, migration/schema-shape tests, and a REST API
+test covering the full lifecycle plus cancelling a `Pending` download
+seeded directly via the repository (see "Implementation Decisions" for
+why that's the only deterministic way to test cancellation with a
+synchronous, instant `StubConnector`).
 
 The Repository/API/migration categories need a real PostgreSQL database
 and `SKIP` (not fail) if one isn't reachable, continuing
@@ -260,18 +306,19 @@ OEP_TEST_DB_USER, OEP_TEST_DB_PASSWORD
 ```
 
 The Repository/API/migration tests apply `migrations/V1__initial_schema.sql`
-through `migrations/V4__job_execution_history.sql` verbatim from disk
-the first time they run against a given database (so they exercise the
+through `migrations/V5__download_sessions.sql` verbatim from disk the
+first time they run against a given database (so they exercise the
 real, committed migration files) and `TRUNCATE ... CASCADE` the
 affected tables between test runs -- `CASCADE` matters here: once
-`acquisition_jobs` and `acquisition_job_execution_history` exist,
-truncating `official_sources` alone fails on its own foreign key unless
-the dependent tables are truncated too (or `CASCADE` is used), which is
+`acquisition_jobs` and its dependents exist, truncating
+`official_sources` alone fails on its own foreign key unless the
+dependent tables are truncated too (or `CASCADE` is used), which is
 exactly what happened when WORK_PACKAGE_004's history table first made
-the chain three tables deep -- see `tests/registry_test_support.cpp`
-and `tests/jobs_test_support.cpp`. No Flyway CLI install is required to
-run these tests, though a production deployment should still apply
-migrations via Flyway (`migrations/flyway.toml`).
+the chain three tables deep -- see `tests/registry_test_support.cpp`,
+`tests/jobs_test_support.cpp`, and `tests/downloads_test_support.cpp`.
+No Flyway CLI install is required to run these tests, though a
+production deployment should still apply migrations via Flyway
+(`migrations/flyway.toml`).
 
 ## Directory Layout
 
@@ -295,8 +342,12 @@ include/oep/acquisition/  Public headers, one subdirectory per module
                            AcquisitionRequest/AcquisitionResult),
                            ConnectorFactory, ConnectorRegistry,
                            StubConnector (no PostgreSQL dependency)
+  downloads/               Engineering Downloader: Download domain model,
+                           validation, Repository interface + PostgreSQL
+                           implementation (libpqxx), Service
   api/                     ApiServer (GET /health, /sources, /jobs,
-                           /jobs/{id}/execute|cancel|status, /connectors routes)
+                           /jobs/{id}/execute|cancel|status, /connectors,
+                           /downloads routes)
 src/
   common/                 Logging + TOML configuration loading + uuid + time
   database/                PostgreSQL connection management (libpq)
@@ -308,21 +359,25 @@ src/
   connectors/              Source Connector Framework (WORK_PACKAGE_005)
                            -- a new directory; none of WORK_PACKAGE_001's
                            reserved names fit (see "Implementation Decisions")
+  downloads/               Engineering Downloader (WORK_PACKAGE_006) --
+                           also a new directory, for the same reason
   api/                     Embedded HTTP server: GET /health, /sources,
-                           /jobs, /jobs/{id}/execute|cancel|status, /connectors
+                           /jobs, /jobs/{id}/execute|cancel|status,
+                           /connectors, /downloads
   app/                     main() -- wires the above together
   browser/ integrity/ licensing/ metadata/
   vault/ workspace/        Reserved for future work packages (empty --
                            see "Out of Scope" in WORK_PACKAGE_001.md
-                           through WORK_PACKAGE_005.md)
+                           through WORK_PACKAGE_006.md). Distinct from
+                           `[storage] workspace_path` below, which is a
+                           runtime filesystem path, not a source directory.
 migrations/
   V1__initial_schema.sql          Flyway migration placeholder (WORK_PACKAGE_001)
   V2__official_sources.sql        official_sources table (WORK_PACKAGE_002)
   V3__acquisition_jobs.sql        acquisition_jobs table (WORK_PACKAGE_003)
   V4__job_execution_history.sql   acquisition_job_execution_history table (WORK_PACKAGE_004)
-  flyway.toml                     Flyway configuration (not yet invoked;
-                                   WORK_PACKAGE_005 added no migration --
-                                   see "Implementation Decisions")
+  V5__download_sessions.sql       download_sessions table (WORK_PACKAGE_006)
+  flyway.toml                     Flyway configuration (not yet invoked)
 tests/                    Catch2 test suite
 docs/
   architecture/            SDD-R013 through SDD-R019 (ratified architecture)
@@ -569,6 +624,73 @@ local write), configurable via new `ConnectorConfig::settings` keys
 (`"fetch_outcome"`, `"fetch_mime_type"`) following the same pattern
 `"health_status"` already established.
 
+**A new `[storage] workspace_path` config field, distinct from the
+existing `root_path`.** WORK_PACKAGE-006 requires "Downloaded artifacts
+shall be stored in a temporary acquisition workspace... Persistent
+storage location shall be configurable" and, separately, "The downloader
+shall not publish files into the Reference Vault." `StorageConfig::root_path`
+already existed (`./data/vault` by default), but WORK_PACKAGE_001's own
+comment on it says it was reserved specifically for "where acquired
+evidence will eventually be written (Reference Vault)" -- reusing it for
+the Downloader's temporary workspace would have been semantically wrong
+given WORK_PACKAGE-006's explicit vault exclusion, so a second field,
+`workspace_path` (default `./data/workspace`), was added instead.
+`root_path` remains reserved, still unused, for the Reference Vault.
+
+**`POST /downloads` runs entirely synchronously -- no background
+thread, no async execution model.** WORK_PACKAGE-006 excludes
+"Background scheduling" and "Parallel downloads," and its REST API has
+no second endpoint analogous to how `POST /jobs/{id}/execute`
+(WORK_PACKAGE-004) could be called repeatedly to advance one step at a
+time -- `POST /downloads` is both "create" and "start" in one call.
+Building genuine async execution (a worker thread per download, an
+in-memory cancellation-token registry keyed by download id, a shared
+mutable `Download` row updated concurrently) to make "Cancel Download"
+racily interruptible would be speculative engineering for a hypothetical
+slow connector that doesn't exist yet -- `StubConnector::fetch` still
+completes in microseconds, so nothing would actually exercise that
+machinery today. `Download` still models `pending`/`downloading` as
+real, distinct, correctly-validated states (the transition logic and
+`InvalidTransitionError` are fully implemented and tested), but in
+normal operation a download reaches `completed`/`failed` before
+`POST /downloads` even returns -- so cancelling an in-flight download is,
+for now, only reachable in tests via a `Download` seeded directly in
+`pending` through the repository, not through a naturally-occurring
+race via the REST API. This mirrors WORK_PACKAGE-004's precedent
+exactly: `Failed` was a fully modeled Job State that nothing in that
+work package could actually produce automatically either. A future work
+package introducing a real, slow connector type is the natural point to
+revisit this and move `fetch` execution onto its own thread.
+
+**"Job shall be executable" reuses `acquisition::next_execution_status`'s
+definition rather than inventing a new one.** WORK_PACKAGE-006 never
+defines "executable." Its wording echoes WORK_PACKAGE-004's own
+"Execution Engine"/"execute" terminology closely enough that reusing the
+exact predicate already validated there (a job is executable if it is
+Created, Queued, or Running -- i.e. `next_execution_status` returns a
+value, meaning it is not yet Completed/Failed/Cancelled) was preferred
+over guessing a new, narrower definition (e.g. "only Running jobs are
+executable") that WORK_PACKAGE-006's text does not actually state.
+
+**`connector_id` is a plain `TEXT` column, not a foreign key.**
+Unlike `job_id` (a real `REFERENCES acquisition_jobs (uuid)`, since both
+tables live in this database), the Connector Registry
+(WORK_PACKAGE-005) is in-memory only with no backing table -- "Connector
+shall exist"/"Connector shall be healthy" are validated by
+`DownloadService` against the live `ConnectorRegistry` at request time
+instead, the only mechanism available given WORK_PACKAGE-005's own
+no-persistence decision.
+
+**Destination validation sanitizes `file_name` down to its filename
+component (discarding any directory parts) rather than attempting to
+detect and reject path traversal patterns.** WORK_PACKAGE-006 requires
+"Download destination shall validate"; `std::filesystem::path(file_name).filename()`
+makes a `"../../etc/passwd"`-style `file_name` structurally incapable of
+escaping `workspace_path` (only the trailing `"passwd"` component
+survives) rather than relying on pattern-matching that could miss an
+encoding this codebase didn't anticipate -- a stronger guarantee via a
+simpler mechanism.
+
 **Dependency management: CMake `FetchContent`, not vcpkg/Conan.** No
 package manager was already set up in this environment or evidenced
 elsewhere in the platform. `FetchContent` is built into CMake itself,
@@ -578,10 +700,10 @@ builds.
 
 ## TODOs
 
-- WORK_PACKAGE_006 (Engineering Downloader), now unblocked by ADR-0008,
-  then real connector types (HTTP, FTP, browser automation) implementing
-  `IConnector`, wiring Connectors to Official Sources/Acquisition Jobs,
-  Integrity, Licensing, Reference Vault, Metadata Extraction -- per
+- WORK_PACKAGE_007 onward: real connector types (HTTP, FTP, browser
+  automation) implementing `IConnector`/`fetch`, wiring Connectors to
+  Official Sources/Acquisition Jobs, Integrity Verification, Metadata
+  Extraction, Reference Vault publication -- per
   `docs/architecture/SDD-R013` through `SDD-R019`.
 - `migrations/flyway.toml` is still not invoked by any automated
   process (see Future Considerations below).
@@ -591,13 +713,24 @@ builds.
 - `migrations/flyway.toml` is not yet invoked by any automated process
   -- a future work package should wire `flyway migrate` into the build
   or a deployment step. Repository/API/migration tests currently apply
-  `V1__initial_schema.sql` through `V4__job_execution_history.sql`
+  `V1__initial_schema.sql` through `V5__download_sessions.sql`
   verbatim themselves (see "Test" above) as a stand-in.
+- Moving `fetch` execution onto a background thread once a real, slow
+  connector type exists -- see "Implementation Decisions" for why
+  `POST /downloads` is fully synchronous today and why that makes
+  `POST /downloads/{id}/cancel` mostly untestable via a natural race
+  in normal operation (only via a `Download` seeded directly as
+  `pending`).
 - Connectors have no relationship to Official Sources or Acquisition
   Jobs yet (see "Implementation Decisions") -- a future work package
   will need to decide how a Source or a Job selects which connector
   services it (e.g. a `connector_id` field on `OfficialSource`, or
-  resolving by matching capabilities).
+  resolving by matching capabilities). WORK_PACKAGE-006 works around
+  this by requiring the REST client to name `connector_id` directly in
+  the `POST /downloads` body.
+- No pagination (`limit`/`offset`/`cursor`) is implemented for
+  `GET /downloads`, matching every other list endpoint in this
+  repository -- see the existing `GET /sources` pagination note below.
 - The Connector Registry is populated once at process startup with no
   way to add, remove, or reconfigure a connector without a restart --
   WORK_PACKAGE-005's REST API section is entirely read-only, so this
@@ -609,11 +742,11 @@ builds.
   (HTTP, FTP, browser automation) are explicitly excluded from
   WORK_PACKAGE-005 and remain future work.
 - A connection pool for `PostgresOfficialSourceRepository`,
-  `PostgresAcquisitionJobRepository`, and
-  `PostgresJobExecutionHistoryRepository` (each currently one
-  `pqxx::connection` per repository instance, held for the process's
-  lifetime) should be reassessed once concurrent request volume makes
-  single-connection serialization a bottleneck.
+  `PostgresAcquisitionJobRepository`, `PostgresJobExecutionHistoryRepository`,
+  and `PostgresDownloadRepository` (each currently one `pqxx::connection`
+  per repository instance, held for the process's lifetime) should be
+  reassessed once concurrent request volume makes single-connection
+  serialization a bottleneck.
 - `PUT /jobs/{id}` (WORK_PACKAGE_003) still accepts any status value
   with no transition validation, while `POST /jobs/{id}/execute` and
   `/cancel` (WORK_PACKAGE_004) strictly enforce
