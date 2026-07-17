@@ -18,11 +18,13 @@ enable_testing()
 # in this environment, and FetchContent keeps the bootstrap self-contained
 # with only CMake + a C++ compiler + network access required.
 #
-# PostgreSQL connectivity uses the raw `libpq` C client, located via CMake's
-# built-in FindPostgreSQL module against the system PostgreSQL 18 install,
-# wrapped by a small RAII class in src/database -- not the heavier libpqxx
-# library, since WORK_PACKAGE_001 asks only for "connection management...
-# connection only," not query execution with rich C++ type conversions.
+# PostgreSQL connectivity: WORK_PACKAGE_001 used the raw `libpq` C client
+# directly (connection management only, no queries). WORK_PACKAGE_002 adds
+# the first real Repository layer (parameterized CRUD + filtering), which is
+# exactly the reassessment point WORK_PACKAGE_001's README flagged under
+# "Future Considerations" -- `libpqxx` is now fetched alongside raw `libpq`
+# so the Repository layer gets safe parameter binding, RAII transactions,
+# and typed field access instead of hand-rolled C-string query building.
 # See README.md "Implementation Decisions".
 # ---------------------------------------------------------------------------
 include(FetchContent)
@@ -67,16 +69,27 @@ FetchContent_Declare(
   GIT_SHALLOW TRUE
 )
 
-FetchContent_MakeAvailable(spdlog nlohmann_json tomlplusplus httplib Catch2)
+find_package(PostgreSQL REQUIRED)
+
+set(SKIP_BUILD_TEST ON CACHE BOOL "" FORCE)
+set(PQXX_SKIP_TESTS ON CACHE BOOL "" FORCE)
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+FetchContent_Declare(
+  libpqxx
+  GIT_REPOSITORY https://github.com/jtv/libpqxx.git
+  GIT_TAG 7.9.2
+  GIT_SHALLOW TRUE
+)
+
+FetchContent_MakeAvailable(spdlog nlohmann_json tomlplusplus httplib Catch2 libpqxx)
 
 # Catch2's CTest integration (catch_discover_tests) lives in a CMake module
 # shipped alongside Catch2's own sources, not on CMake's default module path.
 list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
 
-find_package(PostgreSQL REQUIRED)
-
 add_subdirectory(src/common)
 add_subdirectory(src/database)
+add_subdirectory(src/registry)
 add_subdirectory(src/api)
 add_subdirectory(src/app)
 add_subdirectory(tests)

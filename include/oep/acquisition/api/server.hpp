@@ -11,18 +11,29 @@ namespace httplib {
 class Server;
 }
 
+namespace oep::acquisition::registry {
+class OfficialSourceService;
+}
+
 namespace oep::acquisition::api {
 
-/// The Engineering Acquisition Manager's minimal HTTP API (WORK_PACKAGE_001).
+/// The Engineering Acquisition Manager's HTTP API.
 ///
 /// Embeds `cpp-httplib` directly in-process rather than fronting the
 /// service with a separate Node/Fastify gateway -- see README.md
-/// "Implementation Decisions" for why. Exposes exactly one endpoint,
-/// `GET /health`, per this work package's explicit scope; no additional
-/// routes are registered here.
+/// "Implementation Decisions" and ADR-0007 (Platform API Strategy) for why.
+///
+/// `GET /health` (WORK_PACKAGE_001) is always registered. The `/sources`
+/// routes (WORK-PACKAGE-002) are registered only when `source_service` is
+/// non-null -- `main.cpp` passes `nullptr` if the PostgreSQL repository
+/// could not be constructed at startup, so a database outage degrades
+/// the process to "health checks only" rather than preventing it from
+/// starting at all (continuing WORK_PACKAGE_001's non-fatal-database
+/// precedent).
 class ApiServer {
  public:
-  explicit ApiServer(const common::ServerConfig& config);
+  explicit ApiServer(const common::ServerConfig& config,
+                      registry::OfficialSourceService* source_service = nullptr);
   ~ApiServer();
 
   ApiServer(const ApiServer&) = delete;
@@ -46,6 +57,7 @@ class ApiServer {
 
  private:
   common::ServerConfig config_;
+  registry::OfficialSourceService* source_service_;
   std::unique_ptr<httplib::Server> server_;
   std::thread thread_;
   std::atomic<bool> running_{false};

@@ -3,12 +3,15 @@
 #include <csignal>
 #include <cstdio>
 #include <filesystem>
+#include <memory>
 #include <thread>
 
 #include "oep/acquisition/api/server.hpp"
 #include "oep/acquisition/common/config.hpp"
 #include "oep/acquisition/common/logger.hpp"
 #include "oep/acquisition/database/database_connection.hpp"
+#include "oep/acquisition/registry/official_source_service.hpp"
+#include "oep/acquisition/registry/postgres_official_source_repository.hpp"
 
 namespace {
 
@@ -59,7 +62,25 @@ int main(int argc, char** argv) {
     log.warn("database connection unavailable: {}", database.last_error());
   }
 
-  ApiServer server(config.server);
+  // The Official Source Registry (WORK-PACKAGE-002) needs a working
+  // PostgreSQL connection to do anything useful, unlike the connection-only
+  // check above. Continuing WORK_PACKAGE_001's non-fatal-database
+  // precedent: if it can't be constructed, the process still starts with
+  // `/health` only -- `/sources` becomes available again on the next
+  // restart once the database is reachable.
+  std::unique_ptr<oep::acquisition::registry::PostgresOfficialSourceRepository> source_repository;
+  std::unique_ptr<oep::acquisition::registry::OfficialSourceService> source_service;
+  try {
+    source_repository =
+        std::make_unique<oep::acquisition::registry::PostgresOfficialSourceRepository>(config.database);
+    source_service = std::make_unique<oep::acquisition::registry::OfficialSourceService>(*source_repository);
+    log.info("official source registry repository connected");
+  } catch (const std::exception& ex) {
+    log.warn("official source registry repository unavailable: {} -- /sources routes disabled this run",
+              ex.what());
+  }
+
+  ApiServer server(config.server, source_service.get());
   if (!server.start()) {
     log.error("failed to start API server on {}:{}", config.server.host, config.server.port);
     return 1;

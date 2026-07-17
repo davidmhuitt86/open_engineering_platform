@@ -3,19 +3,36 @@ add_executable(oep_acquisition_tests
   test_config.cpp
   test_database_connection.cpp
   test_server.cpp
+  registry_test_support.cpp
+  test_official_source_validation.cpp
+  test_official_source_service.cpp
+  test_official_source_repository.cpp
+  test_official_source_migration.cpp
+  test_official_source_api.cpp
 )
 
 target_link_libraries(oep_acquisition_tests
   PRIVATE
     oep_acquisition_common
     oep_acquisition_database
+    oep_acquisition_registry
     oep_acquisition_api
     Catch2::Catch2WithMain
     httplib::httplib
     nlohmann_json::nlohmann_json
+    libpqxx::pqxx
 )
 
 target_compile_features(oep_acquisition_tests PRIVATE cxx_std_23)
+
+# Lets registry_test_support.cpp apply migrations/V1__initial_schema.sql and
+# migrations/V2__official_sources.sql verbatim from disk, so Repository/API/
+# migration tests exercise the real, committed migration files rather than a
+# hand-copied duplicate of their DDL.
+target_compile_definitions(oep_acquisition_tests
+  PRIVATE
+    "OEP_ACQUISITION_MIGRATIONS_DIR=\"${CMAKE_SOURCE_DIR}/migrations\""
+)
 
 include(CTest)
 include(Catch)

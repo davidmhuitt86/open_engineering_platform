@@ -10,6 +10,7 @@ target_include_directories(oep_acquisition_api
 target_link_libraries(oep_acquisition_api
   PUBLIC
     oep_acquisition_common
+    oep_acquisition_registry
   PRIVATE
     httplib::httplib
     nlohmann_json::nlohmann_json
