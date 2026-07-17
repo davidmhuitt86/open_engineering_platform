@@ -1,0 +1,12 @@
+add_executable(oep_acquisition
+  main.cpp
+)
+
+target_link_libraries(oep_acquisition
+  PRIVATE
+    oep_acquisition_common
+    oep_acquisition_database
+    oep_acquisition_api
+)
+
+target_compile_features(oep_acquisition PRIVATE cxx_std_23)
