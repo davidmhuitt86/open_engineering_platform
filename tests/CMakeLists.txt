@@ -15,6 +15,11 @@ add_executable(oep_acquisition_tests
   test_acquisition_job_repository.cpp
   test_acquisition_job_migration.cpp
   test_acquisition_job_api.cpp
+  execution_test_support.cpp
+  test_acquisition_execution_transitions.cpp
+  test_acquisition_execution_service.cpp
+  test_job_execution_history_repository.cpp
+  test_acquisition_execution_api.cpp
 )
 
 target_link_libraries(oep_acquisition_tests

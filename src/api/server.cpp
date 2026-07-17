@@ -7,6 +7,8 @@
 #include <httplib.h>
 #include <nlohmann/json.hpp>
 
+#include "oep/acquisition/acquisition/acquisition_execution_json.hpp"
+#include "oep/acquisition/acquisition/acquisition_execution_service.hpp"
 #include "oep/acquisition/acquisition/acquisition_job_json.hpp"
 #include "oep/acquisition/acquisition/acquisition_job_service.hpp"
 #include "oep/acquisition/acquisition/validation.hpp"
@@ -18,6 +20,7 @@ namespace oep::acquisition::api {
 
 namespace {
 
+using acquisition::AcquisitionExecutionService;
 using acquisition::AcquisitionJobService;
 using acquisition::JobFilter;
 using registry::OfficialSourceService;
@@ -51,9 +54,13 @@ void guard_sources(httplib::Response& response, Fn&& fn) {
   }
 }
 
-// Same idea as guard_sources, plus UnknownSourceError -> 422 for a /jobs
-// request whose source_id doesn't reference an existing Official Source
-// (see acquisition::IAcquisitionJobRepository).
+// Same idea as guard_sources, plus:
+// - UnknownSourceError -> 422 for a /jobs request whose source_id doesn't
+//   reference an existing Official Source (see
+//   acquisition::IAcquisitionJobRepository).
+// - InvalidTransitionError / SourceNotAvailableError -> 409 for a
+//   WORK_PACKAGE-004 execution request (/execute, /cancel) that conflicts
+//   with the job's or its source's current state.
 template <typename Fn>
 void guard_jobs(httplib::Response& response, Fn&& fn) {
   try {
@@ -62,6 +69,10 @@ void guard_jobs(httplib::Response& response, Fn&& fn) {
     respond_validation_error(response, error.violations());
   } catch (const acquisition::UnknownSourceError& ex) {
     respond_error(response, 422, "unknown_source", ex.what());
+  } catch (const acquisition::InvalidTransitionError& ex) {
+    respond_error(response, 409, "invalid_transition", ex.what());
+  } catch (const acquisition::SourceNotAvailableError& ex) {
+    respond_error(response, 409, "source_unavailable", ex.what());
   } catch (const std::exception& ex) {
     respond_error(response, 503, "service_unavailable", ex.what());
   }
@@ -289,8 +300,49 @@ void register_jobs_routes(httplib::Server& server, AcquisitionJobService& servic
   });
 }
 
+void register_execution_routes(httplib::Server& server, AcquisitionExecutionService& service) {
+  server.Post(R"(/jobs/([^/]+)/execute)", [&service](const httplib::Request& request,
+                                                        httplib::Response& response) {
+    const std::string id = request.matches[1];
+    guard_jobs(response, [&] {
+      const auto job = service.execute(id);
+      if (!job.has_value()) {
+        respond_error(response, 404, "not_found", "No job exists with that id.");
+        return;
+      }
+      respond_json(response, 200, acquisition::to_json(*job));
+    });
+  });
+
+  server.Post(R"(/jobs/([^/]+)/cancel)", [&service](const httplib::Request& request,
+                                                        httplib::Response& response) {
+    const std::string id = request.matches[1];
+    guard_jobs(response, [&] {
+      const auto job = service.cancel(id);
+      if (!job.has_value()) {
+        respond_error(response, 404, "not_found", "No job exists with that id.");
+        return;
+      }
+      respond_json(response, 200, acquisition::to_json(*job));
+    });
+  });
+
+  server.Get(R"(/jobs/([^/]+)/status)", [&service](const httplib::Request& request,
+                                                       httplib::Response& response) {
+    const std::string id = request.matches[1];
+    guard_jobs(response, [&] {
+      const auto status = service.get_status(id);
+      if (!status.has_value()) {
+        respond_error(response, 404, "not_found", "No job exists with that id.");
+        return;
+      }
+      respond_json(response, 200, acquisition::to_json(*status));
+    });
+  });
+}
+
 void register_routes(httplib::Server& server, OfficialSourceService* source_service,
-                      AcquisitionJobService* job_service) {
+                      AcquisitionJobService* job_service, AcquisitionExecutionService* execution_service) {
   server.Get("/health", [](const httplib::Request&, httplib::Response& response) {
     const nlohmann::json body{{"status", "ok"}};
     response.set_content(body.dump(), "application/json");
@@ -302,17 +354,22 @@ void register_routes(httplib::Server& server, OfficialSourceService* source_serv
   if (job_service != nullptr) {
     register_jobs_routes(server, *job_service);
   }
+  if (execution_service != nullptr) {
+    register_execution_routes(server, *execution_service);
+  }
 }
 
 }  // namespace
 
 ApiServer::ApiServer(const common::ServerConfig& config, registry::OfficialSourceService* source_service,
-                      acquisition::AcquisitionJobService* job_service)
+                      acquisition::AcquisitionJobService* job_service,
+                      acquisition::AcquisitionExecutionService* execution_service)
     : config_(config),
       source_service_(source_service),
       job_service_(job_service),
+      execution_service_(execution_service),
       server_(std::make_unique<httplib::Server>()) {
-  register_routes(*server_, source_service_, job_service_);
+  register_routes(*server_, source_service_, job_service_, execution_service_);
 }
 
 ApiServer::~ApiServer() {

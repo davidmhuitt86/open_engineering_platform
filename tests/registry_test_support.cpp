@@ -52,7 +52,13 @@ std::optional<std::string> reset_official_sources_table() {
       txn.exec(read_file(migrations_dir / "V1__initial_schema.sql"));
       txn.exec(read_file(migrations_dir / "V2__official_sources.sql"));
     } else {
-      txn.exec("TRUNCATE TABLE official_sources RESTART IDENTITY");
+      // CASCADE: WORK_PACKAGE-003/004 added acquisition_jobs and
+      // acquisition_job_execution_history, each with a foreign key
+      // reaching (transitively) back to official_sources. A plain
+      // TRUNCATE fails once those tables exist, regardless of whether
+      // they hold any rows -- CASCADE is a no-op when they don't exist
+      // yet, so this stays correct for a fresh database too.
+      txn.exec("TRUNCATE TABLE official_sources RESTART IDENTITY CASCADE");
     }
 
     txn.commit();

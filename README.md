@@ -9,17 +9,18 @@ and this repository's own `docs/architecture/SDD-R013` through
 ## Status
 
 **WORK_PACKAGE_001 (Repository Bootstrap), WORK_PACKAGE_002 (Official
-Source Registry), and WORK_PACKAGE_003 (Engineering Acquisition Job
-Engine) implemented.** The Job Engine is the orchestration layer for
-future acquisition operations: it creates, tracks, and validates
-acquisition jobs, each referencing a registered Official Source, but
-performs no network communication, downloading, metadata extraction, or
-integrity verification itself -- no background workers, scheduling, or
-parallel execution exist yet either. Browser automation, the download
+Source Registry), WORK_PACKAGE_003 (Engineering Acquisition Job Engine),
+and WORK_PACKAGE_004 (Engineering Acquisition Execution Engine)
+implemented.** The Execution Engine manages an Acquisition Job's runtime
+lifecycle (queueing, running, completing, cancelling) and records its
+execution history, but still performs no actual network communication,
+downloading, metadata extraction, or integrity verification -- no
+background workers, scheduler, parallel execution, or retry policies
+exist yet either; this work package is the execution *framework* future
+work packages will plug real work into. Browser automation, the download
 engine, metadata extraction, integrity verification, license management,
 and the Reference Vault remain out of scope -- see
-`docs/tasks/WORK_PACKAGE_001.md`, `docs/tasks/WORK_PACKAGE_002.md`, and
-`docs/tasks/WORK_PACKAGE_003.md`.
+`docs/tasks/WORK_PACKAGE_001.md` through `docs/tasks/WORK_PACKAGE_004.md`.
 
 ## Build
 
@@ -142,6 +143,36 @@ which requires `status` (`created`, `queued`, `running`, `completed`,
 `error_message`. As with Sources, `id` and `created_at` are immutable
 after creation.
 
+### Acquisition Execution Engine API
+
+Once a database with the `acquisition_job_execution_history` table (see
+`migrations/V4__job_execution_history.sql`) is reachable:
+
+```
+POST /jobs/{id}/execute   Advance the job by one execution step
+POST /jobs/{id}/cancel    Cancel a Queued or Running job
+GET  /jobs/{id}/status    Current status + started_at/completed_at/
+                          error_message + full execution history
+```
+
+```
+curl -X POST http://127.0.0.1:8080/jobs/<id>/execute
+```
+
+Each `POST .../execute` call advances the job by exactly one step along
+`created -> queued -> running -> completed` -- call it three times to
+run a job to completion (see "Implementation Decisions" for why one
+generic action advances by a single step rather than one endpoint per
+edge, or jumping straight to `completed`). `POST .../cancel` moves a
+`queued` or `running` job to `cancelled`. Both return `409` with
+`"error":"invalid_transition"` if the job's current status has no valid
+edge for the requested action (e.g. calling `execute` on a `completed`
+job), and `execute` additionally returns `409` with
+`"error":"source_unavailable"` if the job's Official Source is archived
+or no longer exists (soft-deleted). Both return `404` if the job doesn't
+exist or is soft-deleted. Every transition is appended to an immutable
+execution history, returned in order by `GET /jobs/{id}/status`.
+
 ## Test
 
 ```
@@ -151,10 +182,15 @@ ctest --test-dir build --output-on-failure
 Configuration parsing, the database connection wrapper's failure path,
 a real end-to-end `GET /health` request against the embedded HTTP
 server (bound to an OS-assigned ephemeral port, so tests never collide
-with a fixed port number or each other), and -- for both the Official
-Source Registry and the Acquisition Job Engine -- validation,
-Service-layer (against an in-memory fake repository), Repository-layer,
-REST API, and migration/schema-shape tests.
+with a fixed port number or each other), and -- for the Official Source
+Registry and the Acquisition Job Engine -- validation, Service-layer
+(against an in-memory fake repository), Repository-layer, REST API, and
+migration/schema-shape tests. The Execution Engine adds: pure state-
+transition unit tests, Service-layer tests (against in-memory fakes for
+all three of its repository dependencies), a Repository-layer test for
+the execution history table, and REST API tests covering the full
+execute-to-completion lifecycle, cancellation, and every rejection case
+(terminal state, archived/deleted source, unknown/deleted job).
 
 The Repository/API/migration categories need a real PostgreSQL database
 and `SKIP` (not fail) if one isn't reachable, continuing
@@ -176,14 +212,19 @@ OEP_TEST_DB_HOST, OEP_TEST_DB_PORT, OEP_TEST_DB_NAME,
 OEP_TEST_DB_USER, OEP_TEST_DB_PASSWORD
 ```
 
-The Repository/API/migration tests apply `migrations/V1__initial_schema.sql`,
-`migrations/V2__official_sources.sql`, and (for the Job Engine's own
-tests) `migrations/V3__acquisition_jobs.sql` verbatim from disk the
-first time they run against a given database (so they exercise the
-real, committed migration files) and `TRUNCATE` the affected tables
-between test runs -- no Flyway CLI install is required to run them,
-though a production deployment should still apply migrations via
-Flyway (`migrations/flyway.toml`).
+The Repository/API/migration tests apply `migrations/V1__initial_schema.sql`
+through `migrations/V4__job_execution_history.sql` verbatim from disk
+the first time they run against a given database (so they exercise the
+real, committed migration files) and `TRUNCATE ... CASCADE` the
+affected tables between test runs -- `CASCADE` matters here: once
+`acquisition_jobs` and `acquisition_job_execution_history` exist,
+truncating `official_sources` alone fails on its own foreign key unless
+the dependent tables are truncated too (or `CASCADE` is used), which is
+exactly what happened when WORK_PACKAGE_004's history table first made
+the chain three tables deep -- see `tests/registry_test_support.cpp`
+and `tests/jobs_test_support.cpp`. No Flyway CLI install is required to
+run these tests, though a production deployment should still apply
+migrations via Flyway (`migrations/flyway.toml`).
 
 ## Directory Layout
 
@@ -197,28 +238,33 @@ include/oep/acquisition/  Public headers, one subdirectory per module
   registry/                Official Source Registry domain model,
                            validation, Repository interface + PostgreSQL
                            implementation (libpqxx), Service
-  acquisition/             Acquisition Job Engine domain model,
-                           validation, Repository interface + PostgreSQL
-                           implementation (libpqxx), Service
-  api/                     ApiServer (GET /health, /sources, /jobs routes)
+  acquisition/             Acquisition Job Engine + Execution Engine
+                           domain models, validation, Repository
+                           interfaces + PostgreSQL implementations
+                           (libpqxx), Services
+  api/                     ApiServer (GET /health, /sources, /jobs,
+                           /jobs/{id}/execute|cancel|status routes)
 src/
   common/                 Logging + TOML configuration loading + uuid
   database/                PostgreSQL connection management (libpq)
   registry/                Official Source Registry (WORK_PACKAGE_002)
-  acquisition/             Acquisition Job Engine (WORK_PACKAGE_003) --
-                           reuses the directory WORK_PACKAGE_001 reserved
-                           under this name (see "Implementation Decisions")
-  api/                     Embedded HTTP server: GET /health, /sources, /jobs
+  acquisition/             Acquisition Job Engine (WORK_PACKAGE_003) +
+                           Execution Engine (WORK_PACKAGE_004) -- reuses
+                           the directory WORK_PACKAGE_001 reserved under
+                           this name (see "Implementation Decisions")
+  api/                     Embedded HTTP server: GET /health, /sources,
+                           /jobs, /jobs/{id}/execute|cancel|status
   app/                     main() -- wires the above together
   browser/ integrity/ licensing/ metadata/
   vault/ workspace/        Reserved for future work packages (empty --
-                           see "Out of Scope" in WORK_PACKAGE_001.md,
-                           WORK_PACKAGE_002.md, and WORK_PACKAGE_003.md)
+                           see "Out of Scope" in WORK_PACKAGE_001.md
+                           through WORK_PACKAGE_004.md)
 migrations/
-  V1__initial_schema.sql       Flyway migration placeholder (WORK_PACKAGE_001)
-  V2__official_sources.sql     official_sources table (WORK_PACKAGE_002)
-  V3__acquisition_jobs.sql     acquisition_jobs table (WORK_PACKAGE_003)
-  flyway.toml                  Flyway configuration (not yet invoked)
+  V1__initial_schema.sql          Flyway migration placeholder (WORK_PACKAGE_001)
+  V2__official_sources.sql        official_sources table (WORK_PACKAGE_002)
+  V3__acquisition_jobs.sql        acquisition_jobs table (WORK_PACKAGE_003)
+  V4__job_execution_history.sql   acquisition_job_execution_history table (WORK_PACKAGE_004)
+  flyway.toml                     Flyway configuration (not yet invoked)
 tests/                    Catch2 test suite
 docs/
   architecture/            SDD-R013 through SDD-R019 (ratified architecture)
@@ -327,6 +373,46 @@ WORK_PACKAGE_003 dependency for context, not as something this work
 package implements -- consistent with how WORK_PACKAGE_002 treated the
 same five platform SDDs).
 
+**`POST /jobs/{id}/execute` advances a job by exactly one state, not
+straight to `completed`.** WORK_PACKAGE_004's state diagram lists three
+distinct forward edges (`created->queued`, `queued->running`,
+`running->completed`) but its Functional Requirements name only one
+action, "Execute Job" -- it doesn't say whether one call performs the
+whole pipeline or one edge. Since "No background scheduler," "No
+parallel execution," and "No retry policies" are explicitly excluded,
+nothing exists yet that could make a real execution actually fail or
+take time, so jumping straight to `completed` in one call was tempting
+but would have made the three explicitly-listed edges untestable as
+distinct events and given "Query Job Execution Status" nothing
+meaningful to observe between calls. Advancing one edge per call keeps
+all three transitions independently reachable, observable via
+`GET /jobs/{id}/status`'s history, and gives a future work package that
+adds real work an obvious seam: replace what happens *during* the
+`queued->running` or `running->completed` edge without changing the
+one-edge-per-call contract.
+
+**A job's Official Source counts as "not available for execution" if
+it's archived *or* if it no longer resolves at all (soft-deleted).**
+WORK_PACKAGE_004 only states "attempting to execute an archived source
+shall fail," but a soft-deleted source is a strictly stronger case of
+the same failure mode from a caller's perspective -- both mean "this
+source is no longer a trust anchor jobs should execute against." Both
+map to the same `SourceNotAvailableError` / `409 source_unavailable`
+response rather than treating a missing source as a different error
+class.
+
+**Execution history is a new, append-only table
+(`acquisition_job_execution_history`), not new columns on
+`acquisition_jobs`.** WORK_PACKAGE_004 requires "Execution history shall
+be recorded" while also saying "Reuse the existing acquisition_jobs
+table. No schema redesign. Only add a Flyway migration if additional
+execution metadata is required" -- a job has exactly one current state,
+but history is inherently multi-valued (every transition, not just the
+latest), so it cannot fit into `acquisition_jobs`'s row-per-job shape
+without redesigning it. A separate table is additive metadata, not a
+redesign, and rows are never updated or deleted (Engineering Principle
+8: Engineering Evidence Is Immutable).
+
 **Dependency management: CMake `FetchContent`, not vcpkg/Conan.** No
 package manager was already set up in this environment or evidenced
 elsewhere in the platform. `FetchContent` is built into CMake itself,
@@ -336,10 +422,11 @@ builds.
 
 ## TODOs
 
-- WORK_PACKAGE_004 onward: Browser automation, the download engine
-  itself (an HTTP client acquiring real evidence via a Job), Integrity,
-  Licensing, Reference Vault, Metadata Extraction -- per
-  `docs/architecture/SDD-R013` through `SDD-R019`.
+- WORK_PACKAGE_005 onward: real networking/downloading behind
+  `POST /jobs/{id}/execute`'s `queued->running` and `running->completed`
+  edges, Browser automation, Integrity, Licensing, Reference Vault,
+  Metadata Extraction -- per `docs/architecture/SDD-R013` through
+  `SDD-R019`.
 - `migrations/flyway.toml` is still not invoked by any automated
   process (see Future Considerations below).
 
@@ -348,24 +435,39 @@ builds.
 - `migrations/flyway.toml` is not yet invoked by any automated process
   -- a future work package should wire `flyway migrate` into the build
   or a deployment step. Repository/API/migration tests currently apply
-  `V1__initial_schema.sql`, `V2__official_sources.sql`, and
-  `V3__acquisition_jobs.sql` verbatim themselves (see "Test" above) as a
-  stand-in.
-- A connection pool for `PostgresOfficialSourceRepository` and
-  `PostgresAcquisitionJobRepository` (each currently one
+  `V1__initial_schema.sql` through `V4__job_execution_history.sql`
+  verbatim themselves (see "Test" above) as a stand-in.
+- A connection pool for `PostgresOfficialSourceRepository`,
+  `PostgresAcquisitionJobRepository`, and
+  `PostgresJobExecutionHistoryRepository` (each currently one
   `pqxx::connection` per repository instance, held for the process's
   lifetime) should be reassessed once concurrent request volume makes
   single-connection serialization a bottleneck.
-- No background workers, scheduling, or parallel execution exist to
-  actually run a Job -- WORK_PACKAGE_003 explicitly excludes them. A
-  Job's `status`/`started_at`/`completed_at`/`error_message` are only
-  ever changed by whatever calls `PUT /jobs/{id}` today; the future work
-  package that adds an execution engine will need to decide who calls
-  that (or an equivalent internal API) and whether any transition
-  restrictions belong on top of what's currently an unrestricted manual
-  state change (WORK_PACKAGE_003: "No automatic state transitions are
-  required," which this reads as also meaning no restriction on which
-  manual transitions are valid).
+- `PUT /jobs/{id}` (WORK_PACKAGE_003) still accepts any status value
+  with no transition validation, while `POST /jobs/{id}/execute` and
+  `/cancel` (WORK_PACKAGE_004) strictly enforce
+  `next_execution_status`/`can_cancel`. WORK_PACKAGE_004's scope was the
+  new execute/cancel/status endpoints ("Continue supporting all existing
+  endpoints" -- it didn't ask for `PUT`'s behavior to change), so this
+  implementation left `PUT`'s original unrestricted manual override
+  intact rather than retrofitting state-machine validation onto it. A
+  client can still bypass the execution state machine entirely via
+  `PUT` (e.g. jumping `created` straight to `completed`) without
+  recording any execution history. A future work package should decide
+  whether `PUT` should be restricted to the same transitions, or
+  whether its unrestricted-override role is intentional (e.g. for
+  administrative correction).
+- No real work happens during `queued->running` or `running->completed`
+  -- WORK_PACKAGE_004 explicitly excludes an HTTP client, downloading,
+  metadata extraction, integrity verification, a background scheduler,
+  parallel execution, and retry policies. Every `execute` call today
+  always succeeds (assuming a valid transition and available source);
+  `Failed` is defined as a Job State but nothing in this work package
+  can actually produce it -- it remains reachable only via `PUT`. The
+  work package that adds real execution will need to decide how a
+  failure encountered mid-execution reports itself (presumably setting
+  `status=failed` and `error_message` through the same Repository
+  methods this Execution Engine already uses).
 - WORK-PACKAGE-002's REST API section lists exactly five `/sources`
   routes plus `/health`, with no dedicated enable/disable endpoints,
   even though its Functional Requirements section separately lists

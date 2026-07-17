@@ -17,6 +17,7 @@ class OfficialSourceService;
 
 namespace oep::acquisition::acquisition {
 class AcquisitionJobService;
+class AcquisitionExecutionService;
 }
 
 namespace oep::acquisition::api {
@@ -28,18 +29,20 @@ namespace oep::acquisition::api {
 /// "Implementation Decisions" and ADR-0007 (Platform API Strategy) for why.
 ///
 /// `GET /health` (WORK_PACKAGE_001) is always registered. The `/sources`
-/// routes (WORK-PACKAGE-002) and `/jobs` routes (WORK_PACKAGE-003) are
-/// each registered only when their respective service pointer is
-/// non-null -- `main.cpp` passes `nullptr` if a PostgreSQL repository
-/// could not be constructed at startup, so a database outage degrades
-/// the process to "health checks only" (or "sources only") rather than
-/// preventing it from starting at all (continuing WORK_PACKAGE_001's
-/// non-fatal-database precedent).
+/// routes (WORK_PACKAGE_002), `/jobs` routes (WORK_PACKAGE_003), and
+/// `/jobs/{id}/execute`, `/jobs/{id}/cancel`, `/jobs/{id}/status` routes
+/// (WORK_PACKAGE_004) are each registered only when their respective
+/// service pointer is non-null -- `main.cpp` passes `nullptr` if a
+/// PostgreSQL repository could not be constructed at startup, so a
+/// database outage degrades the process rather than preventing it from
+/// starting at all (continuing WORK_PACKAGE_001's non-fatal-database
+/// precedent).
 class ApiServer {
  public:
   explicit ApiServer(const common::ServerConfig& config,
                       registry::OfficialSourceService* source_service = nullptr,
-                      acquisition::AcquisitionJobService* job_service = nullptr);
+                      acquisition::AcquisitionJobService* job_service = nullptr,
+                      acquisition::AcquisitionExecutionService* execution_service = nullptr);
   ~ApiServer();
 
   ApiServer(const ApiServer&) = delete;
@@ -65,6 +68,7 @@ class ApiServer {
   common::ServerConfig config_;
   registry::OfficialSourceService* source_service_;
   acquisition::AcquisitionJobService* job_service_;
+  acquisition::AcquisitionExecutionService* execution_service_;
   std::unique_ptr<httplib::Server> server_;
   std::thread thread_;
   std::atomic<bool> running_{false};

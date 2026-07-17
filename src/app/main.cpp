@@ -6,8 +6,10 @@
 #include <memory>
 #include <thread>
 
+#include "oep/acquisition/acquisition/acquisition_execution_service.hpp"
 #include "oep/acquisition/acquisition/acquisition_job_service.hpp"
 #include "oep/acquisition/acquisition/postgres_acquisition_job_repository.hpp"
+#include "oep/acquisition/acquisition/postgres_job_execution_history_repository.hpp"
 #include "oep/acquisition/api/server.hpp"
 #include "oep/acquisition/common/config.hpp"
 #include "oep/acquisition/common/logger.hpp"
@@ -95,7 +97,32 @@ int main(int argc, char** argv) {
     log.warn("acquisition job engine repository unavailable: {} -- /jobs routes disabled this run", ex.what());
   }
 
-  ApiServer server(config.server, source_service.get(), job_service.get());
+  // The Execution Engine (WORK_PACKAGE_004) needs both the Job repository
+  // and the Source repository (to check for an archived/unavailable
+  // source on execute) plus its own execution-history repository, so it
+  // is only constructed when both of the above already connected
+  // successfully -- same non-fatal-database precedent as above.
+  std::unique_ptr<oep::acquisition::acquisition::PostgresJobExecutionHistoryRepository> execution_history_repository;
+  std::unique_ptr<oep::acquisition::acquisition::AcquisitionExecutionService> execution_service;
+  if (source_repository && job_repository) {
+    try {
+      execution_history_repository =
+          std::make_unique<oep::acquisition::acquisition::PostgresJobExecutionHistoryRepository>(
+              config.database);
+      execution_service = std::make_unique<oep::acquisition::acquisition::AcquisitionExecutionService>(
+          *job_repository, *source_repository, *execution_history_repository);
+      log.info("acquisition execution engine repository connected");
+    } catch (const std::exception& ex) {
+      log.warn(
+          "acquisition execution engine repository unavailable: {} -- /jobs/{{id}}/execute, /cancel, "
+          "/status routes disabled this run",
+          ex.what());
+    }
+  } else {
+    log.warn("acquisition execution engine disabled this run: source and/or job repository unavailable");
+  }
+
+  ApiServer server(config.server, source_service.get(), job_service.get(), execution_service.get());
   if (!server.start()) {
     log.error("failed to start API server on {}:{}", config.server.host, config.server.port);
     return 1;
