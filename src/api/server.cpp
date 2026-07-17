@@ -29,6 +29,10 @@
 #include "oep/acquisition/registry/official_source_json.hpp"
 #include "oep/acquisition/registry/official_source_service.hpp"
 #include "oep/acquisition/registry/validation.hpp"
+#include "oep/acquisition/vault/reference_vault_service.hpp"
+#include "oep/acquisition/vault/validation.hpp"
+#include "oep/acquisition/vault/vault_entry_json.hpp"
+#include "oep/acquisition/vault/vault_errors.hpp"
 
 namespace oep::acquisition::api {
 
@@ -46,6 +50,8 @@ using metadata::MetadataExtractionService;
 using metadata::MetadataFilter;
 using registry::OfficialSourceService;
 using registry::SourceFilter;
+using vault::ReferenceVaultService;
+using vault::VaultFilter;
 
 void respond_json(httplib::Response& response, int status, const nlohmann::json& body) {
   response.status = status;
@@ -758,11 +764,128 @@ void register_metadata_routes(httplib::Server& server, MetadataExtractionService
   });
 }
 
+// Same idea as guard_metadata, for WORK_PACKAGE-009's Validation Rules:
+// - ValidationError -> 422 (missing metadata_id).
+// - UnknownMetadataError -> 422 ("Metadata record shall exist").
+// - MetadataNotSuccessfulError -> 409 ("Metadata extraction shall be
+//   successful").
+// - AlreadyPublishedError -> 409 (no "Re-publish" Functional Requirement --
+//   a metadata_id may be published at most once).
+// - VerificationNotSuccessfulError -> 409 ("Verification shall be
+//   successful").
+// - ArtifactNotFoundError -> 422 ("Published artifact shall exist" --
+//   unlike WORK_PACKAGE-007/008, this rejects the request rather than
+//   recording a Failed VaultEntry; see ReferenceVaultService's header).
+// - ArtifactHashMismatchError -> 409 ("SHA-256 shall match the
+//   Verification record before publication").
+// - InvalidVaultPathError -> 422 ("Vault path shall validate").
+template <typename Fn>
+void guard_vault(httplib::Response& response, Fn&& fn) {
+  try {
+    fn();
+  } catch (const vault::ValidationError& error) {
+    respond_validation_error(response, error.violations());
+  } catch (const vault::UnknownMetadataError& ex) {
+    respond_error(response, 422, "unknown_metadata", ex.what());
+  } catch (const vault::MetadataNotSuccessfulError& ex) {
+    respond_error(response, 409, "metadata_not_successful", ex.what());
+  } catch (const vault::AlreadyPublishedError& ex) {
+    respond_error(response, 409, "already_published", ex.what());
+  } catch (const vault::VerificationNotSuccessfulError& ex) {
+    respond_error(response, 409, "verification_not_successful", ex.what());
+  } catch (const vault::ArtifactNotFoundError& ex) {
+    respond_error(response, 422, "artifact_not_found", ex.what());
+  } catch (const vault::ArtifactHashMismatchError& ex) {
+    respond_error(response, 409, "artifact_hash_mismatch", ex.what());
+  } catch (const vault::InvalidVaultPathError& ex) {
+    respond_error(response, 422, "invalid_vault_path", ex.what());
+  } catch (const std::exception& ex) {
+    respond_error(response, 503, "service_unavailable", ex.what());
+  }
+}
+
+std::optional<VaultFilter> parse_vault_filter(const httplib::Request& request, httplib::Response& response) {
+  VaultFilter filter;
+
+  if (request.has_param("status")) {
+    const auto status = vault::vault_entry_status_from_string(request.get_param_value("status"));
+    if (!status.has_value()) {
+      respond_error(response, 400, "invalid_query_parameter",
+                     "status is not a recognized Publication Status.");
+      return std::nullopt;
+    }
+    filter.status = status;
+  }
+
+  if (request.has_param("metadata_id")) {
+    filter.metadata_id = request.get_param_value("metadata_id");
+  }
+
+  return filter;
+}
+
+void register_vault_routes(httplib::Server& server, ReferenceVaultService& service) {
+  server.Post("/vault", [&service](const httplib::Request& request, httplib::Response& response) {
+    nlohmann::json body;
+    try {
+      body = nlohmann::json::parse(request.body);
+    } catch (const nlohmann::json::exception&) {
+      respond_error(response, 400, "invalid_json", "Request body is not valid JSON.");
+      return;
+    }
+    guard_vault(response, [&] {
+      const auto created = service.publish(body);
+      response.set_header("Location", "/vault/" + created.id);
+      respond_json(response, 201, vault::to_json(created));
+    });
+  });
+
+  server.Get("/vault", [&service](const httplib::Request& request, httplib::Response& response) {
+    const auto filter = parse_vault_filter(request, response);
+    if (!filter.has_value()) {
+      return;  // parse_vault_filter already populated a 400 response.
+    }
+    guard_vault(response, [&] {
+      const auto entries = service.list(*filter);
+      nlohmann::json body = nlohmann::json::array();
+      for (const auto& entry : entries) {
+        body.push_back(vault::to_json(entry));
+      }
+      respond_json(response, 200, body);
+    });
+  });
+
+  server.Get(R"(/vault/([^/]+))", [&service](const httplib::Request& request, httplib::Response& response) {
+    const std::string id = request.matches[1];
+    guard_vault(response, [&] {
+      const auto entry = service.get(id);
+      if (!entry.has_value()) {
+        respond_error(response, 404, "not_found", "No vault entry exists with that id.");
+        return;
+      }
+      respond_json(response, 200, vault::to_json(*entry));
+    });
+  });
+
+  server.Get(R"(/vault/([^/]+)/status)", [&service](const httplib::Request& request,
+                                                        httplib::Response& response) {
+    const std::string id = request.matches[1];
+    guard_vault(response, [&] {
+      const auto entry = service.get(id);
+      if (!entry.has_value()) {
+        respond_error(response, 404, "not_found", "No vault entry exists with that id.");
+        return;
+      }
+      respond_json(response, 200, vault::status_to_json(*entry));
+    });
+  });
+}
+
 void register_routes(httplib::Server& server, OfficialSourceService* source_service,
                       AcquisitionJobService* job_service, AcquisitionExecutionService* execution_service,
                       ConnectorRegistry* connector_registry, DownloadService* download_service,
                       IntegrityVerificationService* verification_service,
-                      MetadataExtractionService* metadata_service) {
+                      MetadataExtractionService* metadata_service, ReferenceVaultService* vault_service) {
   server.Get("/health", [](const httplib::Request&, httplib::Response& response) {
     const nlohmann::json body{{"status", "ok"}};
     response.set_content(body.dump(), "application/json");
@@ -789,6 +912,9 @@ void register_routes(httplib::Server& server, OfficialSourceService* source_serv
   if (metadata_service != nullptr) {
     register_metadata_routes(server, *metadata_service);
   }
+  if (vault_service != nullptr) {
+    register_vault_routes(server, *vault_service);
+  }
 }
 
 }  // namespace
@@ -799,7 +925,8 @@ ApiServer::ApiServer(const common::ServerConfig& config, registry::OfficialSourc
                       connectors::ConnectorRegistry* connector_registry,
                       downloads::DownloadService* download_service,
                       integrity::IntegrityVerificationService* verification_service,
-                      metadata::MetadataExtractionService* metadata_service)
+                      metadata::MetadataExtractionService* metadata_service,
+                      vault::ReferenceVaultService* vault_service)
     : config_(config),
       source_service_(source_service),
       job_service_(job_service),
@@ -808,9 +935,10 @@ ApiServer::ApiServer(const common::ServerConfig& config, registry::OfficialSourc
       download_service_(download_service),
       verification_service_(verification_service),
       metadata_service_(metadata_service),
+      vault_service_(vault_service),
       server_(std::make_unique<httplib::Server>()) {
   register_routes(*server_, source_service_, job_service_, execution_service_, connector_registry_,
-                   download_service_, verification_service_, metadata_service_);
+                   download_service_, verification_service_, metadata_service_, vault_service_);
 }
 
 ApiServer::~ApiServer() {

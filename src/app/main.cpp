@@ -25,6 +25,8 @@
 #include "oep/acquisition/metadata/postgres_metadata_repository.hpp"
 #include "oep/acquisition/registry/official_source_service.hpp"
 #include "oep/acquisition/registry/postgres_official_source_repository.hpp"
+#include "oep/acquisition/vault/postgres_vault_repository.hpp"
+#include "oep/acquisition/vault/reference_vault_service.hpp"
 
 namespace {
 
@@ -223,9 +225,37 @@ int main(int argc, char** argv) {
     log.warn("metadata extraction engine disabled this run: verification and/or download repository unavailable");
   }
 
+  // The Engineering Reference Vault (WORK_PACKAGE_009) needs the Metadata,
+  // Verification, and Download repositories (to resolve and re-validate
+  // the full Metadata -> Verification -> Download chain) plus the Job
+  // repository (to resolve the Download's Original Source ID) and its own
+  // vault repository, so it is only constructed when the Metadata
+  // Extraction Engine and Job Engine already connected successfully --
+  // same non-fatal-database precedent as every engine above. It uses
+  // `config.storage` (`root_path`) for the permanent vault location,
+  // distinct from `workspace_path` used by the Downloader.
+  std::unique_ptr<oep::acquisition::vault::PostgresVaultRepository> vault_repository;
+  std::unique_ptr<oep::acquisition::vault::ReferenceVaultService> vault_service;
+  if (metadata_repository && verification_repository && download_repository && job_repository) {
+    try {
+      vault_repository = std::make_unique<oep::acquisition::vault::PostgresVaultRepository>(config.database);
+      vault_service = std::make_unique<oep::acquisition::vault::ReferenceVaultService>(
+          *vault_repository, *metadata_repository, *verification_repository, *download_repository,
+          *job_repository, config.storage);
+      log.info("engineering reference vault repository connected");
+    } catch (const std::exception& ex) {
+      log.warn("engineering reference vault repository unavailable: {} -- /vault routes disabled this run",
+                ex.what());
+    }
+  } else {
+    log.warn(
+        "engineering reference vault disabled this run: metadata, verification, download, and/or job "
+        "repository unavailable");
+  }
+
   ApiServer server(config.server, source_service.get(), job_service.get(), execution_service.get(),
                     &connector_registry, download_service.get(), verification_service.get(),
-                    metadata_service.get());
+                    metadata_service.get(), vault_service.get());
   if (!server.start()) {
     log.error("failed to start API server on {}:{}", config.server.host, config.server.port);
     return 1;

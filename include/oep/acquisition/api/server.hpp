@@ -36,6 +36,10 @@ namespace oep::acquisition::metadata {
 class MetadataExtractionService;
 }
 
+namespace oep::acquisition::vault {
+class ReferenceVaultService;
+}
+
 namespace oep::acquisition::api {
 
 /// The Engineering Acquisition Manager's HTTP API.
@@ -49,15 +53,16 @@ namespace oep::acquisition::api {
 /// `/jobs/{id}/execute`, `/jobs/{id}/cancel`, `/jobs/{id}/status` routes
 /// (WORK_PACKAGE_004), `/connectors` routes (WORK_PACKAGE_005),
 /// `/downloads` routes (WORK_PACKAGE_006), `/verifications` routes
-/// (WORK_PACKAGE_007), and `/metadata` routes (WORK_PACKAGE_008) are each
-/// registered only when their respective service/registry pointer is
-/// non-null -- `main.cpp` passes `nullptr` if a PostgreSQL repository
-/// could not be constructed at startup, so a database outage degrades the
-/// process rather than preventing it from starting at all (continuing
-/// WORK_PACKAGE_001's non-fatal-database precedent). Unlike the others,
-/// `connector_registry` has no PostgreSQL dependency (WORK_PACKAGE_005
-/// keeps connector registration in-memory) and so is effectively always
-/// non-null in practice.
+/// (WORK_PACKAGE_007), `/metadata` routes (WORK_PACKAGE_008), and `/vault`
+/// routes (WORK_PACKAGE_009) are each registered only when their
+/// respective service/registry pointer is non-null -- `main.cpp` passes
+/// `nullptr` if a PostgreSQL repository could not be constructed at
+/// startup, so a database outage degrades the process rather than
+/// preventing it from starting at all (continuing WORK_PACKAGE_001's
+/// non-fatal-database precedent). Unlike the others, `connector_registry`
+/// has no PostgreSQL dependency (WORK_PACKAGE_005 keeps connector
+/// registration in-memory) and so is effectively always non-null in
+/// practice.
 class ApiServer {
  public:
   explicit ApiServer(const common::ServerConfig& config,
@@ -67,7 +72,8 @@ class ApiServer {
                       connectors::ConnectorRegistry* connector_registry = nullptr,
                       downloads::DownloadService* download_service = nullptr,
                       integrity::IntegrityVerificationService* verification_service = nullptr,
-                      metadata::MetadataExtractionService* metadata_service = nullptr);
+                      metadata::MetadataExtractionService* metadata_service = nullptr,
+                      vault::ReferenceVaultService* vault_service = nullptr);
   ~ApiServer();
 
   ApiServer(const ApiServer&) = delete;
@@ -98,6 +104,7 @@ class ApiServer {
   downloads::DownloadService* download_service_;
   integrity::IntegrityVerificationService* verification_service_;
   metadata::MetadataExtractionService* metadata_service_;
+  vault::ReferenceVaultService* vault_service_;
   std::unique_ptr<httplib::Server> server_;
   std::thread thread_;
   std::atomic<bool> running_{false};

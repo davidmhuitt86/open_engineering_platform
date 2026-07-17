@@ -8,21 +8,39 @@ and this repository's own `docs/architecture/SDD-R013` through
 
 ## Status
 
-**WORK_PACKAGE_001 through WORK_PACKAGE_008 implemented, plus ADR-0008
-(Connector Content Retrieval Interface).** WORK_PACKAGE_008 (Engineering
-Metadata Extraction Engine) records descriptive metadata about artifacts
-the Integrity Verification Engine has already verified: it resolves a
-Verification (rejecting one that doesn't exist or wasn't successful),
-resolves the underlying Download's artifact, runs File Type Detection
-(magic-byte signatures with an extension-based fallback, across at least
+**WORK_PACKAGE_001 through WORK_PACKAGE_009 implemented, plus ADR-0008
+(Connector Content Retrieval Interface) -- Milestone 1 (Engineering
+Acquisition MVP) is complete.** WORK_PACKAGE_009 (Engineering Reference
+Vault) is the final Milestone-1 pipeline stage: it publishes an artifact
+whose Metadata Extraction succeeded into an immutable,
+content-addressable permanent store, re-validating the full Metadata ->
+Verification -> Download chain first (metadata exists and succeeded, not
+already published, verification succeeded, artifact exists and its
+recomputed SHA-256 matches the Verification record) and rejecting the
+request outright if any of those fail -- unlike every prior stage, a
+failed precondition here is never recorded as a "Failed" row, since
+"Publish Verified Artifact" has no "Re-publish" counterpart and
+publication is meant to be a single, immutable, permanent fact. The
+artifact is copied (never moved) from the temporary acquisition workspace
+into `[storage] root_path` (the location WORK_PACKAGE_001 reserved for
+exactly this eight work packages ago), addressed solely by its SHA-256
+hash under a sharded `<root>/<first-2-hex-chars>/<full-hash>` layout; a
+second artifact with identical content is deduplicated at the filesystem
+level while still getting its own Vault Entry row. It performs no
+Engineering Object creation, knowledge graph generation, OCR, AI
+analysis, search indexing, document interpretation, semantic
+classification, duplicate detection, or lifecycle management -- those
+remain later, unimplemented pipeline stages (Milestone 2's Engineering
+Knowledge Engine). WORK_PACKAGE_008 (Engineering Metadata Extraction
+Engine) records descriptive metadata about artifacts the Integrity
+Verification Engine has already verified: it resolves a Verification
+(rejecting one that doesn't exist or wasn't successful), resolves the
+underlying Download's artifact, runs File Type Detection (magic-byte
+signatures with an extension-based fallback, across at least
 PDF/ZIP/7Z/TAR/GZIP/PNG/JPEG/SVG/XML/JSON/YAML/CSV/TXT/HTML/Markdown) and
 Basic Document Inspection (PDF version/page count today), and records the
 outcome as an immutable ArtifactMetadata row -- entirely synchronously,
-mirroring WORK_PACKAGE_007's own `POST /verifications`. It performs no
-OCR, AI analysis, semantic interpretation, document classification,
-Engineering Object creation, knowledge graph generation, search indexing,
-or Reference Vault publication -- those remain later, unimplemented
-pipeline stages (the Engineering Knowledge Engine). WORK_PACKAGE_007
+mirroring WORK_PACKAGE_007's own `POST /verifications`. WORK_PACKAGE_007
 (Engineering Integrity Verification Engine) validates artifacts the
 Engineering Downloader has already retrieved: it resolves a Download
 Session, computes a SHA-256 hash of the file at its `local_storage_path`,
@@ -35,11 +53,10 @@ and Connector, stores the artifact in a configurable local workspace, and
 tracks progress/history -- but, like every work package before it,
 `StubConnector` remains the only connector type and performs no real
 network communication (`fetch` writes a small placeholder file locally).
-Engineering Object creation, Reference Vault publication, and everything
-the Engineering Knowledge Engine covers are explicitly out of scope
-platform-wide; browser automation and license management also remain out
-of scope -- see `docs/tasks/WORK_PACKAGE_001.md` through
-`docs/tasks/WORK_PACKAGE_008.md` and
+Everything the Engineering Knowledge Engine covers (Milestone 2) is
+explicitly out of scope for Milestone 1; browser automation and license
+management also remain out of scope -- see `docs/tasks/WORK_PACKAGE_001.md`
+through `docs/tasks/WORK_PACKAGE_009.md` and
 `docs/decisions/ADR-0002-PROPOSED-CONNECTOR-CONTENT-RETRIEVAL.md`
 (superseded by `oep_architecture`'s ratified ADR-0008).
 
@@ -327,6 +344,41 @@ creates a *new* record rather than overwriting the previous one, so
 ("Re-extract Metadata" / "Metadata history shall be preserved"). All
 routes return `404` for an unknown metadata id.
 
+### Engineering Reference Vault API
+
+```
+POST /vault                Publish a Metadata record's artifact into the Vault (JSON body)
+GET  /vault                List Vault entries; optional query filters:
+                            status, metadata_id
+GET  /vault/{id}           Fetch one Vault entry
+GET  /vault/{id}/status    Status + hash + timing only
+```
+
+```
+curl -X POST http://127.0.0.1:8080/vault \
+  -H "Content-Type: application/json" \
+  -d '{"metadata_id":"<a Metadata id from /metadata>"}'
+```
+
+`metadata_id` is required and must reference an existing ArtifactMetadata
+record (`422 unknown_metadata`) whose status is `extracted` (`409
+metadata_not_successful` otherwise), must not already have a Vault entry
+(`409 already_published` -- there is no "Re-publish"), must resolve to a
+Verification that is `verified` (`409 verification_not_successful`), and
+that Verification's Download artifact must still exist on disk (`422
+artifact_not_found`) with a freshly-recomputed SHA-256 matching the
+Verification record (`409 artifact_hash_mismatch`). `POST /vault` runs
+**synchronously**: once every precondition passes, it copies the artifact
+into `[storage] root_path`, addressed solely by its SHA-256 hash under a
+sharded `<root>/<first-2-hex-chars>/<full-hash>` layout (skipping the
+copy, but still creating a new Vault Entry row, if that exact content is
+already stored), and returns the entry already `published` -- there is no
+transient/failed state, unlike every prior stage (see "Implementation
+Decisions"). All routes return `404` for an unknown Vault entry id. There
+is no `PUT`/`PATCH`/`DELETE` route for `/vault` at all -- "Vault entries
+shall be immutable after publication" is enforced by the absence of any
+mutating route or repository method, not just by convention.
+
 ## Test
 
 ```
@@ -398,7 +450,25 @@ and re-extraction history), Repository-layer tests, migration/schema-shape
 tests, and a REST API test seeding a real Verification (backed by a real
 Download and a real file on disk) and exercising the full `POST`/`GET`
 lifecycle, every rejection case, and history preservation across repeated
-extraction end to end.
+extraction end to end. WORK_PACKAGE-009 adds a dedicated
+`compute_vault_path` unit-test suite (correct sharding by the first two
+hex characters, rejecting a too-short/non-hex/uppercase hash, and
+determinism -- pure, no filesystem access), validation tests,
+Service-layer tests (against an in-memory fake Vault repository -- the
+only fake in this suite that enforces a real invariant,
+`metadata_id` uniqueness, since WORK_PACKAGE-009's immutability
+requirement is central enough to need exercising without a live
+database -- plus the existing fake Metadata/Verification/Download/Job
+repositories, covering the full Published path, all seven Validation
+Rules' exceptions, and the content-addressable dedup behavior across two
+distinct chains with identical content), Repository-layer tests
+(including the `metadata_id` `UNIQUE` constraint's own
+`AlreadyPublishedError` mapping), migration/schema-shape tests, and a
+REST API test seeding a real Metadata record (backed by a real
+Verification, Download, and file on disk) and exercising the full
+`POST`/`GET` lifecycle, every rejection case, and the dedup behavior end
+to end -- including asserting the copied file actually exists on disk at
+the returned `vault_path`.
 
 The Repository/API/migration categories need a real PostgreSQL database
 and `SKIP` (not fail) if one isn't reachable, continuing
@@ -421,7 +491,7 @@ OEP_TEST_DB_USER, OEP_TEST_DB_PASSWORD
 ```
 
 The Repository/API/migration tests apply `migrations/V1__initial_schema.sql`
-through `migrations/V7__artifact_metadata.sql` verbatim from disk the
+through `migrations/V8__reference_vault.sql` verbatim from disk the
 first time they run against a given database (so they exercise the
 real, committed migration files) and `TRUNCATE ... CASCADE` the
 affected tables between test runs -- `CASCADE` matters here: once
@@ -431,12 +501,13 @@ dependent tables are truncated too (or `CASCADE` is used), which is
 exactly what happened when WORK_PACKAGE_004's history table first made
 the chain three tables deep -- see `tests/registry_test_support.cpp`,
 `tests/jobs_test_support.cpp`, `tests/downloads_test_support.cpp`,
-`tests/integrity_test_support.cpp`, and `tests/metadata_test_support.cpp`.
-The latter two also seed a full Source -> Job -> Download (->
-Verification, for metadata tests) chain with a real file written to the
-Download's `local_storage_path`, since WORK_PACKAGE-007's and
-WORK_PACKAGE-008's Repository/API/migration tests need an actual artifact
-on disk to hash/inspect.
+`tests/integrity_test_support.cpp`, `tests/metadata_test_support.cpp`,
+and `tests/vault_test_support.cpp`. The latter three also seed a full
+Source -> Job -> Download (-> Verification -> Metadata, as each stage
+needs) chain with a real file written to the Download's
+`local_storage_path`, since WORK_PACKAGE-007's, WORK_PACKAGE-008's, and
+WORK_PACKAGE-009's Repository/API/migration tests each need an actual
+artifact on disk to hash/inspect/publish.
 No Flyway CLI install is required to run these tests, though a
 production deployment should still apply migrations via Flyway
 (`migrations/flyway.toml`).
@@ -475,9 +546,16 @@ include/oep/acquisition/  Public headers, one subdirectory per module
                            Basic Document Inspection (PDF), Repository
                            interface + PostgreSQL implementation (libpqxx),
                            Service
+  vault/                   Engineering Reference Vault: VaultEntry domain
+                           model (no update path -- see "Implementation
+                           Decisions"), validation, content-addressable
+                           path helper, Repository interface + PostgreSQL
+                           implementation (libpqxx, no update method),
+                           Service
   api/                     ApiServer (GET /health, /sources, /jobs,
                            /jobs/{id}/execute|cancel|status, /connectors,
-                           /downloads, /verifications, /metadata routes)
+                           /downloads, /verifications, /metadata, /vault
+                           routes)
 src/
   common/                 Logging + TOML configuration loading + uuid + time
   database/                PostgreSQL connection management (libpq)
@@ -498,16 +576,21 @@ src/
   metadata/                Metadata Extraction Engine (WORK_PACKAGE_008)
                            -- also reuses the directory WORK_PACKAGE_001
                            reserved under this exact name
+  vault/                   Engineering Reference Vault (WORK_PACKAGE_009)
+                           -- also reuses the directory WORK_PACKAGE_001
+                           reserved under this exact name
   api/                     Embedded HTTP server: GET /health, /sources,
                            /jobs, /jobs/{id}/execute|cancel|status,
-                           /connectors, /downloads, /verifications, /metadata
+                           /connectors, /downloads, /verifications,
+                           /metadata, /vault
   app/                     main() -- wires the above together
   browser/ licensing/
-  vault/ workspace/        Reserved for future work packages (empty --
-                           see "Out of Scope" in WORK_PACKAGE_001.md
-                           through WORK_PACKAGE_008.md). Distinct from
-                           `[storage] workspace_path` below, which is a
-                           runtime filesystem path, not a source directory.
+  workspace/               Reserved for future (Milestone 2) work packages
+                           (empty -- see "Out of Scope" in
+                           WORK_PACKAGE_001.md through WORK_PACKAGE_009.md).
+                           Distinct from `[storage] workspace_path` below,
+                           which is a runtime filesystem path, not a
+                           source directory.
 migrations/
   V1__initial_schema.sql          Flyway migration placeholder (WORK_PACKAGE_001)
   V2__official_sources.sql        official_sources table (WORK_PACKAGE_002)
@@ -516,6 +599,7 @@ migrations/
   V5__download_sessions.sql       download_sessions table (WORK_PACKAGE_006)
   V6__integrity_verifications.sql integrity_verifications table (WORK_PACKAGE_007)
   V7__artifact_metadata.sql       artifact_metadata table (WORK_PACKAGE_008)
+  V8__reference_vault.sql         reference_vault table (WORK_PACKAGE_009)
   flyway.toml                     Flyway configuration (not yet invoked)
 tests/                    Catch2 test suite
 docs/
@@ -1017,13 +1101,105 @@ independently queryable record (Engineering Principle 8: Engineering
 Evidence Is Immutable), and `GET /metadata?verification_id=...` returns
 every one of them in creation order.
 
+**`src/vault/` reuses the directory WORK_PACKAGE_001 reserved under that
+exact name -- the field WORK_PACKAGE_001 reserved specifically for this,
+eight work packages ago, is used for the first time.** Same reasoning as
+WORK_PACKAGE-007/008's `src/integrity/`/`src/metadata/` reuse; unlike
+those two, this is also true at the *configuration* level: `[storage]
+root_path` (`common::StorageConfig`) was added in WORK_PACKAGE_001 with
+the comment "where acquired evidence will eventually be written
+(Reference Vault, out of scope for WORK_PACKAGE_001)" and left unused by
+every subsequent work package (WORK_PACKAGE-006 added a second,
+sibling field, `workspace_path`, specifically because `root_path` was
+already reserved for this and reusing it would have been semantically
+wrong). WORK_PACKAGE-009 is the point that comment anticipated --
+`root_path` needed no change at all to become the Vault's configured
+location, directly satisfying "The Reference Vault location shall be
+configurable independently of the acquisition workspace."
+
+**A failed Validation Rule rejects the `POST /vault` request outright; no
+`Failed` VaultEntry is ever persisted -- the opposite of how
+WORK_PACKAGE-007/008 handle a missing/corrupt artifact.** WORK_PACKAGE-009's
+seven Validation Rules ("Metadata record shall exist," "...extraction
+shall be successful," "Verification shall be successful," "Published
+artifact shall exist," "SHA-256 shall match...," "Vault path shall
+validate," "Publication shall be immutable") are all phrased as flat,
+undifferentiated preconditions -- unlike WORK_PACKAGE-007's explicit
+"Missing files shall fail verification" or WORK_PACKAGE-008's explicit
+"Metadata extraction failures shall be recorded," nothing in
+WORK_PACKAGE-009's text says a failed publish attempt shall be recorded
+as anything. Combined with "Publish Verified Artifact" being the only
+creation-side Functional Requirement (no "Re-publish," unlike
+WORK_PACKAGE-007/008's explicit re-verification/re-extraction support)
+and "Publication shall be immutable" being listed as its own rule, the
+most consistent reading is that publication is a single, all-or-nothing,
+permanent event -- a `VaultEntry` is only ever created already
+`Published`; `IVaultRepository` has no `update` method at all, and there
+is no code path that persists a failed attempt.
+
+**`VaultEntryStatus` has exactly one value, `Published`, unlike every
+prior stage's multi-value status enum.** A direct consequence of the
+decision above -- with no `Failed`/`Pending` counterpart ever persisted,
+a second status value would be dead code. The enum (rather than a bare
+boolean or no status field at all) is kept for schema-shape consistency
+with every prior domain table and to leave room for a future,
+`Lifecycle Management`-driven status (e.g. `"revoked"`) without an
+additive migration redesigning the column -- `Lifecycle Management` is
+explicitly out of scope for WORK_PACKAGE-009 ("Do NOT implement...
+Lifecycle management").
+
+**`metadata_id` is `UNIQUE` in `reference_vault` -- a given Metadata
+record may be published at most once.** Direct consequence of "Publish
+Verified Artifact" having no "Re-publish" Functional Requirement (see
+above): re-`POST`ing the same `metadata_id` is rejected with
+`AlreadyPublishedError`/`409 already_published` rather than silently
+creating a second permanent record for input that hasn't changed.
+
+**Content-addressable dedup happens at the filesystem layer only, never
+at the database layer.** WORK_PACKAGE-009 explicitly asks for this: "If
+the artifact already exists in the Reference Vault (identical SHA-256),
+do not duplicate the stored file. Instead, create the appropriate Vault
+record that references the existing immutable artifact." Two different
+Metadata records (from two different Downloads that happen to have
+byte-identical content) each still get their own `VaultEntry` row --
+`metadata_id` uniqueness (above) and content-based file dedup are
+independent constraints answering different questions ("was *this*
+Metadata record published before?" vs. "is *this exact content* already
+on disk?").
+
+**`ReferenceVaultService` recomputes the artifact's SHA-256 immediately
+before publication and compares it to the Verification record, rather
+than trusting the Verification's stored hash or the Metadata's copy of
+it.** "SHA-256 shall match the Verification record before publication" is
+a literal, freshness-sensitive check: the artifact could in principle
+have changed on disk in the (necessarily nonzero) time between
+Verification and this Vault publish call, and the Vault -- as "the
+authoritative, immutable repository" -- is the last point before that
+artifact becomes a permanent, canonical fact, making it the right place
+to re-assert data integrity one final time rather than propagate a
+possibly-stale hash forward.
+
+**"Original Source ID" is resolved through a fourth repository,
+`acquisition::IAcquisitionJobRepository`, via the Download's `job_id` --
+not stored redundantly anywhere upstream.** The Vault Model requires
+"Original Source ID," but no prior stage's table stores it directly:
+`Download` has `job_id`, and only `AcquisitionJob` has `source_id`. Since
+both tables already exist and the relationship is a real foreign key
+(WORK_PACKAGE-003's `acquisition_jobs.source_id -> official_sources`),
+`ReferenceVaultService` resolves it by one extra lookup at publish time
+rather than denormalizing `source_id` onto `Download` or `Verification`,
+which neither WORK_PACKAGE-006 nor WORK_PACKAGE-007 needed for their own
+purposes.
+
 ## TODOs
 
-- WORK_PACKAGE_009 onward: real connector types (HTTP, FTP, browser
-  automation) implementing `IConnector`/`fetch`, wiring Connectors to
-  Official Sources/Acquisition Jobs, Engineering Object creation, and
-  Reference Vault publication (the Engineering Knowledge Engine) -- per
-  `docs/architecture/SDD-R013` through `SDD-R019`.
+- Milestone 2 (the Engineering Knowledge Engine) onward: real connector
+  types (HTTP, FTP, browser automation) implementing `IConnector`/`fetch`,
+  wiring Connectors to Official Sources/Acquisition Jobs, Engineering
+  Object creation, knowledge graph generation, search indexing, document
+  interpretation, and semantic classification -- per
+  `docs/architecture/SDD-R013` through `SDD-R019`. Milestone 1 (Engineering
+  Acquisition MVP, WORK_PACKAGE_001 through WORK_PACKAGE_009) is complete.
 - `migrations/flyway.toml` is still not invoked by any automated
   process (see Future Considerations below).
 
@@ -1032,8 +1208,28 @@ every one of them in creation order.
 - `migrations/flyway.toml` is not yet invoked by any automated process
   -- a future work package should wire `flyway migrate` into the build
   or a deployment step. Repository/API/migration tests currently apply
-  `V1__initial_schema.sql` through `V7__artifact_metadata.sql`
+  `V1__initial_schema.sql` through `V8__reference_vault.sql`
   verbatim themselves (see "Test" above) as a stand-in.
+- The Reference Vault has no verification-at-rest / periodic
+  fixity-checking mechanism -- once an artifact is copied in, nothing
+  re-reads it later to confirm the file on disk still matches its
+  recorded `sha256_hash` (e.g. against bit rot or an out-of-band
+  filesystem change). WORK_PACKAGE-009 only requires the hash to match
+  "before publication," not on an ongoing basis; a future work package
+  concerned with long-term archival integrity should consider a
+  periodic re-hash job.
+- There is no Vault-side mechanism to reclaim storage for content that
+  was deduplicated and later has zero remaining `VaultEntry` rows
+  referencing it (`reference_vault` rows are never deleted, so this is
+  purely theoretical today, but relevant if Lifecycle Management
+  eventually introduces a way to remove entries).
+- Milestone 2 (the Engineering Knowledge Engine) is the natural point to
+  revisit "Duplicate detection" (explicitly out of scope for
+  WORK_PACKAGE-009 beyond content-addressable storage's own incidental
+  dedup) and "Version comparison" (also explicitly out of scope) at a
+  semantic, cross-artifact level -- WORK_PACKAGE-009's dedup is a storage
+  optimization keyed on byte-identical content, not a statement about
+  two artifacts being "the same document."
 - Basic Document Inspection only covers PDF (version + best-effort page
   count) -- see "Implementation Decisions." A future work package adding
   richer per-type inspection (image dimensions for PNG/JPEG, entry counts
@@ -1114,10 +1310,11 @@ every one of them in creation order.
   WORK_PACKAGE-005 and remain future work.
 - A connection pool for `PostgresOfficialSourceRepository`,
   `PostgresAcquisitionJobRepository`, `PostgresJobExecutionHistoryRepository`,
-  `PostgresDownloadRepository`, `PostgresVerificationRepository`, and
-  `PostgresMetadataRepository` (each currently one `pqxx::connection` per
-  repository instance, held for the process's lifetime) should be
-  reassessed once concurrent request volume makes single-connection
+  `PostgresDownloadRepository`, `PostgresVerificationRepository`,
+  `PostgresMetadataRepository`, and `PostgresVaultRepository` (each
+  currently one `pqxx::connection` per repository instance, held for the
+  process's lifetime) should be reassessed once concurrent request volume
+  makes single-connection
   serialization a bottleneck.
 - `PUT /jobs/{id}` (WORK_PACKAGE_003) still accepts any status value
   with no transition validation, while `POST /jobs/{id}/execute` and

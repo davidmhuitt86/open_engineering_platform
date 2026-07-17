@@ -12,6 +12,7 @@ target_link_libraries(oep_acquisition
     oep_acquisition_downloads
     oep_acquisition_integrity
     oep_acquisition_metadata
+    oep_acquisition_vault
     oep_acquisition_api
 )
 
