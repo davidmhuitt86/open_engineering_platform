@@ -1,8 +1,8 @@
 # Package Format (`.oerp`)
 
-How WORK_PACKAGE_001 implements SDD-R004's Engineering Reference
-Package Format for its one vertical-slice package,
-`core_reference_v0.oerp`.
+How WORK_PACKAGE_001 (and, as of Schema Version 1.0, WORK_PACKAGE_002)
+implements SDD-R004's Engineering Reference Package Format for its one
+vertical-slice package, `core_reference_v1.oerp`.
 
 ## Archive contents
 
@@ -32,10 +32,12 @@ license/             LICENSE.txt, generated from the package's own
 
 `<package_id>_v<major>.oerp`, where `<major>` is the leading component
 of the package's own semantic version (`packages/<package>/manifest.yaml`'s
-`version` field). `core_reference`'s `manifest.yaml` pins
-`version: "0.1.0"`, so the compiled artifact is
-`core_reference_v0.oerp` -- exactly the name ENGINE-TASK-000007
-requires.
+`version` field). `core_reference`'s `manifest.yaml` pinned
+`version: "0.1.0"` for WORK_PACKAGE_001; WORK_PACKAGE_002's schema
+migration is a breaking change to every existing object, so the
+package version was bumped to `"1.0.0"`, making the compiled artifact
+`core_reference_v1.oerp` -- exactly the name WORK_PACKAGE_002's
+verification checklist requires.
 
 ## What is deferred
 

@@ -45,7 +45,7 @@ def test_every_gold_standard_object_has_every_sdd_r001_section_file():
 def test_every_gold_standard_object_is_published_with_a_reviewer():
     package = _core_reference_package()
     for obj in package.objects:
-        assert obj.object["identity"]["status"] == "Published"
+        assert obj.object["identity"]["lifecycle_state"] == "Published"
         assert obj.object["provenance"]["reviewer"]
 
 
@@ -61,19 +61,21 @@ def test_required_relationships_from_engine_task_000006_are_present():
     package = _core_reference_package()
     by_id = {obj.object_id: obj for obj in package.objects}
 
-    resistor_targets = {(r["type"], r["target"]) for r in by_id["component.passive.resistor"].relationships}
+    resistor_targets = {
+        (r["relationship_type"], r["target"]) for r in by_id["component.passive.resistor"].relationships
+    }
     assert ("USES_EQUATION", "equation.ohms_law") in resistor_targets
     assert ("HAS_UNIT", "unit.volt") in resistor_targets
     assert ("REPRESENTED_BY", "symbol.iec.resistor") in resistor_targets
 
-    copper_targets = {(r["type"], r["target"]) for r in by_id["material.copper"].relationships}
+    copper_targets = {(r["relationship_type"], r["target"]) for r in by_id["material.copper"].relationships}
     assert ("USED_BY", "component.passive.resistor") in copper_targets
 
 
 def test_symbol_svg_asset_referenced_by_the_symbol_object_exists_on_disk():
     package = _core_reference_package()
     symbol = next(obj for obj in package.objects if obj.object_id == "symbol.iec.resistor")
-    assets = symbol.object["visualization"]["assets"]
-    assert assets, "expected at least one visualization asset"
+    assets = symbol.object["assets"]
+    assert assets, "expected at least one asset"
     for asset in assets:
         assert (symbol.assets_dir / asset["path"]).is_file()

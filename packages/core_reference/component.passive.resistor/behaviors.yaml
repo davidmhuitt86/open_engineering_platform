@@ -1,131 +1,179 @@
-# Engineering Behaviors (SDD-R001 §11, SDD-R005). Declarative metadata
-# only -- no executable solver. Execution (Engineering Behaviors
-# runtime) is out of scope for WORK_PACKAGE_001.
+# Behavior Facet (SDD-R011 §9). Declarative metadata only -- no
+# executable solver (the Engineering Behavior Engine is out of scope).
+# behavior_type uses SDD-R011 §9's list; constraints are structured
+# (REFERENCE-TASK-000014), not free text.
 - behavior_id: component.passive.resistor.calculate_current
   name: Calculate Current
-  type: Calculation
+  behavior_type: Calculator
   description: >-
     Computes the current through the resistor given the voltage across
     it, using Ohm's Law.
   inputs:
     - name: voltage
       value_type: number
-      units: unit.volt
+      unit_ref: unit.volt
+      unit_symbol_pending: null
       required: true
     - name: resistance
       value_type: number
-      units: "Ω"
+      unit_ref: null
+      unit_symbol_pending: "Ω"
       required: true
   outputs:
     - name: current
       value_type: number
-      units: A
+      unit_ref: null
+      unit_symbol_pending: A
   constraints:
-    - Resistance shall not equal zero.
-  depends_on:
+    - subject: resistance
+      operator: neq
+      operand: 0
+      description: Resistance shall not equal zero.
+  dependencies:
     - equation.ohms_law
+  execution_metadata:
+    deterministic: true
 
 - behavior_id: component.passive.resistor.calculate_voltage
   name: Calculate Voltage
-  type: Calculation
+  behavior_type: Calculator
   description: Computes the voltage across the resistor given the current through it.
   inputs:
     - name: current
       value_type: number
-      units: A
+      unit_ref: null
+      unit_symbol_pending: A
       required: true
     - name: resistance
       value_type: number
-      units: "Ω"
+      unit_ref: null
+      unit_symbol_pending: "Ω"
       required: true
   outputs:
     - name: voltage
       value_type: number
-      units: unit.volt
+      unit_ref: unit.volt
+      unit_symbol_pending: null
   constraints: []
-  depends_on:
+  dependencies:
     - equation.ohms_law
+  execution_metadata:
+    deterministic: true
 
 - behavior_id: component.passive.resistor.calculate_power
   name: Calculate Power
-  type: Calculation
+  behavior_type: Calculator
   description: Computes power dissipated by the resistor given voltage and current.
   inputs:
     - name: voltage
       value_type: number
-      units: unit.volt
+      unit_ref: unit.volt
+      unit_symbol_pending: null
       required: true
     - name: current
       value_type: number
-      units: A
+      unit_ref: null
+      unit_symbol_pending: A
       required: true
   outputs:
     - name: power
       value_type: number
-      units: W
-  constraints:
-    - Result shall not exceed the resistor's power_rating property.
-  depends_on: []
+      unit_ref: null
+      unit_symbol_pending: W
+  constraints: []
+  dependencies: []
+  execution_metadata:
+    deterministic: true
+    note: >-
+      Comparing the computed result against the resistor's own
+      power_rating property is a runtime (execution-time) check, not a
+      static authoring-time constraint -- the structured Constraint
+      shape here only expresses single-subject predicates against a
+      literal operand (constraint.schema.json), not cross-property
+      comparisons.
 
 - behavior_id: component.passive.resistor.voltage_divider
   name: Voltage Divider
-  type: Calculation
+  behavior_type: Calculator
   description: >-
     Computes the output voltage of a two-resistor voltage divider
     formed with a second resistor.
   inputs:
     - name: input_voltage
       value_type: number
-      units: unit.volt
+      unit_ref: unit.volt
+      unit_symbol_pending: null
       required: true
     - name: resistance
       value_type: number
-      units: "Ω"
+      unit_ref: null
+      unit_symbol_pending: "Ω"
       required: true
     - name: second_resistance
       value_type: number
-      units: "Ω"
+      unit_ref: null
+      unit_symbol_pending: "Ω"
       required: true
   outputs:
     - name: output_voltage
       value_type: number
-      units: unit.volt
-  constraints:
-    - Sum of the two resistances shall not equal zero.
-  depends_on:
+      unit_ref: unit.volt
+      unit_symbol_pending: null
+  constraints: []
+  dependencies:
     - equation.ohms_law
+  execution_metadata:
+    deterministic: true
+    note: >-
+      The sum of resistance and second_resistance must not equal zero
+      -- a multi-variable predicate the structured Constraint shape
+      (single subject + literal operand) cannot express; deferred to
+      execution-time checking, same as calculate_power's constraint
+      above.
 
 - behavior_id: component.passive.resistor.series_resistance
   name: Series Resistance
-  type: Calculation
+  behavior_type: Calculator
   description: Computes the total resistance of resistors combined in series.
   inputs:
     - name: resistances
       value_type: string
-      units: null
+      unit_ref: null
+      unit_symbol_pending: null
       required: true
       description: Ordered list of resistance values, encoded by the caller.
   outputs:
     - name: total_resistance
       value_type: number
-      units: "Ω"
+      unit_ref: null
+      unit_symbol_pending: "Ω"
   constraints: []
-  depends_on: []
+  dependencies: []
+  execution_metadata:
+    deterministic: true
 
 - behavior_id: component.passive.resistor.parallel_resistance
   name: Parallel Resistance
-  type: Calculation
+  behavior_type: Calculator
   description: Computes the total resistance of resistors combined in parallel.
   inputs:
     - name: resistances
       value_type: string
-      units: null
+      unit_ref: null
+      unit_symbol_pending: null
       required: true
       description: Ordered list of resistance values, encoded by the caller.
   outputs:
     - name: total_resistance
       value_type: number
-      units: "Ω"
-  constraints:
-    - No individual resistance shall equal zero.
-  depends_on: []
+      unit_ref: null
+      unit_symbol_pending: "Ω"
+  constraints: []
+  dependencies: []
+  execution_metadata:
+    deterministic: true
+    note: >-
+      No individual resistance in the input list shall equal zero --
+      a per-element predicate over a list input, which the structured
+      Constraint shape (single subject + literal operand) cannot
+      express; deferred to execution-time checking.

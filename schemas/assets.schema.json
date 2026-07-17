@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "assets.schema.json",
+  "title": "Asset Facet -- assets.yaml",
+  "description": "SDD-R011 §14. References to external files this object owns (relative to its own assets/ directory). Assets are referenced; assets are not themselves Engineering Knowledge.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["role", "path", "kind"],
+    "properties": {
+      "role": {
+        "type": "string",
+        "minLength": 1,
+        "description": "e.g. \"icon\", \"preview_image\", \"three_d_model\", \"footprint\", \"symbol\". Referenced from visualization.yaml's asset_roles."
+      },
+      "path": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Relative to this object's own assets/ directory."
+      },
+      "kind": {
+        "type": "string",
+        "enum": ["svg", "png", "step", "glb", "pdf", "image", "diagram", "video", "other"]
+      },
+      "description": { "type": "string" }
+    }
+  }
+}

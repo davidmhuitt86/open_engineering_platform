@@ -1,60 +1,28 @@
-# Relationships (SDD-R003). Source is implicit: component.passive.resistor.
+# Relationship Facet (SDD-R011 §8). Source is implicit:
+# component.passive.resistor.
 - relationship_id: component.passive.resistor.uses_equation.ohms_law
-  type: USES_EQUATION
-  category: Engineering
+  relationship_type: USES_EQUATION
   target: equation.ohms_law
-  multiplicity: many_to_one
-  metadata:
-    priority: primary
+  cardinality: many_to_one
+  lifecycle: Published
+  confidence: verified
+  notes: The resistor's voltage/current/resistance behavior is governed by Ohm's Law.
   constraints: []
-  provenance:
-    author: OEP Reference Authoring Team
-    reviewer: Divad Technology Group Engineering Review
-    created_date: "2026-07-16"
-    review_status: Published
-    confidence: high
-    content_license: CC-BY-4.0
-  version:
-    major: 1
-    minor: 0
-    patch: 0
 
 - relationship_id: component.passive.resistor.has_unit.volt
-  type: HAS_UNIT
-  category: Engineering
+  relationship_type: HAS_UNIT
   target: unit.volt
-  multiplicity: many_to_one
-  metadata:
-    applies_to_property: maximum_voltage
+  cardinality: many_to_one
+  lifecycle: Published
+  confidence: high
+  notes: Applies to the maximum_voltage property.
   constraints: []
-  provenance:
-    author: OEP Reference Authoring Team
-    reviewer: Divad Technology Group Engineering Review
-    created_date: "2026-07-16"
-    review_status: Published
-    confidence: high
-    content_license: CC-BY-4.0
-  version:
-    major: 1
-    minor: 0
-    patch: 0
 
 - relationship_id: component.passive.resistor.represented_by.symbol_iec
-  type: REPRESENTED_BY
-  category: Visualization
+  relationship_type: REPRESENTED_BY
   target: symbol.iec.resistor
-  multiplicity: many_to_many
-  metadata:
-    primary_symbol: true
+  cardinality: many_to_many
+  lifecycle: Published
+  confidence: verified
+  notes: Primary schematic symbol.
   constraints: []
-  provenance:
-    author: OEP Reference Authoring Team
-    reviewer: Divad Technology Group Engineering Review
-    created_date: "2026-07-16"
-    review_status: Published
-    confidence: high
-    content_license: CC-BY-4.0
-  version:
-    major: 1
-    minor: 0
-    patch: 0

@@ -1,54 +1,72 @@
-# SDD-R001 §11 Equation example: Forward Solver, Inverse Solver, Unit
-# Conversion, Variable Validation. Declarative metadata only.
+# SDD-R011 §9 behavior_type: Forward/Inverse Solver -> Solver; Unit
+# Conversion -> Converter; Variable Validation -> Validator.
 - behavior_id: equation.ohms_law.forward_solver
   name: Forward Solver
-  type: Calculation
+  behavior_type: Solver
   description: Solves for voltage given current and resistance (V = I x R).
   inputs:
     - name: current
       value_type: number
-      units: A
+      unit_ref: null
+      unit_symbol_pending: A
       required: true
     - name: resistance
       value_type: number
-      units: "Ω"
+      unit_ref: null
+      unit_symbol_pending: "Ω"
       required: true
   outputs:
     - name: voltage
       value_type: number
-      units: unit.volt
+      unit_ref: unit.volt
+      unit_symbol_pending: null
   constraints: []
-  depends_on: []
+  dependencies: []
+  execution_metadata:
+    deterministic: true
 
 - behavior_id: equation.ohms_law.inverse_solver
   name: Inverse Solver
-  type: Calculation
+  behavior_type: Solver
   description: Solves for current or resistance given the other two known variables.
   inputs:
     - name: voltage
       value_type: number
-      units: unit.volt
+      unit_ref: unit.volt
+      unit_symbol_pending: null
       required: true
     - name: known_variable
       value_type: string
-      units: null
+      unit_ref: null
+      unit_symbol_pending: null
       required: true
       description: '"current" or "resistance" -- which of the remaining two is known.'
     - name: known_value
       value_type: number
-      units: null
+      unit_ref: null
+      unit_symbol_pending: null
       required: true
   outputs:
     - name: solved_value
       value_type: number
-      units: null
+      unit_ref: null
+      unit_symbol_pending: null
   constraints:
-    - Resistance shall not equal zero when solving for current.
-  depends_on: []
+    - subject: known_value
+      operator: neq
+      operand: 0
+      description: Resistance shall not equal zero when solving for current.
+  dependencies: []
+  execution_metadata:
+    deterministic: true
+    note: >-
+      The neq-0 constraint above only applies when known_variable is
+      "resistance"; the structured Constraint shape cannot express
+      that conditional -- documented here, enforced at execution time.
 
 - behavior_id: equation.ohms_law.unit_conversion
   name: Unit Conversion
-  type: Conversion
+  behavior_type: Converter
   description: >-
     Converts voltage, current, or resistance values between SI prefix
     scales (e.g. millivolts to volts) before or after applying the
@@ -56,27 +74,33 @@
   inputs:
     - name: value
       value_type: number
-      units: null
+      unit_ref: null
+      unit_symbol_pending: null
       required: true
     - name: from_prefix
       value_type: string
-      units: null
+      unit_ref: null
+      unit_symbol_pending: null
       required: true
     - name: to_prefix
       value_type: string
-      units: null
+      unit_ref: null
+      unit_symbol_pending: null
       required: true
   outputs:
     - name: converted_value
       value_type: number
-      units: null
+      unit_ref: null
+      unit_symbol_pending: null
   constraints: []
-  depends_on:
+  dependencies:
     - unit.volt
+  execution_metadata:
+    deterministic: true
 
 - behavior_id: equation.ohms_law.variable_validation
   name: Variable Validation
-  type: Validation
+  behavior_type: Validator
   description: >-
     Confirms that the supplied voltage, current, and resistance values
     are individually well-formed (correct sign, non-zero where
@@ -84,22 +108,29 @@
   inputs:
     - name: voltage
       value_type: number
-      units: unit.volt
+      unit_ref: unit.volt
+      unit_symbol_pending: null
       required: false
     - name: current
       value_type: number
-      units: A
+      unit_ref: null
+      unit_symbol_pending: A
       required: false
     - name: resistance
       value_type: number
-      units: "Ω"
+      unit_ref: null
+      unit_symbol_pending: "Ω"
       required: false
   outputs:
     - name: is_valid
       value_type: boolean
-      units: null
+      unit_ref: null
+      unit_symbol_pending: null
     - name: validation_message
       value_type: string
-      units: null
+      unit_ref: null
+      unit_symbol_pending: null
   constraints: []
-  depends_on: []
+  dependencies: []
+  execution_metadata:
+    deterministic: true

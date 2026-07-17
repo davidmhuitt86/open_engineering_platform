@@ -7,7 +7,7 @@ from compiler.build import CompilationError, compile_package
 
 def test_compile_package_builds_core_reference_successfully(tmp_path):
     result = compile_package("core_reference", output_dir=tmp_path)
-    assert result.output_path.name == "core_reference_v0.oerp"
+    assert result.output_path.name == "core_reference_v1.oerp"
     assert result.output_path.is_file()
     assert result.validation_report.passed is True
     assert len(result.sha256) == 64

@@ -3,9 +3,9 @@ import json
 from compiler.indexes import build_graph_index, build_search_index, write_json_index
 
 
-def test_build_search_index_indexes_canonical_and_display_name(object_factory, package_factory):
+def test_build_search_index_indexes_short_and_display_name(object_factory, package_factory):
     obj = object_factory("component.passive.resistor")
-    obj.object["identity"]["canonical_name"] = "resistor"
+    obj.object["identity"]["short_name"] = "resistor"
     obj.object["identity"]["display_name"] = "Resistor"
     package = package_factory([obj])
 
@@ -13,10 +13,10 @@ def test_build_search_index_indexes_canonical_and_display_name(object_factory, p
     assert index["terms"]["resistor"] == ["component.passive.resistor"]
 
 
-def test_build_search_index_indexes_classification_and_search_metadata_fields(object_factory, package_factory):
+def test_build_search_index_indexes_classification_search_fields(object_factory, package_factory):
     obj = object_factory("component.passive.resistor")
     obj.object["classification"]["keywords"] = ["ohmic"]
-    obj.object["search_metadata"] = {"abbreviations": ["R"]}
+    obj.object["classification"]["abbreviations"] = ["R"]
     package = package_factory([obj])
 
     index = build_search_index([package])
@@ -34,14 +34,14 @@ def test_build_search_index_is_deterministic_regardless_of_object_order(object_f
 
 
 def test_build_graph_index_lists_outgoing_edges_sorted(object_factory, package_factory):
-    rel_b = {"relationship_id": "a.uses.b", "type": "USES", "target": "unit.b"}
-    rel_a = {"relationship_id": "a.uses.a2", "type": "CONTAINS", "target": "unit.a2"}
+    rel_b = {"relationship_id": "a.uses.b", "relationship_type": "USES", "target": "unit.b"}
+    rel_a = {"relationship_id": "a.uses.a2", "relationship_type": "CONTAINS", "target": "unit.a2"}
     obj = object_factory("unit.a", relationships=[rel_b, rel_a])
     package = package_factory([obj])
 
     index = build_graph_index([package])
     edges = index["nodes"]["unit.a"]
-    assert [e["type"] for e in edges] == ["CONTAINS", "USES"]
+    assert [e["relationship_type"] for e in edges] == ["CONTAINS", "USES"]
 
 
 def test_build_graph_index_includes_every_object_even_with_no_relationships(object_factory, package_factory):

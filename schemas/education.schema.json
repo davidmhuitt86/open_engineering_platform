@@ -1,11 +1,33 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "education.schema.json",
-  "title": "Educational Context -- education.yaml",
-  "description": "SDD-R001 §18. Optional educational information.",
+  "title": "Education Facet -- education.yaml",
+  "description": "SDD-R011 §11: \"Description, Engineering Notes, Common Mistakes, Design Considerations, Worked Examples, Learning Paths, References.\" As of WORK_PACKAGE_002, this facet consolidates what WORK_PACKAGE_001 modeled as three separate object.yaml sections -- Description, AI Context, and Education -- since SDD-R011's facet list has no separate Description or AI Context facet and explicitly lists \"Description\" as an Education example. Educational content shall never alter engineering behavior (SDD-R011 §11).",
   "type": "object",
   "additionalProperties": false,
+  "required": ["short_definition", "detailed_description"],
   "properties": {
+    "short_definition": { "type": "string", "minLength": 1 },
+    "detailed_description": { "type": "string", "minLength": 1 },
+    "engineering_notes": { "type": "string", "default": "" },
+    "typical_applications": { "type": "array", "items": { "type": "string", "minLength": 1 }, "default": [] },
+    "limitations": { "type": "array", "items": { "type": "string", "minLength": 1 }, "default": [] },
+    "common_mistakes": { "type": "array", "items": { "type": "string", "minLength": 1 }, "default": [] },
+    "design_considerations": { "type": "array", "items": { "type": "string", "minLength": 1 }, "default": [] },
+    "troubleshooting": { "type": "array", "items": { "type": "string", "minLength": 1 }, "default": [] },
+    "frequently_asked_questions": {
+      "type": "array",
+      "default": [],
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["question", "answer"],
+        "properties": {
+          "question": { "type": "string", "minLength": 1 },
+          "answer": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
     "examples": {
       "type": "array",
       "default": [],

@@ -1,4 +1,8 @@
-"""Shared fixtures for building synthetic Engineering Knowledge Objects in tests."""
+"""Shared fixtures for building synthetic Engineering Knowledge Objects in tests.
+
+Builds the SDD-R011 facet-shaped ``object.yaml`` structure (WORK_PACKAGE_002)
+-- see docs/SCHEMA_MIGRATION.md for the full field-by-field rationale.
+"""
 
 from __future__ import annotations
 
@@ -12,8 +16,8 @@ from oep_reference_core.package_source import ObjectSource, PackageSource
 def _provenance(**overrides) -> dict:
     base = {
         "author": "tester",
+        "organization": "Test Org",
         "created_date": "2026-01-01",
-        "review_status": "Draft",
         "confidence": "low",
         "content_license": "CC-BY-4.0",
     }
@@ -21,21 +25,35 @@ def _provenance(**overrides) -> dict:
     return base
 
 
-def _object_yaml(object_id: str, *, status: str = "Published", reviewer: str | None = "someone") -> dict:
+def _object_yaml(
+    object_id: str,
+    *,
+    lifecycle_state: str = "Published",
+    reviewer: str | None = "someone",
+) -> dict:
+    short_name = object_id.split(".")[-1]
     return {
         "identity": {
             "object_id": object_id,
-            "canonical_name": object_id.split(".")[-1],
-            "display_name": object_id.split(".")[-1].title(),
             "object_type": "Component",
+            "display_name": short_name.title(),
+            "short_name": short_name,
             "version": "1.0.0",
-            "status": status,
+            "lifecycle_state": lifecycle_state,
+            "package_id": "test_package",
+            "uuid": "00000000-0000-0000-0000-000000000001",
         },
         "classification": {"domain": "Electrical", "category": "Test"},
-        "description": {"short_definition": "x", "detailed_description": "y"},
+        "authority": {
+            "authority_type": "Internal Engineering Authority",
+            "authority_reference": "Synthesized for testing.",
+        },
+        "evidence": [],
         "provenance": _provenance(reviewer=reviewer),
-        "version": {"major": 1, "minor": 0, "patch": 0},
+        "history": {"lifecycle_events": [{"state": lifecycle_state, "date": "2026-01-01"}]},
+        "simulation": {},
         "visualization": {},
+        "assets": [],
     }
 
 
@@ -44,7 +62,7 @@ def make_object_source(
     *,
     tmp_path: Path,
     dir_name: str | None = None,
-    status: str = "Published",
+    lifecycle_state: str = "Published",
     reviewer: str | None = "someone",
     relationships: list | None = None,
     behaviors: list | None = None,
@@ -55,7 +73,7 @@ def make_object_source(
     object_dir = tmp_path / (dir_name or object_id)
     return ObjectSource(
         object_dir=object_dir,
-        object=_object_yaml(object_id, status=status, reviewer=reviewer),
+        object=_object_yaml(object_id, lifecycle_state=lifecycle_state, reviewer=reviewer),
         properties=properties,
         relationships=relationships,
         behaviors=behaviors,

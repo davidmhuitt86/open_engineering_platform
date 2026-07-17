@@ -1,31 +1,47 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "properties.schema.json",
-  "title": "Engineering Properties -- properties.yaml",
-  "description": "SDD-R001 §9. A list of typed, measurable characteristics of the owning Engineering Knowledge Object.",
+  "title": "Property Facet -- properties.yaml",
+  "description": "SDD-R011 §7. A list of typed, measurable characteristics of the owning Engineering Knowledge Object. As of WORK_PACKAGE_002 (REFERENCE-TASK-000012): `property_id` is a permanent identifier, never the display name; display_name may change freely. REFERENCE-TASK-000011: `unit_ref` must resolve to a Unit EKO's object_id -- `unit_symbol_pending` is the documented, validator-tracked escape hatch for properties whose true unit has no compiled Unit EKO yet (see docs/SCHEMA_MIGRATION.md). REFERENCE-TASK-000014: `constraints` are structured, not free text.",
   "type": "array",
   "items": {
     "type": "object",
     "additionalProperties": false,
-    "required": ["name", "value_type", "required", "read_only"],
+    "required": ["property_id", "display_name", "value_type", "required", "read_only"],
+    "allOf": [
+      {
+        "if": { "properties": { "read_only": { "const": true } } },
+        "then": { "required": ["value"] }
+      }
+    ],
     "properties": {
-      "name": {
+      "property_id": {
         "type": "string",
         "pattern": "^[a-z][a-z0-9_]*$",
-        "description": "Stable, machine-readable property key (snake_case)."
+        "description": "Permanent, stable identifier (REFERENCE-TASK-000012) -- never renamed once published, unlike display_name."
       },
       "display_name": { "type": "string", "minLength": 1 },
       "value_type": {
         "type": "string",
         "enum": ["number", "integer", "string", "boolean", "enum"],
-        "description": "SDD-R001 §9 Value Type."
+        "description": "SDD-R001 §9 Value Type / SDD-R011 §7 Primitive Data Type."
       },
-      "units": {
+      "unit_ref": {
         "type": ["string", "null"],
-        "description": "Either a plain unit symbol (e.g. \"Ω\") or an Object ID of a Unit EKO (e.g. \"unit.volt\") when one is compiled into the library. Null for dimensionless/non-numeric properties."
+        "default": null,
+        "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+        "description": "Object ID of a compiled Unit EKO (SDD-R011 §7: \"Units shall reference Unit Engineering Knowledge Objects\"). Mutually exclusive with unit_symbol_pending -- exactly one should be set for a numeric property with a unit."
       },
-      "default": {
-        "description": "SDD-R001 §9 Default. Any JSON type, or null if the property has no default."
+      "unit_symbol_pending": {
+        "type": ["string", "null"],
+        "default": null,
+        "description": "A plain unit symbol (e.g. \"Ω\") used ONLY when no compiled Unit EKO exists yet for this unit. Tracked by the validator as a documented, temporary exception (REFERENCE-TASK-000011) -- never silently treated as equivalent to a resolved unit_ref."
+      },
+      "value": {
+        "description": "The fixed/constant value, when read_only is true (SDD-R011 §7 \"Value\"). Any JSON scalar."
+      },
+      "default_value": {
+        "description": "The suggested starting value for an editable (read_only: false) property (SDD-R011 §7 \"Default Value\"). Any JSON scalar, or null if this property has no default."
       },
       "range": {
         "type": ["object", "null"],
@@ -34,13 +50,25 @@
           "min": { "type": ["number", "null"] },
           "max": { "type": ["number", "null"] }
         },
-        "description": "SDD-R001 §9 Range. Null when not applicable (e.g. string/boolean/enum properties)."
+        "description": "Simple numeric bounds, kept alongside the richer `constraints` list below for the common min/max case."
       },
       "enum_values": {
         "type": "array",
         "items": { "type": "string", "minLength": 1 },
         "default": [],
         "description": "Populated only when value_type is \"enum\"."
+      },
+      "constraints": {
+        "type": "array",
+        "default": [],
+        "items": { "$ref": "constraint.schema.json" },
+        "description": "REFERENCE-TASK-000014 structured constraints beyond simple range (e.g. cross-property or non-numeric predicates)."
+      },
+      "visibility": {
+        "type": "string",
+        "enum": ["public", "internal", "advanced"],
+        "default": "public",
+        "description": "SDD-R011 §7 property-level Visibility -- distinct from the object-level `visibility` field WORK_PACKAGE_001 carried under classification, which was dropped (docs/SCHEMA_MIGRATION.md)."
       },
       "required": { "type": "boolean" },
       "read_only": { "type": "boolean" },

@@ -37,7 +37,7 @@ def test_compile_cli_prints_output_path_and_hash_on_success(tmp_path, capsys):
     exit_code = compile_main(["core_reference", "--output-dir", str(tmp_path)])
     captured = capsys.readouterr()
     assert exit_code == 0
-    assert "core_reference_v0.oerp" in captured.out
+    assert "core_reference_v1.oerp" in captured.out
     assert "SHA-256:" in captured.out
 
 

@@ -1,9 +1,55 @@
+short_definition: >-
+  The fundamental relationship stating that the current through a
+  conductor between two points is directly proportional to the
+  voltage across the two points, and inversely proportional to the
+  resistance between them.
+detailed_description: >-
+  Ohm's Law is expressed as V = I x R, where V is voltage in volts,
+  I is current in amperes, and R is resistance in ohms. Any one of
+  the three quantities can be solved for given the other two: I = V
+  / R, or R = V / I. The law holds exactly for ideal (ohmic)
+  resistive elements across their linear operating range; many real
+  components approximate this behavior closely within their rated
+  limits.
+engineering_notes: >-
+  Ohm's Law describes resistive (ohmic) behavior specifically -- it
+  does not, by itself, describe reactive elements (capacitors,
+  inductors) under time-varying signals, which instead require
+  impedance (a complex-valued generalization of resistance).
+typical_applications:
+  - Resistor sizing and current-limiting calculations
+  - Voltage divider design
+  - Power supply and load analysis
+  - Circuit troubleshooting (voltage drop / current tracing)
+limitations:
+  - Assumes a linear, time-invariant resistive element.
+  - Does not directly apply to reactive (capacitive/inductive)
+    elements under AC excitation without generalizing to impedance.
+common_mistakes:
+  - Applying Ohm's Law directly to reactive elements under AC
+    excitation without accounting for impedance and phase.
+  - Mixing units (e.g. milliamps with ohms) without converting to a
+    consistent base unit before calculating.
+design_considerations:
+  - Confirm the element is genuinely resistive (ohmic) across the
+    operating range being analyzed.
+  - Keep units consistent (volts, amperes, ohms) before applying the
+    relationship.
+troubleshooting:
+  - Measured voltage and current inconsistent with the expected
+    resistance often indicates a fault (open, short, or a component
+    operating outside its linear range).
+frequently_asked_questions:
+  - question: Does Ohm's Law apply to all electrical components?
+    answer: >-
+      No. It applies to ohmic (linear resistive) elements. Many
+      semiconductor devices are non-linear and do not obey Ohm's Law
+      directly across their full operating range.
 examples:
   - title: Finding current through a simple resistor
     description: >-
       A 12 V supply is connected across a 6 Ω resistor. By Ohm's Law,
       the current is 12 V / 6 Ω = 2 A.
-
 worked_problems:
   - title: Solving for resistance
     problem: >-
@@ -11,16 +57,13 @@ worked_problems:
       resistor. What is the resistor's value?
     solution: >-
       R = V / I = 9 V / 0.5 A = 18 Ω.
-
 exercises:
   - A resistor drops 3.3 V while carrying 150 mA. Calculate its
     resistance.
   - A 47 Ω resistor is connected across a 24 V supply. Calculate the
     current through it.
-
 references:
   - General DC circuit theory (public domain physical law)
-
 learning_path:
   - Voltage, current, and resistance definitions
   - Ohm's Law

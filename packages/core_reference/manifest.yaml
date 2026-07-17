@@ -9,8 +9,8 @@
 package_id: core_reference
 display_name: OEP Core Reference Library (Vertical Slice)
 publisher: Divad Technology Group, LLC.
-version: "0.1.0"
-release_date: "2026-07-16"
+version: "1.0.0"
+release_date: "2026-07-17"
 package_type: Core Library
 language: en
 license: Proprietary - Divad Technology Group, LLC.

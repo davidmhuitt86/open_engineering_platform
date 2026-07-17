@@ -1,26 +1,30 @@
-# Validation Rules (SDD-R001 §13). Declarative only -- consumed by
-# Diagram Studio / Engineering Engine validation, never duplicated
-# there (SDD-R001 §13).
+# Validation Facet (SDD-R011 §10). Structured rules
+# (REFERENCE-TASK-000014) -- subject is a property_id from
+# properties.yaml; description is non-authoritative documentation.
 - rule_id: component.passive.resistor.resistance_positive
-  description: Resistance shall be greater than zero.
-  expression: "resistance > 0"
+  subject: resistance
+  operator: gt
+  operand: 0
   severity: error
-  applies_to: resistance
+  description: Resistance shall be greater than zero.
 
 - rule_id: component.passive.resistor.power_rating_positive
-  description: Power Rating shall be greater than zero.
-  expression: "power_rating > 0"
+  subject: power_rating
+  operator: gt
+  operand: 0
   severity: error
-  applies_to: power_rating
+  description: Power Rating shall be greater than zero.
 
 - rule_id: component.passive.resistor.tolerance_bounded
-  description: Tolerance shall not exceed 20%.
-  expression: "tolerance <= 20"
+  subject: tolerance
+  operator: lte
+  operand: 20
   severity: error
-  applies_to: tolerance
+  description: Tolerance shall not exceed 20%.
 
 - rule_id: component.passive.resistor.maximum_voltage_non_negative
-  description: Maximum Voltage, when specified, shall not be negative.
-  expression: "maximum_voltage >= 0"
+  subject: maximum_voltage
+  operator: gte
+  operand: 0
   severity: warning
-  applies_to: maximum_voltage
+  description: Maximum Voltage, when specified, shall not be negative.

@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "classification.schema.json",
-  "title": "Classification",
-  "description": "SDD-R002 Engineering Classification Model, with Tags/Keywords/Aliases folded in from SDD-R001 §7. Every classification dimension is independent -- none implies another (SDD-R002 §17).",
+  "title": "Classification Facet",
+  "description": "SDD-R011 §6, SDD-R002 Engineering Classification Model, with Tags/Keywords/Aliases/search terms folded in from SDD-R001 §7/§19 (SDD-R011 has no separate Search Metadata facet). Every classification dimension is independent -- none implies another (SDD-R002 §17). As of WORK_PACKAGE_002: `authority` moved to the new Authority Facet (authority.schema.json) and `visibility`/`ownership` were dropped -- see docs/SCHEMA_MIGRATION.md.",
   "type": "object",
   "additionalProperties": false,
   "required": ["domain", "category"],
@@ -44,31 +44,37 @@
       "items": { "type": "string", "minLength": 1 },
       "default": []
     },
+    "abbreviations": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "default": []
+    },
+    "alternate_names": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "default": []
+    },
+    "manufacturer_terms": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "default": []
+    },
+    "standards_references": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "default": []
+    },
     "roles": {
       "type": "array",
-      "description": "SDD-R002 §8 -- how the object participates in OEP workflows.",
+      "description": "SDD-R011 §6 / SDD-R002 §8 -- how the object participates in OEP workflows.",
       "items": { "type": "string", "minLength": 1 },
       "default": []
     },
     "capabilities": {
       "type": "array",
-      "description": "SDD-R002 §9 -- what platform services may consume the object.",
+      "description": "SDD-R011 §6 / SDD-R002 §9 -- what platform services may consume the object.",
       "items": { "type": "string", "minLength": 1 },
       "default": []
-    },
-    "authority": {
-      "type": "string",
-      "description": "SDD-R002 §11.",
-      "default": "Core OEP"
-    },
-    "visibility": {
-      "type": "string",
-      "description": "SDD-R002 §12.",
-      "default": "Public"
-    },
-    "ownership": {
-      "type": "string",
-      "description": "SDD-R002 §13 -- the maintaining organization."
     },
     "standards": {
       "type": "array",
@@ -78,13 +84,13 @@
     },
     "industries": {
       "type": "array",
-      "description": "SDD-R002 §15.",
+      "description": "SDD-R011 §6 / SDD-R002 §15.",
       "items": { "type": "string", "minLength": 1 },
       "default": []
     },
     "technologies": {
       "type": "array",
-      "description": "SDD-R002 §16.",
+      "description": "SDD-R011 §6 / SDD-R002 §16.",
       "items": { "type": "string", "minLength": 1 },
       "default": []
     }

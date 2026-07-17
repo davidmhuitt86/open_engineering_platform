@@ -84,7 +84,12 @@ SDD-R004 §9 explicitly declares the compiled database's schema
 internal to the compiler/runtime, not a public contract. For this
 vertical slice it is a small, straightforward relational schema:
 `objects`, `properties`, `relationships`, `behaviors`,
-`validation_rules` -- each row also carries a `document_json` column
-with the complete, canonically-serialized authoring content for that
-row, so no information is lost even where a column wasn't normalized
-out. See `compiler/database.py` for the exact DDL.
+`validation_rules`, `evidence` (added in WORK_PACKAGE_002 for the new
+Evidence Facet, SDD-R011 §16) -- each row also carries a
+`document_json` column with the complete, canonically-serialized
+authoring content for that row, so no information is lost even where a
+column wasn't normalized out. `objects` itself carries Identity/
+Classification/Authority/Provenance columns (Schema Version 1.0); see
+`compiler/database.py` for the exact DDL and
+`docs/SCHEMA_MIGRATION.md` for what changed from WORK_PACKAGE_001's
+column set.

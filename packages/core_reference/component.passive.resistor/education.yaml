@@ -1,11 +1,69 @@
-# Educational Context (SDD-R001 §18).
+# Education Facet (SDD-R011 §11) -- consolidates what
+# WORK_PACKAGE_001 modeled as three separate object.yaml sections
+# (Description, AI Context, Education). See docs/SCHEMA_MIGRATION.md.
+short_definition: >-
+  A passive two-terminal electrical component that introduces a
+  specified amount of electrical resistance into a circuit.
+detailed_description: >-
+  A resistor opposes the flow of electric current, converting
+  electrical energy into heat in proportion to the square of the
+  current through it. Its defining electrical behavior is governed
+  by Ohm's Law, which relates the voltage across the resistor to the
+  current through it via its resistance value. Fixed resistors
+  present a constant resistance across their rated operating range,
+  distinguishing them from variable resistors (potentiometers,
+  rheostats), whose resistance is intentionally adjustable.
+engineering_notes: >-
+  Real resistors deviate from the ideal linear model at temperature
+  extremes (temperature coefficient), at high frequency (parasitic
+  inductance and capacitance become significant), and under
+  excessive power dissipation (thermal derating). Preferred value
+  series (e.g. E12, E24, E96) constrain the discrete resistance
+  values manufacturers actually produce.
+typical_applications:
+  - Current limiting
+  - Voltage division
+  - Pull-up and pull-down configuration for digital logic inputs
+  - Bias networks for active devices
+  - Precision measurement (current sensing, reference dividers)
+limitations:
+  - Dissipates energy as heat; not lossless.
+  - Fixed resistance value cannot be adjusted once manufactured.
+  - Real components carry manufacturing tolerance and thermal drift.
+common_mistakes:
+  - Ignoring power dissipation and selecting a resistor whose power
+    rating is exceeded under normal operating conditions.
+  - Assuming a resistor's tolerance means the nominal value is exact,
+    rather than a manufacturing range around the nominal value.
+  - Neglecting temperature coefficient in precision or
+    high-temperature designs.
+design_considerations:
+  - Resistance value and tolerance required by the circuit.
+  - Power rating margin above worst-case dissipation.
+  - Temperature coefficient for precision applications.
+  - Package style and footprint for the target assembly process.
+troubleshooting:
+  - A resistor reading far higher than its nominal value (often
+    "open") frequently indicates thermal or overcurrent failure.
+  - Visible discoloration or a burnt smell indicates the power
+    rating was exceeded.
+frequently_asked_questions:
+  - question: How is a resistor's resistance value identified?
+    answer: >-
+      Through-hole resistors typically use a color band code;
+      surface-mount resistors typically use a printed numeric code.
+      Both encode the same nominal resistance and tolerance.
+  - question: Does a resistor's resistance change with temperature?
+    answer: >-
+      Yes. The magnitude of the change is described by the
+      resistor's temperature coefficient, typically expressed in
+      parts-per-million per degree Celsius.
 examples:
   - title: LED current-limiting resistor
     description: >-
       A 220 Ω resistor in series with an LED and a 5 V supply limits
       the LED current to a safe value, protecting the LED from
       excessive current.
-
 worked_problems:
   - title: Selecting a current-limiting resistor for an LED
     problem: >-
@@ -17,17 +75,14 @@ worked_problems:
       By Ohm's Law, R = V / I = 3.0 V / 0.020 A = 150 Ω. Power
       dissipated is P = V x I = 3.0 V x 0.020 A = 0.06 W, so a
       standard 0.25 W (or larger) resistor provides adequate margin.
-
 exercises:
   - Two 100 Ω resistors are connected in series across a 9 V supply.
     Calculate the voltage across each resistor.
   - A 330 Ω resistor is rated for 0.25 W. What is the maximum current
     it can safely carry?
-
 references:
   - IEC 60115 -- Fixed resistors for use in electronic equipment
   - IEC 60063 -- Preferred number series for resistors and capacitors
-
 learning_path:
   - Ohm's Law
   - Series and parallel resistance

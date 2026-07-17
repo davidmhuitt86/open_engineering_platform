@@ -2,139 +2,19 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "object.schema.json",
   "title": "Engineering Knowledge Object -- object.yaml",
-  "description": "SDD-R001 §5 canonical structure. Carries every canonical section except Properties, Relationships, Behavior, Validation, and Education, which are authored in their own sibling files per SDD-R010 §6.",
+  "description": "SDD-R011 §4: an Engineering Knowledge Object is a structured collection of Engineering Knowledge Facets, not a file. This file carries the nine facets that are not array-heavy enough to warrant their own sibling file (Identity, Classification, Authority, Evidence, Provenance, History, Simulation, Visualization, Assets); Properties, Relationships, Behaviors, Validation, and Education remain their own files exactly as in WORK_PACKAGE_001, each independently schema'd as its own facet (SDD-R011 §21 rule 3: \"Files are implementation details\" -- the facet, not the file, is the architectural unit; see docs/SCHEMA_MIGRATION.md).",
   "type": "object",
   "additionalProperties": false,
-  "required": ["identity", "classification", "description", "provenance", "version"],
+  "required": ["identity", "classification", "authority", "provenance", "history"],
   "properties": {
-    "identity": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["object_id", "canonical_name", "display_name", "object_type", "version", "status"],
-      "properties": {
-        "object_id": {
-          "type": "string",
-          "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
-          "description": "Globally unique, dotted, referenced only by this id (SDD-R010 §10)."
-        },
-        "canonical_name": { "type": "string", "minLength": 1 },
-        "display_name": { "type": "string", "minLength": 1 },
-        "object_type": {
-          "type": "string",
-          "description": "SDD-R001 §4. Checked against the known Object Type list by the validator (soft, extensible)."
-        },
-        "version": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Human-readable display version, kept consistent with the `version` section below."
-        },
-        "status": {
-          "type": "string",
-          "enum": ["Draft", "Under Review", "Technically Verified", "Approved", "Published", "Deprecated", "Superseded", "Archived"],
-          "description": "SDD-R008 §4 lifecycle state. Serves as the single authoritative status field (SDD-R002 §10's Lifecycle classification dimension is represented here, not duplicated under `classification`, per Constitution Article V)."
-        }
-      }
-    },
+    "identity": { "$ref": "identity.schema.json" },
     "classification": { "$ref": "classification.schema.json" },
-    "description": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["short_definition", "detailed_description"],
-      "properties": {
-        "short_definition": { "type": "string", "minLength": 1 },
-        "detailed_description": { "type": "string", "minLength": 1 },
-        "engineering_notes": { "type": "string" },
-        "typical_applications": { "type": "array", "items": { "type": "string", "minLength": 1 }, "default": [] },
-        "limitations": { "type": "array", "items": { "type": "string", "minLength": 1 }, "default": [] }
-      }
-    },
-    "search_metadata": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "keywords": { "type": "array", "items": { "type": "string", "minLength": 1 }, "default": [] },
-        "aliases": { "type": "array", "items": { "type": "string", "minLength": 1 }, "default": [] },
-        "abbreviations": { "type": "array", "items": { "type": "string", "minLength": 1 }, "default": [] },
-        "alternate_names": { "type": "array", "items": { "type": "string", "minLength": 1 }, "default": [] },
-        "manufacturer_terms": { "type": "array", "items": { "type": "string", "minLength": 1 }, "default": [] },
-        "standards_references": { "type": "array", "items": { "type": "string", "minLength": 1 }, "default": [] }
-      }
-    },
-    "ai_context": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["definition", "engineering_explanation"],
-      "properties": {
-        "definition": { "type": "string", "minLength": 1 },
-        "engineering_explanation": { "type": "string", "minLength": 1 },
-        "common_mistakes": { "type": "array", "items": { "type": "string", "minLength": 1 }, "default": [] },
-        "design_considerations": { "type": "array", "items": { "type": "string", "minLength": 1 }, "default": [] },
-        "troubleshooting": { "type": "array", "items": { "type": "string", "minLength": 1 }, "default": [] },
-        "frequently_asked_questions": {
-          "type": "array",
-          "default": [],
-          "items": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": ["question", "answer"],
-            "properties": {
-              "question": { "type": "string", "minLength": 1 },
-              "answer": { "type": "string", "minLength": 1 }
-            }
-          }
-        }
-      }
-    },
-    "simulation": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "simulation_model": { "type": ["string", "null"], "default": null },
-        "parameters": { "type": "array", "items": { "type": "string", "minLength": 1 }, "default": [] },
-        "state_variables": { "type": "array", "items": { "type": "string", "minLength": 1 }, "default": [] },
-        "failure_modes": { "type": "array", "items": { "type": "string", "minLength": 1 }, "default": [] },
-        "default_values": { "type": "object", "default": {} },
-        "runtime_properties": { "type": "array", "items": { "type": "string", "minLength": 1 }, "default": [] }
-      }
-    },
-    "visualization": {
-      "type": "object",
-      "additionalProperties": false,
-      "description": "Direct asset files owned by this object (paths relative to its own assets/ directory). Linkage to a separate Symbol EKO (e.g. a Component's IEC symbol) is a relationship (REPRESENTED_BY, SDD-R001 §15), not repeated here -- an object id and an asset file are never the same fact twice (Constitution Article V).",
-      "properties": {
-        "icon": { "type": ["string", "null"], "default": null },
-        "preview_image": { "type": ["string", "null"], "default": null },
-        "three_d_model": { "type": ["string", "null"], "default": null },
-        "footprint": { "type": ["string", "null"], "default": null },
-        "assets": {
-          "type": "array",
-          "default": [],
-          "description": "Additional named assets not covered by the fields above (e.g. a Symbol EKO's own rendering).",
-          "items": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": ["path", "kind"],
-            "properties": {
-              "path": { "type": "string", "minLength": 1, "description": "Relative to this object's own assets/ directory." },
-              "kind": { "type": "string", "enum": ["svg", "png", "step", "pdf", "image", "diagram", "other"] },
-              "description": { "type": "string" }
-            }
-          }
-        }
-      }
-    },
+    "authority": { "$ref": "authority.schema.json" },
+    "evidence": { "$ref": "evidence.schema.json", "default": [] },
     "provenance": { "$ref": "provenance.schema.json" },
-    "version": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["major", "minor", "patch"],
-      "properties": {
-        "major": { "type": "integer", "minimum": 0 },
-        "minor": { "type": "integer", "minimum": 0 },
-        "patch": { "type": "integer", "minimum": 0 },
-        "revision_notes": { "type": "string", "default": "" },
-        "compatibility": { "type": "array", "items": { "type": "string", "minLength": 1 }, "default": [] }
-      }
-    }
+    "history": { "$ref": "history.schema.json" },
+    "simulation": { "$ref": "simulation.schema.json", "default": {} },
+    "visualization": { "$ref": "visualization.schema.json", "default": {} },
+    "assets": { "$ref": "assets.schema.json", "default": [] }
   }
 }

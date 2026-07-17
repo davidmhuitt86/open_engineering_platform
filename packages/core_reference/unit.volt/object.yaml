@@ -1,10 +1,12 @@
 identity:
   object_id: unit.volt
-  canonical_name: volt
-  display_name: Volt
   object_type: Unit
+  display_name: Volt
+  short_name: volt
   version: "1.0.0"
-  status: Published
+  lifecycle_state: Published
+  package_id: core_reference
+  uuid: 1f980f2f-aaa6-565b-9000-02d7f7480b96
 
 classification:
   domain: Electrical
@@ -22,6 +24,13 @@ classification:
     - electric potential
     - potential difference
   aliases: []
+  abbreviations:
+    - V
+  alternate_names:
+    - electric potential
+  manufacturer_terms: []
+  standards_references:
+    - SI (International System of Units)
   roles:
     - Design
     - Simulation
@@ -31,113 +40,80 @@ classification:
     - Searchable
     - Explainable
     - Translatable
-  authority: Core OEP
-  visibility: Public
-  ownership: Divad Technology Group
   standards:
     - SI
   industries: []
   technologies: []
 
-description:
-  short_definition: >-
-    The SI derived unit of electric potential difference, electromotive
-    force, and voltage.
-  detailed_description: >-
-    One volt is defined as the potential difference that drives one
-    ampere of current through a conductor with one ohm of resistance,
-    dissipating one watt of power. In SI base units, the volt is
-    expressed as kg x m^2 x s^-3 x A^-1. Voltage is always measured as
-    a difference between two points; a single point has no meaningful
-    voltage without a reference.
-  engineering_notes: >-
-    Common SI-prefixed multiples used in electronics include the
-    millivolt (mV), microvolt (μV), and kilovolt (kV).
-  typical_applications:
-    - Expressing supply and signal voltages throughout electrical and
-      electronic engineering
-    - Rating components (maximum voltage, breakdown voltage)
-    - Specifying measurement instrument ranges
-  limitations:
-    - A voltage value alone is meaningless without an implied or
-      explicit reference point (ground/common).
+authority:
+  authority_type: Government Standard
+  authority_reference: >-
+    The volt is an SI derived unit, defined under the International
+    System of Units maintained by the BIPM (Bureau International des
+    Poids et Mesures).
+  authority_source_object: null
+  notes: >-
+    No Source Object EKO exists yet for BIPM/SI as a standards body
+    (SDD-R012 §7) -- free text until one is authored.
 
-search_metadata:
-  keywords:
-    - volt
-    - voltage
-    - potential difference
-    - electromotive force
-  aliases: []
-  abbreviations:
-    - V
-  alternate_names:
-    - electric potential
-  manufacturer_terms: []
-  standards_references:
-    - SI (International System of Units)
-
-ai_context:
-  definition: >-
-    The volt is the SI unit of electric potential difference: one volt
-    equals one joule of energy per coulomb of charge.
-  engineering_explanation: >-
-    Voltage represents the energy available to move charge between two
-    points. It is always relative -- measured as a difference -- and
-    combines with current (amperes) and resistance (ohms) through Ohm's
-    Law to describe resistive circuit behavior.
-  common_mistakes:
-    - Treating a voltage measurement as absolute rather than relative
-      to an implied reference (ground/common).
-    - Confusing voltage with current when describing circuit behavior.
-  design_considerations:
-    - Confirm the reference point (ground/common) any voltage value is
-      measured against.
-    - Match component voltage ratings with worst-case circuit voltage,
-      including transients.
-  troubleshooting:
-    - Unexpected voltage readings often indicate a wiring, ground, or
-      reference-point error rather than a component fault.
-  frequently_asked_questions:
-    - question: What is the difference between voltage and potential?
-      answer: >-
-        Voltage is the difference in electric potential between two
-        points; "potential" alone is only meaningful relative to a
-        defined reference (commonly ground/zero volts).
-
-simulation:
-  simulation_model: null
-  parameters: []
-  state_variables: []
-  failure_modes: []
-  default_values: {}
-  runtime_properties: []
-
-visualization:
-  icon: null
-  preview_image: null
-  three_d_model: null
-  footprint: null
-  assets: []
+evidence:
+  - evidence_type: Standard
+    reference: SI (International System of Units)
+    evidence_source_object: null
+    description: BIPM's definition of the volt as an SI derived unit.
 
 provenance:
   author: OEP Reference Authoring Team
   reviewer: Divad Technology Group Engineering Review
+  organization: Divad Technology Group, LLC.
   created_date: "2026-07-16"
-  revision_date: "2026-07-16"
+  review_date: "2026-07-17"
+  approval_date: "2026-07-17"
+  digital_signature: null
+  revision_notes:
+    - Initial gold-standard reference implementation (WORK_PACKAGE_001).
+    - Migrated to Engineering Knowledge Object Schema Version 1.0, the
+      SDD-R011 facet model (WORK_PACKAGE_002).
   sources_consulted:
     - International System of Units (SI), Bureau International des
       Poids et Mesures (public domain definition; no copyrighted text
       reproduced)
-  review_status: Published
   confidence: verified
   content_license: CC-BY-4.0
 
-version:
-  major: 1
-  minor: 0
-  patch: 0
-  revision_notes: >-
-    Initial gold-standard reference implementation
-    (WORK_PACKAGE_001, ENGINE-TASK-000005).
-  compatibility: []
+history:
+  previous_versions: []
+  superseded_by: null
+  migration_notes:
+    - "WORK_PACKAGE_002: refactored into the SDD-R011 facet model; see
+      component.passive.resistor's history facet for the full
+      migration rationale, identical across all five gold objects."
+  deprecation_history: []
+  lifecycle_events:
+    - state: Published
+      date: "2026-07-16"
+      notes: Initial gold-standard reference implementation (WORK_PACKAGE_001).
+    - state: Published
+      date: "2026-07-17"
+      notes: Migrated to Engineering Knowledge Object Schema Version 1.0 (WORK_PACKAGE_002).
+
+simulation:
+  supported_solvers: []
+  runtime_requirements: []
+  simulation_models: []
+  initial_conditions: {}
+  state_variables: []
+  parameters: []
+  failure_modes: []
+  default_values: {}
+
+visualization:
+  color_hints: {}
+  rendering_rules: []
+  default_labels:
+    - V
+  connection_styles: []
+  display_groups: []
+  asset_roles: []
+
+assets: []

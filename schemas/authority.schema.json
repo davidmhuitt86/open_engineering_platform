@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "authority.schema.json",
+  "title": "Authority Facet",
+  "description": "SDD-R011 §15, SDD-R012 §5/§12. Identifies where the engineering truth this object records originates -- independent of ownership (which organization maintains the authoring) and of provenance (which records the authoring/review process). SDD-R012 §7 describes authoritative references eventually becoming their own Source Object EKOs (e.g. standard.iec.60617); until those exist, `authority_reference` is a free-text description -- see docs/SCHEMA_MIGRATION.md for the deferred normalization.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["authority_type", "authority_reference"],
+  "properties": {
+    "authority_type": {
+      "type": "string",
+      "enum": ["Physical Law", "International Standard", "Government Standard", "Manufacturer Specification", "Internal Engineering Authority"],
+      "description": "SDD-R011 §15 / SDD-R012 §5 initial list."
+    },
+    "authority_reference": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Free text identifying the specific law/standard/specification (e.g. \"Ohm's Law\", \"IEC 60617\") until a corresponding Source Object EKO exists to reference by Object ID."
+    },
+    "authority_source_object": {
+      "type": ["string", "null"],
+      "default": null,
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+      "description": "Object ID of a Source Object EKO (SDD-R012 §7, e.g. standard.iec.60617), once one is authored. Null for this work package -- no Source Object EKOs exist yet, and creating them is out of scope (see docs/SCHEMA_MIGRATION.md)."
+    },
+    "notes": { "type": "string", "default": "" }
+  }
+}

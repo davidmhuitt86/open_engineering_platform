@@ -1,4 +1,5 @@
-"""The seven checks ENGINE-TASK-000003 requires, plus schema validity.
+"""The seven checks ENGINE-TASK-000003 requires, plus schema validity,
+extended for the SDD-R011 facet model (WORK_PACKAGE_002).
 
 Each ``check_*`` function is pure: given the loaded package source(s),
 it returns a list of :class:`~oep_reference_core.findings.Finding`
@@ -7,12 +8,7 @@ objects. Nothing here mutates the source tree or touches the network.
 
 from __future__ import annotations
 
-from oep_reference_core.constants import (
-    BEHAVIOR_TYPES,
-    OBJECT_TYPES,
-    RELATIONSHIP_CATEGORIES,
-    RELATIONSHIP_TYPES,
-)
+from oep_reference_core.constants import OBJECT_TYPES, RELATIONSHIP_TYPES
 from oep_reference_core.findings import Finding, Severity
 from oep_reference_core.package_source import ObjectSource, PackageSource
 from oep_reference_core.schema_registry import SchemaRegistry
@@ -82,13 +78,14 @@ def check_required_semantic_fields(packages: list[PackageSource]) -> list[Findin
         for obj in package.objects:
             identity = obj.object.get("identity") or {}
             provenance = obj.object.get("provenance") or {}
-            if identity.get("status") == "Published" and not provenance.get("reviewer"):
+            if identity.get("lifecycle_state") == "Published" and not provenance.get("reviewer"):
                 findings.append(
                     Finding(
                         Severity.ERROR,
                         "missing_required_field",
-                        "status is Published but provenance.reviewer is missing -- SDD-R008 §13 "
-                        "requires at least one engineering review before publication.",
+                        "identity.lifecycle_state is Published but provenance.reviewer is missing "
+                        "-- SDD-R008 §13 requires at least one engineering review before "
+                        "publication.",
                         _location(package_id, obj, "/object.yaml#provenance.reviewer"),
                     )
                 )
@@ -107,7 +104,15 @@ def check_required_semantic_fields(packages: list[PackageSource]) -> list[Findin
 
 
 def check_duplicate_ids(packages: list[PackageSource]) -> list[Finding]:
-    """No two objects, relationships, or behaviors may share an id (SDD-R010 §11)."""
+    """No two objects, relationships, behaviors, or rules may share an id (SDD-R010 §11).
+
+    Property IDs (REFERENCE-TASK-000012) are checked for uniqueness
+    *within* their own owning object only -- unlike Object/Relationship/
+    Behavior ids, a property_id is never independently addressed
+    platform-wide, only through its owning object, so the same
+    property_id legitimately repeating across different objects (e.g.
+    every component with a "resistance" property) is not a conflict.
+    """
     findings: list[Finding] = []
     seen_object_ids: dict[str, str] = {}
     seen_relationship_ids: dict[str, str] = {}
@@ -131,6 +136,24 @@ def check_duplicate_ids(packages: list[PackageSource]) -> list[Finding]:
                     )
                 else:
                     seen_object_ids[object_id] = location
+
+            seen_property_ids: dict[str, int] = {}
+            for index, prop in enumerate(obj.properties or []):
+                property_id = prop.get("property_id")
+                if not property_id:
+                    continue
+                if property_id in seen_property_ids:
+                    findings.append(
+                        Finding(
+                            Severity.ERROR,
+                            "duplicate_property_id",
+                            f"property_id {property_id!r} appears more than once in this "
+                            "object's properties.yaml.",
+                            f"{location}/properties.yaml",
+                        )
+                    )
+                else:
+                    seen_property_ids[property_id] = index
 
             for relationship in obj.relationships or []:
                 rel_id = relationship.get("relationship_id")
@@ -232,56 +255,97 @@ def check_broken_references(packages: list[PackageSource]) -> list[Finding]:
                         )
 
             for prop in obj.properties or []:
-                units = prop.get("units")
-                if units and _looks_like_object_id(units) and units not in known_ids:
+                unit_ref = prop.get("unit_ref")
+                if unit_ref and unit_ref not in known_ids:
                     findings.append(
                         Finding(
-                            Severity.WARNING,
-                            "unresolved_unit_reference",
-                            f"property {prop.get('name')!r} declares units {units!r}, which "
-                            "looks like an Object ID but does not resolve to a compiled Unit "
-                            "EKO -- treated as informational until that Unit is authored.",
+                            Severity.ERROR,
+                            "broken_reference",
+                            f"property {prop.get('property_id')!r} declares unit_ref "
+                            f"{unit_ref!r}, which does not resolve to any known object_id "
+                            "(REFERENCE-TASK-000011: unit_ref must resolve to a compiled Unit "
+                            "EKO -- use unit_symbol_pending instead if none exists yet).",
                             f"{location}/properties.yaml",
+                        )
+                    )
+
+            authority = obj.object.get("authority") or {}
+            authority_source = authority.get("authority_source_object")
+            if authority_source and authority_source not in known_ids:
+                findings.append(
+                    Finding(
+                        Severity.ERROR,
+                        "broken_reference",
+                        f"authority.authority_source_object {authority_source!r} does not "
+                        "resolve to any known object_id.",
+                        f"{location}/object.yaml",
+                    )
+                )
+
+            for evidence_item in obj.object.get("evidence") or []:
+                evidence_source = evidence_item.get("evidence_source_object")
+                if evidence_source and evidence_source not in known_ids:
+                    findings.append(
+                        Finding(
+                            Severity.ERROR,
+                            "broken_reference",
+                            f"evidence_source_object {evidence_source!r} does not resolve to "
+                            "any known object_id.",
+                            f"{location}/object.yaml",
                         )
                     )
     return findings
 
 
-def _looks_like_object_id(value: str) -> bool:
-    import re
+def check_pending_unit_exceptions(packages: list[PackageSource]) -> list[Finding]:
+    """Surfaces every documented, temporary `unit_symbol_pending` exception.
 
-    from oep_reference_core.constants import OBJECT_ID_PATTERN
-
-    return bool(re.match(OBJECT_ID_PATTERN, value))
+    REFERENCE-TASK-000011: "Document any temporary exceptions that
+    cannot yet be resolved without introducing additional Unit EKOs."
+    This is deliberately an INFO finding, not a warning or error --
+    using `unit_symbol_pending` is the *correct*, expected way to
+    represent a unit with no compiled Unit EKO yet (see
+    docs/SCHEMA_MIGRATION.md); it is not a defect to fix, only a fact
+    worth surfacing in every validation report until a real Unit EKO
+    resolves it.
+    """
+    findings: list[Finding] = []
+    for package in packages:
+        package_id = package.package_id or package.package_dir.name
+        for obj in package.objects:
+            location = f"{_location(package_id, obj)}/properties.yaml"
+            for prop in obj.properties or []:
+                pending = prop.get("unit_symbol_pending")
+                if pending:
+                    findings.append(
+                        Finding(
+                            Severity.INFO,
+                            "pending_unit_reference",
+                            f"property {prop.get('property_id')!r} uses the temporary unit "
+                            f"symbol {pending!r} -- no compiled Unit EKO exists for it yet.",
+                            location,
+                        )
+                    )
+    return findings
 
 
 def check_relationship_integrity(packages: list[PackageSource]) -> list[Finding]:
-    """SDD-R003 relationship-shape checks beyond pure schema structure."""
+    """SDD-R003/SDD-R011 §8 relationship-shape checks beyond pure schema structure."""
     findings: list[Finding] = []
     for package in packages:
         package_id = package.package_id or package.package_dir.name
         for obj in package.objects:
             location = f"{_location(package_id, obj)}/relationships.yaml"
             for relationship in obj.relationships or []:
-                rel_type = relationship.get("type")
+                rel_type = relationship.get("relationship_type")
                 if rel_type and rel_type not in RELATIONSHIP_TYPES:
                     findings.append(
                         Finding(
                             Severity.WARNING,
                             "unknown_relationship_type",
-                            f"relationship type {rel_type!r} is not in the SDD-R003 §8 initial "
+                            f"relationship_type {rel_type!r} is not in the SDD-R003 §8 initial "
                             "list (this is only a warning -- relationship types remain "
                             "extensible).",
-                            location,
-                        )
-                    )
-                category = relationship.get("category")
-                if category and category not in RELATIONSHIP_CATEGORIES:
-                    findings.append(
-                        Finding(
-                            Severity.WARNING,
-                            "unknown_relationship_category",
-                            f"relationship category {category!r} is not in the SDD-R003 §9 list.",
                             location,
                         )
                     )
@@ -299,24 +363,18 @@ def check_relationship_integrity(packages: list[PackageSource]) -> list[Finding]
 
 
 def check_behavior_references(packages: list[PackageSource]) -> list[Finding]:
-    """SDD-R005 behavior-shape checks beyond pure schema structure."""
+    """SDD-R011 §9 behavior-shape checks beyond pure schema structure.
+
+    behavior_type itself is a closed SDD-R011 §9 enum enforced by
+    ``behaviors.schema.json`` -- unlike relationship_type/object_type,
+    it needs no separate soft-extensibility check here.
+    """
     findings: list[Finding] = []
     for package in packages:
         package_id = package.package_id or package.package_dir.name
         for obj in package.objects:
             location = f"{_location(package_id, obj)}/behaviors.yaml"
             for behavior in obj.behaviors or []:
-                behavior_type = behavior.get("type")
-                if behavior_type and behavior_type not in BEHAVIOR_TYPES:
-                    findings.append(
-                        Finding(
-                            Severity.WARNING,
-                            "unknown_behavior_type",
-                            f"behavior type {behavior_type!r} is not in the SDD-R005 §5 initial "
-                            "list (this is only a warning -- behavior types remain extensible).",
-                            location,
-                        )
-                    )
                 if not behavior.get("inputs") and not behavior.get("outputs"):
                     findings.append(
                         Finding(
@@ -331,23 +389,19 @@ def check_behavior_references(packages: list[PackageSource]) -> list[Finding]:
 
 
 def check_asset_references(packages: list[PackageSource]) -> list[Finding]:
-    """Every referenced asset file must actually exist on disk (SDD-R010 §9)."""
+    """Every referenced asset file must actually exist on disk (SDD-R010 §9, SDD-R011 §14).
+
+    As of WORK_PACKAGE_002, asset file paths live in the top-level
+    ``assets`` facet (object.yaml's ``assets`` list), not nested inside
+    ``visualization`` -- see docs/SCHEMA_MIGRATION.md.
+    """
     findings: list[Finding] = []
     for package in packages:
         package_id = package.package_id or package.package_dir.name
         for obj in package.objects:
             location = f"{_location(package_id, obj)}/object.yaml"
-            visualization = obj.object.get("visualization") or {}
-            candidate_paths = [
-                visualization.get("icon"),
-                visualization.get("preview_image"),
-                visualization.get("three_d_model"),
-                visualization.get("footprint"),
-            ]
-            for asset_entry in visualization.get("assets") or []:
-                candidate_paths.append(asset_entry.get("path"))
-
-            for relative_path in candidate_paths:
+            for asset_entry in obj.object.get("assets") or []:
+                relative_path = asset_entry.get("path")
                 if not relative_path:
                     continue
                 asset_path = obj.assets_dir / relative_path
@@ -356,8 +410,23 @@ def check_asset_references(packages: list[PackageSource]) -> list[Finding]:
                         Finding(
                             Severity.ERROR,
                             "missing_asset",
-                            f"visualization references asset {relative_path!r}, which does not "
-                            f"exist at {asset_path}.",
+                            f"assets facet references asset {relative_path!r} (role "
+                            f"{asset_entry.get('role')!r}), which does not exist at "
+                            f"{asset_path}.",
+                            location,
+                        )
+                    )
+
+            visualization = obj.object.get("visualization") or {}
+            asset_roles = {entry.get("role") for entry in obj.object.get("assets") or []}
+            for role in visualization.get("asset_roles") or []:
+                if role not in asset_roles:
+                    findings.append(
+                        Finding(
+                            Severity.ERROR,
+                            "broken_reference",
+                            f"visualization.asset_roles references role {role!r}, which is not "
+                            "defined by any entry in this object's own assets facet.",
                             location,
                         )
                     )
@@ -373,6 +442,7 @@ def run_all_checks(packages: list[PackageSource], registry: SchemaRegistry):
     findings += check_required_semantic_fields(packages)
     findings += check_duplicate_ids(packages)
     findings += check_broken_references(packages)
+    findings += check_pending_unit_exceptions(packages)
     findings += check_relationship_integrity(packages)
     findings += check_behavior_references(packages)
     findings += check_asset_references(packages)

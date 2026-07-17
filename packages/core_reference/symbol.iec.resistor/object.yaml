@@ -1,10 +1,12 @@
 identity:
   object_id: symbol.iec.resistor
-  canonical_name: iec_resistor_symbol
-  display_name: IEC Resistor Symbol
   object_type: Symbol
+  display_name: IEC Resistor Symbol
+  short_name: iec_resistor_symbol
   version: "1.0.0"
-  status: Published
+  lifecycle_state: Published
+  package_id: core_reference
+  uuid: 0978f445-77e7-56a3-8611-4ee990ec5fc7
 
 classification:
   domain: Electrical
@@ -22,6 +24,11 @@ classification:
     - schematic
   aliases:
     - rectangle resistor symbol
+  abbreviations: []
+  alternate_names: []
+  manufacturer_terms: []
+  standards_references:
+    - IEC 60617
   roles:
     - Design
     - Education
@@ -32,110 +39,86 @@ classification:
     - Explainable
     - Exportable
     - Printable
-  authority: Core OEP
-  visibility: Public
-  ownership: Divad Technology Group
   standards:
     - IEC
   industries: []
   technologies: []
 
-description:
-  short_definition: >-
-    The IEC 60617 rectangular schematic symbol used to represent a
-    fixed resistor.
-  detailed_description: >-
-    IEC 60617 defines a plain rectangle as the standard symbol for a
-    fixed resistor, with two leads extending from the short sides. This
-    is distinct from the zig-zag symbol used by ANSI/IEEE conventions
-    for the same component. Diagram Studio renders this symbol at the
-    scale and rotation each placed instance specifies.
-  engineering_notes: >-
-    Symbol geometry carries no engineering behavior of its own
-    (Constitution Article: "Everything is an Engineering Knowledge
-    Object," SDD-R001 §20: "Visualization remains independent of
-    engineering behavior") -- it exists purely so a Resistor can be
-    drawn consistently across every diagram that references it.
-  typical_applications:
-    - Schematic capture in Diagram Studio
-    - Printed circuit documentation
-  limitations:
-    - Represents only the IEC convention; an ANSI-style resistor symbol
-      is a separate Symbol EKO, not a variant of this one.
+authority:
+  authority_type: International Standard
+  authority_reference: >-
+    IEC 60617 defines the rectangular schematic symbol convention for
+    a fixed resistor.
+  authority_source_object: null
+  notes: >-
+    No Source Object EKO exists yet for IEC 60617 (SDD-R012 §7) --
+    free text until one is authored.
 
-search_metadata:
-  keywords:
-    - iec resistor symbol
-    - resistor schematic symbol
-  aliases:
-    - rectangle resistor symbol
-  abbreviations: []
-  alternate_names: []
-  manufacturer_terms: []
-  standards_references:
-    - IEC 60617
-
-ai_context:
-  definition: >-
-    The IEC Resistor Symbol is the standardized rectangular schematic
-    glyph used to depict a fixed resistor in IEC-convention diagrams.
-  engineering_explanation: >-
-    A schematic symbol is purely a visual/notational convention -- it
-    carries no calculation, simulation, or validation behavior of its
-    own. The Resistor component it represents owns all engineering
-    behavior; the symbol only owns how that component is drawn.
-  common_mistakes:
-    - Mixing IEC (rectangle) and ANSI (zig-zag) resistor symbols within
-      the same diagram set.
-  design_considerations:
-    - Confirm the target audience/standard (IEC vs. ANSI) before
-      choosing a symbol convention for a diagram set.
-  troubleshooting: []
-  frequently_asked_questions:
-    - question: Why is the resistor symbol a rectangle instead of a zig-zag?
-      answer: >-
-        IEC 60617 uses a plain rectangle for a fixed resistor; the
-        zig-zag symbol is the ANSI/IEEE convention for the same
-        component, a separate Symbol EKO.
-
-simulation:
-  simulation_model: null
-  parameters: []
-  state_variables: []
-  failure_modes: []
-  default_values: {}
-  runtime_properties: []
-
-visualization:
-  icon: null
-  preview_image: null
-  three_d_model: null
-  footprint: null
-  assets:
-    - path: symbol.svg
-      kind: svg
-      description: >-
-        IEC 60617 rectangular resistor symbol, two leads, viewBox
-        0 0 100 40.
+evidence:
+  - evidence_type: Standard
+    reference: IEC 60617
+    evidence_source_object: null
+    description: Graphical symbols for diagrams.
 
 provenance:
   author: OEP Reference Authoring Team
   reviewer: Divad Technology Group Engineering Review
+  organization: Divad Technology Group, LLC.
   created_date: "2026-07-16"
-  revision_date: "2026-07-16"
+  review_date: "2026-07-17"
+  approval_date: "2026-07-17"
+  digital_signature: null
+  revision_notes:
+    - Initial gold-standard reference implementation (WORK_PACKAGE_001).
+    - Migrated to Engineering Knowledge Object Schema Version 1.0, the
+      SDD-R011 facet model (WORK_PACKAGE_002).
   sources_consulted:
     - IEC 60617 (Graphical symbols for diagrams) -- geometry
       reproduced as an original, independently authored rendering; no
       copyrighted artwork copied.
-  review_status: Published
   confidence: high
   content_license: CC-BY-4.0
 
-version:
-  major: 1
-  minor: 0
-  patch: 0
-  revision_notes: >-
-    Initial gold-standard reference implementation
-    (WORK_PACKAGE_001, ENGINE-TASK-000005).
-  compatibility: []
+history:
+  previous_versions: []
+  superseded_by: null
+  migration_notes:
+    - "WORK_PACKAGE_002: refactored into the SDD-R011 facet model;
+      asset file references moved from visualization.assets to the
+      new top-level Asset Facet (assets.yaml equivalent, here the
+      object.yaml `assets` key) -- see docs/SCHEMA_MIGRATION.md."
+  deprecation_history: []
+  lifecycle_events:
+    - state: Published
+      date: "2026-07-16"
+      notes: Initial gold-standard reference implementation (WORK_PACKAGE_001).
+    - state: Published
+      date: "2026-07-17"
+      notes: Migrated to Engineering Knowledge Object Schema Version 1.0 (WORK_PACKAGE_002).
+
+simulation:
+  supported_solvers: []
+  runtime_requirements: []
+  simulation_models: []
+  initial_conditions: {}
+  state_variables: []
+  parameters: []
+  failure_modes: []
+  default_values: {}
+
+visualization:
+  color_hints: {}
+  rendering_rules: []
+  default_labels: []
+  connection_styles: []
+  display_groups: []
+  asset_roles:
+    - symbol
+
+assets:
+  - role: symbol
+    path: symbol.svg
+    kind: svg
+    description: >-
+      IEC 60617 rectangular resistor symbol, two leads, viewBox
+      0 0 100 40.

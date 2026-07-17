@@ -1,5 +1,6 @@
 - rule_id: symbol.iec.resistor.scale_positive
-  description: Default Scale shall be greater than zero.
-  expression: "default_scale > 0"
+  subject: default_scale
+  operator: gt
+  operand: 0
   severity: error
-  applies_to: default_scale
+  description: Default Scale shall be greater than zero.

@@ -1,3 +1,53 @@
+# Education Facet (SDD-R011 §11) -- consolidates what
+# WORK_PACKAGE_001 modeled as three separate object.yaml sections
+# (Description, AI Context, Education). See docs/SCHEMA_MIGRATION.md.
+short_definition: >-
+  A highly conductive elemental metal, the most widely used conductor
+  material in electrical and electronic engineering.
+detailed_description: >-
+  Copper is used extensively for wiring, printed circuit board traces,
+  component leads, windings, and connectors due to its high electrical
+  conductivity, good thermal conductivity, ductility, and relatively
+  low cost compared to other high-conductivity metals such as silver.
+  Its electrical resistivity increases predictably with temperature,
+  described by a linear temperature coefficient over normal operating
+  ranges.
+engineering_notes: >-
+  Annealed copper (fully softened) is the reference standard against
+  which the International Annealed Copper Standard (IACS) conductivity
+  scale is defined (100% IACS). Alloying or work hardening copper
+  reduces its conductivity relative to this reference.
+typical_applications:
+  - Hookup and power wiring
+  - Printed circuit board traces and planes
+  - Component leads and terminations
+  - Transformer and motor windings
+limitations:
+  - Susceptible to oxidation without protective plating or finishing.
+  - Lower conductivity than silver, though far less costly.
+common_mistakes:
+  - Neglecting the increase in copper's resistance at elevated
+    operating temperature when sizing wiring for high-current
+    applications.
+  - Confusing conductivity (% IACS) with resistivity -- they are
+    inversely related, not independent figures.
+design_considerations:
+  - Conductor cross-sectional area versus expected current and
+    acceptable voltage drop.
+  - Operating temperature range and its effect on resistance.
+  - Corrosion protection (plating, insulation) in the target
+    environment.
+troubleshooting:
+  - Higher-than-expected voltage drop along a copper conductor often
+    indicates undersized wire gauge, a poor connection, or elevated
+    operating temperature.
+frequently_asked_questions:
+  - question: Why is copper used instead of silver, which conducts better?
+    answer: >-
+      Silver has slightly higher conductivity, but copper offers a
+      much better cost-to-conductivity ratio for nearly all electrical
+      applications.
+
 examples:
   - title: Sizing a copper wire for a power run
     description: >-

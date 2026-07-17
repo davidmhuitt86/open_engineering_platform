@@ -29,10 +29,11 @@ def _terms(*texts: str | None) -> set[str]:
 def build_search_index(packages: list[PackageSource]) -> dict:
     """A term -> sorted object id list inverted index.
 
-    Indexes: canonical/display name, classification tags/keywords/
-    aliases, and search_metadata keywords/aliases/abbreviations/
-    alternate_names/manufacturer_terms/standards_references
-    (SDD-R004 §10 field list).
+    Indexes: short/display name, and every classification search
+    field (tags/keywords/aliases/abbreviations/alternate_names/
+    manufacturer_terms/standards_references) -- as of WORK_PACKAGE_002,
+    all of these live directly on the Classification Facet; SDD-R011
+    has no separate Search Metadata facet (see docs/SCHEMA_MIGRATION.md).
     """
     postings: dict[str, set[str]] = {}
 
@@ -43,13 +44,10 @@ def build_search_index(packages: list[PackageSource]) -> dict:
                 continue
             identity = obj.object.get("identity") or {}
             classification = obj.object.get("classification") or {}
-            search_metadata = obj.object.get("search_metadata") or {}
 
-            terms = _terms(identity.get("canonical_name"), identity.get("display_name"))
-            for field in ("tags", "keywords", "aliases"):
-                for value in classification.get(field) or []:
-                    terms |= _terms(value)
+            terms = _terms(identity.get("short_name"), identity.get("display_name"))
             for field in (
+                "tags",
                 "keywords",
                 "aliases",
                 "abbreviations",
@@ -57,7 +55,7 @@ def build_search_index(packages: list[PackageSource]) -> dict:
                 "manufacturer_terms",
                 "standards_references",
             ):
-                for value in search_metadata.get(field) or []:
+                for value in classification.get(field) or []:
                     terms |= _terms(value)
 
             for term in terms:
@@ -83,11 +81,11 @@ def build_graph_index(packages: list[PackageSource]) -> dict:
                 edges.append(
                     {
                         "relationship_id": relationship["relationship_id"],
-                        "type": relationship["type"],
+                        "relationship_type": relationship["relationship_type"],
                         "target": relationship["target"],
                     }
                 )
-            edges.sort(key=lambda e: (e["type"], e["target"], e["relationship_id"]))
+            edges.sort(key=lambda e: (e["relationship_type"], e["target"], e["relationship_id"]))
             adjacency[object_id] = edges
 
     return {"version": 1, "nodes": {object_id: adjacency[object_id] for object_id in sorted(adjacency)}}

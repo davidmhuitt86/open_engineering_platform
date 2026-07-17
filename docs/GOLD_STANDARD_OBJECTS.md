@@ -12,9 +12,19 @@ Every object below has all six authoring files
 (`object.yaml`/`properties.yaml`/`relationships.yaml`/`behaviors.yaml`/
 `validation.yaml`/`education.yaml`) with real, engineering-accurate
 content -- no placeholder sections, no empty required fields. Every
-object's `identity.status` is `Published` with a real
-`provenance.reviewer`, and the whole package validates with **zero**
-findings of any severity (`test_gold_standard_objects.py`).
+object's `identity.lifecycle_state` is `Published` with a real
+`provenance.reviewer`, and the whole package validates with **zero
+errors and zero warnings** (`test_gold_standard_objects.py`). Thirteen
+**info**-severity findings remain -- each one a documented
+`unit_symbol_pending` exception, not a defect; see
+`docs/SCHEMA_MIGRATION.md` § "Deferred Unit EKOs" for the full list.
+
+As of WORK_PACKAGE_002 (Schema Version 1.0), every object also carries
+five more facets inside `object.yaml`: `authority` (where the
+engineering truth originates), `evidence` (what supports it), `history`
+(lifecycle events, including this migration itself), plus the existing
+`provenance`/`simulation`/`visualization` facets in their normalized
+shape. See `docs/SCHEMA_REFERENCE.md` and `docs/SCHEMA_MIGRATION.md`.
 
 ## 1. `component.passive.resistor` -- Resistor
 
@@ -95,8 +105,8 @@ vertical slice.
 ## Building and verifying
 
 ```
-oep-validate                 # zero findings against these five objects
-oep-compile core_reference   # -> dist/core_reference_v0.oerp
+oep-validate                 # 0 errors, 0 warnings, 13 documented info findings
+oep-compile core_reference   # -> dist/core_reference_v1.oerp
 ```
 
 See `docs/REFERENCE_COMPILER.md` for what the compiled package

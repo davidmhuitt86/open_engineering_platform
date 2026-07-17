@@ -22,25 +22,37 @@ def test_build_database_inserts_object_row_with_expected_fields(tmp_path, object
     conn = sqlite3.connect(db_path)
     try:
         row = conn.execute(
-            "SELECT object_id, package_id, object_type, status FROM objects"
+            "SELECT object_id, package_id, object_type, lifecycle_state FROM objects"
         ).fetchone()
     finally:
         conn.close()
     assert row == ("component.passive.a", "test_package", "Component", "Published")
 
 
-def test_build_database_inserts_properties_relationships_behaviors_and_validation_rules(
+def test_build_database_inserts_properties_relationships_behaviors_validation_and_evidence(
     tmp_path, object_factory, package_factory
 ):
     rel = {
         "relationship_id": "component.passive.a.uses.b",
-        "type": "USES",
+        "relationship_type": "USES",
         "target": "component.passive.b",
-        "category": "Engineering",
     }
-    behavior = {"behavior_id": "component.passive.a.calc", "name": "Calc", "type": "Calculation"}
-    rule = {"rule_id": "component.passive.a.positive", "description": "x", "expression": "x > 0", "severity": "error"}
-    prop = {"name": "resistance", "value_type": "number", "required": True, "read_only": False}
+    behavior = {
+        "behavior_id": "component.passive.a.calc",
+        "name": "Calc",
+        "behavior_type": "Calculator",
+        "description": "x",
+        "inputs": [],
+        "outputs": [],
+    }
+    rule = {"rule_id": "component.passive.a.positive", "subject": "resistance", "operator": "gt", "operand": 0, "severity": "error"}
+    prop = {
+        "property_id": "resistance",
+        "display_name": "Resistance",
+        "value_type": "number",
+        "required": True,
+        "read_only": False,
+    }
 
     obj_a = object_factory(
         "component.passive.a",
@@ -49,6 +61,9 @@ def test_build_database_inserts_properties_relationships_behaviors_and_validatio
         validation=[rule],
         properties=[prop],
     )
+    obj_a.object["evidence"] = [
+        {"evidence_type": "Calculation", "reference": "dimensional analysis"},
+    ]
     obj_b = object_factory("component.passive.b", dir_name="b")
     package = package_factory([obj_a, obj_b])
     db_path = tmp_path / "reference.db"
@@ -60,6 +75,7 @@ def test_build_database_inserts_properties_relationships_behaviors_and_validatio
         assert conn.execute("SELECT COUNT(*) FROM relationships").fetchone()[0] == 1
         assert conn.execute("SELECT COUNT(*) FROM behaviors").fetchone()[0] == 1
         assert conn.execute("SELECT COUNT(*) FROM validation_rules").fetchone()[0] == 1
+        assert conn.execute("SELECT COUNT(*) FROM evidence").fetchone()[0] == 1
         target = conn.execute("SELECT target_object_id FROM relationships").fetchone()[0]
         assert target == "component.passive.b"
     finally:

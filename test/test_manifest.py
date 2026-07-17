@@ -13,9 +13,9 @@ def test_build_manifest_maps_source_manifest_fields(object_factory, package_fact
 
 
 def test_build_manifest_counts_objects_relationships_and_assets(object_factory, package_factory):
-    rel = {"relationship_id": "unit.a.uses.b", "type": "USES", "target": "unit.b"}
+    rel = {"relationship_id": "unit.a.uses.b", "relationship_type": "USES", "target": "unit.b"}
     obj_a = object_factory("unit.a", relationships=[rel])
-    obj_a.object["visualization"] = {"assets": [{"path": "x.svg", "kind": "svg"}]}
+    obj_a.object["assets"] = [{"role": "icon", "path": "x.svg", "kind": "svg"}]
     obj_b = object_factory("unit.b", dir_name="b")
 
     package = package_factory([obj_a, obj_b])

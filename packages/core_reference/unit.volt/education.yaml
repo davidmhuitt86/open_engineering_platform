@@ -1,23 +1,58 @@
+short_definition: >-
+  The SI derived unit of electric potential difference, electromotive
+  force, and voltage.
+detailed_description: >-
+  One volt is defined as the potential difference that drives one
+  ampere of current through a conductor with one ohm of resistance,
+  dissipating one watt of power. In SI base units, the volt is
+  expressed as kg x m^2 x s^-3 x A^-1. Voltage is always measured as
+  a difference between two points; a single point has no meaningful
+  voltage without a reference.
+engineering_notes: >-
+  Common SI-prefixed multiples used in electronics include the
+  millivolt (mV), microvolt (μV), and kilovolt (kV).
+typical_applications:
+  - Expressing supply and signal voltages throughout electrical and
+    electronic engineering
+  - Rating components (maximum voltage, breakdown voltage)
+  - Specifying measurement instrument ranges
+limitations:
+  - A voltage value alone is meaningless without an implied or
+    explicit reference point (ground/common).
+common_mistakes:
+  - Treating a voltage measurement as absolute rather than relative
+    to an implied reference (ground/common).
+  - Confusing voltage with current when describing circuit behavior.
+design_considerations:
+  - Confirm the reference point (ground/common) any voltage value is
+    measured against.
+  - Match component voltage ratings with worst-case circuit voltage,
+    including transients.
+troubleshooting:
+  - Unexpected voltage readings often indicate a wiring, ground, or
+    reference-point error rather than a component fault.
+frequently_asked_questions:
+  - question: What is the difference between voltage and potential?
+    answer: >-
+      Voltage is the difference in electric potential between two
+      points; "potential" alone is only meaningful relative to a
+      defined reference (commonly ground/zero volts).
 examples:
   - title: Common voltage levels
     description: >-
       A single AA battery cell provides approximately 1.5 V; USB power
       delivery commonly uses 5 V; residential mains supply in North
       America is nominally 120 V.
-
 worked_problems:
   - title: Converting millivolts to volts
     problem: A sensor reports 250 mV. Express this in volts.
     solution: 250 mV = 250 / 1000 V = 0.25 V.
-
 exercises:
   - Convert 3.3 kV to volts.
   - Convert 0.012 V to millivolts.
-
 references:
   - International System of Units (SI), Bureau International des Poids
     et Mesures
-
 learning_path:
   - Electric charge and potential
   - The volt as an SI derived unit

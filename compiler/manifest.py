@@ -15,16 +15,14 @@ from __future__ import annotations
 
 from oep_reference_core.package_source import PackageSource
 
-COMPILER_VERSION = "0.1.0"
+COMPILER_VERSION = "0.2.0"
 
 
 def build_manifest(package: PackageSource) -> dict:
     manifest = package.manifest
     object_count = len(package.objects)
     relationship_count = sum(len(obj.relationships or []) for obj in package.objects)
-    asset_count = sum(
-        len((obj.object.get("visualization") or {}).get("assets") or []) for obj in package.objects
-    )
+    asset_count = sum(len(obj.object.get("assets") or []) for obj in package.objects)
 
     return {
         "package_name": manifest["display_name"],

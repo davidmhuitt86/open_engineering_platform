@@ -1,42 +1,60 @@
-# Engineering Properties describing the unit itself (SDD-R001 §9).
-- name: symbol
+# Engineering Properties describing the unit itself (SDD-R011 §7).
+# All read_only -- these are fixed facts about the unit itself, so
+# `value` (not `default_value`) is populated.
+- property_id: symbol
   display_name: Symbol
   value_type: string
-  units: null
-  default: V
+  unit_ref: null
+  unit_symbol_pending: null
+  value: V
+  default_value: null
   range: null
+  constraints: []
+  visibility: public
   required: true
   read_only: true
   description: The standard unit symbol.
 
-- name: quantity_measured
+- property_id: quantity_measured
   display_name: Quantity Measured
   value_type: string
-  units: null
-  default: Voltage
+  unit_ref: null
+  unit_symbol_pending: null
+  value: Voltage
+  default_value: null
   range: null
+  constraints: []
+  visibility: public
   required: true
   read_only: true
   description: The physical quantity this unit measures.
 
-- name: si_base_expression
+- property_id: si_base_expression
   display_name: SI Base Expression
   value_type: string
-  units: null
-  default: "kg*m^2*s^-3*A^-1"
+  unit_ref: null
+  unit_symbol_pending: null
+  value: "kg*m^2*s^-3*A^-1"
+  default_value: null
   range: null
+  constraints: []
+  visibility: public
   required: true
   read_only: true
   description: The volt expressed in SI base units.
 
-- name: conversion_factor_to_si
+- property_id: conversion_factor_to_si
   display_name: Conversion Factor to SI
   value_type: number
-  units: null
-  default: 1.0
+  unit_ref: null
+  unit_symbol_pending: null
+  value: 1.0
+  default_value: null
   range:
     min: 0
     max: null
+  constraints: []
+  visibility: public
   required: true
   read_only: true
   description: >-

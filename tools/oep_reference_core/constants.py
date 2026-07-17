@@ -8,6 +8,14 @@ checks a value against one of these lists, an unrecognized value is
 reported as a warning, never an error -- rejecting outright would
 contradict the constitutional extensibility rules these lists exist
 to serve.
+
+Vocabularies with a genuinely closed, stable set of values (lifecycle
+states, cardinality, confidence, severity, the new SDD-R011 §9 behavior
+types, and the new SDD-R011 §15/§16 authority/evidence types) are
+enforced directly as JSON Schema `enum`s instead -- see
+`schemas/identity.schema.json`, `schemas/relationships.schema.json`,
+`schemas/behaviors.schema.json`, `schemas/authority.schema.json`, and
+`schemas/evidence.schema.json`. They are not duplicated in this module.
 """
 
 from __future__ import annotations
@@ -32,20 +40,6 @@ OBJECT_TYPES = frozenset(
         "Manufacturer",
         "Property Definition",
         "Engineering Method",
-    }
-)
-
-# SDD-R008 §4 -- Lifecycle States.
-LIFECYCLE_STATES = frozenset(
-    {
-        "Draft",
-        "Under Review",
-        "Technically Verified",
-        "Approved",
-        "Published",
-        "Deprecated",
-        "Superseded",
-        "Archived",
     }
 )
 
@@ -82,45 +76,6 @@ RELATIONSHIP_TYPES = frozenset(
     }
 )
 
-# SDD-R003 §9 -- Relationship Categories.
-RELATIONSHIP_CATEGORIES = frozenset(
-    {
-        "Engineering",
-        "Classification",
-        "Simulation",
-        "Validation",
-        "Visualization",
-        "Documentation",
-        "AI",
-        "Education",
-        "Manufacturing",
-        "Marketplace",
-        "Repository",
-        "Provenance",
-    }
-)
-
-# SDD-R003 §14 -- Multiplicity.
-MULTIPLICITIES = frozenset({"one_to_one", "one_to_many", "many_to_one", "many_to_many"})
-
-# SDD-R005 §5 -- Behavior Types.
-BEHAVIOR_TYPES = frozenset(
-    {
-        "Calculation",
-        "Simulation",
-        "Validation",
-        "Transformation",
-        "Measurement",
-        "Recommendation",
-        "Analysis",
-        "Conversion",
-        "Prediction",
-        "Optimization",
-        "Diagnostics",
-        "Education",
-    }
-)
-
 # SDD-R001 §12 -- Capabilities.
 CAPABILITIES = frozenset(
     {
@@ -142,22 +97,6 @@ CAPABILITIES = frozenset(
     }
 )
 
-# SDD-R002 §11 -- Authority.
-AUTHORITY_LEVELS = frozenset(
-    {
-        "Core OEP",
-        "Manufacturer",
-        "Industry Standard",
-        "Government",
-        "Marketplace Package",
-        "Community",
-        "Private Repository",
-    }
-)
-
-# SDD-R002 §12 -- Visibility.
-VISIBILITY_LEVELS = frozenset({"Public", "Licensed", "Enterprise", "Marketplace", "Private", "Internal"})
-
 # An Object ID is a dotted, lowercase, snake_case path, e.g.
 # "component.passive.resistor" or "equation.ohms_law" (SDD-R001 §6
 # example; SDD-R010 §10 "Objects reference other objects only by
@@ -167,3 +106,9 @@ OBJECT_ID_PATTERN = r"^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$"
 # A Relationship ID follows the same family of identifiers (SDD-R003
 # §4: "Relationship identifiers shall be globally unique").
 RELATIONSHIP_ID_PATTERN = r"^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$"
+
+# A Property ID is a short, snake_case, object-local identifier
+# (REFERENCE-TASK-000012) -- permanent once published, but not
+# globally dotted like an Object ID since properties are only ever
+# addressed through their owning object.
+PROPERTY_ID_PATTERN = r"^[a-z][a-z0-9_]*$"

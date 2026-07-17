@@ -111,3 +111,114 @@ Package hash determinism confirmed: two independent
 `oep-compile core_reference` invocations, from the same source tree,
 produce SHA-256-identical `.oerp` files (exact hash recorded in this
 work package's completion report).
+
+## Work Package 002 -- Engineering Knowledge Object Schema Normalization
+
+Status: Implemented
+
+An architectural refinement, not a content expansion. Reviewed the
+five Gold Standard Engineering Knowledge Objects WORK_PACKAGE_001
+created and used them to finalize the Engineering Knowledge Object
+architecture, freezing **Schema Version 1.0** before large-scale
+library population begins. No new gold-standard objects were added.
+
+### What Exists
+
+* **Engineering Knowledge Facets** (REFERENCE-TASK-000010, SDD-R011) --
+  the fourteen-facet model is now the schema's organizing structure:
+  Identity, Classification, Properties, Relationships, Behaviors,
+  Validation, Education, Simulation, Visualization, Assets, Authority,
+  Evidence, Provenance, History. Nine facets (the ones that aren't
+  array-heavy) live inside `object.yaml`; five keep their own sibling
+  file exactly as WORK_PACKAGE_001 had them. See
+  `docs/SCHEMA_REFERENCE.md`.
+* **Unit Normalization** (REFERENCE-TASK-000011) -- properties now
+  declare `unit_ref` (must resolve to a compiled Unit EKO -- a hard
+  validator error otherwise) or the documented `unit_symbol_pending`
+  escape hatch (an **info**-severity finding, never blocking) for units
+  with no compiled Unit EKO yet. Thirteen such pending exceptions are
+  documented in full in `docs/SCHEMA_MIGRATION.md` -- no new Unit EKOs
+  (e.g. `unit.ohm`) were created, per the work package's own
+  instruction to document rather than implement them unless
+  schema-correctness absolutely requires it.
+* **Property Normalization** (REFERENCE-TASK-000012) -- every property
+  now has a permanent `property_id`, never a display name, as its
+  identifier. `check_duplicate_ids` enforces uniqueness within each
+  object's own `properties.yaml`.
+* **Authority & Evidence Model** (REFERENCE-TASK-000013, SDD-R012) --
+  new `authority` (required) and `evidence` (optional) facets separate
+  "where does this engineering truth originate" and "what supports
+  this assertion" from Provenance ("who authored/reviewed this
+  record"). `classification.authority`/`.ownership` and
+  `provenance.review_status` from WORK_PACKAGE_001 were removed --
+  each was either relocated to the facet that actually owns that fact,
+  or (for `review_status`) eliminated as a duplicate of
+  `identity.lifecycle_state` (Constitution Article V).
+* **Constraint Normalization** (REFERENCE-TASK-000014) -- a shared
+  `constraint.schema.json` (`{subject, operator, operand, description}`)
+  replaces every free-text constraint string across properties,
+  relationships, behaviors, and validation rules. Predicates the
+  structured shape cannot express (cross-property comparisons,
+  per-element list predicates) are documented as free-text notes in
+  `execution_metadata` rather than forced into a shape that can't carry
+  them -- see `docs/SCHEMA_MIGRATION.md`.
+* **Behavior Normalization** (REFERENCE-TASK-000015) -- `behavior_type`
+  now uses SDD-R011 §9's nine-value list (Solver, Calculator,
+  Validator, Converter, Analyzer, Optimizer, Recommender, Explainer,
+  Simulator), replacing SDD-R005 §5's twelve-value list. `description`
+  is now explicitly documentation-only, structurally separate from the
+  executable `inputs`/`outputs`/`constraints`/`dependencies` contract.
+* **Relationship Review** (REFERENCE-TASK-000016) -- relationships now
+  follow SDD-R011 §8's leaner shape (`relationship_id`,
+  `relationship_type`, `target`, `cardinality`, `lifecycle`,
+  `confidence`, `notes`, structured `constraints`); WORK_PACKAGE_001's
+  `category`, `metadata`, `behavior`, and nested `provenance`/`version`
+  fields were dropped as not part of SDD-R011's model.
+* **Schema Review** (REFERENCE-TASK-000017) -- `schemas/`, `validator/`,
+  `compiler/` (`database.py`/`indexes.py`/`manifest.py`), and all five
+  Gold Standard Objects updated together, in one migration, for the
+  normalized schema. No backward compatibility was required or
+  attempted (per the work package's own instruction).
+* **Documentation** (REFERENCE-TASK-000018) -- `README.md`,
+  `IMPLEMENTATION_STATUS.md`, `SCHEMA_REFERENCE.md`,
+  `AUTHORING_GUIDE.md` updated; `SCHEMA_MIGRATION.md` created,
+  documenting every architectural decision made during normalization.
+* **98 unit tests, 97% statement coverage** (up from 91 tests / 97% in
+  WORK_PACKAGE_001) -- every test touching a renamed or restructured
+  field was updated in place; new tests cover per-object Property ID
+  duplicate detection, `unit_ref` vs `unit_symbol_pending` behavior
+  (hard error vs. documented info finding), the new Authority/History
+  facet required-field checks, and the `assets`/`visualization`
+  asset-role cross-reference check.
+
+### What Is Explicitly Not Implemented
+
+Per the work package's own "Out of Scope" section:
+
+* **Reference Studio, Reference Vault, Universal Ingestion
+  Framework/Importers** -- SDD-R012 describes all of these; none are
+  implemented. Authority/Evidence references stay free text
+  (`authority_reference`, `evidence[].reference`) rather than Source
+  Object EKOs (`standard.iec.60617`, etc.) for exactly this reason.
+* **Marketplace, Reference Runtime, Engineering Behavior Engine,
+  Simulation** -- unchanged from WORK_PACKAGE_001; still out of scope.
+* **New Unit EKOs** (`unit.ohm`, `unit.watt`, `unit.ampere`, etc.) --
+  documented as required in `docs/SCHEMA_MIGRATION.md`'s "Deferred Unit
+  EKOs" table, not created, per the work package's explicit instruction.
+* **Large-scale Reference Library population** -- still exactly five
+  gold-standard objects; WORK_PACKAGE_002's objective was schema
+  finalization, not content growth.
+
+### Verification
+
+```
+pip install -e .[dev]
+oep-validate                  # 0 errors, 0 warnings, 13 documented info findings
+oep-compile core_reference     # -> dist/core_reference_v1.oerp
+pytest --cov                   # 98 passed, 97% coverage
+```
+
+Package hash determinism reconfirmed against the migrated schema: two
+independent `oep-compile core_reference` invocations, from the same
+source tree, produce SHA-256-identical `core_reference_v1.oerp` files
+(exact hash recorded in this work package's completion report).

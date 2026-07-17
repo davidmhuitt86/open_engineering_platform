@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "simulation.schema.json",
+  "title": "Simulation Facet",
+  "description": "SDD-R011 §12. Simulation metadata only -- does not execute simulation.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "supported_solvers": { "type": "array", "items": { "type": "string", "minLength": 1 }, "default": [] },
+    "runtime_requirements": { "type": "array", "items": { "type": "string", "minLength": 1 }, "default": [] },
+    "simulation_models": { "type": "array", "items": { "type": "string", "minLength": 1 }, "default": [] },
+    "initial_conditions": { "type": "object", "default": {} },
+    "state_variables": { "type": "array", "items": { "type": "string", "minLength": 1 }, "default": [] },
+    "parameters": { "type": "array", "items": { "type": "string", "minLength": 1 }, "default": [] },
+    "failure_modes": { "type": "array", "items": { "type": "string", "minLength": 1 }, "default": [] },
+    "default_values": { "type": "object", "default": {} }
+  }
+}

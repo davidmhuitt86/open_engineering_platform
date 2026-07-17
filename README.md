@@ -8,36 +8,43 @@ one application, programming language, or AI provider. See
 
 ## Status
 
-**WORK_PACKAGE_001 (Engineering Reference Library Foundation)
-implemented.** The first complete vertical slice of the
-authoring -> validation -> compilation pipeline: five canonical
-Engineering Knowledge Objects (Resistor, Ohm's Law, Volt, IEC Resistor
-Symbol, Copper) author, validate, and compile into a deterministic
-`.oerp` package. The objective was architectural validation, not
-content quantity -- no attempt was made to populate the library beyond
-these five objects.
+**WORK_PACKAGE_001 (Engineering Reference Library Foundation) and
+WORK_PACKAGE_002 (Engineering Knowledge Object Schema Normalization)
+implemented.** WORK_PACKAGE_001 proved the complete authoring ->
+validation -> compilation pipeline with five canonical Engineering
+Knowledge Objects. WORK_PACKAGE_002 froze **Schema Version 1.0** by
+implementing SDD-R011's Engineering Knowledge Facet model and SDD-R012's
+Authority/Evidence model, then migrating those same five objects to
+conform -- an architectural refinement, not a content expansion; still
+no attempt to populate the library beyond these five objects.
 
 Implemented:
 
-* The canonical Engineering Knowledge Object (EKO) schema (SDD-R001),
-  as eight JSON Schemas under `schemas/` -- see `docs/SCHEMA_REFERENCE.md`.
+* The canonical Engineering Knowledge Object (EKO) schema, Schema
+  Version 1.0 (SDD-R011, SDD-R012), as seventeen JSON Schemas under
+  `schemas/` organized around SDD-R011's fourteen Engineering Knowledge
+  Facets -- see `docs/SCHEMA_REFERENCE.md`, and `docs/SCHEMA_MIGRATION.md`
+  for exactly what changed from WORK_PACKAGE_001's schema and why.
 * The Reference Validator (`validator/`) -- schema validity, required
-  fields, duplicate ids, broken references, relationship integrity,
-  behavior references, and asset references, producing a deterministic
-  JSON report. See `docs/AUTHORING_GUIDE.md`.
+  fields, duplicate ids (including per-object Property ID uniqueness),
+  broken references (including `unit_ref`/`authority_source_object`/
+  `evidence_source_object`), documented pending-unit exceptions,
+  relationship integrity, behavior references, and asset references,
+  producing a deterministic JSON report. See `docs/AUTHORING_GUIDE.md`.
 * The Reference Compiler (`compiler/`) -- validated YAML source ->
   SQLite `reference.db` + precompiled `search.idx`/`graph.idx` +
   `manifest.json` -> a byte-for-byte reproducible `.oerp` ZIP archive.
   Compiler only; no runtime loading. See `docs/REFERENCE_COMPILER.md`
   and `docs/PACKAGE_FORMAT.md`.
 * Five gold-standard Engineering Knowledge Objects under
-  `packages/core_reference/`, every SDD-R001 section populated with
-  real content, cross-referenced by five relationships, compiling into
-  `dist/core_reference_v0.oerp`. See `docs/GOLD_STANDARD_OBJECTS.md`.
+  `packages/core_reference/`, every facet populated with real content,
+  cross-referenced by five relationships, compiling into
+  `dist/core_reference_v1.oerp`. See `docs/GOLD_STANDARD_OBJECTS.md`.
 
-Explicitly out of scope for this work package: the Reference Runtime
-(package loading), Marketplace, AI integration, executable Engineering
-Behaviors, Simulation, and Discovery/Search runtime. See
+Explicitly out of scope for both work packages: the Reference Runtime
+(package loading), Reference Studio, Reference Vault, Universal
+Ingestion Framework/Importers, Marketplace, AI integration, executable
+Engineering Behaviors, Simulation, and Discovery/Search runtime. See
 `docs/IMPLEMENTATION_STATUS.md` for the full picture, and
 `runtime/README.md` for what the (not-yet-implemented) Reference
 Runtime will need to do.
@@ -49,8 +56,8 @@ Requires Python 3.10+.
 ```
 pip install -e .[dev]
 oep-validate                  # validates every package under packages/
-oep-compile core_reference    # -> dist/core_reference_v0.oerp
-pytest                        # unit tests (91 tests, 97% coverage)
+oep-compile core_reference    # -> dist/core_reference_v1.oerp
+pytest                        # unit tests (98 tests, 97% coverage)
 ```
 
 The Reference Validator and Reference Compiler are implemented in
@@ -86,6 +93,9 @@ test/            Unit tests (pytest)
 * `docs/SCHEMA_REFERENCE.md` -- every JSON Schema, and the interpretive
   decisions made where the SDDs left the authoring-file split
   underspecified
+* `docs/SCHEMA_MIGRATION.md` -- exactly what changed between
+  WORK_PACKAGE_001's schema and Schema Version 1.0, field by field, and
+  why
 * `docs/REFERENCE_COMPILER.md` -- the compilation pipeline and why its
   output is deterministic
 * `docs/PACKAGE_FORMAT.md` -- what a compiled `.oerp` archive contains,

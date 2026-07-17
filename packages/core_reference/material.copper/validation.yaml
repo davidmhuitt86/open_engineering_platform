@@ -1,13 +1,17 @@
+# Validation Facet (SDD-R011 §10). Structured rules
+# (REFERENCE-TASK-000014) -- subject is a property_id from properties.yaml.
 - rule_id: material.copper.resistivity_positive
-  description: Resistivity at 20°C shall be greater than zero.
-  expression: "resistivity_at_20c > 0"
+  subject: resistivity_at_20c
+  operator: gt
+  operand: 0
   severity: error
-  applies_to: resistivity_at_20c
+  description: Resistivity at 20°C shall be greater than zero.
 
 - rule_id: material.copper.melting_point_above_ambient
+  subject: melting_point
+  operator: gt
+  operand: 100
+  severity: warning
   description: >-
     Melting Point shall be well above typical ambient operating
     temperature.
-  expression: "melting_point > 100"
-  severity: warning
-  applies_to: melting_point
