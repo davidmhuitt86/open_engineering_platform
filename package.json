@@ -1,0 +1,36 @@
+{
+  "name": "oep-exchange",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Open Engineering Exchange (OEX) — the official distribution platform for OEP Engineering Packages.",
+  "license": "SEE LICENSE IN LICENSE",
+  "engines": {
+    "node": ">=20"
+  },
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b && npm run build -w @oep-exchange/publisher-portal -w @oep-exchange/exchange-admin",
+    "clean": "tsc -b --clean && rimraf \"packages/*/dist\" \"apps/*/dist\"",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.15.0",
+    "@types/node": "^22.10.1",
+    "eslint": "^9.15.0",
+    "globals": "^17.7.0",
+    "jsdom": "^25.0.1",
+    "prettier": "^3.4.1",
+    "rimraf": "^6.0.1",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.16.0",
+    "vitest": "^2.1.6"
+  }
+}

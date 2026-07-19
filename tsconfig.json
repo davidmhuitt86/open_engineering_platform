@@ -1,0 +1,20 @@
+{
+  "files": [],
+  "references": [
+    { "path": "packages/core" },
+    { "path": "packages/api-contracts" },
+    { "path": "packages/manifest" },
+    { "path": "packages/signing" },
+    { "path": "packages/search" },
+    { "path": "packages/package_manager" },
+    { "path": "packages/exchange_client" },
+    { "path": "packages/dependency_resolver" },
+    { "path": "packages/installer" },
+    { "path": "packages/update_service" },
+    { "path": "packages/licensing" },
+    { "path": "packages/payments" },
+    { "path": "packages/reviews" },
+    { "path": "packages/interfaces" },
+    { "path": "apps/exchange-api" }
+  ]
+}

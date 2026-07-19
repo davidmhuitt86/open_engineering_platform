@@ -1,0 +1,28 @@
+{
+  "name": "@oep-exchange/publisher-portal",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The publisher- and engineer-facing Exchange web UI: Home, Search, Package Details, Publisher Profile, Upload, My Packages.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@oep-exchange/api-contracts": "0.1.0",
+    "@oep-exchange/exchange-client": "0.1.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^16.0.1",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "^5.7.2",
+    "vite": "^5.4.11",
+    "vitest": "^2.1.6"
+  }
+}

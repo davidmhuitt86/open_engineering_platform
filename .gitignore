@@ -1,2 +1,33 @@
 # Build
 build/
+dist/
+
+# Dependencies
+node_modules/
+
+# Test coverage
+coverage/
+
+# TypeScript incremental build info
+*.tsbuildinfo
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# Uploaded package artifacts (local dev storage only — never committed)
+/var/uploads/
