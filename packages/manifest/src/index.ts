@@ -1,6 +1,14 @@
-/**
- * Parses and validates OEP Package Manifests (PKG-002).
- *
- * Status: Scaffolded in TASK-EXC-0001 (Repository Structure). Real implementation arrives in TASK-EXC-0005 (Upload Pipeline).
- */
-export const PACKAGE_NAME = '@oep-exchange/manifest' as const;
+export type {
+  PackageManifest,
+  ManifestPublisher,
+  ManifestDependency,
+  ManifestRepositoryStats,
+  ManifestStatistics,
+  ManifestSignatures,
+  ManifestBuildMetadata,
+} from './types.js';
+export { parseManifest } from './parse-manifest.js';
+export {
+  extractManifestJson,
+  extractManifestFromArchive,
+} from './extract-manifest-from-archive.js';

@@ -11,10 +11,12 @@ See `CONTRIBUTING_ARCHITECTURE.md` for the rules that keep these boundaries real
 ### `exchange-api`
 
 - The Exchange REST API (Fastify) — the single server every client (both web apps, any future third-party integration) talks to.
-- Publisher API, Package API, Search API, Download API, Administration API.
+- Publisher API, Package API, Search API, Download API, Installation API, Administration API.
 - Request validation, error-response shaping (`DomainError` → `ApiErrorResponse`), and OpenAPI documentation generation.
-- Owns nothing about _how_ a request is fulfilled beyond routing/validation/response shaping. For capabilities a `packages/*` package owns (manifest parsing, signing, search, the upload pipeline), the actual work is delegated there. The Publisher Registry (TASK-EXC-0003) and Package Catalog (TASK-EXC-0004) are the exceptions: their business logic (`src/services/publisher-service.ts`, `src/services/package-service.ts`, and each one's validation module) lives inside `exchange-api` itself rather than a package, because it calls straight into `src/persistence/`, which no package can depend on (see `docs/architecture/DEPENDENCY_GRAPH.md` §3 and `docs/architecture/REPOSITORY_STRUCTURE.md` §13.2/§14.2).
+- Owns nothing about _how_ a request is fulfilled beyond routing/validation/response shaping. For capabilities a `packages/*` package owns (manifest parsing, signing, search query normalization, Repository communication), the actual work is delegated there. The Publisher Registry (TASK-EXC-0003), Package Catalog (TASK-EXC-0004), Upload Pipeline (TASK-EXC-0005), Package Search (TASK-EXC-0006), Package Download Service (TASK-EXC-0007), and Repository Installation Integration (TASK-EXC-0008) are the exceptions: their business logic (`src/services/publisher-service.ts`, `src/services/package-service.ts`, `src/services/upload-service.ts`, `src/services/search-service.ts`, `src/services/download-service.ts`, `src/services/installation-service.ts`, and each one's validation module) lives inside `exchange-api` itself rather than a package, because it calls straight into `src/persistence/`, which no package can depend on (see `docs/architecture/DEPENDENCY_GRAPH.md` §3 and `docs/architecture/REPOSITORY_STRUCTURE.md` §13.2/§14.2/§15.2/§16.1/§17.1/§18.2).
+- Owns the `search_index` query (`src/persistence/repositories/search-repository.ts`, TASK-EXC-0006) — the only place `search_index` is read; it is kept current by a PostgreSQL trigger on `packages` (`db/migrations/V5__search_index.sql`), not by any application code.
 - Owns the database connection and every query issued against it (no other app or package talks to PostgreSQL directly) — its persistence layer lives at `src/persistence/` (config, pooling, domain types, and one repository interface + PostgreSQL implementation per table in `db/migrations/V1__initial_exchange_schema.sql`), built in TASK-EXC-0002.
+- Owns uploaded package artifact storage (`src/storage/`, TASK-EXC-0005) — content-addressable local-disk storage for `.oep` archives, the on-disk counterpart to the `package_files` table. No other app or package writes (or, since TASK-EXC-0007's `retrieve()`, reads) package artifacts on disk directly.
 
 ### `publisher-portal`
 
@@ -51,7 +53,7 @@ See `CONTRIBUTING_ARCHITECTURE.md` for the rules that keep these boundaries real
 
 ### `manifest`
 
-- Parsing and validating OEP Package Manifests (PKG-002).
+- Parsing and validating OEP Package Manifests (PKG-002), including extracting the manifest from a `.oep` archive (PKG-001 §5's ZIP container) — real implementation since TASK-EXC-0005.
 - The authoritative answer to "is this manifest well-formed," consumed by `package-manager`'s upload pipeline and (eventually) `dependency-resolver`.
 
 ### `signing`
@@ -61,13 +63,13 @@ See `CONTRIBUTING_ARCHITECTURE.md` for the rules that keep these boundaries real
 
 ### `search`
 
-- Package Catalog search indexing and querying: keyword, category, publisher, version lookup.
-- Owns the search index itself — no other package queries or writes to it directly.
+- Validating and normalizing raw Package Catalog search queries, and computing pagination metadata (real implementation since TASK-EXC-0006): identifier/enum validation, `page`/`pageSize` clamping, `totalPages`/`currentPage` math.
+- Does not query or write the search index itself — this package cannot hold a database connection or depend on an application (`docs/architecture/DEPENDENCY_GRAPH.md` §3), so `exchange-api`'s `SearchRepository`/`SearchService` own the actual `search_index` query and the index is kept current by a database trigger, not application code — see `docs/architecture/REPOSITORY_STRUCTURE.md` §16.1/§16.2.
 
 ### `package-manager`
 
-- Orchestrates the upload pipeline end to end: validation → manifest parsing → metadata extraction → signature verification → catalog registration → publication.
-- The single place that sequences `manifest`, `signing`, and catalog writes — no other package/app is expected to re-implement any part of this pipeline.
+- Orchestrates the non-persistence stages of the upload pipeline: archive extraction → manifest parsing → metadata extraction (real implementation since TASK-EXC-0005). Signature verification is read but not yet performed (excluded from WP-EXC-005.md §2 — `signing`'s real implementation is a future task's deliverable); catalog registration and file storage are `exchange-api`'s `UploadService`'s job, since this package cannot hold a database connection or depend on an application (`docs/architecture/DEPENDENCY_GRAPH.md` §3) — see `docs/architecture/REPOSITORY_STRUCTURE.md` §15.1/§15.2.
+- The single place that sequences `manifest` parsing and metadata extraction — no other package/app is expected to re-implement any part of this pipeline.
 
 ### `dependency-resolver`
 
@@ -76,8 +78,8 @@ See `CONTRIBUTING_ARCHITECTURE.md` for the rules that keep these boundaries real
 
 ### `installer`
 
-- Invoking the Package Transaction Engine and Repository Merge Engine, through public Repository interfaces only, to install a downloaded package into an OEP Repository.
-- The one and only place a cross-repository "install into Foundation's Repository" call is made from — see `packages/interfaces` for the contract this will eventually depend on.
+- Invoking the Package Transaction Engine and Repository Merge Engine, through public Repository interfaces only, to install a downloaded package into an OEP Repository — real implementation since TASK-EXC-0008.
+- The one and only place a cross-repository "install into Foundation's Repository" call is made from: `RepositoryClient` (the contract, defined in `packages/interfaces`), `HttpRepositoryClient` (a real HTTP implementation against a configurable Repository base URL), and `StubRepositoryClient` (a deterministic stand-in, used by default until a real Repository is reachable — no Repository implementation exists in this platform yet, `docs/tasks/WP-EXC-008.md` §2). `apps/exchange-api`'s `InstallationService` is the only consumer.
 
 ### `update-service`
 
@@ -101,8 +103,8 @@ See `CONTRIBUTING_ARCHITECTURE.md` for the rules that keep these boundaries real
 
 ### `interfaces`
 
-- Future cross-repository integration contracts only (`RepositoryService`, `IdentityService`, `AuditService`, `GovernanceService`, `PackageTransactionService`, and any others as they become needed) — never an implementation.
-- Owns the _shape_ of a future cross-repository call, once specified; owns nothing that runs.
+- Cross-repository integration contracts only — never an implementation. `RepositoryClient` (TASK-EXC-0008) is the first of these actually defined; `IdentityService`, `AuditService`, `GovernanceService`, and any others remain future, not-yet-specified contracts.
+- Owns the _shape_ of a cross-repository call, once specified; owns nothing that runs. Only `installer` depends on it, and only for `RepositoryClient`.
 
 ---
 

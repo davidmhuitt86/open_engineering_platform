@@ -18,7 +18,8 @@
   },
   "dependencies": {
     "@oep-exchange/core": "0.1.0",
-    "@oep-exchange/exchange-client": "0.1.0"
+    "@oep-exchange/exchange-client": "0.1.0",
+    "@oep-exchange/interfaces": "0.1.0"
   },
   "devDependencies": {
     "typescript": "^5.7.2",

@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto';
 import type { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { isTestDatabaseAvailable, setupTestDatabase, truncateAllTables } from './test-support.js';
+import { PostgresPackageRepository } from './repositories/package-repository.js';
+import { PostgresPackageVersionRepository } from './repositories/package-version-repository.js';
 import { PostgresPublisherRepository } from './repositories/publisher-repository.js';
 
 /**
@@ -123,6 +125,127 @@ describe.skipIf(!databaseAvailable)('database schema (migration/constraint/rollb
         `INSERT INTO publishers (name, display_name, namespace, publisher_type)
          VALUES ('Invalid', 'Invalid', $1, 'not_a_real_type')`,
         [`com.invalid-test.${randomUUID()}`],
+      ),
+    ).rejects.toThrow(/violates check constraint/);
+  });
+
+  /**
+   * `search_index` (docs/tasks/WP-EXC-006.md) — the table deferred from
+   * WP-EXC-002 (`REPOSITORY_STRUCTURE.md` §11.1), so it's asserted here
+   * rather than folded into the WP-EXC-002 table-list test above.
+   */
+  test('search_index exists with a GIN-indexed search_vector column', async () => {
+    const table = await pool.query<{ table_name: string }>(
+      `SELECT table_name FROM information_schema.tables
+       WHERE table_schema = 'public' AND table_name = 'search_index'`,
+    );
+    expect(table.rows).toHaveLength(1);
+
+    const searchVectorColumn = await pool.query<{ data_type: string }>(
+      `SELECT data_type FROM information_schema.columns
+       WHERE table_name = 'search_index' AND column_name = 'search_vector'`,
+    );
+    expect(searchVectorColumn.rows[0]?.data_type).toBe('tsvector');
+
+    const ginIndex = await pool.query(
+      `SELECT indexname FROM pg_indexes
+       WHERE tablename = 'search_index' AND indexdef ILIKE '%USING gin%'`,
+    );
+    expect(ginIndex.rows.length).toBeGreaterThan(0);
+  });
+
+  test('search_index has no row_version column (a derived/denormalized structure, not a primary entity)', async () => {
+    const rowVersionColumn = await pool.query(
+      `SELECT column_name FROM information_schema.columns
+       WHERE table_name = 'search_index' AND column_name = 'row_version'`,
+    );
+    expect(rowVersionColumn.rows).toHaveLength(0);
+  });
+
+  test('inserting a package automatically populates its search_index row via trigger', async () => {
+    await truncateAllTables(pool);
+    const publishers = new PostgresPublisherRepository(pool);
+    const publisher = await publishers.create({
+      name: 'Trigger Test Publisher',
+      displayName: 'Trigger Test',
+      namespace: `com.trigger-test.${randomUUID()}`,
+      publisherType: 'company',
+    });
+
+    const packageId = `com.trigger-test.widget.${randomUUID()}`;
+    const inserted = await pool.query<{ id: string }>(
+      `INSERT INTO packages (package_id, publisher_id, title, description)
+       VALUES ($1, $2, 'Trigger Test Widget', 'A widget for trigger testing.')
+       RETURNING id`,
+      [packageId, publisher.id],
+    );
+    const pkgRowId = inserted.rows[0]!.id;
+
+    const searchRow = await pool.query<{ search_text: string }>(
+      `SELECT search_text FROM search_index WHERE package_id = $1`,
+      [pkgRowId],
+    );
+    expect(searchRow.rows).toHaveLength(1);
+    expect(searchRow.rows[0]!.search_text).toContain('Trigger Test Widget');
+    expect(searchRow.rows[0]!.search_text).toContain(packageId);
+
+    const matched = await pool.query(
+      `SELECT 1 FROM search_index
+       WHERE package_id = $1 AND search_vector @@ websearch_to_tsquery('english', 'widget')`,
+      [pkgRowId],
+    );
+    expect(matched.rows).toHaveLength(1);
+  });
+
+  /**
+   * `installations` (docs/tasks/WP-EXC-008.md) — created once per
+   * install attempt and updated exactly once more to a terminal state,
+   * so (unlike `downloads`/`audit_log`) it carries `row_version` despite
+   * being a historical record.
+   */
+  test('installations exists with a UUID primary key and a row_version column', async () => {
+    const pkColumn = await pool.query<{ data_type: string }>(
+      `SELECT c.data_type
+       FROM information_schema.table_constraints tc
+       JOIN information_schema.key_column_usage kcu
+         ON kcu.constraint_name = tc.constraint_name AND kcu.table_name = tc.table_name
+       JOIN information_schema.columns c
+         ON c.table_name = tc.table_name AND c.column_name = kcu.column_name
+       WHERE tc.table_name = 'installations' AND tc.constraint_type = 'PRIMARY KEY'`,
+    );
+    expect(pkColumn.rows[0]?.data_type).toBe('uuid');
+
+    const rowVersionColumn = await pool.query(
+      `SELECT column_name FROM information_schema.columns
+       WHERE table_name = 'installations' AND column_name = 'row_version'`,
+    );
+    expect(rowVersionColumn.rows).toHaveLength(1);
+  });
+
+  test('installations rejects a status value outside pending/completed/failed', async () => {
+    await truncateAllTables(pool);
+    const publishers = new PostgresPublisherRepository(pool);
+    const packages = new PostgresPackageRepository(pool);
+    const versions = new PostgresPackageVersionRepository(pool);
+
+    const publisher = await publishers.create({
+      name: 'Schema Test Publisher',
+      displayName: 'Schema Test',
+      namespace: `com.schema-test.${randomUUID()}`,
+      publisherType: 'company',
+    });
+    const pkg = await packages.create({
+      packageId: `com.schema-test.widget.${randomUUID()}`,
+      publisherId: publisher.id,
+      title: 'Schema Test Widget',
+    });
+    const version = await versions.create({ packageId: pkg.id, version: '1.0.0', manifest: {} });
+
+    await expect(
+      pool.query(
+        `INSERT INTO installations (package_id, package_version_id, status)
+         VALUES ($1, $2, 'not_a_real_status')`,
+        [pkg.id, version.id],
       ),
     ).rejects.toThrow(/violates check constraint/);
   });

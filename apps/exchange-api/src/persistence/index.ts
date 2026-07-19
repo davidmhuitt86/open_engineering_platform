@@ -20,3 +20,7 @@ export type { DownloadRepository } from './repositories/download-repository.js';
 export { PostgresDownloadRepository } from './repositories/download-repository.js';
 export type { AuditRepository } from './repositories/audit-repository.js';
 export { PostgresAuditRepository } from './repositories/audit-repository.js';
+export type { SearchRepository } from './repositories/search-repository.js';
+export { PostgresSearchRepository } from './repositories/search-repository.js';
+export type { InstallationRepository } from './repositories/installation-repository.js';
+export { PostgresInstallationRepository } from './repositories/installation-repository.js';

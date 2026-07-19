@@ -17,7 +17,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@oep-exchange/core": "0.1.0"
+    "@oep-exchange/core": "0.1.0",
+    "adm-zip": "^0.6.0"
   },
   "devDependencies": {
     "typescript": "^5.7.2",

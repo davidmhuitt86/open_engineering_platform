@@ -15,5 +15,14 @@
  * See `docs/architecture/DEPENDENCY_GRAPH.md` for how this fits into
  * the platform's overall dependency direction, and this package's own
  * README for the roster of services anticipated (not yet defined) here.
+ *
+ * `RepositoryClient` (TASK-EXC-0008) is the first of these to actually
+ * be defined — see `repository-client.ts`.
  */
 export const PACKAGE_NAME = '@oep-exchange/interfaces' as const;
+
+export type {
+  RepositoryInstallRequest,
+  RepositoryInstallResult,
+  RepositoryClient,
+} from './repository-client.js';

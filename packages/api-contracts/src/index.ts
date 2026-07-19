@@ -17,3 +17,11 @@ export type {
   UpdatePackageRequest,
   PackageListResponse,
 } from './package.js';
+export type { UploadResultDto } from './upload.js';
+export type {
+  SearchSortBy,
+  SearchSortDirection,
+  SearchResultItemDto,
+  SearchResponse,
+} from './search.js';
+export type { InstallationStatus, InstallationDto, InstallRequest } from './installation.js';

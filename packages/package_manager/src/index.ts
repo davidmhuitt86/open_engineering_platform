@@ -1,6 +1,4 @@
-/**
- * Orchestrates the upload pipeline: validation, manifest parsing, metadata extraction, signature verification, and catalog registration.
- *
- * Status: Scaffolded in TASK-EXC-0001 (Repository Structure). Real implementation arrives in TASK-EXC-0005 (Upload Pipeline).
- */
-export const PACKAGE_NAME = '@oep-exchange/package-manager' as const;
+export type { ExtractedPackageMetadata, UploadedFileMetadata, ProcessedUpload } from './types.js';
+export { extractMetadata } from './extract-metadata.js';
+export { computeFileMetadata } from './compute-file-metadata.js';
+export { processUpload } from './process-upload.js';

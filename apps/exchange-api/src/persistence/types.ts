@@ -298,3 +298,62 @@ export interface NewAuditLogEntry {
   actor?: string | null;
   metadata?: Record<string, unknown>;
 }
+
+/** WP-EXC-006.md §7 — the only sortable fields. */
+export type SearchSortBy = 'name' | 'createdAt' | 'updatedAt';
+export type SearchSortDirection = 'asc' | 'desc';
+
+/** A fully-normalized search query (WP-EXC-006.md §5/§6/§7/§8) — every field has already been validated/defaulted by the time it reaches `SearchRepository`. */
+export interface SearchQuery {
+  keyword?: string;
+  publisherId?: string;
+  categoryId?: string;
+  status?: PackageStatus;
+  sortBy: SearchSortBy;
+  sortDirection: SearchSortDirection;
+  page: number;
+  pageSize: number;
+}
+
+/** One row of a search result — `search_index`'s package joined with the fields WP-EXC-006.md §5 wants displayed. */
+export interface SearchResultItem {
+  id: string;
+  packageId: string;
+  publisherId: string;
+  publisherName: string;
+  displayName: string;
+  description: string;
+  categoryId: string | null;
+  categoryName: string | null;
+  currentVersion: string | null;
+  status: PackageStatus;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface SearchResults {
+  items: SearchResultItem[];
+  totalCount: number;
+}
+
+/** WP-EXC-008.md §6/§8 — the lifecycle of one attempt to install a Package version into an OEP Repository. */
+export type InstallationStatus = 'pending' | 'completed' | 'failed';
+
+export interface Installation {
+  id: string;
+  packageId: string;
+  packageVersionId: string;
+  status: InstallationStatus;
+  repositoryPackageId: string | null;
+  errorMessage: string | null;
+  requestedAt: Date;
+  completedAt: Date | null;
+  rowVersion: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface NewInstallation {
+  packageId: string;
+  packageVersionId: string;
+}

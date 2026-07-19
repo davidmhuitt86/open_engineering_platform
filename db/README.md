@@ -2,7 +2,7 @@
 
 PostgreSQL, migrated with Flyway (per WP-EXC-001 §7).
 
-**Status:** Real schema (TASK-EXC-0002, per its own task specification `docs/tasks/WP-EXC-002.md`). `migrations/` contains the initial 8-table schema (`publishers`, `publisher_profiles`, `package_categories`, `packages`, `package_versions`, `package_files`, `downloads`, `audit_log` — Publisher Registry per EXC-002, Package Catalog per PKG-002, audit trail per WP-EXC-002.md §4/§6) plus a seed migration for the initial engineering categories (WP-EXC-002.md §9). Search indexing (`search_index`) is explicitly out of this task's scope and deferred to the Search task (TASK-EXC-0006) — see `docs/architecture/REPOSITORY_STRUCTURE.md` §11.1 for the full reconciliation of an earlier draft against WP-EXC-002.md.
+**Status:** Real schema (TASK-EXC-0002, per its own task specification `docs/tasks/WP-EXC-002.md`). `migrations/` contains the initial 8-table schema (`publishers`, `publisher_profiles`, `package_categories`, `packages`, `package_versions`, `package_files`, `downloads`, `audit_log` — Publisher Registry per EXC-002, Package Catalog per PKG-002, audit trail per WP-EXC-002.md §4/§6) plus a seed migration for the initial engineering categories (WP-EXC-002.md §9). Search indexing (`search_index`) was explicitly out of that task's scope and deferred to the Search task, TASK-EXC-0006, which has since built it — see `docs/architecture/REPOSITORY_STRUCTURE.md` §11.1/§16 for the full reconciliation. `downloads` itself was likewise built ahead of its own task, TASK-EXC-0007 (the Download Service), which needed no new migration at all — see `docs/architecture/REPOSITORY_STRUCTURE.md` §17.
 
 ## Layout
 
@@ -11,6 +11,8 @@ PostgreSQL, migrated with Flyway (per WP-EXC-001 §7).
   - `V2__seed_categories.sql` — seeds Automotive, Industrial, Residential, Commercial, Marine, Powersports, Robotics, Education (WP-EXC-002.md §9).
   - `V3__publisher_registration_fields.sql` (TASK-EXC-0003) — adds `publishers.contact_email` and unique partial indexes on `name`/`contact_email` (active rows), per `docs/tasks/WP-EXC-003.md` §5/§6.
   - `V4__package_name_uniqueness.sql` (TASK-EXC-0004) — adds a unique partial index on `packages (publisher_id, title)` (active rows), per `docs/tasks/WP-EXC-004.md` §6 "Duplicate package names within a publisher".
+  - `V5__search_index.sql` (TASK-EXC-0006) — adds `search_index` (a generated, GIN-indexed `tsvector` column over each Package's searchable text) and a trigger on `packages` that keeps it current automatically, per `docs/tasks/WP-EXC-006.md` §3/§5 and `docs/architecture/REPOSITORY_STRUCTURE.md` §16.
+  - `V6__installations.sql` (TASK-EXC-0008) — adds `installations`, one row per attempt to install a Package version into an OEP Repository, per `docs/tasks/WP-EXC-008.md` §4/§8 and `docs/architecture/REPOSITORY_STRUCTURE.md` §18.
   - `flyway.toml` — Flyway configuration (see "Running migrations" below).
 
 ## Conventions
