@@ -30,7 +30,7 @@ Neither web app may hold a PostgreSQL client, connection string, or any direct d
 
 ### 7. Database access belongs only to persistence modules
 
-Within `exchange-api`, PostgreSQL access is confined to the modules that own it (its persistence layer, once built in TASK-EXC-0002) — route handlers call into that layer; they do not issue SQL themselves. No package outside `exchange-api` opens a database connection at all (see `OWNERSHIP.md`).
+Within `exchange-api`, PostgreSQL access is confined to `src/persistence/` (built in TASK-EXC-0002) — route handlers call into its repositories; they do not issue SQL themselves. No package outside `exchange-api` opens a database connection at all (see `OWNERSHIP.md`).
 
 ### 8. Business logic remains outside controllers
 

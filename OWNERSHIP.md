@@ -13,8 +13,8 @@ See `CONTRIBUTING_ARCHITECTURE.md` for the rules that keep these boundaries real
 - The Exchange REST API (Fastify) — the single server every client (both web apps, any future third-party integration) talks to.
 - Publisher API, Package API, Search API, Download API, Administration API.
 - Request validation, error-response shaping (`DomainError` → `ApiErrorResponse`), and OpenAPI documentation generation.
-- Owns nothing about _how_ a request is fulfilled beyond routing/validation/response shaping — the actual work is delegated to `packages/*` service packages (`manifest`, `signing`, `search`, `package-manager`).
-- Owns the database connection and every query issued against it (no other app or package talks to PostgreSQL directly).
+- Owns nothing about _how_ a request is fulfilled beyond routing/validation/response shaping. For capabilities a `packages/*` package owns (manifest parsing, signing, search, the upload pipeline), the actual work is delegated there. The Publisher Registry (TASK-EXC-0003) and Package Catalog (TASK-EXC-0004) are the exceptions: their business logic (`src/services/publisher-service.ts`, `src/services/package-service.ts`, and each one's validation module) lives inside `exchange-api` itself rather than a package, because it calls straight into `src/persistence/`, which no package can depend on (see `docs/architecture/DEPENDENCY_GRAPH.md` §3 and `docs/architecture/REPOSITORY_STRUCTURE.md` §13.2/§14.2).
+- Owns the database connection and every query issued against it (no other app or package talks to PostgreSQL directly) — its persistence layer lives at `src/persistence/` (config, pooling, domain types, and one repository interface + PostgreSQL implementation per table in `db/migrations/V1__initial_exchange_schema.sql`), built in TASK-EXC-0002.
 
 ### `publisher-portal`
 

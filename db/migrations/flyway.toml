@@ -1,0 +1,11 @@
+# Flyway configuration (TASK-EXC-0002). Mirrors oep_acquisition's own
+# flyway.toml shape for platform-wide consistency. Not invoked as part
+# of the build or test suite — running migrations against a real
+# PostgreSQL instance is left to a developer/operator, documented in
+# ../README.md.
+
+[flyway]
+url = "jdbc:postgresql://localhost:5432/oep_exchange"
+user = "oep_exchange"
+password = ""
+locations = ["filesystem:./migrations"]
