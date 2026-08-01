@@ -12,11 +12,12 @@ void main() {
       expect(StudioRegistry.defaultRegistry.validateCapabilities(), isEmpty);
     });
 
-    test('Knowledge, Diagram, and Acquisition each register at least one capability', () {
+    test('Knowledge, Diagram, Acquisition, and Exchange each register at least one capability', () {
       final registry = StudioRegistry.defaultRegistry;
       expect(registry.capabilitiesFor(StudioDestination.knowledge), isNotEmpty);
       expect(registry.capabilitiesFor(StudioDestination.diagram), isNotEmpty);
       expect(registry.capabilitiesFor(StudioDestination.acquisition), isNotEmpty);
+      expect(registry.capabilitiesFor(StudioDestination.exchange), isNotEmpty);
     });
 
     test('a core Platform page (no Studio) has no capabilities', () {
@@ -28,16 +29,25 @@ void main() {
       final registry = StudioRegistry.defaultRegistry;
       final expectedCount = registry.capabilitiesFor(StudioDestination.knowledge).length +
           registry.capabilitiesFor(StudioDestination.diagram).length +
-          registry.capabilitiesFor(StudioDestination.acquisition).length;
+          registry.capabilitiesFor(StudioDestination.acquisition).length +
+          registry.capabilitiesFor(StudioDestination.exchange).length +
+          registry.capabilitiesFor(StudioDestination.engineeringIntelligence).length;
       expect(registry.allCapabilities.length, expectedCount);
-      // Knowledge is registered before Diagram, before Acquisition — their
-      // capabilities must appear in that same relative order.
+      // Knowledge is registered before Diagram, before Acquisition, before
+      // Engineering Intelligence, before Exchange — their capabilities
+      // must appear in that same relative order (Engineering Intelligence
+      // is registered right after Packages, before Exchange — see
+      // `StudioRegistry.defaultRegistry`).
       final ids = registry.allCapabilities.map((c) => c.id).toList();
       final knowledgeIndex = ids.indexWhere((id) => id.startsWith('knowledge.'));
       final diagramIndex = ids.indexWhere((id) => id.startsWith('diagram.'));
       final acquisitionIndex = ids.indexWhere((id) => id.startsWith('acquisition.'));
+      final engineeringIntelligenceIndex = ids.indexWhere((id) => id.startsWith('engineeringIntelligence.'));
+      final exchangeIndex = ids.indexWhere((id) => id.startsWith('exchange.'));
       expect(knowledgeIndex, lessThan(diagramIndex));
       expect(diagramIndex, lessThan(acquisitionIndex));
+      expect(acquisitionIndex, lessThan(engineeringIntelligenceIndex));
+      expect(engineeringIntelligenceIndex, lessThan(exchangeIndex));
     });
 
     test('findCapability resolves a known id and returns null for an unknown one', () {
@@ -58,6 +68,18 @@ void main() {
     test('every registered capability id is unique across the whole registry', () {
       final ids = StudioRegistry.defaultRegistry.allCapabilities.map((c) => c.id).toList();
       expect(ids.toSet().length, ids.length);
+    });
+
+    test('Exchange (WP-EXC-010) registers browse/install/library capabilities', () {
+      final registry = StudioRegistry.defaultRegistry;
+      final ids = registry.capabilitiesFor(StudioDestination.exchange).map((c) => c.id).toSet();
+      expect(ids, {'exchange.browse', 'exchange.install', 'exchange.library'});
+    });
+
+    test('Exchange has a settings provider and a search provider (WP-EXC-010)', () {
+      final registry = StudioRegistry.defaultRegistry;
+      expect(registry.descriptorFor(StudioDestination.exchange)!.settingsProvider, isNotNull);
+      expect(registry.descriptorFor(StudioDestination.exchange)!.searchProvider, isNotNull);
     });
   });
 

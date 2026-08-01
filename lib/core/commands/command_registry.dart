@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../acquisition/services/acquisition_runtime_service.dart';
 import '../../diagram_studio/commands/studio_command_actions.dart';
+import '../../exchange/services/exchange_runtime_service.dart';
 import '../routing/studio_destination.dart';
 import '../routing/studio_registry.dart';
 import '../services/engineering_project_service.dart';
@@ -386,6 +387,36 @@ class CommandRegistry {
       capabilityId: 'knowledge.aiAssistance',
       requiresArgument: true,
       execute: (ref, args) => ref.read(foundationRuntimeServiceProvider.notifier).rejectAiSuggestion(args.value!),
+    ),
+
+    // --- Engineering Exchange Studio (ExchangeRuntimeNotifier,
+    // WP-EXC-010) -- only commands that fit `CommandArgs`'s existing
+    // no-argument-or-one-`String` shape are registered here;
+    // `installPackage` needs a (packageId, displayName) pair and so is
+    // out of scope for this framework today, same reasoning
+    // WP-STUDIO-023 already applied to Knowledge Studio's own session
+    // lifecycle methods. ------------------------------------------------
+    CommandDescriptor(
+      id: 'exchange.search',
+      label: 'Search Engineering Exchange',
+      description: 'Searches the Engineering Exchange marketplace for packages.',
+      capabilityId: 'exchange.browse',
+      requiresArgument: true,
+      execute: (ref, args) => ref.read(exchangeRuntimeServiceProvider.notifier).search(q: args.value!),
+    ),
+    CommandDescriptor(
+      id: 'exchange.refreshMarketplace',
+      label: 'Refresh Marketplace',
+      description: 'Reloads Marketplace Home\'s package and publisher samples from the Engineering Exchange.',
+      capabilityId: 'exchange.browse',
+      execute: (ref, args) => ref.read(exchangeRuntimeServiceProvider.notifier).refreshMarketplace(),
+    ),
+    CommandDescriptor(
+      id: 'exchange.refreshRepository',
+      label: 'Refresh Repository',
+      description: 'Re-fetches Repository Statistics and the Current Object/Relationship Lists after an install.',
+      capabilityId: 'exchange.install',
+      execute: (ref, args) => ref.read(foundationRuntimeServiceProvider.notifier).refreshRepository(),
     ),
 
     // Not registered: `duplicateKnowledgeSession`/`deleteKnowledgeSession`

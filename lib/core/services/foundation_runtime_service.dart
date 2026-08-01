@@ -216,6 +216,21 @@ class FoundationRuntimeNotifier extends Notifier<FoundationServiceState> {
     return {for (final object in objects) object.objectId: object.name};
   }
 
+  /// Re-fetches Repository Statistics, the Current Object List, and the
+  /// Current Relationship List from the already-open repository, without
+  /// closing/reopening it -- the public entry point WP-EXC-010's
+  /// Repository Integration ("Refresh Repository") calls after an
+  /// Exchange package install, through this approved public interface
+  /// rather than reaching into `_refreshRepositoryData` or the Foundation
+  /// Bridge directly. A no-op if no repository is open. Shares
+  /// [_refreshRepositoryData]'s own non-fatal failure handling — see its
+  /// doc comment.
+  void refreshRepository() {
+    final bridge = _bridge;
+    if (bridge == null || !state.isRepositoryOpen) return;
+    _refreshRepositoryData(bridge);
+  }
+
   /// Closes the currently open repository, if any.
   void closeRepository() {
     final bridge = _bridge;
@@ -2621,6 +2636,20 @@ class FoundationRuntimeNotifier extends Notifier<FoundationServiceState> {
   void setSettingsModified(bool modified) {
     state = state.copyWith(settingsModified: modified);
   }
+
+  /// The live [FoundationBridge] this notifier owns, exposed read-only
+  /// for Engineering Knowledge Engine Studio pages (WP-EKE-008) that need
+  /// to call Knowledge Graph/Query/Rules/Validation/Analysis/Reasoning/
+  /// Engineering Intelligence Platform methods directly against the
+  /// currently-connected runtime. `null` before a successful connect or
+  /// after disposal. Callers must still gate on [FoundationServiceState.
+  /// isRepositoryOpen] (and, for graph-dependent calls, a prior
+  /// `loadEngineeringGraph`/`buildKnowledgeGraph`) themselves — this
+  /// getter only hands back the handle, per this file's own "only place
+  /// in Studio that holds a FoundationBridge instance" rule: pages reach
+  /// Foundation through this provider, never by constructing their own
+  /// [FoundationBridge].
+  FoundationBridge? get bridge => _bridge;
 
   void _disposeBridge() {
     final bridge = _bridge;

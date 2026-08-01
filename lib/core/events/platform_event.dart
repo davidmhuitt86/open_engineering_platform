@@ -96,3 +96,90 @@ class WorkspaceEvent extends PlatformEvent {
   final WorkspaceEventKind kind;
   final String? path;
 }
+
+/// What happened to an `Operation` (WP-STUDIO-030 Engineering Operations
+/// Framework) — published by whichever Platform bridge or Studio owns the
+/// underlying work. An operation is anything with a meaningful
+/// start/finish that's worth surfacing across Studios (a download, a
+/// background OCR pass) — deliberately not a generic "task queue"; see
+/// `OperationManager`'s own doc comment for why only two sources feed it
+/// today rather than a new invented abstraction every call site must
+/// adopt.
+enum OperationEventKind {
+  /// The operation began running.
+  started,
+
+  /// The operation's progress reading changed. Carries the same
+  /// [OperationEvent.fraction] semantics as [ProgressEvent].
+  progressed,
+
+  /// The operation finished successfully.
+  completed,
+
+  /// The operation finished unsuccessfully.
+  failed,
+}
+
+/// Published on transitions of a long-running unit of work (WP-STUDIO-030)
+/// — the shared fact type `OperationManager` accumulates into
+/// `activeOperations`/`recentOperations`. Distinct from [ProgressEvent]:
+/// a [ProgressEvent] is a bare progress reading with no lifecycle
+/// (start/finish) attached, which is exactly why [OperationEvent] exists
+/// instead of extending [ProgressEvent] — `OperationManager` needs to
+/// know when something starts and ends, not just how far along it is.
+class OperationEvent extends PlatformEvent {
+  const OperationEvent({
+    required this.id,
+    required this.kind,
+    required this.label,
+    this.fraction,
+  });
+
+  /// Identifies the specific operation this event belongs to — stable
+  /// across the [started]/[progressed]/[completed]/[failed] events for
+  /// the same unit of work so `OperationManager` can track it over time.
+  final String id;
+
+  final OperationEventKind kind;
+
+  /// Human-readable description of what's running (e.g. "Downloading
+  /// service manual…", "Recognizing text — Repair Order 4471").
+  final String label;
+
+  /// `0.0`–`1.0`, or `null` for indeterminate/not-yet-known progress.
+  /// Only meaningful on [OperationEventKind.progressed].
+  final double? fraction;
+}
+
+/// The severity a notification is shown with (originally
+/// `PlatformNotificationService`'s own enum; relocated here in
+/// WP-STUDIO-030 so `NotificationEvent` doesn't have to import a
+/// `flutter/material.dart`-adjacent file just for one enum — this is the
+/// single shared definition now, not a duplicate).
+enum NotificationSeverity { success, error, info }
+
+/// Published every time `PlatformNotificationService` shows a
+/// notification (WP-STUDIO-030) — lets a `NotificationCenter` accumulate
+/// a history of what the user was told, independent of the transient
+/// `SnackBar` that's already gone once dismissed.
+class NotificationEvent extends PlatformEvent {
+  const NotificationEvent({required this.severity, required this.message});
+
+  final NotificationSeverity severity;
+  final String message;
+}
+
+/// Published by `EngineeringObjectRuntime` (WP-STUDIO-031 Engineering
+/// Object Runtime) whenever its cache is rebuilt from a fresh
+/// `FoundationServiceState.objectList`/`relationshipList` — after opening
+/// a repository, refreshing it, or closing one (`objectCount`/
+/// `relationshipCount` both `0`). Not published on every unrelated
+/// Foundation state change — only when the underlying object/relationship
+/// data itself actually changed; see `EngineeringObjectRuntime`'s own doc
+/// comment for the identity check that guarantees this.
+class EngineeringObjectEvent extends PlatformEvent {
+  const EngineeringObjectEvent({required this.objectCount, required this.relationshipCount});
+
+  final int objectCount;
+  final int relationshipCount;
+}

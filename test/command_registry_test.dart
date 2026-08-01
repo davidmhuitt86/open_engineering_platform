@@ -68,6 +68,15 @@ void main() {
       final ids = CommandRegistry.defaultRegistry.commands.map((c) => c.id).toList();
       expect(ids.toSet().length, ids.length);
     });
+
+    test('Engineering Exchange has 3 registered commands (WP-EXC-010)', () {
+      final exchangeCommands = CommandRegistry.defaultRegistry.commandsForStudio(StudioDestination.exchange);
+      expect(exchangeCommands.map((c) => c.id).toSet(), {
+        'exchange.search',
+        'exchange.refreshMarketplace',
+        'exchange.refreshRepository',
+      });
+    });
   });
 
   group('CommandRegistry.validate — catches inconsistent metadata', () {

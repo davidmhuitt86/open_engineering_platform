@@ -53,6 +53,18 @@ enum StudioDestination {
     Icons.inventory_2_outlined,
     Icons.inventory_2,
   ),
+  engineeringIntelligence(
+    'Engineering Intelligence',
+    '/engineering-intelligence',
+    Icons.psychology_outlined,
+    Icons.psychology,
+  ),
+  exchange(
+    'Engineering Exchange',
+    '/exchange',
+    Icons.storefront_outlined,
+    Icons.storefront,
+  ),
   settings('Settings', '/settings', Icons.settings_outlined, Icons.settings);
 
   const StudioDestination(this.label, this.path, this.icon, this.selectedIcon);

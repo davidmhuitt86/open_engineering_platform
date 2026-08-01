@@ -6,9 +6,11 @@ import 'package:engineering_engine/engineering_engine.dart';
 import '../../acquisition/services/acquisition_runtime_service.dart';
 import '../../core/models/recent_history_entry.dart';
 import '../../core/models/unified_search_result.dart';
+import '../../core/objects/engineering_object_runtime.dart';
 import '../../core/routing/studio_destination.dart';
 import '../../core/services/engineering_project_service.dart';
 import '../../core/services/foundation_runtime_service.dart';
+import '../../exchange/services/exchange_runtime_service.dart';
 import 'explorer_navigation.dart';
 
 /// Platform-wide navigation (WORK_PACKAGE_025, ENGINE-TASK-000120) —
@@ -40,7 +42,7 @@ void _record(WidgetRef ref, {required String id, required String label, required
 /// on the graph, not a fuzzy name-matching heuristic.
 void goToKnowledgeObject(BuildContext context, WidgetRef ref, String id) {
   final foundation = ref.read(foundationRuntimeServiceProvider);
-  final object = (foundation.objectList ?? const []).where((o) => o.objectId == id).firstOrNull;
+  final object = EngineeringObjectRuntime.instance.objectById(id);
   if (object != null) {
     goToObject(context, ref, id);
     _record(ref, id: id, label: object.name, destination: StudioDestination.objects);
@@ -59,8 +61,7 @@ void goToKnowledgeObject(BuildContext context, WidgetRef ref, String id) {
 /// (Knowledge Candidate relationships are shown inline in Knowledge
 /// Studio's own review UI, not via a standalone navigation target).
 void goToKnowledgeRelationship(BuildContext context, WidgetRef ref, String relationshipId) {
-  final relationshipList = ref.read(foundationRuntimeServiceProvider).relationshipList ?? const [];
-  final relationship = relationshipList.where((r) => r.relationshipId == relationshipId).firstOrNull;
+  final relationship = EngineeringObjectRuntime.instance.relationshipById(relationshipId);
   if (relationship == null) return;
   goToRelationship(context, ref, relationshipId);
   _record(
@@ -125,8 +126,7 @@ void goToValidationResult(BuildContext context, WidgetRef ref, ValidationFinding
         return;
       }
     }
-    final objectList = ref.read(foundationRuntimeServiceProvider).objectList ?? const [];
-    if (objectList.any((o) => o.objectId == subjectId)) {
+    if (EngineeringObjectRuntime.instance.hasObject(subjectId)) {
       goToKnowledgeObject(context, ref, subjectId);
       return;
     }
@@ -148,6 +148,23 @@ void goToAcquisitionResult(BuildContext context, WidgetRef ref, UnifiedSearchRes
   _record(ref, id: result.id, label: result.label, destination: StudioDestination.acquisition);
 }
 
+/// Navigates to an Exchange package or publisher (WP-EXC-010) — mirrors
+/// [goToAcquisitionResult]'s own reasoning: the Exchange has no
+/// cross-references analogous to a diagram node's `repositoryObjectId`,
+/// so this is a destination switch plus selecting the matched
+/// package/publisher so Package Detail/Publisher Profile shows
+/// immediately, the same way [goToAcquisitionResult] selects a Job.
+void goToExchangeResult(BuildContext context, WidgetRef ref, UnifiedSearchResult result) {
+  final notifier = ref.read(exchangeRuntimeServiceProvider.notifier);
+  if (result.category == UnifiedSearchResultCategory.exchangePublisher) {
+    notifier.selectPublisher(result.id);
+  } else {
+    notifier.selectPackage(result.id);
+  }
+  context.go(StudioDestination.exchange.path);
+  _record(ref, id: result.id, label: result.label, destination: StudioDestination.exchange);
+}
+
 /// Navigates to a unified search result (ENGINE-TASK-000120/000121) —
 /// switches on [UnifiedSearchResult.category] rather than either
 /// wrapped, same-named `SearchResultKind` enum directly (see
@@ -166,6 +183,9 @@ void goToSearchResult(BuildContext context, WidgetRef ref, UnifiedSearchResult r
     case UnifiedSearchResultCategory.acquisitionJob:
     case UnifiedSearchResultCategory.acquisitionVaultEntry:
       goToAcquisitionResult(context, ref, result);
+    case UnifiedSearchResultCategory.exchangePackage:
+    case UnifiedSearchResultCategory.exchangePublisher:
+      goToExchangeResult(context, ref, result);
     case UnifiedSearchResultCategory.symbol:
     case UnifiedSearchResultCategory.annotation:
     case UnifiedSearchResultCategory.layer:

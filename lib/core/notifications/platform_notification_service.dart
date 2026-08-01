@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 
-/// The severity a [PlatformNotificationService] notification is shown
-/// with — drives which color the `SnackBar` uses.
-enum NotificationSeverity { success, error, info }
+import '../events/platform_event.dart';
+import '../events/platform_event_bus.dart';
+
+export '../events/platform_event.dart' show NotificationSeverity;
 
 /// A centralized, consistent replacement for the ad hoc
 /// `ScaffoldMessenger.of(context).showSnackBar(SnackBar(...))` calls
@@ -37,5 +38,6 @@ abstract final class PlatformNotificationService {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), backgroundColor: color),
     );
+    PlatformEventBus.instance.publish(NotificationEvent(severity: severity, message: message));
   }
 }

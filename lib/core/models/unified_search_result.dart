@@ -12,7 +12,7 @@ import 'search_result.dart' as foundation;
 /// its own (see `docs/API_REFERENCE.md`) — its contribution is a
 /// best-effort, client-side filter over already-cached Sources/Jobs/
 /// Vault entries, documented as such in `UnifiedSearchService`.
-enum UnifiedSearchOrigin { foundation, engine, acquisition }
+enum UnifiedSearchOrigin { foundation, engine, acquisition, exchange }
 
 /// What kind of thing a [UnifiedSearchResult] points at, in a form
 /// `unified_navigation.dart` can switch on without importing either
@@ -30,6 +30,8 @@ enum UnifiedSearchResultCategory {
   acquisitionSource,
   acquisitionJob,
   acquisitionVaultEntry,
+  exchangePackage,
+  exchangePublisher,
 }
 
 /// A single row in the unified Search page (WORK_PACKAGE_025,
@@ -138,6 +140,29 @@ class UnifiedSearchResult {
     );
   }
 
+  /// Builds a result for one of the Exchange's Marketplace
+  /// packages/publishers (WP-EXC-010). Unlike [fromFoundation]/
+  /// [fromEngine], and exactly like [fromAcquisition], there is no
+  /// wrapped Exchange-native result type to carry -- [id]/[label] are
+  /// read straight from the already-fetched `ExchangeServiceState` list
+  /// entry that matched.
+  factory UnifiedSearchResult.fromExchange({
+    required UnifiedSearchResultCategory category,
+    required String id,
+    required String label,
+    required String objectTypeLabel,
+  }) {
+    return UnifiedSearchResult._(
+      origin: UnifiedSearchOrigin.exchange,
+      category: category,
+      id: id,
+      label: label,
+      objectTypeLabel: objectTypeLabel,
+      owningWorkspaceLabel: 'Engineering Exchange',
+      repositoryLocation: 'Engineering Exchange',
+    );
+  }
+
   IconData get icon => switch (category) {
         UnifiedSearchResultCategory.knowledgeObject => Icons.category_outlined,
         UnifiedSearchResultCategory.knowledgeRelationship => Icons.hub_outlined,
@@ -149,6 +174,8 @@ class UnifiedSearchResult {
         UnifiedSearchResultCategory.acquisitionSource => Icons.verified_outlined,
         UnifiedSearchResultCategory.acquisitionJob => Icons.assignment_outlined,
         UnifiedSearchResultCategory.acquisitionVaultEntry => Icons.inventory_2_outlined,
+        UnifiedSearchResultCategory.exchangePackage => Icons.inventory_2_outlined,
+        UnifiedSearchResultCategory.exchangePublisher => Icons.storefront_outlined,
       };
 
   static String _engineKindLabel(engine.SearchResultKind kind) {

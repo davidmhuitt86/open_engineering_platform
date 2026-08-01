@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../acquisition/models/download_session.dart';
 import '../acquisition/services/acquisition_runtime_service.dart';
 import '../acquisition/services/acquisition_runtime_state.dart';
 import '../core/events/platform_event.dart';
@@ -12,8 +13,12 @@ import '../core/events/platform_event_bus.dart';
 import '../core/notifications/platform_notification_service.dart';
 import '../core/routing/studio_destination.dart';
 import '../core/services/engineering_project_service.dart';
+import '../core/objects/engineering_object_runtime.dart';
+import '../core/services/foundation_runtime_service.dart';
+import '../core/services/foundation_runtime_state.dart';
 import '../core/theme/studio_colors.dart';
 import '../core/workspace/workspace_manager.dart';
+import '../knowledge/models/ocr_processing_status.dart';
 import '../shared/widgets/property_inspector_panel.dart';
 import 'widgets/command_palette_dialog.dart';
 import 'widgets/studio_nav_rail.dart';
@@ -73,6 +78,23 @@ import 'widgets/studio_toolbar.dart';
 /// actual reliable safety net, since a desktop close-intercept isn't
 /// guaranteed to fire for every possible way the app can end (a crash,
 /// a forced kill).
+///
+/// WP-STUDIO-030 adds a fourth `ref.listenManual`: Knowledge Studio's
+/// already-existing `FoundationServiceState.ocrProcessingStatus` (Work
+/// Package 013 — a per-source background-OCR signal, not something this
+/// Work Package invents) is diffed into [OperationEvent]s the same way
+/// [_publishDownloadProgress] already turns Acquisition's download list
+/// into them; both feed `OperationManager`. No new background-task
+/// abstraction was introduced — these two already-existing signals were
+/// the only genuine "background work" found during this Work Package's
+/// architecture review.
+///
+/// WP-STUDIO-031 feeds `EngineeringObjectRuntime` from that same fourth
+/// `ref.listenManual` (`_handleFoundationStateChange`, renamed from the
+/// WP-STUDIO-030 OCR-only callback) rather than adding a second, redundant
+/// listener on the same provider — `FoundationServiceState.objectList`/
+/// `relationshipList` and `ocrProcessingStatus` are both diffed from the
+/// one `next` value already delivered.
 class StudioShell extends ConsumerStatefulWidget {
   const StudioShell({
     required this.selected,
@@ -80,9 +102,11 @@ class StudioShell extends ConsumerStatefulWidget {
     required this.child,
     PlatformEventBus? eventBus,
     WorkspaceManager? workspaceManager,
+    EngineeringObjectRuntime? engineeringObjectRuntime,
     super.key,
   })  : _eventBus = eventBus,
-        _workspaceManager = workspaceManager;
+        _workspaceManager = workspaceManager,
+        _engineeringObjectRuntime = engineeringObjectRuntime;
 
   final StudioDestination selected;
   final ValueChanged<StudioDestination> onSelect;
@@ -98,6 +122,10 @@ class StudioShell extends ConsumerStatefulWidget {
   /// user settings directory.
   final WorkspaceManager? _workspaceManager;
 
+  /// Defaults to [EngineeringObjectRuntime.instance]; only ever
+  /// overridden in tests.
+  final EngineeringObjectRuntime? _engineeringObjectRuntime;
+
   @override
   ConsumerState<StudioShell> createState() => _StudioShellState();
 }
@@ -105,9 +133,12 @@ class StudioShell extends ConsumerStatefulWidget {
 class _StudioShellState extends ConsumerState<StudioShell> with WidgetsBindingObserver {
   ProviderSubscription<AcquisitionServiceState>? _progressBridge;
   ProviderSubscription<EngineeringProjectState>? _workspaceBridge;
+  ProviderSubscription<FoundationServiceState>? _foundationBridge;
 
   PlatformEventBus get _eventBus => widget._eventBus ?? PlatformEventBus.instance;
   WorkspaceManager get _workspaceManager => widget._workspaceManager ?? WorkspaceManager.instance;
+  EngineeringObjectRuntime get _engineeringObjectRuntime =>
+      widget._engineeringObjectRuntime ?? EngineeringObjectRuntime.instance;
 
   @override
   void initState() {
@@ -118,11 +149,15 @@ class _StudioShellState extends ConsumerState<StudioShell> with WidgetsBindingOb
     );
     _progressBridge = ref.listenManual<AcquisitionServiceState>(
       acquisitionRuntimeServiceProvider,
-      (previous, next) => _publishDownloadProgress(next),
+      _publishDownloadProgress,
     );
     _workspaceBridge = ref.listenManual<EngineeringProjectState>(
       engineeringProjectServiceProvider,
       (previous, next) => _workspaceManager.handleProjectStateChange(next),
+    );
+    _foundationBridge = ref.listenManual<FoundationServiceState>(
+      foundationRuntimeServiceProvider,
+      _handleFoundationStateChange,
     );
     unawaited(_initializeWorkspaceManager());
   }
@@ -211,26 +246,96 @@ class _StudioShellState extends ConsumerState<StudioShell> with WidgetsBindingOb
     WidgetsBinding.instance.removeObserver(this);
     _progressBridge?.close();
     _workspaceBridge?.close();
+    _foundationBridge?.close();
     super.dispose();
   }
 
   /// Translates Acquisition's own already-computed
-  /// `DownloadSession.progressPercentage` into [ProgressEvent]s —
-  /// `progressPercentage < 100` is used rather than matching a
-  /// `status` string, since only `'completed'` is a confirmed status
-  /// value anywhere else in the app (`acquisition_pipeline_panel.dart`);
-  /// the numeric percentage is reliable regardless of exactly which
-  /// other status strings the backend may use.
-  void _publishDownloadProgress(AcquisitionServiceState state) {
-    for (final download in state.downloads) {
+  /// `DownloadSession.progressPercentage` into [ProgressEvent]s (unchanged
+  /// since WP-STUDIO-028) and, since WP-STUDIO-030, also diffs
+  /// [previous]/[next] to publish [OperationEvent]s so `OperationManager`
+  /// can track each download's start/finish — `progressPercentage < 100`
+  /// is used rather than matching a `status` string for the [ProgressEvent]
+  /// half, since only `'completed'`/`'failed'` are confirmed status values
+  /// anywhere else in the app (`acquisition_pipeline_panel.dart`); the
+  /// numeric percentage is reliable regardless of exactly which other
+  /// status strings the backend may use.
+  void _publishDownloadProgress(AcquisitionServiceState? previous, AcquisitionServiceState next) {
+    final previousById = {for (final download in previous?.downloads ?? const <DownloadSession>[]) download.id: download};
+    for (final download in next.downloads) {
+      final label = download.fileName.isEmpty ? download.id : download.fileName;
       if (download.progressPercentage < 100) {
+        _eventBus.publish(ProgressEvent(id: download.id, label: label, fraction: download.progressPercentage / 100));
+      }
+
+      final previousDownload = previousById[download.id];
+      if (previousDownload == null) {
         _eventBus.publish(
-          ProgressEvent(
+          OperationEvent(
             id: download.id,
-            label: download.fileName.isEmpty ? download.id : download.fileName,
+            kind: OperationEventKind.started,
+            label: label,
             fraction: download.progressPercentage / 100,
           ),
         );
+      } else if (previousDownload.status == download.status &&
+          previousDownload.progressPercentage == download.progressPercentage) {
+        continue;
+      }
+      if (download.status == 'completed') {
+        _eventBus.publish(OperationEvent(id: download.id, kind: OperationEventKind.completed, label: label));
+      } else if (download.status == 'failed') {
+        _eventBus.publish(OperationEvent(id: download.id, kind: OperationEventKind.failed, label: label));
+      } else if (previousDownload != null && download.progressPercentage < 100) {
+        _eventBus.publish(
+          OperationEvent(
+            id: download.id,
+            kind: OperationEventKind.progressed,
+            label: label,
+            fraction: download.progressPercentage / 100,
+          ),
+        );
+      }
+    }
+  }
+
+  /// The single Foundation Bridge listener callback (renamed from
+  /// WP-STUDIO-030's OCR-only `_publishOcrOperations`): diffs
+  /// [FoundationServiceState.ocrProcessingStatus] into [OperationEvent]s
+  /// (§ [_publishOcrOperations]'s own former doc comment, unchanged
+  /// below) and, since WP-STUDIO-031, feeds
+  /// [EngineeringObjectRuntime.updateFromFoundationState] with the same
+  /// already-delivered `next` — one listener, two independent diffs, no
+  /// second subscription on the same provider.
+  void _handleFoundationStateChange(FoundationServiceState? previous, FoundationServiceState next) {
+    _publishOcrOperations(previous, next);
+    _engineeringObjectRuntime.updateFromFoundationState(next);
+  }
+
+  /// Surfaces Knowledge Studio's already-existing background OCR signal
+  /// (`FoundationServiceState.ocrProcessingStatus`, Work Package 013) as
+  /// [OperationEvent]s (WP-STUDIO-030) — this bridge does not run OCR or
+  /// duplicate any of `FoundationRuntimeNotifier.runOcrForSource`'s own
+  /// state transitions; it only observes the one already-existing
+  /// per-source status map and republishes each transition as a fact on
+  /// the Platform Event Bus, the same pattern [_publishDownloadProgress]
+  /// already established for Acquisition.
+  void _publishOcrOperations(FoundationServiceState? previous, FoundationServiceState next) {
+    final previousStatus = previous?.ocrProcessingStatus ?? const <String, OcrProcessingStatus>{};
+    for (final entry in next.ocrProcessingStatus.entries) {
+      if (previousStatus[entry.key] == entry.value) continue;
+      final sourceId = entry.key;
+      final matches = next.sourceMaterials.where((source) => source.id == sourceId);
+      final label = matches.isEmpty ? 'Recognizing text' : 'Recognizing text — ${matches.first.originalFileName}';
+      switch (entry.value) {
+        case OcrProcessingStatus.processing:
+          _eventBus.publish(OperationEvent(id: 'ocr:$sourceId', kind: OperationEventKind.started, label: label));
+        case OcrProcessingStatus.completed:
+          _eventBus.publish(OperationEvent(id: 'ocr:$sourceId', kind: OperationEventKind.completed, label: label));
+        case OcrProcessingStatus.failed:
+          _eventBus.publish(OperationEvent(id: 'ocr:$sourceId', kind: OperationEventKind.failed, label: label));
+        case OcrProcessingStatus.notProcessed:
+          break;
       }
     }
   }

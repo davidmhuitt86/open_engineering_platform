@@ -7,6 +7,10 @@ import '../../acquisition/settings/acquisition_settings_page.dart';
 import '../../acquisition/workspaces/acquisition_studio_page.dart';
 import '../../diagram_studio/settings/diagram_studio_settings_page.dart';
 import '../../diagram_studio/workspaces/diagram_studio_page.dart';
+import '../../engineering_intelligence/engineering_intelligence_page.dart';
+import '../../exchange/services/exchange_runtime_service.dart';
+import '../../exchange/settings/exchange_settings_page.dart';
+import '../../exchange/workspaces/exchange_studio_page.dart';
 import '../../features/dashboard/dashboard_page.dart';
 import '../../features/graph/graph_page.dart';
 import '../../features/objects/objects_page.dart';
@@ -369,6 +373,75 @@ class StudioRegistry {
       pageBuilder: _packagesBuilder,
     ),
     const StudioDescriptor(
+      destination: StudioDestination.engineeringIntelligence,
+      pageBuilder: _engineeringIntelligenceBuilder,
+      capabilities: [
+        CapabilityDescriptor(
+          id: 'engineeringIntelligence.explorer',
+          label: 'Engineering Explorer',
+          description: 'Browse Engineering Objects, Relationships, Packages, and Knowledge Domains, and navigate semantic relationships.',
+        ),
+        CapabilityDescriptor(
+          id: 'engineeringIntelligence.knowledgeGraph',
+          label: 'Knowledge Graph Explorer',
+          description: 'Read-only visualization of the Knowledge Graph: zoom, pan, expand/collapse, relationship highlighting, statistics.',
+        ),
+        CapabilityDescriptor(
+          id: 'engineeringIntelligence.queryConsole',
+          label: 'Query Console',
+          description: 'Plan and execute Engineering Query Engine queries, and inspect execution plans, results, and statistics.',
+        ),
+        CapabilityDescriptor(
+          id: 'engineeringIntelligence.validation',
+          label: 'Validation Dashboard',
+          description: 'Run Validation Sessions and review Validation Reports, Findings, and Rule Statistics.',
+        ),
+        CapabilityDescriptor(
+          id: 'engineeringIntelligence.analysis',
+          label: 'Analysis Dashboard',
+          description: 'Dependency, Impact, Reachability, and Root Cause analysis plus overall Engineering Health.',
+        ),
+        CapabilityDescriptor(
+          id: 'engineeringIntelligence.reasoning',
+          label: 'Reasoning Dashboard',
+          description: 'Run Reasoning Sessions and inspect Evidence Graphs, Engineering Conclusions, and confidence.',
+        ),
+        CapabilityDescriptor(
+          id: 'engineeringIntelligence.recommendations',
+          label: 'Recommendation Panel',
+          description: 'Deterministic engineering recommendations with supporting evidence, referenced rules, validation, and objects.',
+        ),
+        CapabilityDescriptor(
+          id: 'engineeringIntelligence.sessions',
+          label: 'Knowledge Session Manager',
+          description: 'Create, resume, clone, close, inspect, and export summaries of Engineering Intelligence Platform sessions.',
+        ),
+      ],
+    ),
+    StudioDescriptor(
+      destination: StudioDestination.exchange,
+      pageBuilder: _exchangeBuilder,
+      settingsProvider: const ExchangeSettingsProvider(),
+      searchProvider: _searchExchange,
+      capabilities: const [
+        CapabilityDescriptor(
+          id: 'exchange.browse',
+          label: 'Marketplace Browsing & Search',
+          description: 'Browse Marketplace Home, search packages, and view Package Detail / Publisher Profiles.',
+        ),
+        CapabilityDescriptor(
+          id: 'exchange.install',
+          label: 'Package Installation',
+          description: 'Install a published package version into the open Repository and track its status.',
+        ),
+        CapabilityDescriptor(
+          id: 'exchange.library',
+          label: 'Downloads & My Library',
+          description: 'Download package artifacts and review locally-tracked download/installation history.',
+        ),
+      ],
+    ),
+    const StudioDescriptor(
       destination: StudioDestination.settings,
       pageBuilder: _settingsBuilder,
     ),
@@ -387,6 +460,8 @@ Widget _searchPageBuilder(BuildContext context, GoRouterState state) => const Se
 Widget _graphBuilder(BuildContext context, GoRouterState state) => const GraphPage();
 Widget _validationBuilder(BuildContext context, GoRouterState state) => const ValidationPage();
 Widget _packagesBuilder(BuildContext context, GoRouterState state) => const PackagesPage();
+Widget _engineeringIntelligenceBuilder(BuildContext context, GoRouterState state) => const EngineeringIntelligencePage();
+Widget _exchangeBuilder(BuildContext context, GoRouterState state) => const ExchangeStudioPage();
 Widget _settingsBuilder(BuildContext context, GoRouterState state) =>
     SettingsWorkspacePage(initialPageId: state.uri.queryParameters['page']);
 
@@ -457,6 +532,44 @@ List<UnifiedSearchResult> _searchAcquisition(WidgetRef ref, String query, Search
         id: entry.id,
         label: entry.sha256Hash.isEmpty ? entry.id : entry.sha256Hash.substring(0, 16),
         objectTypeLabel: 'Vault Entry',
+      ));
+    }
+  }
+  return results;
+}
+
+/// A best-effort, client-side, cache-only filter over whatever
+/// Marketplace/Library data the Exchange Studio has already loaded
+/// (WP-EXC-010) -- mirrors `_searchAcquisition`'s own reasoning exactly:
+/// not a real index, just a filter over the currently cached
+/// `ExchangeServiceState`, since a real index already exists server-side
+/// (`GET /search`) but Unified Search's contract here is synchronous and
+/// cache-only, the same constraint `_searchAcquisition` already works
+/// under.
+List<UnifiedSearchResult> _searchExchange(WidgetRef ref, String query, SearchScope scope) {
+  final needle = query.trim().toLowerCase();
+  if (needle.isEmpty) return const [];
+
+  final exchange = ref.read(exchangeRuntimeServiceProvider);
+  final results = <UnifiedSearchResult>[];
+
+  for (final package in exchange.packages) {
+    if (package.displayName.toLowerCase().contains(needle) || package.packageId.toLowerCase().contains(needle)) {
+      results.add(UnifiedSearchResult.fromExchange(
+        category: UnifiedSearchResultCategory.exchangePackage,
+        id: package.id,
+        label: package.displayName,
+        objectTypeLabel: 'Exchange Package',
+      ));
+    }
+  }
+  for (final publisher in exchange.publishers) {
+    if (publisher.displayName.toLowerCase().contains(needle) || publisher.namespace.toLowerCase().contains(needle)) {
+      results.add(UnifiedSearchResult.fromExchange(
+        category: UnifiedSearchResultCategory.exchangePublisher,
+        id: publisher.id,
+        label: publisher.displayName,
+        objectTypeLabel: 'Exchange Publisher',
       ));
     }
   }

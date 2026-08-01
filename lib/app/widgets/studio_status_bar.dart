@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/operations/operation_manager.dart';
 import '../../core/services/foundation_runtime_service.dart';
 import '../../core/services/foundation_runtime_state.dart';
 import '../../core/theme/studio_colors.dart';
@@ -8,17 +11,53 @@ import '../../core/theme/studio_colors.dart';
 /// The bottom Status Bar (SDD-003/SDD-004, overridden by Work Package 002:
 /// displays Runtime, Repository, Theme, and Studio Version — Foundation
 /// Version moved to the Dashboard). Work Package 003 adds Selected Object.
-class StudioStatusBar extends ConsumerWidget {
-  const StudioStatusBar({super.key});
+///
+/// WP-STUDIO-030 Engineering Operations Framework adds a conditional
+/// "N Operations Running" segment, sourced from [OperationManager] —
+/// this is why this widget is a [ConsumerStatefulWidget] rather than
+/// [ConsumerWidget] as before: it needs to subscribe to
+/// [OperationManager.changes] (not a Riverpod provider, since
+/// `OperationManager` is a plain Platform singleton, not Studio state)
+/// and call [State.setState] when it fires.
+class StudioStatusBar extends ConsumerStatefulWidget {
+  const StudioStatusBar({OperationManager? operationManager, super.key}) : _operationManager = operationManager;
+
+  /// Defaults to [OperationManager.instance]; only ever overridden in
+  /// tests.
+  final OperationManager? _operationManager;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<StudioStatusBar> createState() => _StudioStatusBarState();
+}
+
+class _StudioStatusBarState extends ConsumerState<StudioStatusBar> {
+  StreamSubscription<void>? _operationsSubscription;
+
+  OperationManager get _operationManager => widget._operationManager ?? OperationManager.instance;
+
+  @override
+  void initState() {
+    super.initState();
+    _operationsSubscription = _operationManager.changes.listen((_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _operationsSubscription?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final foundation = ref.watch(foundationRuntimeServiceProvider);
     final connected = foundation.phase == FoundationConnectionPhase.connected;
     final repositoryLabel = foundation.isRepositoryOpen
         ? 'Repository: ${foundation.repositoryStatus?.repositoryName ?? "Open"}'
         : 'Repository: None Open';
     final selectedObjectLabel = 'Selected Object: ${foundation.selectedObject?.name ?? "None"}';
+    final activeOperations = _operationManager.activeOperations;
 
     return Container(
       height: 28,
@@ -53,6 +92,12 @@ class StudioStatusBar extends ConsumerWidget {
                   ),
                   const _StatusSeparator(),
                   _StatusText(selectedObjectLabel),
+                  if (activeOperations.isNotEmpty) ...[
+                    const _StatusSeparator(),
+                    _StatusText(
+                      '${activeOperations.length} Operation${activeOperations.length == 1 ? '' : 's'} Running',
+                    ),
+                  ],
                 ],
               ),
             ),
