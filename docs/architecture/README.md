@@ -1,1 +1,1 @@
-# Architecture Documents
+# Architecture

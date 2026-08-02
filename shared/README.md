@@ -1,1 +1,1 @@
-# Shared Models and Protocol
+Shared assets

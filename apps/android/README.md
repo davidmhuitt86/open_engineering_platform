@@ -1,1 +1,1 @@
-# Android Companion Client
+# Android Client
