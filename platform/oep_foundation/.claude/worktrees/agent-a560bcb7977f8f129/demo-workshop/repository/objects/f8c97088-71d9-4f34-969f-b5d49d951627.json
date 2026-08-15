@@ -1,0 +1,16 @@
+{
+  "objectId": "f8c97088-71d9-4f34-969f-b5d49d951627",
+  "objectType": "Component",
+  "name": "GL1200 Ignition Wiring Harness",
+  "description": "Sample Engineering Object for the engineering-demo package: the main ignition wiring harness assembly, illustrating a single Component record in the shape Foundation's EngineeringObject model uses (OEP-SPEC-004).",
+  "createdUtc": "2026-07-19T00:00:00Z",
+  "lastModifiedUtc": "2026-07-19T23:14:40.459Z",
+  "version": "1.0.0",
+  "author": "OEP Demo Publisher",
+  "tags": [
+    "automotive",
+    "electrical",
+    "wiring-harness",
+    "demo"
+  ]
+}

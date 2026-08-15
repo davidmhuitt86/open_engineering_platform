@@ -1,0 +1,16 @@
+{
+  "objectId": "983c83c1-6a74-4b46-9bff-3e876e756697",
+  "objectType": "Diagram",
+  "name": "GL1200 Ignition Wiring Diagram",
+  "description": "Sample Engineering Object for the engineering-demo package: the wiring diagram documenting the ignition harness, illustrating a Diagram record and a Relationship between two objects in one package.",
+  "createdUtc": "2026-07-19T00:00:00Z",
+  "lastModifiedUtc": "2026-07-19T23:14:40.421Z",
+  "version": "1.0.0",
+  "author": "OEP Demo Publisher",
+  "tags": [
+    "automotive",
+    "electrical",
+    "wiring-diagram",
+    "demo"
+  ]
+}

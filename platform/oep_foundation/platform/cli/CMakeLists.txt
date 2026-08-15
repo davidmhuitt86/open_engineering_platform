@@ -1,0 +1,45 @@
+cmake_minimum_required(VERSION 3.25)
+
+add_library(oep_cli_core STATIC
+    src/command_registry.cpp
+    src/commands/analysis_command.cpp
+    src/commands/batch_command.cpp
+    src/commands/engine_command.cpp
+    src/commands/evalidate_command.cpp
+    src/commands/export_command.cpp
+    src/commands/graph_command.cpp
+    src/commands/help_command.cpp
+    src/commands/import_command.cpp
+    src/commands/init_command.cpp
+    src/commands/inspect_command.cpp
+    src/commands/intelligence_common.cpp
+    src/commands/metrics_command.cpp
+    src/commands/object_command.cpp
+    src/commands/open_command.cpp
+    src/commands/package_command.cpp
+    src/commands/transaction_command.cpp
+    src/commands/trust_command.cpp
+    src/commands/packages_command.cpp
+    src/commands/reasoning_command.cpp
+    src/commands/relationship_command.cpp
+    src/commands/repository_path_option.cpp
+    src/commands/rules_command.cpp
+    src/commands/runtime_command.cpp
+    src/commands/runtime_event_log.cpp
+    src/commands/search_command.cpp
+    src/commands/session_command.cpp
+    src/commands/status_command.cpp
+    src/commands/summary_command.cpp
+    src/commands/template_command.cpp
+    src/commands/validate_command.cpp
+    src/commands/version_command.cpp
+    src/commands/workflow_command.cpp
+    src/generator/repository_generator.cpp
+)
+
+target_include_directories(oep_cli_core PUBLIC include src)
+target_compile_features(oep_cli_core PUBLIC cxx_std_23)
+target_link_libraries(oep_cli_core PUBLIC oep_repository oep_runtime oep_search oep_validation oep_packages oep_engine)
+
+add_executable(oep src/main.cpp)
+target_link_libraries(oep PRIVATE oep_cli_core)

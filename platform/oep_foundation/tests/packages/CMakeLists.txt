@@ -1,0 +1,3 @@
+add_executable(oep_package_manager_tests package_manager_tests.cpp)
+target_link_libraries(oep_package_manager_tests PRIVATE oep_packages)
+add_test(NAME oep_package_manager_tests COMMAND oep_package_manager_tests)

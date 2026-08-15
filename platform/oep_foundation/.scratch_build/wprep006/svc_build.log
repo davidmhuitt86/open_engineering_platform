@@ -1,0 +1,10 @@
+[ 27%] Built target oep_repository
+[ 31%] Built target oep_search
+[ 37%] Built target oep_validation
+[ 44%] Built target oep_packages
+[ 68%] Built target oep_installer
+[ 86%] Built target oep_archive
+[ 96%] Built target oep_runtime
+[ 96%] Building CXX object tests/runtime/CMakeFiles/oep_runtime_service_tests.dir/runtime_service_tests.cpp.o
+[100%] Linking CXX executable oep_runtime_service_tests
+[100%] Built target oep_runtime_service_tests

@@ -1,0 +1,629 @@
+Start testing: Jul 21 00:40 CDT
+----------------------------------------------------------
+1/38 Testing: oep_repository_tests
+1/38 Test: oep_repository_tests
+Command: "/mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/repository/oep_repository_tests"
+Directory: /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/repository
+"oep_repository_tests" start time: Jul 21 00:40 CDT
+Output:
+----------------------------------------------------------
+All repository metadata tests passed.
+<end of output>
+Test time =   0.01 sec
+----------------------------------------------------------
+Test Passed.
+"oep_repository_tests" end time: Jul 21 00:40 CDT
+"oep_repository_tests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+2/38 Testing: oep_engineering_object_tests
+2/38 Test: oep_engineering_object_tests
+Command: "/mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/repository/oep_engineering_object_tests"
+Directory: /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/repository
+"oep_engineering_object_tests" start time: Jul 21 00:40 CDT
+Output:
+----------------------------------------------------------
+All Engineering Object tests passed.
+<end of output>
+Test time =   1.12 sec
+----------------------------------------------------------
+Test Passed.
+"oep_engineering_object_tests" end time: Jul 21 00:40 CDT
+"oep_engineering_object_tests" time elapsed: 00:00:01
+----------------------------------------------------------
+
+3/38 Testing: oep_relationship_tests
+3/38 Test: oep_relationship_tests
+Command: "/mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/repository/oep_relationship_tests"
+Directory: /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/repository
+"oep_relationship_tests" start time: Jul 21 00:40 CDT
+Output:
+----------------------------------------------------------
+All relationship tests passed.
+<end of output>
+Test time =   0.03 sec
+----------------------------------------------------------
+Test Passed.
+"oep_relationship_tests" end time: Jul 21 00:40 CDT
+"oep_relationship_tests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+4/38 Testing: oep_graph_engine_tests
+4/38 Test: oep_graph_engine_tests
+Command: "/mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/repository/oep_graph_engine_tests"
+Directory: /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/repository
+"oep_graph_engine_tests" start time: Jul 21 00:40 CDT
+Output:
+----------------------------------------------------------
+All graph engine tests passed.
+<end of output>
+Test time =   0.03 sec
+----------------------------------------------------------
+Test Passed.
+"oep_graph_engine_tests" end time: Jul 21 00:40 CDT
+"oep_graph_engine_tests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+5/38 Testing: oep_audit_store_tests
+5/38 Test: oep_audit_store_tests
+Command: "/mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/repository/oep_audit_store_tests"
+Directory: /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/repository
+"oep_audit_store_tests" start time: Jul 21 00:40 CDT
+Output:
+----------------------------------------------------------
+All audit store tests passed.
+<end of output>
+Test time =   0.03 sec
+----------------------------------------------------------
+Test Passed.
+"oep_audit_store_tests" end time: Jul 21 00:40 CDT
+"oep_audit_store_tests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+6/38 Testing: oep_batch_processor_tests
+6/38 Test: oep_batch_processor_tests
+Command: "/mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/repository/oep_batch_processor_tests"
+Directory: /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/repository
+"oep_batch_processor_tests" start time: Jul 21 00:40 CDT
+Output:
+----------------------------------------------------------
+All batch processor tests passed.
+<end of output>
+Test time =   0.03 sec
+----------------------------------------------------------
+Test Passed.
+"oep_batch_processor_tests" end time: Jul 21 00:40 CDT
+"oep_batch_processor_tests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+7/38 Testing: oep_search_engine_tests
+7/38 Test: oep_search_engine_tests
+Command: "/mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/search/oep_search_engine_tests"
+Directory: /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/search
+"oep_search_engine_tests" start time: Jul 21 00:40 CDT
+Output:
+----------------------------------------------------------
+All search engine tests passed.
+<end of output>
+Test time =   0.02 sec
+----------------------------------------------------------
+Test Passed.
+"oep_search_engine_tests" end time: Jul 21 00:40 CDT
+"oep_search_engine_tests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+8/38 Testing: oep_repository_validator_tests
+8/38 Test: oep_repository_validator_tests
+Command: "/mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/validation/oep_repository_validator_tests"
+Directory: /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/validation
+"oep_repository_validator_tests" start time: Jul 21 00:40 CDT
+Output:
+----------------------------------------------------------
+All repository validator tests passed.
+<end of output>
+Test time =   0.05 sec
+----------------------------------------------------------
+Test Passed.
+"oep_repository_validator_tests" end time: Jul 21 00:40 CDT
+"oep_repository_validator_tests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+9/38 Testing: oep_package_manager_tests
+9/38 Test: oep_package_manager_tests
+Command: "/mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/packages/oep_package_manager_tests"
+Directory: /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/packages
+"oep_package_manager_tests" start time: Jul 21 00:40 CDT
+Output:
+----------------------------------------------------------
+All package manager tests passed.
+<end of output>
+Test time =   0.05 sec
+----------------------------------------------------------
+Test Passed.
+"oep_package_manager_tests" end time: Jul 21 00:40 CDT
+"oep_package_manager_tests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+10/38 Testing: oep_repository_exporter_tests
+10/38 Test: oep_repository_exporter_tests
+Command: "/mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/archive/oep_repository_exporter_tests"
+Directory: /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/archive
+"oep_repository_exporter_tests" start time: Jul 21 00:40 CDT
+Output:
+----------------------------------------------------------
+All repository exporter tests passed.
+<end of output>
+Test time =   0.02 sec
+----------------------------------------------------------
+Test Passed.
+"oep_repository_exporter_tests" end time: Jul 21 00:40 CDT
+"oep_repository_exporter_tests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+11/38 Testing: oep_repository_importer_tests
+11/38 Test: oep_repository_importer_tests
+Command: "/mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/archive/oep_repository_importer_tests"
+Directory: /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/archive
+"oep_repository_importer_tests" start time: Jul 21 00:40 CDT
+Output:
+----------------------------------------------------------
+All repository importer tests passed.
+<end of output>
+Test time =   0.04 sec
+----------------------------------------------------------
+Test Passed.
+"oep_repository_importer_tests" end time: Jul 21 00:40 CDT
+"oep_repository_importer_tests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+12/38 Testing: oep_repository_template_tests
+12/38 Test: oep_repository_template_tests
+Command: "/mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/archive/oep_repository_template_tests"
+Directory: /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/archive
+"oep_repository_template_tests" start time: Jul 21 00:40 CDT
+Output:
+----------------------------------------------------------
+All repository template tests passed.
+<end of output>
+Test time =   0.03 sec
+----------------------------------------------------------
+Test Passed.
+"oep_repository_template_tests" end time: Jul 21 00:40 CDT
+"oep_repository_template_tests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+13/38 Testing: oep_zip_reader_tests
+13/38 Test: oep_zip_reader_tests
+Command: "/mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/installer/oep_zip_reader_tests"
+Directory: /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/installer
+"oep_zip_reader_tests" start time: Jul 21 00:40 CDT
+Output:
+----------------------------------------------------------
+All ZipReader tests passed.
+<end of output>
+Test time =   0.01 sec
+----------------------------------------------------------
+Test Passed.
+"oep_zip_reader_tests" end time: Jul 21 00:40 CDT
+"oep_zip_reader_tests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+14/38 Testing: oep_package_manifest_tests
+14/38 Test: oep_package_manifest_tests
+Command: "/mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/installer/oep_package_manifest_tests"
+Directory: /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/installer
+"oep_package_manifest_tests" start time: Jul 21 00:40 CDT
+Output:
+----------------------------------------------------------
+All OepPackageManifest tests passed.
+<end of output>
+Test time =   0.01 sec
+----------------------------------------------------------
+Test Passed.
+"oep_package_manifest_tests" end time: Jul 21 00:40 CDT
+"oep_package_manifest_tests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+15/38 Testing: oep_sha256_tests
+15/38 Test: oep_sha256_tests
+Command: "/mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/installer/oep_sha256_tests"
+Directory: /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/installer
+"oep_sha256_tests" start time: Jul 21 00:40 CDT
+Output:
+----------------------------------------------------------
+All sha256 tests passed.
+<end of output>
+Test time =   0.01 sec
+----------------------------------------------------------
+Test Passed.
+"oep_sha256_tests" end time: Jul 21 00:40 CDT
+"oep_sha256_tests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+16/38 Testing: oep_sha512_tests
+16/38 Test: oep_sha512_tests
+Command: "/mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/installer/oep_sha512_tests"
+Directory: /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/installer
+"oep_sha512_tests" start time: Jul 21 00:40 CDT
+Output:
+----------------------------------------------------------
+All sha512 tests passed.
+<end of output>
+Test time =   0.01 sec
+----------------------------------------------------------
+Test Passed.
+"oep_sha512_tests" end time: Jul 21 00:40 CDT
+"oep_sha512_tests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+17/38 Testing: oep_ed25519_tests
+17/38 Test: oep_ed25519_tests
+Command: "/mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/installer/oep_ed25519_tests"
+Directory: /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/installer
+"oep_ed25519_tests" start time: Jul 21 00:40 CDT
+Output:
+----------------------------------------------------------
+All ed25519 tests passed.
+<end of output>
+Test time =   0.05 sec
+----------------------------------------------------------
+Test Passed.
+"oep_ed25519_tests" end time: Jul 21 00:40 CDT
+"oep_ed25519_tests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+18/38 Testing: oep_trust_store_tests
+18/38 Test: oep_trust_store_tests
+Command: "/mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/installer/oep_trust_store_tests"
+Directory: /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/installer
+"oep_trust_store_tests" start time: Jul 21 00:40 CDT
+Output:
+----------------------------------------------------------
+All TrustStore tests passed.
+<end of output>
+Test time =   0.01 sec
+----------------------------------------------------------
+Test Passed.
+"oep_trust_store_tests" end time: Jul 21 00:40 CDT
+"oep_trust_store_tests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+19/38 Testing: oep_package_verifier_tests
+19/38 Test: oep_package_verifier_tests
+Command: "/mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/installer/oep_package_verifier_tests"
+Directory: /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/installer
+"oep_package_verifier_tests" start time: Jul 21 00:40 CDT
+Output:
+----------------------------------------------------------
+All package_verifier tests passed.
+<end of output>
+Test time =   0.03 sec
+----------------------------------------------------------
+Test Passed.
+"oep_package_verifier_tests" end time: Jul 21 00:40 CDT
+"oep_package_verifier_tests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+20/38 Testing: oep_repository_registry_tests
+20/38 Test: oep_repository_registry_tests
+Command: "/mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/installer/oep_repository_registry_tests"
+Directory: /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/installer
+"oep_repository_registry_tests" start time: Jul 21 00:40 CDT
+Output:
+----------------------------------------------------------
+All RepositoryRegistry tests passed.
+<end of output>
+Test time =   0.02 sec
+----------------------------------------------------------
+Test Passed.
+"oep_repository_registry_tests" end time: Jul 21 00:40 CDT
+"oep_repository_registry_tests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+21/38 Testing: oep_package_installer_tests
+21/38 Test: oep_package_installer_tests
+Command: "/mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/installer/oep_package_installer_tests"
+Directory: /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/installer
+"oep_package_installer_tests" start time: Jul 21 00:40 CDT
+Output:
+----------------------------------------------------------
+All package_installer tests passed.
+<end of output>
+Test time =   0.02 sec
+----------------------------------------------------------
+Test Passed.
+"oep_package_installer_tests" end time: Jul 21 00:40 CDT
+"oep_package_installer_tests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+22/38 Testing: oep_foundation_runtime_tests
+22/38 Test: oep_foundation_runtime_tests
+Command: "/mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/runtime/oep_foundation_runtime_tests"
+Directory: /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/runtime
+"oep_foundation_runtime_tests" start time: Jul 21 00:40 CDT
+Output:
+----------------------------------------------------------
+All foundation runtime tests passed.
+<end of output>
+Test time =   0.03 sec
+----------------------------------------------------------
+Test Passed.
+"oep_foundation_runtime_tests" end time: Jul 21 00:40 CDT
+"oep_foundation_runtime_tests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+23/38 Testing: oep_package_installation_tests
+23/38 Test: oep_package_installation_tests
+Command: "/mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/runtime/oep_package_installation_tests"
+Directory: /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/runtime
+"oep_package_installation_tests" start time: Jul 21 00:40 CDT
+Output:
+----------------------------------------------------------
+All package installation (FoundationRuntime) tests passed.
+<end of output>
+Test time =   0.08 sec
+----------------------------------------------------------
+Test Passed.
+"oep_package_installation_tests" end time: Jul 21 00:40 CDT
+"oep_package_installation_tests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+24/38 Testing: oep_transaction_journal_tests
+24/38 Test: oep_transaction_journal_tests
+Command: "/mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/runtime/oep_transaction_journal_tests"
+Directory: /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/runtime
+"oep_transaction_journal_tests" start time: Jul 21 00:40 CDT
+Output:
+----------------------------------------------------------
+All TransactionJournal tests passed.
+<end of output>
+Test time =   0.01 sec
+----------------------------------------------------------
+Test Passed.
+"oep_transaction_journal_tests" end time: Jul 21 00:40 CDT
+"oep_transaction_journal_tests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+25/38 Testing: oep_trust_integration_tests
+25/38 Test: oep_trust_integration_tests
+Command: "/mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/runtime/oep_trust_integration_tests"
+Directory: /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/runtime
+"oep_trust_integration_tests" start time: Jul 21 00:40 CDT
+Output:
+----------------------------------------------------------
+All trust integration (FoundationRuntime) tests passed.
+<end of output>
+Test time =   0.06 sec
+----------------------------------------------------------
+Test Passed.
+"oep_trust_integration_tests" end time: Jul 21 00:40 CDT
+"oep_trust_integration_tests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+26/38 Testing: oep_api_tests
+26/38 Test: oep_api_tests
+Command: "/mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/api/oep_api_tests"
+Directory: /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/api
+"oep_api_tests" start time: Jul 21 00:40 CDT
+Output:
+----------------------------------------------------------
+All Public C API tests passed.
+<end of output>
+Test time =   0.12 sec
+----------------------------------------------------------
+Test Passed.
+"oep_api_tests" end time: Jul 21 00:40 CDT
+"oep_api_tests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+27/38 Testing: oep_cli_commands_tests
+27/38 Test: oep_cli_commands_tests
+Command: "/mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/cli/oep_cli_commands_tests"
+Directory: /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/cli
+"oep_cli_commands_tests" start time: Jul 21 00:40 CDT
+Output:
+----------------------------------------------------------
+All CLI command tests passed.
+<end of output>
+Test time =   0.04 sec
+----------------------------------------------------------
+Test Passed.
+"oep_cli_commands_tests" end time: Jul 21 00:40 CDT
+"oep_cli_commands_tests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+28/38 Testing: oep_object_command_tests
+28/38 Test: oep_object_command_tests
+Command: "/mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/cli/oep_object_command_tests"
+Directory: /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/cli
+"oep_object_command_tests" start time: Jul 21 00:40 CDT
+Output:
+----------------------------------------------------------
+Deleted object 'ee0c1bbc-86a2-44fb-83ab-0b71a8086c14'
+All object command tests passed.
+<end of output>
+Test time =   0.05 sec
+----------------------------------------------------------
+Test Passed.
+"oep_object_command_tests" end time: Jul 21 00:40 CDT
+"oep_object_command_tests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+29/38 Testing: oep_relationship_command_tests
+29/38 Test: oep_relationship_command_tests
+Command: "/mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/cli/oep_relationship_command_tests"
+Directory: /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/cli
+"oep_relationship_command_tests" start time: Jul 21 00:40 CDT
+Output:
+----------------------------------------------------------
+Deleted relationship '84d3006d-6235-463c-9c09-215f8d1c2f5e'
+All relationship command tests passed.
+<end of output>
+Test time =   0.07 sec
+----------------------------------------------------------
+Test Passed.
+"oep_relationship_command_tests" end time: Jul 21 00:40 CDT
+"oep_relationship_command_tests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+30/38 Testing: oep_search_command_tests
+30/38 Test: oep_search_command_tests
+Command: "/mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/cli/oep_search_command_tests"
+Directory: /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/cli
+"oep_search_command_tests" start time: Jul 21 00:40 CDT
+Output:
+----------------------------------------------------------
+All search command tests passed.
+<end of output>
+Test time =   0.08 sec
+----------------------------------------------------------
+Test Passed.
+"oep_search_command_tests" end time: Jul 21 00:40 CDT
+"oep_search_command_tests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+31/38 Testing: oep_graph_command_tests
+31/38 Test: oep_graph_command_tests
+Command: "/mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/cli/oep_graph_command_tests"
+Directory: /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/cli
+"oep_graph_command_tests" start time: Jul 21 00:40 CDT
+Output:
+----------------------------------------------------------
+All graph command tests passed.
+<end of output>
+Test time =   0.13 sec
+----------------------------------------------------------
+Test Passed.
+"oep_graph_command_tests" end time: Jul 21 00:40 CDT
+"oep_graph_command_tests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+32/38 Testing: oep_export_command_tests
+32/38 Test: oep_export_command_tests
+Command: "/mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/cli/oep_export_command_tests"
+Directory: /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/cli
+"oep_export_command_tests" start time: Jul 21 00:40 CDT
+Output:
+----------------------------------------------------------
+All export command tests passed.
+<end of output>
+Test time =   0.04 sec
+----------------------------------------------------------
+Test Passed.
+"oep_export_command_tests" end time: Jul 21 00:40 CDT
+"oep_export_command_tests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+33/38 Testing: oep_import_command_tests
+33/38 Test: oep_import_command_tests
+Command: "/mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/cli/oep_import_command_tests"
+Directory: /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/cli
+"oep_import_command_tests" start time: Jul 21 00:40 CDT
+Output:
+----------------------------------------------------------
+Exported repository to '/tmp/oep_import_command_tests/roundtrip.json'
+  Objects:       1
+  Relationships: 0
+  Packages:      0
+Exported repository to '/tmp/oep_import_command_tests/overwrite.json'
+  Objects:       0
+  Relationships: 0
+  Packages:      0
+Imported repository to '/tmp/oep_import_command_tests/overwrite-destination'
+  Objects:       0
+  Relationships: 0
+  Packages:      0
+Imported repository to '/tmp/oep_import_command_tests/overwrite-destination'
+  Objects:       0
+  Relationships: 0
+  Packages:      0
+All import command tests passed.
+<end of output>
+Test time =   0.05 sec
+----------------------------------------------------------
+Test Passed.
+"oep_import_command_tests" end time: Jul 21 00:40 CDT
+"oep_import_command_tests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+34/38 Testing: oep_template_command_tests
+34/38 Test: oep_template_command_tests
+Command: "/mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/cli/oep_template_command_tests"
+Directory: /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/cli
+"oep_template_command_tests" start time: Jul 21 00:40 CDT
+Output:
+----------------------------------------------------------
+All template command tests passed.
+<end of output>
+Test time =   0.04 sec
+----------------------------------------------------------
+Test Passed.
+"oep_template_command_tests" end time: Jul 21 00:40 CDT
+"oep_template_command_tests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+35/38 Testing: oep_batch_command_tests
+35/38 Test: oep_batch_command_tests
+Command: "/mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/cli/oep_batch_command_tests"
+Directory: /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/cli
+"oep_batch_command_tests" start time: Jul 21 00:40 CDT
+Output:
+----------------------------------------------------------
+All batch command tests passed.
+<end of output>
+Test time =   0.05 sec
+----------------------------------------------------------
+Test Passed.
+"oep_batch_command_tests" end time: Jul 21 00:40 CDT
+"oep_batch_command_tests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+36/38 Testing: oep_package_command_tests
+36/38 Test: oep_package_command_tests
+Command: "/mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/cli/oep_package_command_tests"
+Directory: /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/cli
+"oep_package_command_tests" start time: Jul 21 00:40 CDT
+Output:
+----------------------------------------------------------
+All package command tests passed.
+<end of output>
+Test time =   0.05 sec
+----------------------------------------------------------
+Test Passed.
+"oep_package_command_tests" end time: Jul 21 00:40 CDT
+"oep_package_command_tests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+37/38 Testing: oep_transaction_command_tests
+37/38 Test: oep_transaction_command_tests
+Command: "/mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/cli/oep_transaction_command_tests"
+Directory: /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/cli
+"oep_transaction_command_tests" start time: Jul 21 00:40 CDT
+Output:
+----------------------------------------------------------
+All transaction command tests passed.
+<end of output>
+Test time =   0.04 sec
+----------------------------------------------------------
+Test Passed.
+"oep_transaction_command_tests" end time: Jul 21 00:40 CDT
+"oep_transaction_command_tests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+38/38 Testing: oep_trust_command_tests
+38/38 Test: oep_trust_command_tests
+Command: "/mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/cli/oep_trust_command_tests"
+Directory: /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl/tests/cli
+"oep_trust_command_tests" start time: Jul 21 00:40 CDT
+Output:
+----------------------------------------------------------
+All trust command tests passed.
+<end of output>
+Test time =   0.04 sec
+----------------------------------------------------------
+Test Passed.
+"oep_trust_command_tests" end time: Jul 21 00:40 CDT
+"oep_trust_command_tests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+End testing: Jul 21 00:40 CDT
