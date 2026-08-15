@@ -1,0 +1,14 @@
+{
+  "type": "lamp",
+  "label": "Incandescent Lamp / Indicator",
+  "terminals": ["+", "GND"],
+  "properties": {
+    "operatingVoltage": 12,
+    "coldResistance":   10,
+    "hotResistance":    120,
+    "forwardVoltage":   null
+  },
+  "behavior": "Conducts when voltage applied across terminals. High cold resistance, higher hot resistance.",
+  "category": "lighting",
+  "notes": "Cold resistance << hot resistance. Inrush current at switch-on. Acts as load resistance."
+}

@@ -1,0 +1,574 @@
+{
+  "wires": [
+    {
+      "id": "stator-ac1",
+      "color": "Y",
+      "label": "Stator Ph1",
+      "description": "Stator AC phase 1 \u2192 regulator",
+      "from": {
+        "module": "alternator-stator",
+        "terminal": "AC1"
+      },
+      "to": {
+        "module": "regulator-rectifier",
+        "terminal": "AC1"
+      },
+      "bends": []
+    },
+    {
+      "id": "stator-ac2",
+      "color": "Y",
+      "label": "Stator Ph2",
+      "description": "Stator AC phase 2 \u2192 regulator",
+      "from": {
+        "module": "alternator-stator",
+        "terminal": "AC2"
+      },
+      "to": {
+        "module": "regulator-rectifier",
+        "terminal": "AC2"
+      },
+      "bends": []
+    },
+    {
+      "id": "stator-ac3",
+      "color": "Y",
+      "label": "Stator Ph3",
+      "description": "Stator AC phase 3 \u2192 regulator",
+      "from": {
+        "module": "alternator-stator",
+        "terminal": "AC3"
+      },
+      "to": {
+        "module": "regulator-rectifier",
+        "terminal": "AC3"
+      },
+      "bends": []
+    },
+    {
+      "id": "stator-gnd",
+      "color": "G",
+      "label": "Stator GND",
+      "description": "Stator ground \u2192 regulator",
+      "from": {
+        "module": "alternator-stator",
+        "terminal": "GND"
+      },
+      "to": {
+        "module": "regulator-rectifier",
+        "terminal": "REG"
+      },
+      "bends": []
+    },
+    {
+      "id": "reg-bat",
+      "color": "R",
+      "label": "Charge Out",
+      "description": "Regulated DC charge \u2192 battery",
+      "from": {
+        "module": "regulator-rectifier",
+        "terminal": "B+"
+      },
+      "to": {
+        "module": "battery-fuses",
+        "terminal": "B+(R)"
+      },
+      "bends": []
+    },
+    {
+      "id": "pulser-cdi",
+      "color": "Blu/Y",
+      "label": "Pulser Signal",
+      "description": "Timing pulse \u2192 CDI",
+      "from": {
+        "module": "pulser-coil",
+        "terminal": "OUT"
+      },
+      "to": {
+        "module": "cdi-unit",
+        "terminal": "P3"
+      },
+      "bends": []
+    },
+    {
+      "id": "pulser-gnd",
+      "color": "G",
+      "label": "Pulser GND",
+      "description": "Pulser body ground",
+      "from": {
+        "module": "pulser-coil",
+        "terminal": "BODY"
+      },
+      "to": {
+        "module": "chassis-ground",
+        "terminal": "A"
+      },
+      "bends": []
+    },
+    {
+      "id": "cdi-coil",
+      "color": "Bl/Y",
+      "label": "CDI\u2192Ign Coil",
+      "description": "CDI primary drive \u2192 ignition coil",
+      "from": {
+        "module": "cdi-unit",
+        "terminal": "P1"
+      },
+      "to": {
+        "module": "ignition-coil",
+        "terminal": "PRI+"
+      },
+      "bends": []
+    },
+    {
+      "id": "coil-gnd",
+      "color": "G",
+      "label": "Coil GND",
+      "description": "Ignition coil primary ground",
+      "from": {
+        "module": "ignition-coil",
+        "terminal": "GND"
+      },
+      "to": {
+        "module": "chassis-ground",
+        "terminal": "A"
+      },
+      "bends": []
+    },
+    {
+      "id": "cdi-gnd",
+      "color": "G",
+      "label": "CDI GND",
+      "description": "CDI unit ground",
+      "from": {
+        "module": "cdi-unit",
+        "terminal": "P2"
+      },
+      "to": {
+        "module": "chassis-ground",
+        "terminal": "B"
+      },
+      "bends": []
+    },
+    {
+      "id": "oil-alarm",
+      "color": "Br/R",
+      "label": "Oil Temp Sig",
+      "description": "Oil temp indicator \u2192 alarm unit",
+      "from": {
+        "module": "indicator-lights",
+        "terminal": "OIL"
+      },
+      "to": {
+        "module": "alarm-unit",
+        "terminal": "A1"
+      },
+      "bends": []
+    },
+    {
+      "id": "rev-ind",
+      "color": "Gr",
+      "label": "Reverse Signal",
+      "description": "Reverse switch \u2192 indicator lamp",
+      "from": {
+        "module": "reverse-switch",
+        "terminal": "OUT"
+      },
+      "to": {
+        "module": "indicator-lights",
+        "terminal": "REV"
+      },
+      "bends": []
+    },
+    {
+      "id": "rev-gnd",
+      "color": "G",
+      "label": "Rev SW GND",
+      "description": "Reverse switch body ground",
+      "from": {
+        "module": "reverse-switch",
+        "terminal": "BODY"
+      },
+      "to": {
+        "module": "chassis-ground",
+        "terminal": "A"
+      },
+      "bends": []
+    },
+    {
+      "id": "neu-gnd",
+      "color": "G",
+      "label": "Neu SW GND",
+      "description": "Neutral switch body ground",
+      "from": {
+        "module": "neutral-switch",
+        "terminal": "BODY"
+      },
+      "to": {
+        "module": "chassis-ground",
+        "terminal": "A"
+      },
+      "bends": []
+    },
+    {
+      "id": "oilsw-gnd",
+      "color": "G",
+      "label": "Oil SW GND",
+      "description": "Oil temp switch body ground",
+      "from": {
+        "module": "oil-temp-switch",
+        "terminal": "BODY"
+      },
+      "to": {
+        "module": "chassis-ground",
+        "terminal": "A"
+      },
+      "bends": []
+    },
+    {
+      "id": "neu-ind",
+      "color": "Lg/R",
+      "label": "Neutral Feed",
+      "description": "Neutral indicator \u2192 rectifier diode",
+      "from": {
+        "module": "indicator-lights",
+        "terminal": "NEU"
+      },
+      "to": {
+        "module": "rectifier-diode",
+        "terminal": "A"
+      },
+      "bends": []
+    },
+    {
+      "id": "bat-ign-r",
+      "color": "R",
+      "label": "Batt to Ign R",
+      "description": "Battery B+ \u2192 ignition switch (Red)",
+      "from": {
+        "module": "battery-fuses",
+        "terminal": "B+(R)"
+      },
+      "to": {
+        "module": "ignition-switch",
+        "terminal": "BAT1"
+      },
+      "bends": []
+    },
+    {
+      "id": "bat-ign-pw",
+      "color": "P/W",
+      "label": "Batt to Ign PW",
+      "description": "Battery B+ \u2192 ignition switch (Pink/White)",
+      "from": {
+        "module": "battery-fuses",
+        "terminal": "B+(PW)"
+      },
+      "to": {
+        "module": "ignition-switch",
+        "terminal": "BAT3"
+      },
+      "bends": []
+    },
+    {
+      "id": "ign-consent",
+      "color": "P",
+      "label": "Ign to DC Jack",
+      "description": "Switched +12V \u2192 accessory jack",
+      "from": {
+        "module": "ignition-switch",
+        "terminal": "IG1"
+      },
+      "to": {
+        "module": "dc-consent-jack",
+        "terminal": "+12V"
+      },
+      "bends": []
+    },
+    {
+      "id": "ign-alarm",
+      "color": "P",
+      "label": "Ign to Alarm",
+      "description": "Switched +12V \u2192 alarm unit",
+      "from": {
+        "module": "ignition-switch",
+        "terminal": "IG1"
+      },
+      "to": {
+        "module": "alarm-unit",
+        "terminal": "A5"
+      },
+      "bends": []
+    },
+    {
+      "id": "jack-gnd",
+      "color": "G",
+      "label": "Jack GND",
+      "description": "DC jack ground",
+      "from": {
+        "module": "dc-consent-jack",
+        "terminal": "GND"
+      },
+      "to": {
+        "module": "chassis-ground",
+        "terminal": "A"
+      },
+      "bends": []
+    },
+    {
+      "id": "kill-cdi",
+      "color": "Bl/W",
+      "label": "Kill to CDI",
+      "description": "Kill switch \u2192 CDI unit",
+      "from": {
+        "module": "left-handlebar-switch",
+        "terminal": "IG2"
+      },
+      "to": {
+        "module": "cdi-unit",
+        "terminal": "P5"
+      },
+      "bends": []
+    },
+    {
+      "id": "start-relay",
+      "color": "Y/R",
+      "label": "Start Button",
+      "description": "Start button \u2192 relay coil positive",
+      "from": {
+        "module": "left-handlebar-switch",
+        "terminal": "ST"
+      },
+      "to": {
+        "module": "starter-relay",
+        "terminal": "C+"
+      },
+      "bends": []
+    },
+    {
+      "id": "relay-cdi",
+      "color": "Gr",
+      "label": "Relay C- CDI",
+      "description": "Starter relay coil negative \u2192 CDI",
+      "from": {
+        "module": "starter-relay",
+        "terminal": "C-"
+      },
+      "to": {
+        "module": "cdi-unit",
+        "terminal": "P6"
+      },
+      "bends": []
+    },
+    {
+      "id": "bat-relay",
+      "color": "Bl",
+      "label": "Batt to Relay",
+      "description": "Battery B+ \u2192 relay main lug",
+      "from": {
+        "module": "battery-fuses",
+        "terminal": "MB+"
+      },
+      "to": {
+        "module": "starter-relay",
+        "terminal": "MB+"
+      },
+      "bends": []
+    },
+    {
+      "id": "relay-motor",
+      "color": "Bl",
+      "label": "Relay to Motor",
+      "description": "Relay output \u2192 starter motor",
+      "from": {
+        "module": "starter-relay",
+        "terminal": "MO"
+      },
+      "to": {
+        "module": "starter-motor",
+        "terminal": "B+"
+      },
+      "bends": []
+    },
+    {
+      "id": "motor-gnd",
+      "color": "G",
+      "label": "Motor GND",
+      "description": "Starter motor body ground",
+      "from": {
+        "module": "starter-motor",
+        "terminal": "BODY"
+      },
+      "to": {
+        "module": "chassis-ground",
+        "terminal": "B"
+      },
+      "bends": []
+    },
+    {
+      "id": "bat-neg",
+      "color": "Bl",
+      "label": "Battery GND",
+      "description": "Battery negative \u2192 chassis ground",
+      "from": {
+        "module": "battery-fuses",
+        "terminal": "B-"
+      },
+      "to": {
+        "module": "chassis-ground",
+        "terminal": "B"
+      },
+      "bends": []
+    },
+    {
+      "id": "hlsw-lo",
+      "color": "W",
+      "label": "SW Low Beam",
+      "description": "Handlebar switch low beam \u2192 RH headlight",
+      "from": {
+        "module": "left-handlebar-switch",
+        "terminal": "LO"
+      },
+      "to": {
+        "module": "rh-headlight",
+        "terminal": "LO"
+      },
+      "bends": []
+    },
+    {
+      "id": "hlsw-hi",
+      "color": "Bu",
+      "label": "SW High Beam",
+      "description": "Handlebar switch high beam \u2192 RH headlight",
+      "from": {
+        "module": "left-handlebar-switch",
+        "terminal": "HI"
+      },
+      "to": {
+        "module": "rh-headlight",
+        "terminal": "HI"
+      },
+      "bends": []
+    },
+    {
+      "id": "rh-gnd",
+      "color": "G",
+      "label": "RH HL GND",
+      "description": "Right headlight ground",
+      "from": {
+        "module": "rh-headlight",
+        "terminal": "GND"
+      },
+      "to": {
+        "module": "chassis-ground",
+        "terminal": "B"
+      },
+      "bends": []
+    },
+    {
+      "id": "lh-hi-spl",
+      "color": "Bu",
+      "label": "LH HI Splice",
+      "description": "Splice: RH/LH high beam shared",
+      "from": {
+        "module": "rh-headlight",
+        "terminal": "HI"
+      },
+      "to": {
+        "module": "lh-headlight",
+        "terminal": "HI"
+      },
+      "bends": []
+    },
+    {
+      "id": "lh-lo-spl",
+      "color": "W",
+      "label": "LH LO Splice",
+      "description": "Splice: RH/LH low beam shared",
+      "from": {
+        "module": "rh-headlight",
+        "terminal": "LO"
+      },
+      "to": {
+        "module": "lh-headlight",
+        "terminal": "LO"
+      },
+      "bends": []
+    },
+    {
+      "id": "lh-gnd-spl",
+      "color": "G",
+      "label": "LH GND Splice",
+      "description": "Splice: RH/LH headlight grounds shared",
+      "from": {
+        "module": "rh-headlight",
+        "terminal": "GND"
+      },
+      "to": {
+        "module": "lh-headlight",
+        "terminal": "GND"
+      },
+      "bends": []
+    },
+    {
+      "id": "neu-sw-ind",
+      "color": "Lg",
+      "label": "Neutral Sense",
+      "description": "Neutral switch \u2192 indicator",
+      "from": {
+        "module": "neutral-switch",
+        "terminal": "OUT"
+      },
+      "to": {
+        "module": "indicator-lights",
+        "terminal": "NEU"
+      },
+      "bends": []
+    },
+    {
+      "id": "oil-sw-ind",
+      "color": "Bl",
+      "label": "Oil Temp Sw Ind",
+      "description": "Oil temp switch \u2192 indicator",
+      "from": {
+        "module": "oil-temp-switch",
+        "terminal": "OUT"
+      },
+      "to": {
+        "module": "indicator-lights",
+        "terminal": "OIL"
+      },
+      "bends": []
+    },
+    {
+      "id": "tail-pw",
+      "color": "P/W",
+      "label": "Tail P/W",
+      "description": "Battery BAT3 \u2192 tail light (Pink/White)",
+      "from": {
+        "module": "ignition-switch",
+        "terminal": "BAT3"
+      },
+      "to": {
+        "module": "tail-light",
+        "terminal": "P/W"
+      },
+      "bends": []
+    },
+    {
+      "id": "tail-r",
+      "color": "R",
+      "label": "Tail R",
+      "description": "Battery B+(R) \u2192 tail light (Red)",
+      "from": {
+        "module": "battery-fuses",
+        "terminal": "B+(R)"
+      },
+      "to": {
+        "module": "tail-light",
+        "terminal": "R"
+      },
+      "bends": []
+    }
+  ]
+}

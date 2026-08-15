@@ -1,0 +1,14 @@
+{
+  "type": "fuse",
+  "label": "ATC Automotive Fuse",
+  "terminals": ["A", "B"],
+  "properties": {
+    "ratings": [5, 7.5, 10, 15, 20, 25, 30],
+    "closedResistance": 0.01,
+    "openResistance": "Infinity"
+  },
+  "states": ["intact", "blown"],
+  "behavior": "Intact: ~0Ω continuity. Blown: OL (open circuit). No voltage passes when blown.",
+  "category": "protection",
+  "notes": "Blows when current exceeds rating. Once blown, circuit is open until replaced."
+}
