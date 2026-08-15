@@ -1,0 +1,29 @@
+name: oep_instruments_runtime
+description: >
+  OEP Instruments Runtime — a platform-independent execution environment
+  for engineering instrument plugins (OIP-ARCH-001), completely independent
+  from engineering computation. Provides the Capability Model, Plugin
+  Architecture, Instrument Protocol (OIP) message model, Session
+  Management, Instrument Lifecycle/State Machine, Transport abstraction,
+  Measurement Framework, and Probe System every instrument plugin (starting
+  with the Digital Multimeter) is built on. Flutter/Dart, UI code kept
+  separate from the runtime core so non-UI clients (tests, future embedded
+  targets) can depend on the runtime without pulling in Flutter widgets.
+publish_to: 'none'
+version: 0.1.0
+
+environment:
+  sdk: '>=3.9.0 <4.0.0'
+  flutter: '>=3.35.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: false
