@@ -20,9 +20,9 @@ See `CONTRIBUTING_ARCHITECTURE.md` for the rules that keep these boundaries real
 
 ### `publisher-portal`
 
-- The publisher- and engineer-facing web experience: Home, Search, Package Details, Publisher Profile, Upload, My Packages.
-- Publisher experience and package management from the publisher's point of view; package discovery and download from the engineer's point of view.
-- Owns UI state and presentation only — no direct database or filesystem access; every capability it offers is a call through `exchange-client` to `exchange-api`.
+- The Engineering Exchange Web Application (real implementation since TASK-EXC-0009): Marketplace Home, Search Results, Package Detail, Publisher Profile, Downloads, My Library, 404, plus the application shell and responsive navigation.
+- Package discovery, search, download, and installation from the engineer's point of view. Publisher self-service (package upload, publisher account management) is explicitly out of TASK-EXC-0009's scope and remains unbuilt.
+- Owns UI state and presentation only — no direct database or filesystem access; every capability it offers is a call through `exchange-client` to `exchange-api`. Owns one piece of browser-local state, `LibraryContext` (the Downloads/My Library history) — necessary only because authentication (and therefore a server-side "current user") is out of scope; every value it stores still comes from a real API response.
 
 ### `exchange-admin`
 
@@ -48,8 +48,8 @@ See `CONTRIBUTING_ARCHITECTURE.md` for the rules that keep these boundaries real
 
 ### `exchange-client`
 
-- The typed HTTP client SDK for the Exchange REST API.
-- Used by `installer`, `update-service`, and both web apps as their only path to `exchange-api` — no consumer is expected to construct its own HTTP requests against the API directly.
+- The typed HTTP client SDK for the Exchange REST API (real implementation since TASK-EXC-0009: `ExchangeApiClient` with `publishers`/`packages`/`search`/`installations`/`downloads` resources, each a thin wrapper over one shared `HttpClient`).
+- Used by `installer`, `update-service`, and both web apps as their only path to `exchange-api` — no consumer is expected to construct its own HTTP requests against the API directly. `publisher-portal` is its first real consumer.
 
 ### `manifest`
 

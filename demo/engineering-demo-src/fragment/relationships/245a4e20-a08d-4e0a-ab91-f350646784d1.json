@@ -1,0 +1,9 @@
+{
+  "relationshipId": "245a4e20-a08d-4e0a-ab91-f350646784d1",
+  "sourceObjectId": "983c83c1-6a74-4b46-9bff-3e876e756697",
+  "targetObjectId": "f8c97088-71d9-4f34-969f-b5d49d951627",
+  "relationshipType": "Documents",
+  "createdUtc": "2026-07-19T00:00:00Z",
+  "author": "OEP Demo Publisher",
+  "description": "The wiring diagram documents the ignition harness component."
+}

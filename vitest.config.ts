@@ -13,5 +13,8 @@ export default defineConfig({
     include: ['packages/*/src/**/*.test.{ts,tsx}', 'apps/*/src/**/*.test.{ts,tsx}'],
     exclude: ['**/node_modules/**', '**/dist/**'],
     passWithNoTests: false,
+    // Guarded on `document` existing (see the file itself) so it's a
+    // no-op for every package/app that isn't running under jsdom.
+    setupFiles: ['./apps/publisher-portal/src/test-setup.ts'],
   },
 });

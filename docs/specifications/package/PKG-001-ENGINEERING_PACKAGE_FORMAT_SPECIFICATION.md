@@ -9,6 +9,8 @@
 
 **Authority:** Open Engineering Platform Specification
 
+**Amendment (WP-REP-002):** §5/§7's in-archive directory is named `fragment/`, not `repository/`. The package contains a Repository Fragment — never an entire Foundation Repository — and the physical directory name now says so, resolving a terminology collision identified in `oep_foundation`'s OEP-ARCH-002-REPOSITORY_RUNTIME_ASSESSMENT.md §0. `@oep-exchange/package-cli` (`oep-package create`/`validate`) and `oep_foundation`'s `platform/installer` were updated to match; already-built archives using the legacy `repository/` name remain installable (see `platform/installer`'s own documented backward-compatibility fallback).
+
 ---
 
 # 1. Purpose
@@ -86,7 +88,7 @@ package.oep
 ├── manifest/
 │     package.json
 │
-├── repository/
+├── fragment/
 │     objects/
 │     relationships/
 │     metadata/

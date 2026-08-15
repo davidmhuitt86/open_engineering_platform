@@ -7,6 +7,7 @@
     { "path": "packages/signing" },
     { "path": "packages/search" },
     { "path": "packages/package_manager" },
+    { "path": "packages/package_cli" },
     { "path": "packages/exchange_client" },
     { "path": "packages/dependency_resolver" },
     { "path": "packages/installer" },

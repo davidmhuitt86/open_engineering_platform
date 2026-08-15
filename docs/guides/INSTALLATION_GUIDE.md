@@ -2,6 +2,8 @@
 
 How an OEP Repository installs a published package from the Engineering Exchange (TASK-EXC-0008). This covers requesting an installation and checking its status — it does not cover authentication, licensing/entitlements, dependency resolution, digital signature verification, or automatic updates, all of which are explicitly out of scope for this task (WP-EXC-008.md §2).
 
+WP-EXC-010 adds the first real caller of this API from a Studio context: OEP Studio's Exchange workspace calls exactly the two endpoints below (no new ones) to install a package into whichever Repository Studio has open, then calls the Repository's own `refreshRepository()` to reflect the change — see `docs/guides/STUDIO_INTEGRATION_GUIDE.md` "Repository Integration."
+
 ## What "installation" means here
 
 Installing a package (WP-EXC-008.md §5) is: resolve the requested Package version, download its artifact, hand it to the OEP Repository through the Repository's own public interface, and record the outcome. The Exchange never reaches into the Repository directly — every call to it goes through a `RepositoryClient` abstraction (`packages/installer`), so the Exchange has no dependency on Repository internals (WP-EXC-008.md §7).

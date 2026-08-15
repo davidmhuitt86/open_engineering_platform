@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "1.0",
+  "packageId": "com.oep.demo.engineering-showcase",
+  "version": "1.0.0",
+  "publisher": {
+    "id": "demo-publisher",
+    "name": "OEP Demo Publisher"
+  },
+  "title": "Engineering Demo Package",
+  "summary": "A minimal demonstration package showing the .oep format end to end.",
+  "description": "Built to demonstrate the OEP package format (PKG-001/PKG-002): a manifest, a sample Engineering Object, a cover image, and supporting documentation, produced by the new oep-package CLI.",
+  "category": "demonstration",
+  "engineeringDomains": [
+    "Automotive",
+    "Electrical"
+  ],
+  "license": {},
+  "dependencies": [],
+  "capabilities": [],
+  "repository": {},
+  "statistics": {},
+  "signatures": {},
+  "build": {
+    "tool": "@oep-exchange/package-cli",
+    "buildDate": "2026-07-19T21:41:14.447Z",
+    "specVersion": "PKG-001/PKG-002 Draft 1.0"
+  },
+  "keywords": []
+}

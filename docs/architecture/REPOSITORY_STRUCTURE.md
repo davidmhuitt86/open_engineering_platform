@@ -324,3 +324,50 @@ Implements `docs/tasks/WP-EXC-008.md`'s "REST API -> Installation Service -> Rep
 - `npm test` — `packages/installer`: `stub-repository-client.test.ts` (3 tests) and `http-repository-client.test.ts` (5 tests, injected fake `fetch`) pass unconditionally. `installation-validation.test.ts` (7 tests) and `installation-service.test.ts` (13 tests, in-memory fakes including a fake `RepositoryClient` exercising both acceptance and rejection) pass unconditionally. `installation-repository.test.ts` (6 tests), `routes/installation.test.ts` (10 tests, full REST lifecycle — upload then install, including a simulated Repository rejection via an injected `StubRepositoryClient` — against a real database), and `schema.test.ts`'s new `installations` assertions (2 tests) skip cleanly without a reachable database, same as every other integration suite.
 - `npm run lint` / `npm run format:check` — zero issues across every file this task created or modified.
 - `npm audit` — unchanged from the pre-existing baseline; no new dependency was introduced (`HttpRepositoryClient` uses the platform-global `fetch`).
+
+## 19. Engineering Exchange Web Application (TASK-EXC-0009)
+
+Implements `docs/tasks/WP-EXC-009.md`'s "Browser -> React Application -> Exchange API Client -> Exchange REST API" architecture (§3): the first production UI, giving `apps/publisher-portal` (scaffold-only since TASK-EXC-0001) and `packages/exchange-client` (scaffold-only since TASK-EXC-0001, despite its README claiming TASK-EXC-0007 — that never materialized; this task is where it actually happens) their real implementations.
+
+### 19.1 Scope boundary: "Publisher Portal" the capability vs. `publisher-portal` the app
+
+WP-EXC-009.md §2 excludes "Publisher Portal" from scope, which reads as a contradiction against building out the app literally named `publisher-portal` — resolved the same way `OWNERSHIP.md` already describes the app: it serves _both_ "the publisher's point of view" (package management, upload — excluded here) _and_ "the engineer's point of view" (discovery, download — this task's actual seven views). §4's view list (Marketplace Home, Search Results, Package Detail, Publisher Profile, Downloads, My Library, 404) confirms this reading — none of them are publisher self-service screens (no Upload page, no "create/edit Publisher" form). This task builds only the discovery/marketplace side; the publisher self-service side remains unbuilt, for a future task.
+
+### 19.2 Technology choices where WP-EXC-009.md is silent
+
+Consistent with this repository's pattern of choosing the smallest tool that satisfies an unspecified requirement (the same reasoning already used for React+Vite itself, per ADR-0001):
+
+- **Routing**: `react-router-dom` (v6) — the only new runtime dependency this task adds. No lighter alternative exists for a multi-view SPA with URL-synced search params (`SearchResultsPage`'s filters).
+- **State management** (§2 "State management"): no Redux/Zustand/TanStack Query. `useAsync()` (`apps/publisher-portal/src/hooks/use-async.ts`) is a ~40-line generic loading/success/error hook every page uses for its own API call(s); `LibraryContext` (`src/state/LibraryContext.tsx`) is a `useReducer` + `localStorage`-backed store for the two features that need client-side state at all (Downloads/My Library history — see §19.4). A full state library would manage server data this app never needs to cache or share across unrelated views.
+- **Styling** (§8 "consistent visual language"): one global stylesheet (`src/styles/global.css`) with CSS custom properties for tokens and semantic component classes — no CSS-in-JS, no utility-class framework.
+- **Dev-server proxy**: `exchange-api` has no CORS middleware (out of scope for every task so far); rather than add any, `vite.config.ts`'s `server.proxy` maps `/api` to `exchange-api`'s port, so the browser only ever calls its own origin and `ExchangeApiClient` can be constructed with the plain relative base URL `/api/v1`.
+
+### 19.3 No dedicated categories endpoint
+
+Only `GET /search` accepts a `categoryId` filter — no `GET /categories` was ever built (no task specified one). `src/lib/derive-categories.ts` derives the categories shown on Marketplace Home and `/categories` from a `GET /search` sample, grouping/counting by `categoryId`/`categoryName` rather than inventing a mock category list (WP-EXC-009.md §7 "no mock data") — a category with zero matching packages simply doesn't appear, which is correct for a discovery surface regardless.
+
+### 19.4 Downloads and My Library without authentication
+
+Authentication is excluded from this task's scope (as it has been for every task so far), so there is no server-side "current user" to own a downloads/library history against. `LibraryContext` tracks "packages this browser downloaded/installed" instead: `PackageDetailPage`'s Download button (a plain `<a href={client.downloads.url(...)}>` — the browser handles the actual file download natively) and Install button (`client.installations.install()`, TASK-EXC-0008) each record an entry locally, and `DownloadsPage`/`MyLibraryPage` render that history. Every field stored is a real id or a value a real API response already returned — this is a browser-local _view_ over real data, not fabricated data.
+
+### 19.5 Design
+
+- **`packages/exchange-client/src/*`** — `HttpClient` (the one place a `fetch` call is made; maps a non-2xx `ApiErrorResponse` to a thrown `ExchangeApiError`), `PublishersResource`/`PackagesResource`/`SearchResource`/`InstallationsResource`/`DownloadsResource` (thin per-resource wrappers), and `ExchangeApiClient` (bundles all five, constructed once via `ExchangeApiClientContext`).
+- **`apps/publisher-portal/src/api/ExchangeApiClientContext.tsx`** — the only place an `ExchangeApiClient` is constructed; `useExchangeApiClient()` is how every page reaches it.
+- **`apps/publisher-portal/src/hooks/use-async.ts`** — the shared loading/success/error hook (§19.2).
+- **`apps/publisher-portal/src/state/LibraryContext.tsx`** — the Downloads/My Library store (§19.4).
+- **`apps/publisher-portal/src/components/*`** — `AppShell`, `Header`, `Sidebar`, `Footer` (the shell + responsive nav, §5/§6) and ten reusable components (`SearchBar`, `PackageCard`, `PublisherCard`, `CategoryCard`, `PackageList`, `Breadcrumbs`, `LoadingIndicator`, `EmptyState`, `ErrorView`, `Pagination`) — see `docs/guides/COMPONENT_GUIDE.md` for the full catalog.
+- **`apps/publisher-portal/src/pages/*`** — the seven views (`MarketplaceHomePage`, `SearchResultsPage`, `CategoriesPage`, `PublishersPage`, `PublisherProfilePage`, `PackageDetailPage`, `DownloadsPage`, `MyLibraryPage`, `NotFoundPage` — `CategoriesPage`/`PublishersPage` are extra pages this task's navigation (§5 "Categories", "Publishers") needs beyond WP-EXC-009.md §4's headline list). `PackageDetailPage` also implements "Installation Progress" (§2) inline: idle -> installing -> completed/failed, backed by `client.installations.install()`'s synchronous result.
+- **`apps/publisher-portal/src/App.tsx`** — wires `ExchangeApiClientProvider` + `LibraryProvider` + the full `react-router-dom` route tree under `AppShell`.
+
+### 19.6 A real bug found only by running the app in a browser
+
+`HttpClient`'s (and `HttpRepositoryClient`'s, TASK-EXC-0008) default `fetchFn` was `options.fetchFn ?? fetch` — a bare reference to the global `fetch`. Every unit/integration test passed, because every test injects its own `fetchFn`. Actually running `apps/publisher-portal` against a live `exchange-api` in a browser surfaced `TypeError: Failed to execute 'fetch' on 'Window': Illegal invocation` — calling an extracted, unbound `fetch` reference as `this.fetchFn(...)` loses the `this` binding browsers require. Fixed by binding it at construction time: `fetch.bind(globalThis)`. This is why WP-EXC-009.md §9's manual smoke test matters beyond the automated suite — no unit test using an injected fake would ever have caught this class of bug.
+
+### 19.7 Validation performed for TASK-EXC-0009
+
+- `npm run build` — clean across the full composite graph, including `packages/exchange-client`'s first real implementation and `apps/publisher-portal`'s full page/component/routing bundle (72 modules, up from the 30-module placeholder).
+- `npm test` — 30 new tests in `packages/exchange-client`/`packages/installer` (the `HttpClient`/resource classes, and the `fetch`-binding fix) pass unconditionally. 72 new tests in `apps/publisher-portal` (component tests, page-level integration tests against a fake `ExchangeApiClient`, `App.test.tsx`'s navigation/API-integration tests against a stubbed global `fetch`) pass unconditionally — none require a live database or a live `exchange-api`.
+- **Manual verification**: started `exchange-api` and `apps/publisher-portal`'s real dev servers and drove the app in a real browser (no live PostgreSQL in this environment, so every API call reaches `exchange-api` and fails at the database layer — the same limitation every prior task in this session has had). This is what surfaced §19.6's bug; after the fix, confirmed the shell, responsive sidebar nav, breadcrumbs, and `ErrorView` all render correctly end to end, and that client-side navigation (Home -> Publishers) works via the real router.
+- `npm run lint` / `npm run format:check` — zero issues across every file this task created or modified.
+- `npm audit` — unchanged from the pre-existing baseline aside from `react-router-dom` itself, which introduced none.
