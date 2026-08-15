@@ -1,0 +1,15 @@
+{
+  "identifier": "battery",
+  "name": "Battery",
+  "category": "electrical",
+  "description": "DC voltage source.",
+  "aliases": ["battery", "dc_source", "cell"],
+  "standards": ["iec", "ansi"],
+  "geometry": { "kind": "svgAsset", "assetPath": "assets/symbols/battery.svg", "width": 100, "height": 100 },
+  "ports": [
+    { "id": "positive", "displayName": "Positive", "connectionType": "power", "direction": "output", "x": 0.0, "y": 0.5 },
+    { "id": "negative", "displayName": "Negative", "connectionType": "power", "direction": "output", "x": 1.0, "y": 0.5 }
+  ],
+  "rendering": { "defaultColor": "#1a1a1a", "strokeWidth": 1.5, "fill": false, "layer": 0, "snapPoints": [] },
+  "validationRules": { "requiredPortIds": ["positive", "negative"], "allowedConnectionTypes": ["power"], "requiredMetadataKeys": [] }
+}

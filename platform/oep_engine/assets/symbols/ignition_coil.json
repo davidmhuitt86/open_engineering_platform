@@ -1,0 +1,16 @@
+{
+  "identifier": "ignition_coil",
+  "name": "Ignition Coil",
+  "category": "electrical",
+  "description": "Steps up primary voltage to secondary for spark generation.",
+  "aliases": ["ignition_coil", "coil"],
+  "standards": ["sae", "iec"],
+  "geometry": { "kind": "svgAsset", "assetPath": "assets/symbols/ignition_coil.svg", "width": 100, "height": 100 },
+  "ports": [
+    { "id": "primary_positive", "displayName": "Primary +", "connectionType": "power", "direction": "input", "x": 0.0, "y": 0.2 },
+    { "id": "primary_negative", "displayName": "Primary -", "connectionType": "power", "direction": "input", "x": 0.0, "y": 0.8 },
+    { "id": "secondary", "displayName": "Secondary", "connectionType": "high_voltage", "direction": "output", "x": 1.0, "y": 0.5 }
+  ],
+  "rendering": { "defaultColor": "#1a1a1a", "strokeWidth": 1.5, "fill": false, "layer": 0, "snapPoints": [] },
+  "validationRules": { "requiredPortIds": ["primary_positive", "primary_negative", "secondary"], "allowedConnectionTypes": ["power", "high_voltage"], "requiredMetadataKeys": [] }
+}
