@@ -9,6 +9,7 @@ import '../panels/acquisition_sources_panel.dart';
 import '../panels/acquisition_vault_panel.dart';
 import '../services/acquisition_runtime_service.dart';
 import '../services/acquisition_runtime_state.dart';
+import '../wizard/acquisition_wizard_page.dart';
 
 /// The Engineering Acquisition workspace (WP-PLAT-020) -- registered as
 /// a Studio workspace exactly like Knowledge Studio and Diagram Studio:
@@ -46,9 +47,18 @@ class _AcquisitionStudioPageState extends ConsumerState<AcquisitionStudioPage> {
     return Column(
       children: [
         _ConnectionBanner(state: state, onRefresh: notifier.refreshAll),
+        const _WizardEntryBar(),
         Expanded(
           child: Column(
             children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(12, 10, 12, 4),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text('OPERATIONAL DASHBOARDS',
+                      style: TextStyle(color: StudioColors.textDisabled, fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.6)),
+                ),
+              ),
               const Expanded(
                 flex: 3,
                 child: Row(
@@ -67,6 +77,49 @@ class _AcquisitionStudioPageState extends ConsumerState<AcquisitionStudioPage> {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// The Wizard's entry point -- "Replace the primary acquisition workflow
+/// with one button: Acquire Engineering Knowledge." The panels below
+/// remain (per this same Work Package: "Retain the existing panels...
+/// these become operational dashboards rather than the primary
+/// workflow"), but this is now the first thing an engineer reaches for.
+class _WizardEntryBar extends StatelessWidget {
+  const _WizardEntryBar();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      color: StudioColors.surface,
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Bring engineering knowledge into OEP',
+                    style: TextStyle(color: StudioColors.textPrimary, fontSize: 15, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 4),
+                const Text(
+                  'The Wizard walks you through acquiring, verifying, and preserving a real engineering '
+                  'source -- with full Chain of Custody -- one guided step at a time.',
+                  style: TextStyle(color: StudioColors.textSecondary, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 16),
+          FilledButton.icon(
+            onPressed: () => Navigator.of(context).push(AcquisitionWizardPage.route()),
+            icon: const Icon(Icons.auto_stories_outlined, size: 18),
+            label: const Text('Acquire Engineering Knowledge'),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../acquisition/inspector/acquisition_properties.dart';
+import '../../acquisition/services/acquisition_runtime_service.dart';
+import '../../acquisition/services/acquisition_selection.dart';
 import '../../core/models/engineering_inspectable.dart';
 import '../../core/models/engineering_object_summary.dart';
 import '../../core/models/relationship_summary.dart';
@@ -30,6 +33,11 @@ import '../../knowledge/models/knowledge_candidate.dart';
 import '../../knowledge/models/ocr_processing_status.dart';
 import '../../knowledge/models/source_material.dart';
 import 'property_field.dart';
+
+/// Whether the Property Inspector is shown in `StudioShell`'s layout --
+/// toggled from the Menu Bar's View menu, mirroring
+/// `outputPanelVisibleProvider`'s pattern in `output_panel.dart`.
+final propertyInspectorVisibleProvider = StateProvider<bool>((ref) => true);
 
 /// The Property Inspector (SDD-004, introduced as a placeholder in
 /// Work Package 003; live Object data in Work Package 004; Relationship
@@ -88,6 +96,16 @@ class PropertyInspectorPanel extends ConsumerWidget {
             ),
           ),
           const Divider(height: 1),
+          // Engineering Acquisition selection takes precedence when
+          // present: it comes from EAM's REST API and has no Foundation
+          // representation at all, so it can't participate in the
+          // Foundation-selection switch below (see
+          // `AcquisitionSelection`'s own doc comment). Selecting
+          // anything in an Acquisition panel is always the engineer's
+          // most recent, most specific intent.
+          if (!ref.watch(acquisitionSelectionProvider).isEmpty)
+            Expanded(child: _acquisitionProperties(ref))
+          else
           Expanded(
             child: switch ((
               selectedAiSuggestion,
@@ -226,6 +244,29 @@ class PropertyInspectorPanel extends ConsumerWidget {
       if (candidate.id == candidateId) return candidate.name;
     }
     return candidateId;
+  }
+
+  /// Engineering Acquisition modes -- Official Source, Acquisition Job,
+  /// or Reference Vault Artifact, whichever the engineer last selected.
+  Widget _acquisitionProperties(WidgetRef ref) {
+    final selection = ref.watch(acquisitionSelectionProvider);
+    final acquisition = ref.watch(acquisitionRuntimeServiceProvider);
+
+    String? nameOfSource(String sourceId) {
+      for (final source in acquisition.sources) {
+        if (source.id == sourceId) return source.name;
+      }
+      return null;
+    }
+
+    if (selection.source != null) return OfficialSourceProperties(source: selection.source!);
+    if (selection.job != null) {
+      return AcquisitionJobProperties(job: selection.job!, sourceName: nameOfSource(selection.job!.sourceId));
+    }
+    return VaultArtifactProperties(
+      artifact: selection.artifact!,
+      sourceName: nameOfSource(selection.artifact!.sourceId),
+    );
   }
 
   static String _sourceName(List<SourceMaterial> sources, String sourceId) {

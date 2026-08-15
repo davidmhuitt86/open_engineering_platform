@@ -1,0 +1,60 @@
+{
+  "id": "trx300",
+  "name": "Honda TRX300",
+  "operatingStates": [
+    {
+      "id": "key_off",
+      "name": "Key Off / Engine Off",
+      "description": "",
+      "metadata": {}
+    },
+    {
+      "id": "key_on",
+      "name": "Key On / Engine Off",
+      "description": "",
+      "metadata": {}
+    },
+    {
+      "id": "key_crank",
+      "name": "Cranking",
+      "description": "",
+      "metadata": {}
+    },
+    {
+      "id": "key_run",
+      "name": "Engine Running",
+      "description": "",
+      "metadata": {}
+    }
+  ],
+  "inputStates": [
+    {
+      "id": "low_beam",
+      "label": "Low Beam",
+      "valueType": "boolean",
+      "metadata": {},
+      "targetRelationshipId": "hlsw-lo"
+    },
+    {
+      "id": "high_beam",
+      "label": "High Beam",
+      "valueType": "boolean",
+      "metadata": {},
+      "targetRelationshipId": "hlsw-hi"
+    },
+    {
+      "id": "run_switch",
+      "label": "Kill Switch (Run)",
+      "valueType": "boolean",
+      "metadata": {},
+      "targetRelationshipId": "kill-cdi"
+    },
+    {
+      "id": "start_button",
+      "label": "Start Button",
+      "valueType": "boolean",
+      "metadata": {},
+      "targetRelationshipId": "start-relay"
+    }
+  ]
+}

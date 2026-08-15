@@ -47,6 +47,35 @@ dependencies:
   # Same version the Engineering Engine Demonstration Host already uses.
   flutter_svg: ^2.0.10+1
 
+  # Printing System (AP-DS-004 Engineering Publishing & Deliverables) —
+  # the Flutter-official, actively-maintained package for cross-platform
+  # print preview / OS print-dialog / "save as PDF" UI. Same reasoning
+  # `oep_engine`'s own `pdf` dependency comment applies here: de facto
+  # standard, maintained by the same team as the `pdf` package it is
+  # built on top of (same `PdfPageFormat`/document type `oep_engine`'s
+  # renderers already produce, so no format-conversion layer is needed
+  # between "oep_engine built a pw.Document" and "oep_studio previews or
+  # prints it"), minimal additional dependency surface.
+  printing: ^5.13.4
+
+  # `PdfPageFormat` (used directly by the diagram Print Preview dialog) —
+  # already a transitive dependency of `printing`/`oep_engine`'s `pdf`
+  # dependency; declared directly here too since we import it directly
+  # (avoid relying on an undeclared transitive dependency).
+  pdf: ^3.11.1
+
+  # OEP Instruments Runtime (oep_instruments repository) — Diagram
+  # Studio is the Host half of the OEP Instrument Protocol; this
+  # dependency provides only the transport-independent Host-side
+  # plumbing (OipHostServer, the OipMessage/OipMessageCategory wire
+  # model) this app's own instruments_host bridge uses to answer
+  # measurement requests from a connected instrument client (e.g. the
+  # Android Digital Multimeter app) — never engineering logic itself,
+  # matching the OIP Constitution's own "Diagram Studio remains the
+  # engineering authority" boundary.
+  oep_instruments_runtime:
+    path: ../oep_instruments/platform/oep_instruments
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

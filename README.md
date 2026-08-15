@@ -159,10 +159,158 @@ see `docs/ENGINEERING_PROJECT.md`, `WORKSPACE_SYNCHRONIZATION.md`,
 `UNIFIED_SEARCH.md`, `PROJECT_EXPLORER.md`, and
 `WORKFLOW_ARCHITECTURE.md`.
 
+Diagram Studio's architecture is frozen as of **AP-DS-001** (Constitution,
+Architecture Specification, Interaction/Document/Engineering Models,
+Canvas/Editing Architecture, Performance Targets, Roadmap — all under
+`docs/architecture/diagram_studio/`), refined by **AP-DS-001A** (Editor
+Completion & UX Refinement): resize support, multi-node alignment
+guides, a real Reset View + coordinate display, Align/Distribute
+toolbar wiring, an OS-clipboard fallback, viewport culling +
+`RepaintBoundary` adoption, and — closing the largest gap — real
+document Autosave, Recent Files, Recovery, and metadata, all within the
+existing local-JSON document model (still no Foundation Repository
+persistence, still no Engineering Intelligence Platform integration —
+both remain explicitly out of scope until AP-DS-002/AP-DS-003). See
+`docs/IMPLEMENTATION_STATUS.md`'s AP-DS-001A section for the full,
+independently-verified list of what changed and what remains open.
+
+**AP-DS-001B** (Professional UX & Performance) is the final refinement
+phase before Foundation integration: a real interaction-test harness
+for the canvas's drag/box-select/connect/resize gestures (previously
+only exercised indirectly), a benchmark suite covering 10 to 100,000
+objects (`docs/architecture/diagram_studio/PERFORMANCE_REPORT.md`) that
+found and fixed a ~113x rendering cost (unculled wire painting) and a
+real crash bug, an `EditActionsToolbar` closing the toolbar-discoverability
+gap for Undo/Redo/Cut/Copy/Paste/Duplicate/Delete, and a full keyboard-
+shortcut inventory. Diagram Studio is declared ready for Foundation
+Runtime integration (AP-DS-002) — a small set of editor-polish items
+(inspector multi-selection audit, full accessibility certification, a
+short-window panel-overflow bug, live GPU profiling) are honestly
+carried forward as non-blocking, independent of the persistence layer
+AP-DS-002 introduces. See `docs/IMPLEMENTATION_STATUS.md`'s AP-DS-001B
+sections and `docs/architecture/diagram_studio/IMPLEMENTATION_ROADMAP.md`.
+
+**AP-DS-002** (Engineering Repository Integration) replaced Diagram
+Studio's local-JSON-only persistence with real Foundation Runtime
+integration: a small, additive Foundation-side schema extension (an
+opaque `content` field on `EngineeringObject`, `OEP_API_VERSION` 20,
+ABI unchanged), real Engineering Object/Relationship decomposition for
+every diagram node and wire (see
+`docs/architecture/diagram_studio/ENGINEERING_MAPPING.md`), a
+`DiagramRepositoryService` consuming `FoundationBridge` exclusively,
+migration from legacy local documents with verification and disclosed
+rollback limitations (`docs/architecture/diagram_studio/
+MIGRATION_GUIDE.md`), and new Project/Repository Browser and Package
+Management UI. Six previously-unbound C API functions (including
+`oep_object_update`/`oep_object_delete`, a real gap this session's own
+platform review had flagged) are now wired through Dart FFI. Local
+JSON is not removed — it remains legitimate for Autosave/Recovery and
+as the migration source format; see `docs/IMPLEMENTATION_STATUS.md`'s
+AP-DS-002 section for the full, honest exit-criteria assessment,
+including what's disclosed as not-yet-diffed or not-yet-atomic rather
+than silently claimed complete.
+
+**AP-DS-003** (Engineering Intelligence Workspace) connected Diagram
+Studio to the Engineering Intelligence Platform for live validation,
+analysis, reasoning, and recommendations while authoring — through
+exactly one class, `DiagramIntelligenceService`
+(`lib/diagram_studio/intelligence/`), which contains zero engineering
+logic of its own. A canvas overlay shows validation/analysis markers;
+five embedded panels (Recommendation, Engineering Explorer, Knowledge
+Graph, Query Console, Knowledge Sessions) adapt the pre-existing
+read-only Engineering Intelligence pages (WP-EKE-008) rather than
+reinventing their rendering; canvas and panel selection stay
+bidirectionally synchronized. A debounced sync path feeds EIP
+independently of AP-DS-002's still-open document-bar Save gap. See
+`docs/architecture/diagram_studio/ENGINEERING_WORKSPACE.md` and
+`docs/IMPLEMENTATION_STATUS.md`'s AP-DS-003 section for the full
+account, including disclosed limitations (no cross-isolate async FFI,
+no live-scale latency profiling, the local structural validation panel
+and EIP's `ValidationEngine` remain two separate systems).
+
+**AP-DS-004** (Engineering Publishing & Deliverables) added a complete
+publishing pipeline: professional PDF/SVG/PNG diagram export (true
+vector, not a rasterized screenshot), print preview, six tabular
+engineering reports (Bill of Materials, Wire List, Connector Report,
+Harness Report, Relationship Report, Engineering Object Report) with
+CSV/Markdown/PDF export, Validation and Reasoning reports sourced
+exclusively from `DiagramIntelligenceService` (never computed
+locally), title blocks with revision management, and an Engineering
+Exchange readiness checklist — verified to contain no networking or
+upload code, per the spec's explicit "preparation only" requirement.
+Reachable via a new "Publishing…" button in the document bar. See
+`docs/architecture/diagram_studio/PUBLISHING_AND_DELIVERABLES.md` and
+`docs/IMPLEMENTATION_STATUS.md`'s AP-DS-004 section for the full
+account, including a real gap found during independent verification
+(a print-preview dialog that existed but had no reachable UI entry
+point until this pass added one) and disclosed limitations (no true
+multi-sheet Drawing/Installation/Service Packages, no Page Setup
+dialog, node-level-only connector connectivity, unbenchmarked
+100,000-object performance).
+
+**AP-DS-005** (Engineering Verification & Simulation) added a real,
+deterministic logical Simulation Engine (`oep_engine`) reached
+exclusively through `DiagramSimulationService` — sessions, step/pause/
+resume/replay playback, fault injection, and Verification/Fault/
+Propagation/Power/Ground/Simulation reports, all visualized on the
+canvas via `SimulationStateOverlay`. See
+`docs/architecture/diagram_studio/SIMULATION_USER_GUIDE.md` and this
+work's own architecture docs (`SIMULATION_ARCHITECTURE.md`,
+`SIGNAL_PROPAGATION.md`, `VERIFICATION_ENGINE.md`,
+`FAULT_INJECTION.md`).
+
+**WP-DS-005A** (Engineering Instruments Framework & Digital
+Multimeter) added a permanent Instrument Dock (bottom dock, floating
+window, resize, auto-hide, tabs, layout persistence) hosting the first
+Engineering Instrument: a Digital Multimeter with every
+`MeasurementType` wired to the real Simulation Engine (voltage DC/AC,
+resistance, continuity, current, diode, frequency, duty cycle, power,
+ground potential; capacitance/temperature shown as not-yet-supported),
+a two-probe click-to-place/drag/snap system reusing the canvas's own
+node hit-testing, Manual/Expected/Comparison/Live-Simulation/Historical
+measurement modes, automatic Continuity path highlighting, JSON-backed
+Measurement History (replay/clear/export) and Bookmarks, and a
+light-touch Verification-findings integration. Zero engineering
+computation lives in the Instruments Framework — every reading is
+requested from, and only rendered from, the real engine. See
+`docs/ENGINEERING_INSTRUMENTS.md`, `docs/DIGITAL_MULTIMETER.md`,
+`docs/MEASUREMENT_SYSTEM.md`, and `docs/IMPLEMENTATION_STATUS.md`'s
+WP-DS-005A section for the full account, including disclosed gaps
+(only one of ten planned instruments built; probe snapping is
+node-level only; Hover Measurements, Repository-backed persistent
+measurements, and most of the broader Engineering Integration list
+were deferred).
+
+**WP-DS-006** (Engineering Workbench Shell, Phase 1) transformed Diagram
+Studio's own route into an application shell: Diagram Studio becomes the
+Diagram Perspective inside a new Engineering Workbench
+(`lib/workbench/`), hosted one level inside `StudioShell` — not a
+replacement for it (see `docs/architecture/diagram_studio/ENGINEERING_WORKBENCH.md`
+for that scope decision). The Workbench owns a Perspective Manager (10
+pluggable Perspectives: Home, Dashboard, Diagram, Inspection,
+Engineering, Simulation, Instruments, Publishing, Library, Review — each
+with an independently-persisted layout), a generic Dock Manager (Left/
+Right/Bottom/Floating/Hidden/Auto-hide/Tabbed docks, `DockManager`/
+`DockRegion`/`DockPanelClient`), and thin Theme/Command Manager
+accessors over this codebase's existing `StudioColors` and
+`CommandRegistry`. `DiagramStudioPage` is embedded completely unchanged
+inside the Diagram Perspective — no engineering functionality
+regressed. The Instruments Perspective demonstrates the new generic Dock
+Manager with a real, independent adapter (`InstrumentDockPanelClient`)
+around WP-DS-005A's own, untouched `EngineeringInstrument` contract,
+while disclosing an honest constraint: it has no live diagram session of
+its own to construct a real Digital Multimeter against, so it shows a
+clearly-labeled empty state rather than fabricating data. The other 8
+non-Diagram Perspectives are real, registered, switchable, but their
+workspace content is an honest "not yet built" placeholder — Phase 1 is
+shell-only, per the governing spec. See
+`docs/architecture/diagram_studio/ENGINEERING_WORKBENCH.md` and
+`PERSPECTIVE_FRAMEWORK.md`.
+
 `docs/IMPLEMENTATION_STATUS.md` has the full picture of what exists
 today and what is still a placeholder (object/relationship *update*
-and *delete* remain unexposed via Foundation from Studio — only
-*create* was needed for Repository Commit; repository creation/
+and *delete* are now bound and exposed as of AP-DS-002 — this was
+previously true and is corrected here; repository creation/
 deletion remain entirely unexposed; Knowledge Studio's Repository
 Matches panel remains placeholder content (the "AI Suggestions" panel
 is now a real session-wide status summary as of Work Package 016 — the
@@ -218,6 +366,9 @@ Studio Design Documents live under `docs/`:
 * `KNOWLEDGE_SESSION_FORMAT.md` — persisted session file format, Source Material/Relationship Candidate models
 * `EVIDENCE_MODEL.md` — PDF Source Viewer, Evidence Region/Evidence Link/Page Selection models
 * `KNOWLEDGE_CANDIDATES.md` — Knowledge Candidate/Procedure/Procedure Step/Specification/Validation models
+* `ENGINEERING_INSTRUMENTS.md` — Engineering Instruments Framework + Instrument Dock (WP-DS-005A)
+* `DIGITAL_MULTIMETER.md` — Digital Multimeter instrument (WP-DS-005A)
+* `MEASUREMENT_SYSTEM.md` — Probes, Measurement Modes, History, Bookmarks (WP-DS-005A)
 * `KNOWLEDGE_GRAPH.md` — Knowledge Session Graph/Provenance/Dependency/Session Health models
 * `REPOSITORY_COMMIT.md` — Commit Plan/Candidate Conversion/Transaction Model/Commit Report
 * `OCR_PIPELINE.md` — OCR architecture/cache/overlay/search/confidence models
@@ -227,6 +378,8 @@ Studio Design Documents live under `docs/`:
 * `STUDIO_SETTINGS.md` — Settings architecture/Registry/Search/Storage/Versioning/Migration
 * `ANTHROPIC_PROVIDER.md` — Provider implementation/Authentication/Secure credential storage/Prompt execution/Error handling
 * `DIAGRAM_STUDIO_INTEGRATION.md` — Diagram Studio overview, ownership boundary, module layout, reuse-vs-duplication decisions
+* `architecture/diagram_studio/ENGINEERING_WORKBENCH.md` — Engineering Workbench shell architecture, the 8 managers (WP-DS-006)
+* `architecture/diagram_studio/PERSPECTIVE_FRAMEWORK.md` — how to add a Perspective, PerspectiveManager/WorkbenchLayoutManager/DockManager how-to (WP-DS-006)
 * `STUDIO_ENGINE_HOST.md` — `EngineHost`'s role, lifecycle, and what it deliberately does not do
 * `WORKSPACE_INTEGRATION.md` — routing, toolbars, panels, settings, workspace persistence
 * `PROPERTY_INSPECTOR_INTEGRATION.md` — the `EngineeringInspectable` bridge and the seven new inspector modes

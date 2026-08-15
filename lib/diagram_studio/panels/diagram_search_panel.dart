@@ -42,13 +42,14 @@ class _DiagramSearchPanelState extends State<DiagramSearchPanel> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
-          padding: const EdgeInsets.all(8),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
           child: TextField(
             controller: _controller,
             onChanged: _runSearch,
             style: const TextStyle(color: StudioColors.textPrimary, fontSize: 12.5),
             decoration: const InputDecoration(
               isDense: true,
+              contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               prefixIcon: Icon(Icons.search, size: 16),
               hintText: 'Search nodes, relationships, annotations, layers…',
             ),

@@ -19,9 +19,14 @@ import '../core/services/foundation_runtime_state.dart';
 import '../core/theme/studio_colors.dart';
 import '../core/workspace/workspace_manager.dart';
 import '../knowledge/models/ocr_processing_status.dart';
+import '../shared/widgets/output_panel.dart';
 import '../shared/widgets/property_inspector_panel.dart';
+import '../workbench/perspective/perspective_manager.dart';
+import '../workbench/widgets/workbench_sidebar.dart';
 import 'widgets/command_palette_dialog.dart';
-import 'widgets/studio_nav_rail.dart';
+import 'widgets/studio_breadcrumb_bar.dart';
+import 'widgets/studio_menu_bar.dart';
+import 'widgets/studio_ribbon.dart';
 import 'widgets/studio_status_bar.dart';
 import 'widgets/studio_toolbar.dart';
 
@@ -348,24 +353,84 @@ class _StudioShellState extends ConsumerState<StudioShell> with WidgetsBindingOb
         bindings: {
           const SingleActivator(LogicalKeyboardKey.keyK, control: true): () => showCommandPaletteDialog(context),
         },
-        child: Scaffold(
-          backgroundColor: StudioColors.background,
-          appBar: StudioToolbar(selected: widget.selected),
-          body: Column(
-            children: [
-              Expanded(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    StudioNavRail(selected: widget.selected, onSelect: widget.onSelect),
-                    Expanded(child: widget.child),
-                    const PropertyInspectorPanel(),
-                  ],
-                ),
+        child: Builder(
+          builder: (context) {
+            // Phase 14 (UI Layout Ratification) -- "the diagram is the
+            // workspace, everything else is subordinate" (§ 2), modeled
+            // closely on the `legacy_wiring_sim_v2` reference tool per
+            // explicit user direction: Diagram Studio does not sit
+            // beneath the OEP global Menu Bar/Toolbar/Ribbon/Breadcrumb
+            // Bar/Sidebar/Property Inspector/Output Panel at all -- it
+            // owns the full window. Every other Studio keeps the full
+            // shell chrome unchanged (Section 21's "studio-by-studio"
+            // rule -- this is a Diagram-Studio-only carve-out, not a
+            // shell redesign). `DiagramStudioPage` itself is
+            // responsible for its own top strip/status surfaces now
+            // that it has the whole screen.
+            if (widget.selected == StudioDestination.diagram) {
+              return Scaffold(backgroundColor: StudioColors.background, body: widget.child);
+            }
+            final showInspector = ref.watch(propertyInspectorVisibleProvider);
+            return Scaffold(
+              backgroundColor: StudioColors.background,
+              body: Column(
+                children: [
+                  // Master Application Shell, Phase 1 (OEP Design System
+                  // `02_Main_Application_Shell.png`): Menu Bar above the
+                  // existing document/command Toolbar, above the Ribbon,
+                  // above the unchanged Sidebar/Workspace/Inspector row.
+                  // `StudioToolbar` moves out of `Scaffold.appBar` into
+                  // this Column as a plain child -- same widget, same
+                  // behavior, new position -- since the appBar slot can
+                  // only hold one bar and the Menu Bar now owns it.
+                  StudioMenuBar(selected: widget.selected),
+                  StudioToolbar(selected: widget.selected),
+                  StudioRibbon(selected: widget.selected),
+                  // Phase 2 (ODS-S004 Navigation Standard § 5): Breadcrumb
+                  // Bar + Back/Forward History, directly above the
+                  // workspace like an IDE's own breadcrumb bar.
+                  StudioBreadcrumbBar(selected: widget.selected),
+                  Expanded(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // WP-DS-006 follow-up: the Engineering Workbench
+                        // sidebar is now the app's single left nav, replacing
+                        // the classic `StudioNavRail` (still present in
+                        // `widgets/studio_nav_rail.dart`, just no longer
+                        // mounted here). `PerspectiveManager.instance` is the
+                        // same shared instance `_diagramBuilder`
+                        // (`core/routing/studio_registry.dart`) hands to
+                        // `EngineeringWorkbenchPage`, so a Perspective selected
+                        // here is the same Perspective that page renders.
+                        WorkbenchSidebar(
+                          perspectiveManager: PerspectiveManager.instance,
+                          current: widget.selected,
+                          // Phase 14 § 10: the same real
+                          // `EngineeringProjectState.session` signal
+                          // `.select`ed here (not `.watch`ed whole, to avoid
+                          // rebuilding the sidebar on unrelated selection/
+                          // validation churn) -- never a fabricated
+                          // "diagram open" flag.
+                          diagramSessionActive: ref.watch(engineeringProjectServiceProvider.select((s) => s.session != null)),
+                        ),
+                        Expanded(child: widget.child),
+                        if (showInspector) const PropertyInspectorPanel(),
+                      ],
+                    ),
+                  ),
+                  // The dockable Output Panel sits between the workspace and
+                  // the Status Bar, Visual-Studio style -- collapsed by
+                  // default so it never steals space from a Studio that
+                  // isn't using it. See `OutputPanel`'s own doc comment for
+                  // why it observes already-published Platform events rather
+                  // than introducing a new logging API.
+                  const OutputPanel(),
+                  const StudioStatusBar(),
+                ],
               ),
-              const StudioStatusBar(),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );

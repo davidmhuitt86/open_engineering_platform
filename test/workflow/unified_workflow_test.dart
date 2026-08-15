@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:oep_studio/app/studio_app.dart';
-import 'package:oep_studio/app/widgets/studio_nav_rail.dart';
+import 'package:oep_studio/core/routing/studio_destination.dart';
 import 'package:oep_studio/core/services/engineering_project_service.dart';
 import 'package:oep_studio/core/services/foundation_runtime_service.dart';
 import 'package:oep_studio/core/services/foundation_runtime_state.dart';
@@ -33,14 +33,35 @@ Future<void> settleDiagramStudioBootstrap(WidgetTester tester) async {
   });
 }
 
-/// Targets a specific Navigation Rail destination unambiguously — every
-/// destination's label also appears elsewhere on screen once its own
-/// workspace/Project Explorer branch is visible (e.g. "Validation"
-/// labels both the rail item and Project Explorer's Validation branch,
-/// and Diagram Studio's own validation panel), so a bare `find.text(...)`
-/// is not safe to tap here.
-Finder navRailItem(String label) =>
-    find.descendant(of: find.byType(StudioNavRail), matching: find.text(label));
+/// Navigates via a `StudioDestination`'s row in the Engineering Workbench
+/// sidebar (`WorkbenchSidebar`, `StudioShell`'s single left nav, replacing
+/// the classic `StudioNavRail` this helper used to target by widget type
+/// -- see `test/widget_test.dart`'s identical helper for the full
+/// rationale, duplicated here since `test/` files in this codebase don't
+/// import each other). Looked up by the stable
+/// `ValueKey('sidebar-dest-<path>')` each such row carries (a plain
+/// `find.text(...)` isn't safe: e.g. "Validation" also labels Project
+/// Explorer's Validation branch and Diagram Studio's own validation
+/// panel), scrolling the row into view first since a row past the fold
+/// isn't mounted until then (the sidebar's nav list is a real
+/// `Scrollable`, found by its own `ValueKey('workbench-sidebar-nav-list')`).
+Future<void> navigateViaSidebar(WidgetTester tester, StudioDestination destination) async {
+  final target = find.byKey(ValueKey('sidebar-dest-${destination.path}'));
+  final sidebarScrollable = find.descendant(
+    of: find.byKey(const ValueKey('workbench-sidebar-nav-list')),
+    matching: find.byType(Scrollable),
+  );
+  await tester.scrollUntilVisible(target, 100, scrollable: sidebarScrollable);
+  // `scrollUntilVisible` stops the moment any part of the target overlaps
+  // the viewport, which can leave it clipped at the edge -- `tester.tap`'s
+  // computed center then lands outside the Scrollable's visible region
+  // and hits whatever row is actually painted there instead (a real,
+  // observed flake). `ensureVisible` scrolls the target fully into view.
+  await tester.ensureVisible(target);
+  await settle(tester);
+  await tester.tap(target);
+  await settle(tester);
+}
 
 /// A `FoundationRuntimeNotifier` override that skips the real
 /// `FoundationBridge.create()` `dart:ffi` call (there is no native
@@ -67,7 +88,27 @@ void main() {
     'evidence navigation, live validation, and Ask AI all stay wired to '
     'the same Engineering Project (WORK_PACKAGE_025, ENGINE-TASK-000127)',
     (WidgetTester tester) async {
-      tester.view.physicalSize = const Size(1280, 800);
+      // WP-DS-006: bumped from 800 to 950. Several of Diagram Studio's own
+      // side panels (DiagramLayerPanel, DiagramSearchPanel,
+      // DiagramValidationPanel) run with only single-digit-pixel vertical
+      // margin at this fixed test viewport height -- each has tripped a
+      // RenderFlex overflow independently as unrelated Workbench chrome
+      // changes shifted layout by a few pixels one way or another (first
+      // the horizontal Perspective Selector row, later the left
+      // WorkbenchSidebar). Rather than keep chasing single-digit pixel
+      // margins panel by panel, this gives real headroom once. This is
+      // test viewport sizing, not a change to any assertion in this test;
+      // real desktop windows are essentially never exactly 800px tall.
+      // Width bumped from 1280 to 1600: WP-DS-006's new WorkbenchSidebar
+      // (240px expanded) sits alongside StudioShell's own existing 200px
+      // nav rail and right-hand Property Inspector panel -- at 1280px
+      // wide that left DiagramStudioPage's own toolbar (`_DocumentBar`)
+      // only ~540px, 20px short of what its (unchanged, out-of-scope-to-
+      // redesign) button row actually needs. 1600px is a realistic
+      // desktop window width and was never something this test asserted
+      // against specifically -- this is viewport headroom, not a change
+      // to any assertion.
+      tester.view.physicalSize = const Size(1600, 950);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
@@ -137,7 +178,7 @@ void main() {
 
       // --- Project Explorer (ENGINE-TASK-000126): the Validation branch
       // reflects the live finding count without navigating anywhere else.
-      await tester.tap(navRailItem('Project Explorer'));
+      await navigateViaSidebar(tester, StudioDestination.projectExplorer);
       await settle(tester);
 
       final validationBranch = find.widgetWithText(ExpansionTile, 'Validation');
@@ -156,10 +197,13 @@ void main() {
       // already-tested concern). Because ENGINE-TASK-000118 hoisted the
       // Engine out of `DiagramStudioPage`'s own private State, the Engine
       // instance is the SAME one Project Explorer/Validation just read.
-      await tester.tap(navRailItem('Diagram Studio'));
+      await navigateViaSidebar(tester, StudioDestination.diagram);
       await tester.pump();
       await settleDiagramStudioBootstrap(tester);
-      expect(find.text('Untitled Diagram'), findsOneWidget);
+      // Also appears in the Breadcrumb Bar's Document-level segment
+      // (Phase 2, ODS-S004 § 4 Navigation Hierarchy) AND in the Phase 5
+      // diagram tab bar's own tab chip, hence multiple matches.
+      expect(find.text('Untitled Diagram'), findsWidgets);
 
       final engine = container.read(engineeringProjectServiceProvider).engine!;
       engine.registry.selection.selectNode('node-1');
@@ -204,7 +248,7 @@ void main() {
       // `engineeringProjectServiceProvider`, not a page-local field, so a
       // plain rail switch — unlike the navigation helpers above — must
       // not add to it).
-      await tester.tap(navRailItem('Diagram Studio'));
+      await navigateViaSidebar(tester, StudioDestination.diagram);
       await tester.pump();
       await settleDiagramStudioBootstrap(tester);
 
@@ -217,7 +261,7 @@ void main() {
 
       // --- Validation Integration (ENGINE-TASK-000125): the global
       // Validation page shows the SAME live report, with a Suggested Fix.
-      await tester.tap(navRailItem('Validation'));
+      await navigateViaSidebar(tester, StudioDestination.validation);
       await settle(tester);
 
       expect(find.text('1 finding(s)'), findsOneWidget);
@@ -242,7 +286,7 @@ void main() {
       await tester.pump();
       await settleDiagramStudioBootstrap(tester);
 
-      expect(find.text('Untitled Diagram'), findsOneWidget);
+      expect(find.text('Untitled Diagram'), findsWidgets);
       expect(find.text('Timing Chain Cover'), findsWidgets);
     },
   );

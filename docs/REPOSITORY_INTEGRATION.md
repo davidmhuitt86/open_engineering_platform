@@ -4,6 +4,23 @@ WORK_PACKAGE_024, ENGINE-TASK-000111 — Open/Save/Save As/Close/Dirty
 State for a Diagram Studio document, and how it relates to the
 Foundation repository.
 
+**AP-DS-002 update: the gap this document originally described is now
+closed.** Everything below "The gap" and "The resolution" sections
+describes the PRE-AP-DS-002 state (local-JSON-only persistence, no
+Foundation write path) and is kept as an accurate historical record —
+do not delete it, it documents a real, deliberate interim decision.
+Foundation Runtime Engineering Repository integration now exists: see
+`docs/architecture/diagram_studio/ENGINEERING_MAPPING.md` for the
+object/relationship mapping, `docs/architecture/diagram_studio/
+DOCUMENT_MODEL.md`'s AP-DS-002 update for the document-model
+consequences, and `lib/diagram_studio/repository/
+diagram_repository_service.dart` for the implementation. Local JSON
+(`DiagramDocument`) is NOT removed — it remains the format legacy
+documents are migrated FROM (see `MIGRATION_GUIDE.md`), and the
+Autosave/Recovery mechanism built in AP-DS-001A still uses it for its
+own local recovery file, which is a separate, still-valid concern from
+the document's primary save/open path.
+
 ## The gap
 
 Studio's Foundation C API surface (`oep_api.h`, consumed through

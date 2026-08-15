@@ -6,8 +6,11 @@ import '../../acquisition/services/acquisition_runtime_service.dart';
 import '../../acquisition/settings/acquisition_settings_page.dart';
 import '../../acquisition/workspaces/acquisition_studio_page.dart';
 import '../../diagram_studio/settings/diagram_studio_settings_page.dart';
-import '../../diagram_studio/workspaces/diagram_studio_page.dart';
+import '../../workbench/engineering_workbench_page.dart';
+import '../../workbench/perspective/perspective_manager.dart';
+import '../../workbench/perspectives/workbench_perspectives.dart';
 import '../../engineering_intelligence/engineering_intelligence_page.dart';
+import '../../features/copilot/copilot_page.dart';
 import '../../exchange/services/exchange_runtime_service.dart';
 import '../../exchange/settings/exchange_settings_page.dart';
 import '../../exchange/workspaces/exchange_studio_page.dart';
@@ -442,6 +445,10 @@ class StudioRegistry {
       ],
     ),
     const StudioDescriptor(
+      destination: StudioDestination.copilot,
+      pageBuilder: _copilotBuilder,
+    ),
+    const StudioDescriptor(
       destination: StudioDestination.settings,
       pageBuilder: _settingsBuilder,
     ),
@@ -451,7 +458,11 @@ class StudioRegistry {
 Widget _dashboardBuilder(BuildContext context, GoRouterState state) => const DashboardPage();
 Widget _projectExplorerBuilder(BuildContext context, GoRouterState state) => const ProjectExplorerPage();
 Widget _knowledgeBuilder(BuildContext context, GoRouterState state) => const KnowledgeStudioPage();
-Widget _diagramBuilder(BuildContext context, GoRouterState state) => const DiagramStudioPage();
+Widget _diagramBuilder(BuildContext context, GoRouterState state) => EngineeringWorkbenchPage(
+      perspectives: workbenchPerspectives,
+      perspectiveManager: PerspectiveManager.instance,
+      showSidebar: false, // StudioShell already renders the (shared) sidebar.
+    );
 Widget _acquisitionBuilder(BuildContext context, GoRouterState state) => const AcquisitionStudioPage();
 Widget _repositoryBuilder(BuildContext context, GoRouterState state) => const RepositoryPage();
 Widget _objectsBuilder(BuildContext context, GoRouterState state) => const ObjectsPage();
@@ -461,6 +472,8 @@ Widget _graphBuilder(BuildContext context, GoRouterState state) => const GraphPa
 Widget _validationBuilder(BuildContext context, GoRouterState state) => const ValidationPage();
 Widget _packagesBuilder(BuildContext context, GoRouterState state) => const PackagesPage();
 Widget _engineeringIntelligenceBuilder(BuildContext context, GoRouterState state) => const EngineeringIntelligencePage();
+
+Widget _copilotBuilder(BuildContext context, GoRouterState state) => const CopilotPage();
 Widget _exchangeBuilder(BuildContext context, GoRouterState state) => const ExchangeStudioPage();
 Widget _settingsBuilder(BuildContext context, GoRouterState state) =>
     SettingsWorkspacePage(initialPageId: state.uri.queryParameters['page']);

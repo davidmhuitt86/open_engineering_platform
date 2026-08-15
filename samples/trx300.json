@@ -1,0 +1,1507 @@
+{
+  "schemaVersion": 1,
+  "graph": {
+    "id": "trx300",
+    "nodes": [
+      {
+        "id": "indicator-lights",
+        "category": "component",
+        "displayName": "Indicator Lights",
+        "symbolId": null,
+        "repositoryObjectId": null,
+        "metadata": {
+          "sublabel": "Oil/Rev/Neutral",
+          "exit": "down"
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": [
+          {
+            "id": "OIL",
+            "name": "OIL",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "REV",
+            "name": "REV",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "NEU",
+            "name": "NEU",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          }
+        ]
+      },
+      {
+        "id": "cdi-unit",
+        "category": "component",
+        "displayName": "CDI Unit",
+        "symbolId": null,
+        "repositoryObjectId": null,
+        "metadata": {
+          "sublabel": "DC-CDI Igniter",
+          "exit": "down"
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": [
+          {
+            "id": "P1",
+            "name": "P1",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "P2",
+            "name": "P2",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "P3",
+            "name": "P3",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "P4",
+            "name": "P4",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "P5",
+            "name": "P5",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "P6",
+            "name": "P6",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          }
+        ]
+      },
+      {
+        "id": "alarm-unit",
+        "category": "component",
+        "displayName": "Alarm Unit",
+        "symbolId": null,
+        "repositoryObjectId": null,
+        "metadata": {
+          "sublabel": "Rev/Oil Buzzer",
+          "exit": "down"
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": [
+          {
+            "id": "A1",
+            "name": "A1",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "A2",
+            "name": "A2",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "A3",
+            "name": "A3",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "A5",
+            "name": "A5",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "A6",
+            "name": "A6",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          }
+        ]
+      },
+      {
+        "id": "ignition-switch",
+        "category": "switchNode",
+        "displayName": "Ignition Switch",
+        "symbolId": null,
+        "repositoryObjectId": null,
+        "metadata": {
+          "sublabel": "Key Cylinder",
+          "exit": "down"
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": [
+          {
+            "id": "BAT1",
+            "name": "BAT1",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "BAT2",
+            "name": "BAT2",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "IG1",
+            "name": "IG1",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "BAT3",
+            "name": "BAT3",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          }
+        ]
+      },
+      {
+        "id": "dc-consent-jack",
+        "category": "connector",
+        "displayName": "DC Consent",
+        "symbolId": null,
+        "repositoryObjectId": null,
+        "metadata": {
+          "sublabel": "Accessory Jack",
+          "exit": "down"
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": [
+          {
+            "id": "+12V",
+            "name": "+12V",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "GND",
+            "name": "GND",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          }
+        ]
+      },
+      {
+        "id": "rectifier-diode",
+        "category": "component",
+        "displayName": "Rectifier",
+        "symbolId": null,
+        "repositoryObjectId": null,
+        "metadata": {
+          "sublabel": "Diode",
+          "exit": "down"
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": [
+          {
+            "id": "A",
+            "name": "A",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "K",
+            "name": "K",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          }
+        ]
+      },
+      {
+        "id": "regulator-rectifier",
+        "category": "component",
+        "displayName": "Reg/Rect",
+        "symbolId": null,
+        "repositoryObjectId": null,
+        "metadata": {
+          "sublabel": "Charge Regulator",
+          "exit": "down"
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": [
+          {
+            "id": "GND",
+            "name": "GND",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "B+",
+            "name": "B+",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "REG",
+            "name": "REG",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "AC1",
+            "name": "AC1",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "AC2",
+            "name": "AC2",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "AC3",
+            "name": "AC3",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          }
+        ]
+      },
+      {
+        "id": "left-handlebar-switch",
+        "category": "switchNode",
+        "displayName": "LH Handlebar Sw",
+        "symbolId": null,
+        "repositoryObjectId": null,
+        "metadata": {
+          "sublabel": "Light/Stop/Start",
+          "exit": "up"
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": [
+          {
+            "id": "BAT2",
+            "name": "BAT2",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "IG1",
+            "name": "IG1",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "TL",
+            "name": "TL",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "ST",
+            "name": "ST",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "IG2",
+            "name": "IG2",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "LO",
+            "name": "LO",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "HI",
+            "name": "HI",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          }
+        ]
+      },
+      {
+        "id": "chassis-ground",
+        "category": "ground",
+        "displayName": "Chassis GND",
+        "symbolId": null,
+        "repositoryObjectId": null,
+        "metadata": {
+          "sublabel": "Engine Bolt",
+          "exit": "up"
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": [
+          {
+            "id": "A",
+            "name": "A",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "B",
+            "name": "B",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          }
+        ]
+      },
+      {
+        "id": "ignition-coil",
+        "category": "component",
+        "displayName": "Ignition Coil",
+        "symbolId": null,
+        "repositoryObjectId": null,
+        "metadata": {
+          "sublabel": "Primary",
+          "exit": "up"
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": [
+          {
+            "id": "PRI+",
+            "name": "PRI+",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "GND",
+            "name": "GND",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          }
+        ]
+      },
+      {
+        "id": "spark-plug",
+        "category": "component",
+        "displayName": "Spark Plug",
+        "symbolId": null,
+        "repositoryObjectId": null,
+        "metadata": {
+          "sublabel": "HT Lead",
+          "exit": "up"
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": [
+          {
+            "id": "HT",
+            "name": "HT",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          }
+        ]
+      },
+      {
+        "id": "reverse-switch",
+        "category": "switchNode",
+        "displayName": "Reverse Switch",
+        "symbolId": null,
+        "repositoryObjectId": null,
+        "metadata": {
+          "sublabel": "Gear Position",
+          "exit": "up"
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": [
+          {
+            "id": "OUT",
+            "name": "OUT",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "BODY",
+            "name": "BODY",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          }
+        ]
+      },
+      {
+        "id": "neutral-switch",
+        "category": "switchNode",
+        "displayName": "Neutral Switch",
+        "symbolId": null,
+        "repositoryObjectId": null,
+        "metadata": {
+          "sublabel": "Gear Position",
+          "exit": "up"
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": [
+          {
+            "id": "OUT",
+            "name": "OUT",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "BODY",
+            "name": "BODY",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          }
+        ]
+      },
+      {
+        "id": "oil-temp-switch",
+        "category": "switchNode",
+        "displayName": "Oil Temp Switch",
+        "symbolId": null,
+        "repositoryObjectId": null,
+        "metadata": {
+          "sublabel": "Thermo Switch",
+          "exit": "up"
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": [
+          {
+            "id": "OUT",
+            "name": "OUT",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "BODY",
+            "name": "BODY",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          }
+        ]
+      },
+      {
+        "id": "pulser-coil",
+        "category": "sensor",
+        "displayName": "Pulser Coil",
+        "symbolId": null,
+        "repositoryObjectId": null,
+        "metadata": {
+          "sublabel": "Timing Pickup",
+          "exit": "up"
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": [
+          {
+            "id": "OUT",
+            "name": "OUT",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "BODY",
+            "name": "BODY",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          }
+        ]
+      },
+      {
+        "id": "alternator-stator",
+        "category": "component",
+        "displayName": "Stator/Alt",
+        "symbolId": null,
+        "repositoryObjectId": null,
+        "metadata": {
+          "sublabel": "Charging",
+          "exit": "up"
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": [
+          {
+            "id": "GND",
+            "name": "GND",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "LIT",
+            "name": "LIT",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "AC1",
+            "name": "AC1",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "AC2",
+            "name": "AC2",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "AC3",
+            "name": "AC3",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          }
+        ]
+      },
+      {
+        "id": "starter-motor",
+        "category": "actuator",
+        "displayName": "Starter Motor",
+        "symbolId": null,
+        "repositoryObjectId": null,
+        "metadata": {
+          "sublabel": "DC Motor",
+          "exit": "up"
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": [
+          {
+            "id": "B+",
+            "name": "B+",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "BODY",
+            "name": "BODY",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          }
+        ]
+      },
+      {
+        "id": "starter-relay",
+        "category": "relay",
+        "displayName": "Starter Relay",
+        "symbolId": null,
+        "repositoryObjectId": null,
+        "metadata": {
+          "sublabel": "Solenoid",
+          "exit": "up"
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": [
+          {
+            "id": "C+",
+            "name": "C+",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "C-",
+            "name": "C-",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "MB+",
+            "name": "MB+",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "MO",
+            "name": "MO",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          }
+        ]
+      },
+      {
+        "id": "battery-fuses",
+        "category": "component",
+        "displayName": "Battery + Fuses",
+        "symbolId": null,
+        "repositoryObjectId": null,
+        "metadata": {
+          "sublabel": "12V",
+          "exit": "up"
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": [
+          {
+            "id": "B+(R)",
+            "name": "B+(R)",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "B+(PW)",
+            "name": "B+(PW)",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "MB+",
+            "name": "MB+",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "B-",
+            "name": "B-",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          }
+        ]
+      },
+      {
+        "id": "rh-headlight",
+        "category": "actuator",
+        "displayName": "RH Headlight",
+        "symbolId": null,
+        "repositoryObjectId": null,
+        "metadata": {
+          "sublabel": "12V 25/25W",
+          "exit": "right"
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": [
+          {
+            "id": "HI",
+            "name": "HI",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "LO",
+            "name": "LO",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "GND",
+            "name": "GND",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          }
+        ]
+      },
+      {
+        "id": "lh-headlight",
+        "category": "actuator",
+        "displayName": "LH Headlight",
+        "symbolId": null,
+        "repositoryObjectId": null,
+        "metadata": {
+          "sublabel": "12V 25/25W",
+          "exit": "right"
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": [
+          {
+            "id": "HI",
+            "name": "HI",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "LO",
+            "name": "LO",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "GND",
+            "name": "GND",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          }
+        ]
+      },
+      {
+        "id": "tail-light",
+        "category": "actuator",
+        "displayName": "Tail Light",
+        "symbolId": null,
+        "repositoryObjectId": null,
+        "metadata": {
+          "sublabel": "12V 5W",
+          "exit": "left"
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": [
+          {
+            "id": "P/W",
+            "name": "P/W",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "R",
+            "name": "R",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          }
+        ]
+      }
+    ],
+    "relationships": [
+      {
+        "id": "stator-ac1",
+        "relationshipType": "connectedTo",
+        "sourceNode": "alternator-stator",
+        "targetNode": "regulator-rectifier",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "sourcePort": "AC1",
+          "targetPort": "AC1",
+          "color": "Y",
+          "label": "Stator Ph1",
+          "description": "Stator AC phase 1 -> regulator"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "stator-ac2",
+        "relationshipType": "connectedTo",
+        "sourceNode": "alternator-stator",
+        "targetNode": "regulator-rectifier",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "sourcePort": "AC2",
+          "targetPort": "AC2",
+          "color": "Y",
+          "label": "Stator Ph2",
+          "description": "Stator AC phase 2 -> regulator"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "stator-ac3",
+        "relationshipType": "connectedTo",
+        "sourceNode": "alternator-stator",
+        "targetNode": "regulator-rectifier",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "sourcePort": "AC3",
+          "targetPort": "AC3",
+          "color": "Y",
+          "label": "Stator Ph3",
+          "description": "Stator AC phase 3 -> regulator"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "stator-gnd",
+        "relationshipType": "connectedTo",
+        "sourceNode": "alternator-stator",
+        "targetNode": "regulator-rectifier",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "sourcePort": "GND",
+          "targetPort": "REG",
+          "color": "G",
+          "label": "Stator GND",
+          "description": "Stator ground -> regulator"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "reg-bat",
+        "relationshipType": "suppliesPower",
+        "sourceNode": "regulator-rectifier",
+        "targetNode": "battery-fuses",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "sourcePort": "B+",
+          "targetPort": "B+(R)",
+          "color": "R",
+          "label": "Charge Out",
+          "description": "Regulated DC charge -> battery"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "pulser-cdi",
+        "relationshipType": "connectedTo",
+        "sourceNode": "pulser-coil",
+        "targetNode": "cdi-unit",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "sourcePort": "OUT",
+          "targetPort": "P3",
+          "color": "Blu/Y",
+          "label": "Pulser Signal",
+          "description": "Timing pulse -> CDI"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "pulser-gnd",
+        "relationshipType": "grounds",
+        "sourceNode": "chassis-ground",
+        "targetNode": "pulser-coil",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "sourcePort": "BODY",
+          "targetPort": "A",
+          "color": "G",
+          "label": "Pulser GND",
+          "description": "Pulser body ground"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "cdi-coil",
+        "relationshipType": "connectedTo",
+        "sourceNode": "cdi-unit",
+        "targetNode": "ignition-coil",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "sourcePort": "P1",
+          "targetPort": "PRI+",
+          "color": "Bl/Y",
+          "label": "CDI->Ign Coil",
+          "description": "CDI primary drive -> ignition coil"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "coil-gnd",
+        "relationshipType": "grounds",
+        "sourceNode": "chassis-ground",
+        "targetNode": "ignition-coil",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "sourcePort": "GND",
+          "targetPort": "A",
+          "color": "G",
+          "label": "Coil GND",
+          "description": "Ignition coil primary ground"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "cdi-gnd",
+        "relationshipType": "grounds",
+        "sourceNode": "chassis-ground",
+        "targetNode": "cdi-unit",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "sourcePort": "P2",
+          "targetPort": "B",
+          "color": "G",
+          "label": "CDI GND",
+          "description": "CDI unit ground"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "oil-alarm",
+        "relationshipType": "connectedTo",
+        "sourceNode": "indicator-lights",
+        "targetNode": "alarm-unit",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "sourcePort": "OIL",
+          "targetPort": "A1",
+          "color": "Br/R",
+          "label": "Oil Temp Sig",
+          "description": "Oil temp indicator -> alarm unit"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rev-ind",
+        "relationshipType": "connectedTo",
+        "sourceNode": "reverse-switch",
+        "targetNode": "indicator-lights",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "sourcePort": "OUT",
+          "targetPort": "REV",
+          "color": "Gr",
+          "label": "Reverse Signal",
+          "description": "Reverse switch -> indicator lamp"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rev-gnd",
+        "relationshipType": "grounds",
+        "sourceNode": "chassis-ground",
+        "targetNode": "reverse-switch",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "sourcePort": "BODY",
+          "targetPort": "A",
+          "color": "G",
+          "label": "Rev SW GND",
+          "description": "Reverse switch body ground"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "neu-gnd",
+        "relationshipType": "grounds",
+        "sourceNode": "chassis-ground",
+        "targetNode": "neutral-switch",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "sourcePort": "BODY",
+          "targetPort": "A",
+          "color": "G",
+          "label": "Neu SW GND",
+          "description": "Neutral switch body ground"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "oilsw-gnd",
+        "relationshipType": "grounds",
+        "sourceNode": "chassis-ground",
+        "targetNode": "oil-temp-switch",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "sourcePort": "BODY",
+          "targetPort": "A",
+          "color": "G",
+          "label": "Oil SW GND",
+          "description": "Oil temp switch body ground"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "neu-ind",
+        "relationshipType": "connectedTo",
+        "sourceNode": "indicator-lights",
+        "targetNode": "rectifier-diode",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "sourcePort": "NEU",
+          "targetPort": "A",
+          "color": "Lg/R",
+          "label": "Neutral Feed",
+          "description": "Neutral indicator -> rectifier diode"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "bat-ign-r",
+        "relationshipType": "suppliesPower",
+        "sourceNode": "battery-fuses",
+        "targetNode": "ignition-switch",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "sourcePort": "B+(R)",
+          "targetPort": "BAT1",
+          "color": "R",
+          "label": "Batt to Ign R",
+          "description": "Battery B+ -> ignition switch (Red)"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "bat-ign-pw",
+        "relationshipType": "suppliesPower",
+        "sourceNode": "battery-fuses",
+        "targetNode": "ignition-switch",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "sourcePort": "B+(PW)",
+          "targetPort": "BAT3",
+          "color": "P/W",
+          "label": "Batt to Ign PW",
+          "description": "Battery B+ -> ignition switch (Pink/White)"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "ign-consent",
+        "relationshipType": "connectedTo",
+        "sourceNode": "ignition-switch",
+        "targetNode": "dc-consent-jack",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "sourcePort": "IG1",
+          "targetPort": "+12V",
+          "color": "P",
+          "label": "Ign to DC Jack",
+          "description": "Switched +12V -> accessory jack"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "ign-alarm",
+        "relationshipType": "connectedTo",
+        "sourceNode": "ignition-switch",
+        "targetNode": "alarm-unit",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "sourcePort": "IG1",
+          "targetPort": "A5",
+          "color": "P",
+          "label": "Ign to Alarm",
+          "description": "Switched +12V -> alarm unit"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "jack-gnd",
+        "relationshipType": "grounds",
+        "sourceNode": "chassis-ground",
+        "targetNode": "dc-consent-jack",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "sourcePort": "GND",
+          "targetPort": "A",
+          "color": "G",
+          "label": "Jack GND",
+          "description": "DC jack ground"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "kill-cdi",
+        "relationshipType": "connectedTo",
+        "sourceNode": "left-handlebar-switch",
+        "targetNode": "cdi-unit",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "sourcePort": "IG2",
+          "targetPort": "P5",
+          "color": "Bl/W",
+          "label": "Kill to CDI",
+          "description": "Kill switch -> CDI unit"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "start-relay",
+        "relationshipType": "connectedTo",
+        "sourceNode": "left-handlebar-switch",
+        "targetNode": "starter-relay",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "sourcePort": "ST",
+          "targetPort": "C+",
+          "color": "Y/R",
+          "label": "Start Button",
+          "description": "Start button -> relay coil positive"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "relay-cdi",
+        "relationshipType": "connectedTo",
+        "sourceNode": "starter-relay",
+        "targetNode": "cdi-unit",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "sourcePort": "C-",
+          "targetPort": "P6",
+          "color": "Gr",
+          "label": "Relay C- CDI",
+          "description": "Starter relay coil negative -> CDI"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "bat-relay",
+        "relationshipType": "suppliesPower",
+        "sourceNode": "battery-fuses",
+        "targetNode": "starter-relay",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "sourcePort": "MB+",
+          "targetPort": "MB+",
+          "color": "Bl",
+          "label": "Batt to Relay",
+          "description": "Battery B+ -> relay main lug"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "relay-motor",
+        "relationshipType": "connectedTo",
+        "sourceNode": "starter-relay",
+        "targetNode": "starter-motor",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "sourcePort": "MO",
+          "targetPort": "B+",
+          "color": "Bl",
+          "label": "Relay to Motor",
+          "description": "Relay output -> starter motor"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "motor-gnd",
+        "relationshipType": "grounds",
+        "sourceNode": "chassis-ground",
+        "targetNode": "starter-motor",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "sourcePort": "BODY",
+          "targetPort": "B",
+          "color": "G",
+          "label": "Motor GND",
+          "description": "Starter motor body ground"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "bat-neg",
+        "relationshipType": "grounds",
+        "sourceNode": "chassis-ground",
+        "targetNode": "battery-fuses",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "sourcePort": "B-",
+          "targetPort": "B",
+          "color": "Bl",
+          "label": "Battery GND",
+          "description": "Battery negative -> chassis ground"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "hlsw-lo",
+        "relationshipType": "connectedTo",
+        "sourceNode": "left-handlebar-switch",
+        "targetNode": "rh-headlight",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "sourcePort": "LO",
+          "targetPort": "LO",
+          "color": "W",
+          "label": "SW Low Beam",
+          "description": "Handlebar switch low beam -> RH headlight"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "hlsw-hi",
+        "relationshipType": "connectedTo",
+        "sourceNode": "left-handlebar-switch",
+        "targetNode": "rh-headlight",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "sourcePort": "HI",
+          "targetPort": "HI",
+          "color": "Bu",
+          "label": "SW High Beam",
+          "description": "Handlebar switch high beam -> RH headlight"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rh-gnd",
+        "relationshipType": "grounds",
+        "sourceNode": "chassis-ground",
+        "targetNode": "rh-headlight",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "sourcePort": "GND",
+          "targetPort": "B",
+          "color": "G",
+          "label": "RH HL GND",
+          "description": "Right headlight ground"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "lh-hi-spl",
+        "relationshipType": "connectedTo",
+        "sourceNode": "rh-headlight",
+        "targetNode": "lh-headlight",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "sourcePort": "HI",
+          "targetPort": "HI",
+          "color": "Bu",
+          "label": "LH HI Splice",
+          "description": "Splice: RH/LH high beam shared"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "lh-lo-spl",
+        "relationshipType": "connectedTo",
+        "sourceNode": "rh-headlight",
+        "targetNode": "lh-headlight",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "sourcePort": "LO",
+          "targetPort": "LO",
+          "color": "W",
+          "label": "LH LO Splice",
+          "description": "Splice: RH/LH low beam shared"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "lh-gnd-spl",
+        "relationshipType": "connectedTo",
+        "sourceNode": "rh-headlight",
+        "targetNode": "lh-headlight",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "sourcePort": "GND",
+          "targetPort": "GND",
+          "color": "G",
+          "label": "LH GND Splice",
+          "description": "Splice: RH/LH headlight grounds shared"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "neu-sw-ind",
+        "relationshipType": "connectedTo",
+        "sourceNode": "neutral-switch",
+        "targetNode": "indicator-lights",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "sourcePort": "OUT",
+          "targetPort": "NEU",
+          "color": "Lg",
+          "label": "Neutral Sense",
+          "description": "Neutral switch -> indicator"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "oil-sw-ind",
+        "relationshipType": "connectedTo",
+        "sourceNode": "oil-temp-switch",
+        "targetNode": "indicator-lights",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "sourcePort": "OUT",
+          "targetPort": "OIL",
+          "color": "Bl",
+          "label": "Oil Temp Sw Ind",
+          "description": "Oil temp switch -> indicator"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "tail-pw",
+        "relationshipType": "connectedTo",
+        "sourceNode": "ignition-switch",
+        "targetNode": "tail-light",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "sourcePort": "BAT3",
+          "targetPort": "P/W",
+          "color": "P/W",
+          "label": "Tail P/W",
+          "description": "Battery BAT3 -> tail light (Pink/White)"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "tail-r",
+        "relationshipType": "suppliesPower",
+        "sourceNode": "battery-fuses",
+        "targetNode": "tail-light",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "sourcePort": "B+(R)",
+          "targetPort": "R",
+          "color": "R",
+          "label": "Tail R",
+          "description": "Battery B+(R) -> tail light (Red)"
+        },
+        "evidenceLinks": []
+      }
+    ],
+    "groups": [],
+    "metadata": {}
+  },
+  "layout": {
+    "positions": {
+      "indicator-lights": {
+        "dx": 20.0,
+        "dy": 30.0
+      },
+      "cdi-unit": {
+        "dx": 130.0,
+        "dy": 30.0
+      },
+      "alarm-unit": {
+        "dx": 255.0,
+        "dy": 30.0
+      },
+      "ignition-switch": {
+        "dx": 380.0,
+        "dy": 30.0
+      },
+      "dc-consent-jack": {
+        "dx": 500.0,
+        "dy": 30.0
+      },
+      "rectifier-diode": {
+        "dx": 590.0,
+        "dy": 30.0
+      },
+      "regulator-rectifier": {
+        "dx": 668.0,
+        "dy": 30.0
+      },
+      "rh-headlight": {
+        "dx": 20.0,
+        "dy": 390.0
+      },
+      "lh-headlight": {
+        "dx": 20.0,
+        "dy": 470.0
+      },
+      "left-handlebar-switch": {
+        "dx": 155.0,
+        "dy": 580.0
+      },
+      "chassis-ground": {
+        "dx": 320.0,
+        "dy": 580.0
+      },
+      "ignition-coil": {
+        "dx": 400.0,
+        "dy": 580.0
+      },
+      "spark-plug": {
+        "dx": 480.0,
+        "dy": 580.0
+      },
+      "reverse-switch": {
+        "dx": 540.0,
+        "dy": 580.0
+      },
+      "neutral-switch": {
+        "dx": 610.0,
+        "dy": 580.0
+      },
+      "oil-temp-switch": {
+        "dx": 680.0,
+        "dy": 580.0
+      },
+      "pulser-coil": {
+        "dx": 750.0,
+        "dy": 580.0
+      },
+      "alternator-stator": {
+        "dx": 820.0,
+        "dy": 580.0
+      },
+      "starter-motor": {
+        "dx": 940.0,
+        "dy": 580.0
+      },
+      "starter-relay": {
+        "dx": 1020.0,
+        "dy": 580.0
+      },
+      "battery-fuses": {
+        "dx": 1130.0,
+        "dy": 580.0
+      },
+      "tail-light": {
+        "dx": 1460.0,
+        "dy": 390.0
+      }
+    },
+    "wireOverrides": {},
+    "annotations": {},
+    "layers": {},
+    "layerAssignments": {},
+    "transforms": {},
+    "sizes": {}
+  }
+}

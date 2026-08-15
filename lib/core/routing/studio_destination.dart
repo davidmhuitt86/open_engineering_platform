@@ -65,6 +65,12 @@ enum StudioDestination {
     Icons.storefront_outlined,
     Icons.storefront,
   ),
+  copilot(
+    'AI Engineering Copilot',
+    '/copilot',
+    Icons.auto_awesome_outlined,
+    Icons.auto_awesome,
+  ),
   settings('Settings', '/settings', Icons.settings_outlined, Icons.settings);
 
   const StudioDestination(this.label, this.path, this.icon, this.selectedIcon);

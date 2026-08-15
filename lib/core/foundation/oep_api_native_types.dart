@@ -910,6 +910,47 @@ typedef OepRelationshipCreateNative = OepResultNative Function(
   Pointer<OepRelationshipInfoNative> outRelationship,
 );
 
+// AP-DS-002: oep_object_update/oep_object_delete/
+// oep_relationship_update/oep_relationship_delete existed in oep_api.h
+// since Work Package 014 but were never bound here (a real gap this
+// session's own platform architecture review flagged: Studio could
+// create and read objects/relationships but not update or delete
+// them). oep_object_update_content/oep_object_get_content are new
+// (OEP_API_VERSION 20) -- see EngineeringObject::content's own doc
+// comment in oep_foundation for what the opaque `content` payload is
+// for (Diagram Studio's repository-backed presentation state).
+typedef OepObjectUpdateNative = OepResultNative Function(
+  Pointer<Void> runtime,
+  Pointer<Utf8> objectId,
+  Pointer<Utf8> name,
+  Pointer<Utf8> description,
+  Pointer<Utf8> author,
+  Pointer<Pointer<Utf8>> tags,
+  Int32 tagCount,
+  Pointer<OepObjectInfoNative> outObject,
+);
+typedef OepObjectDeleteNative = OepResultNative Function(Pointer<Void> runtime, Pointer<Utf8> objectId);
+typedef OepObjectUpdateContentNative = OepResultNative Function(
+  Pointer<Void> runtime,
+  Pointer<Utf8> objectId,
+  Pointer<Utf8> content,
+  Pointer<OepObjectInfoNative> outObject,
+);
+typedef OepObjectGetContentNative = OepResultNative Function(
+  Pointer<Void> runtime,
+  Pointer<Utf8> objectId,
+  Pointer<Pointer<Utf8>> outText,
+  Pointer<Size> outLength,
+);
+typedef OepRelationshipUpdateNative = OepResultNative Function(
+  Pointer<Void> runtime,
+  Pointer<Utf8> relationshipId,
+  Pointer<Utf8> author,
+  Pointer<Utf8> description,
+  Pointer<OepRelationshipInfoNative> outRelationship,
+);
+typedef OepRelationshipDeleteNative = OepResultNative Function(Pointer<Void> runtime, Pointer<Utf8> relationshipId);
+
 typedef OepTransactionBeginNative = OepResultNative Function(Pointer<Void> runtime);
 typedef OepTransactionCommitNative = OepResultNative Function(Pointer<Void> runtime);
 typedef OepTransactionRollbackNative = OepResultNative Function(Pointer<Void> runtime);
@@ -2193,6 +2234,39 @@ typedef OepRelationshipCreateDart = OepResultNative Function(
   Pointer<Utf8> description,
   Pointer<OepRelationshipInfoNative> outRelationship,
 );
+
+// AP-DS-002: Dart-side counterparts of the Native typedefs added above.
+typedef OepObjectUpdateDart = OepResultNative Function(
+  Pointer<Void> runtime,
+  Pointer<Utf8> objectId,
+  Pointer<Utf8> name,
+  Pointer<Utf8> description,
+  Pointer<Utf8> author,
+  Pointer<Pointer<Utf8>> tags,
+  int tagCount,
+  Pointer<OepObjectInfoNative> outObject,
+);
+typedef OepObjectDeleteDart = OepResultNative Function(Pointer<Void> runtime, Pointer<Utf8> objectId);
+typedef OepObjectUpdateContentDart = OepResultNative Function(
+  Pointer<Void> runtime,
+  Pointer<Utf8> objectId,
+  Pointer<Utf8> content,
+  Pointer<OepObjectInfoNative> outObject,
+);
+typedef OepObjectGetContentDart = OepResultNative Function(
+  Pointer<Void> runtime,
+  Pointer<Utf8> objectId,
+  Pointer<Pointer<Utf8>> outText,
+  Pointer<Size> outLength,
+);
+typedef OepRelationshipUpdateDart = OepResultNative Function(
+  Pointer<Void> runtime,
+  Pointer<Utf8> relationshipId,
+  Pointer<Utf8> author,
+  Pointer<Utf8> description,
+  Pointer<OepRelationshipInfoNative> outRelationship,
+);
+typedef OepRelationshipDeleteDart = OepResultNative Function(Pointer<Void> runtime, Pointer<Utf8> relationshipId);
 
 typedef OepTransactionBeginDart = OepResultNative Function(Pointer<Void> runtime);
 typedef OepTransactionCommitDart = OepResultNative Function(Pointer<Void> runtime);

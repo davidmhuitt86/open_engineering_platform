@@ -3,7 +3,7 @@
 ; Every entry here is a name pulled from the linked oep_api static
 ; library (see oep_foundation/platform/api/include/oep/api/oep_api.h);
 ; none are defined in this repository. A .def EXPORTS entry tells the
-; linker "export whatever ends up at this symbol after linking" — it
+; linker "export whatever ends up at this symbol after linking" -- it
 ; does not require the symbol to be defined in this DLL's own source,
 ; which is why bridge_stub.cpp can stay empty. Keeping this list
 ; explicit (rather than relying on CMake's WINDOWS_EXPORT_ALL_SYMBOLS,
@@ -12,43 +12,184 @@
 ; this DLL exposes, matching the rule that Studio may consume nothing
 ; beyond oep_api.h.
 ;
-; Keep this list in sync with oep_api.h.
+; Regenerated in full (AP-DS-002) directly from every extern "C"
+; function declared in oep_api.h -- the prior hand-maintained list had
+; drifted to cover only 38 of the header's 168 functions (this file's
+; own "keep in sync" instruction had not been followed for some time,
+; discovered only once this DLL was successfully rebuilt for the first
+; time this session -- see native/foundation_bridge/CMakeLists.txt's
+; own AP-DS-002 comment on the module-list drift found alongside this).
+; Regenerate the same way if oep_api.h's function count ever drifts
+; from this list's line count again: extract every
+; `oep_result_t|const char*|int|bool|size_t|double|void|OEP_Runtime
+; oep_<name>(` declaration from oep_api.h and alphabetize.
 EXPORTS
-    oep_foundation_version
-    oep_api_version
     oep_abi_version
-    oep_runtime_state_to_string
-    oep_error_code_to_string
+    oep_analysis_dependencies
+    oep_analysis_impact
+    oep_analysis_reachability
+    oep_analysis_root_cause
+    oep_api_version
+    oep_batch_create_objects
+    oep_batch_create_objects_result_release
+    oep_batch_create_relationships
+    oep_batch_create_relationships_result_release
+    oep_certificate_list_release
+    oep_component_membership_list_release
+    oep_dependency_entry_list_release
+    oep_dependency_state_to_string
+    oep_eip_analyze
+    oep_eip_cleanup
+    oep_eip_clone_session
+    oep_eip_close_session
+    oep_eip_create_session
+    oep_eip_engineering_health
+    oep_eip_engineering_recommendations
+    oep_eip_engineering_summary
+    oep_eip_export_session_summary
+    oep_eip_get_session
+    oep_eip_inspect
+    oep_eip_invalidate_caches
+    oep_eip_list_sessions
+    oep_eip_query
+    oep_eip_reason
+    oep_eip_recommend
+    oep_eip_resume_session
+    oep_eip_runtime_metrics
+    oep_eip_switch_session
+    oep_eip_validate
+    oep_engine_dependency_graph
+    oep_engine_load_graph
+    oep_engine_load_object
+    oep_engine_query
+    oep_engine_related_objects
+    oep_engine_traverse
+    oep_eqe_clear_query_cache
+    oep_eqe_execute_query
+    oep_eqe_plan_query
+    oep_eqe_query_cache_info
+    oep_eqe_query_statistics
     oep_error_category_to_string
+    oep_error_code_to_string
+    oep_event_type_to_string
+    oep_foundation_version
+    oep_graph_issue_kind_to_string
+    oep_graph_issue_list_release
+    oep_inspection_target_kind_to_string
+    oep_installed_package_list_release
+    oep_kge_build_graph
+    oep_kge_connected_components
+    oep_kge_export_graphml_placeholder
+    oep_kge_export_json
+    oep_kge_graph_statistics
+    oep_kge_refresh_graph
+    oep_kge_shortest_path
+    oep_kge_subgraph
+    oep_kge_validate_graph
+    oep_match_location_to_string
+    oep_merge_conflict_kind_to_string
+    oep_merge_conflict_list_release
+    oep_object_create
+    oep_object_delete
+    oep_object_get_content
+    oep_object_list_release
+    oep_object_search_result_list_release
+    oep_object_store_get_by_id
+    oep_object_store_get_count
+    oep_object_store_list
+    oep_object_type_to_string
+    oep_object_update
+    oep_object_update_content
+    oep_package_analyze_uninstall_impact
+    oep_package_analyze_update_impact
+    oep_package_get_contents
+    oep_package_get_info
+    oep_package_get_trust_status
+    oep_package_id_list_release
+    oep_package_install
+    oep_package_list_installed
+    oep_package_locate
+    oep_package_resolve_dependencies
+    oep_package_search
+    oep_package_uninstall
+    oep_package_update
+    oep_package_verify
+    oep_query_category_to_string
+    oep_reasoning_create_session
+    oep_reasoning_execute
+    oep_reasoning_get_conclusion
+    oep_reasoning_get_evidence_node
+    oep_reasoning_get_recommendation
+    oep_reasoning_recommendations
+    oep_reasoning_report
+    oep_recommendation_kind_to_string
+    oep_relationship_create
+    oep_relationship_delete
+    oep_relationship_list_release
+    oep_relationship_search_result_list_release
+    oep_relationship_store_get_by_id
+    oep_relationship_store_get_count
+    oep_relationship_store_list
+    oep_relationship_type_to_string
+    oep_relationship_update
+    oep_repository_event_list_release
+    oep_repository_execute_merge
+    oep_repository_plan_merge
+    oep_repository_search_result_release
+    oep_rule_category_to_string
+    oep_rule_condition_kind_to_string
+    oep_rule_condition_list_release
+    oep_rule_diagnostic_list_release
+    oep_rule_evaluation_status_to_string
+    oep_rule_evaluation_summary_list_release
+    oep_rule_scope_kind_to_string
+    oep_rule_severity_to_string
+    oep_rules_disable
+    oep_rules_enable
+    oep_rules_evaluate
+    oep_rules_evaluate_all
+    oep_rules_get
+    oep_rules_list_all
+    oep_rules_list_disabled
+    oep_rules_list_enabled
+    oep_rules_register
+    oep_rules_remove
+    oep_runtime_close_repository
     oep_runtime_create
     oep_runtime_destroy
+    oep_runtime_get_repository_statistics
+    oep_runtime_get_repository_status
+    oep_runtime_get_state
     oep_runtime_initialize
     oep_runtime_open_repository
-    oep_runtime_close_repository
+    oep_runtime_recent_events
     oep_runtime_shutdown
-    oep_runtime_get_state
-    oep_runtime_get_repository_status
-    oep_object_type_to_string
-    oep_object_store_get_count
-    oep_object_store_get_by_id
-    oep_object_store_list
-    oep_object_list_release
-    oep_runtime_get_repository_statistics
-    oep_relationship_type_to_string
-    oep_relationship_store_get_count
-    oep_relationship_store_get_by_id
-    oep_relationship_store_list
-    oep_relationship_list_release
-    oep_match_location_to_string
-    oep_search_repository
-    oep_repository_search_result_release
+    oep_runtime_state_to_string
     oep_search_objects
-    oep_object_search_result_list_release
     oep_search_relationships
-    oep_relationship_search_result_list_release
-    oep_object_create
-    oep_relationship_create
+    oep_search_repository
+    oep_string_release
     oep_transaction_begin
     oep_transaction_commit
-    oep_transaction_rollback
+    oep_transaction_get_info
+    oep_transaction_history
     oep_transaction_is_active
+    oep_transaction_record_list_release
+    oep_transaction_rollback
+    oep_trust_add_certificate
+    oep_trust_get_certificate
+    oep_trust_get_policy
+    oep_trust_list_certificates
+    oep_trust_revoke_certificate
+    oep_trust_set_policy
+    oep_trust_state_to_string
+    oep_validation_create_session
+    oep_validation_finding_list_release
+    oep_validation_profile_to_string
+    oep_validation_report
+    oep_validation_statistics
+    oep_validation_validate_context
+    oep_validation_validate_object
+    oep_validation_validate_objects
+    oep_validation_validate_package
+    oep_workflow_kind_to_string

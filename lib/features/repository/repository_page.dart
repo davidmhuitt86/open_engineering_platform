@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/foundation/foundation_bridge_exception.dart';
+import '../../core/foundation/oep_api_types.dart';
 import '../../core/models/object_category.dart';
 import '../../core/routing/studio_destination.dart';
 import '../../core/services/foundation_runtime_service.dart';
 import '../../core/theme/studio_colors.dart';
+import '../packages/builder/package_builder_page.dart';
 
 /// The Repository Explorer (STUDIO-TASK-000005/007): structural
 /// navigation of the currently open repository, similar to an IDE's
@@ -29,6 +32,11 @@ class _RepositoryPageState extends ConsumerState<RepositoryPage> {
   final _filterController = TextEditingController();
   String _filterText = '';
   final Set<ObjectCategory> _expanded = {};
+  bool _historyExpanded = false;
+
+  List<InstalledPackageInfo>? _packages;
+  List<TransactionRecordSummary>? _history;
+  bool _overviewLoaded = false;
 
   @override
   void dispose() {
@@ -36,12 +44,43 @@ class _RepositoryPageState extends ConsumerState<RepositoryPage> {
     super.dispose();
   }
 
+  /// Packages and Version History (Phase 6, `10_Repository_And_
+  /// Knowledge_Management.png`) -- both real, both previously unused
+  /// anywhere in Studio: `listInstalledPackages` already backed
+  /// `PackageManagerPage`; `listTransactionHistory` (Foundation's real
+  /// commit/transaction ledger) had no UI consumer anywhere before this
+  /// phase. Loaded once per repository-open, not on every rebuild.
+  void _loadOverview() {
+    final bridge = ref.read(foundationRuntimeServiceProvider.notifier).bridge;
+    if (bridge == null) return;
+    try {
+      setState(() {
+        _packages = bridge.listInstalledPackages();
+        _history = bridge.listTransactionHistory();
+        _overviewLoaded = true;
+      });
+    } on FoundationBridgeException {
+      setState(() => _overviewLoaded = true);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final foundation = ref.watch(foundationRuntimeServiceProvider);
 
     if (!foundation.isRepositoryOpen) {
+      // Reset so the next repository opened gets its own fresh
+      // Packages/Version History rather than the previous one's.
+      if (_overviewLoaded) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) setState(() => _overviewLoaded = false);
+        });
+      }
       return const _NoRepositoryOpen();
+    }
+
+    if (!_overviewLoaded) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _loadOverview());
     }
 
     final visibleCategories = ObjectCategory.values
@@ -68,9 +107,32 @@ class _RepositoryPageState extends ConsumerState<RepositoryPage> {
                   ),
                 ),
               ),
+              OutlinedButton.icon(
+                onPressed: () => context.go(StudioDestination.packages.path),
+                icon: const Icon(Icons.inventory_2_outlined, size: 16),
+                label: Text(_packages == null ? 'Packages' : 'Packages (${_packages!.length})'),
+              ),
+              const SizedBox(width: 8),
+              OutlinedButton.icon(
+                onPressed: () => Navigator.of(context).push(PackageBuilderPage.route()),
+                icon: const Icon(Icons.construction_outlined, size: 16),
+                label: const Text('Build Package'),
+              ),
+              const SizedBox(width: 8),
+              OutlinedButton.icon(
+                onPressed: () => context.go(StudioDestination.graph.path),
+                icon: const Icon(Icons.hub_outlined, size: 16),
+                label: const Text('Knowledge Graph'),
+              ),
             ],
           ),
         ),
+        if (_history != null)
+          _VersionHistoryTile(
+            history: _history!,
+            expanded: _historyExpanded,
+            onToggleExpanded: () => setState(() => _historyExpanded = !_historyExpanded),
+          ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: SizedBox(
@@ -123,6 +185,96 @@ class _RepositoryPageState extends ConsumerState<RepositoryPage> {
             },
           ),
         ),
+      ],
+    );
+  }
+}
+
+/// Version History (Phase 6): real Repository Commit/Transaction
+/// records (`FoundationBridge.listTransactionHistory`), not a
+/// fabricated changelog -- the timeline the approved render shows, but
+/// only as far as the real data goes (transaction id, state, opened/
+/// closed timestamps, description, journal entry count; no invented
+/// version numbers or release notes).
+class _VersionHistoryTile extends StatelessWidget {
+  const _VersionHistoryTile({required this.history, required this.expanded, required this.onToggleExpanded});
+
+  final List<TransactionRecordSummary> history;
+  final bool expanded;
+  final VoidCallback onToggleExpanded;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onToggleExpanded,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 9),
+              child: Row(
+                children: [
+                  Icon(expanded ? Icons.expand_more : Icons.chevron_right, size: 18, color: StudioColors.textSecondary),
+                  const SizedBox(width: 6),
+                  const Icon(Icons.history, size: 16, color: StudioColors.textSecondary),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Text('Version History', style: TextStyle(color: StudioColors.textPrimary, fontSize: 13)),
+                  ),
+                  Text(history.length.toString(), style: const TextStyle(color: StudioColors.textDisabled, fontSize: 12)),
+                ],
+              ),
+            ),
+          ),
+        ),
+        if (expanded)
+          if (history.isEmpty)
+            const Padding(
+              padding: EdgeInsets.only(left: 56, bottom: 8),
+              child: Text('No transactions recorded yet.', style: TextStyle(color: StudioColors.textDisabled, fontSize: 11.5)),
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.only(left: 56, right: 20, bottom: 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (final record in history)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 3),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(
+                            record.state == 'committed' ? Icons.check_circle_outline : Icons.pending_outlined,
+                            size: 13,
+                            color: record.state == 'committed' ? StudioColors.success : StudioColors.textDisabled,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  record.description.isEmpty ? record.transactionId : record.description,
+                                  style: const TextStyle(color: StudioColors.textPrimary, fontSize: 12),
+                                ),
+                                Text(
+                                  '${record.state} · ${record.openedUtc} · ${record.journalEntryCount} change(s)',
+                                  style: const TextStyle(color: StudioColors.textSecondary, fontSize: 11),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+        const Divider(height: 1),
       ],
     );
   }

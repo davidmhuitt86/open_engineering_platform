@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'app/studio_app.dart';
+import 'app/oep_boot_app.dart';
 
 void main() {
-  runApp(const ProviderScope(child: StudioApp()));
+  runApp(const ProviderScope(child: OepBootApp()));
 }

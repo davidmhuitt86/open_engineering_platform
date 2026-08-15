@@ -7,6 +7,7 @@ import '../../core/operations/operation_manager.dart';
 import '../../core/services/foundation_runtime_service.dart';
 import '../../core/services/foundation_runtime_state.dart';
 import '../../core/theme/studio_colors.dart';
+import '../../shared/widgets/output_panel.dart';
 
 /// The bottom Status Bar (SDD-003/SDD-004, overridden by Work Package 002:
 /// displays Runtime, Repository, Theme, and Studio Version — Foundation
@@ -103,6 +104,14 @@ class _StudioStatusBarState extends ConsumerState<StudioStatusBar> {
             ),
           ),
           const Spacer(),
+          // The Output Panel's only toggle -- it deliberately has no
+          // permanently-docked header of its own (see `OutputPanel`).
+          _OutputPanelToggle(
+            visible: ref.watch(outputPanelVisibleProvider),
+            onToggle: () => ref.read(outputPanelVisibleProvider.notifier).state =
+                !ref.read(outputPanelVisibleProvider),
+          ),
+          const _StatusSeparator(),
           Flexible(
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
@@ -117,6 +126,37 @@ class _StudioStatusBarState extends ConsumerState<StudioStatusBar> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _OutputPanelToggle extends StatelessWidget {
+  const _OutputPanelToggle({required this.visible, required this.onToggle});
+
+  final bool visible;
+  final VoidCallback onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: visible ? 'Hide Output Panel' : 'Show Output Panel',
+      child: InkWell(
+        onTap: onToggle,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.terminal_outlined,
+                  size: 13, color: visible ? StudioColors.selection : StudioColors.textSecondary),
+              const SizedBox(width: 5),
+              Text('Output',
+                  style: TextStyle(
+                      fontSize: 11, color: visible ? StudioColors.selection : StudioColors.textSecondary)),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/studio_colors.dart';
 import '../../knowledge/widgets/knowledge_panel.dart';
+import '../../shared/widgets/oep_list_view.dart';
 import '../models/search_result_item.dart';
 import '../services/exchange_runtime_service.dart';
 
@@ -59,16 +60,11 @@ class _ExchangeSearchPanelState extends ConsumerState<ExchangeSearchPanel> {
             ),
           ),
           Expanded(
-            child: results.items.isEmpty
-                ? const Center(child: Text('No results.', style: TextStyle(color: StudioColors.textSecondary)))
-                : ListView.separated(
-                    itemCount: results.items.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1),
-                    itemBuilder: (context, index) {
-                      final item = results.items[index];
-                      return _SearchResultRow(item: item, onTap: () => notifier.selectPackage(item.id));
-                    },
-                  ),
+            child: OEPListView(
+              items: results.items,
+              emptyMessage: 'No results.',
+              itemBuilder: (context, item) => _SearchResultRow(item: item, onTap: () => notifier.selectPackage(item.id)),
+            ),
           ),
           if (results.totalPages > 1)
             Padding(

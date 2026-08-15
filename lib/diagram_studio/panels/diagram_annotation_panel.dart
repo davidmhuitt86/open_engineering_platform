@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:engineering_engine/engineering_engine.dart';
 
 import '../../core/theme/studio_colors.dart';
+import '../../shared/widgets/oep_list_view.dart';
 
 /// Annotation panel — a flat list of every Diagram Layout annotation,
 /// tap to select, double-tap to edit its text (WORK_PACKAGE_024,
@@ -24,29 +25,17 @@ class DiagramAnnotationPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (annotations.isEmpty) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(16),
-          child: Text(
-            'No annotations yet. Add one from the Annotations toolbar.',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: StudioColors.textSecondary, fontSize: 12),
-          ),
-        ),
-      );
-    }
-    return ListView.builder(
-      itemCount: annotations.length,
-      itemBuilder: (context, index) {
-        final annotation = annotations[index];
+    return OEPListView(
+      items: annotations,
+      emptyMessage: 'No annotations yet. Add one from the Annotations toolbar.',
+      itemBuilder: (context, annotation) {
         final isSelected = selectedAnnotationIds.contains(annotation.id);
         return Material(
           color: Colors.transparent,
           child: ListTile(
             dense: true,
             selected: isSelected,
-            selectedTileColor: StudioColors.selection.withValues(alpha: 0.15),
+            selectedTileColor: StudioColors.selectedRowBackground,
             title: Text(
               annotation.text.isEmpty ? '(empty)' : annotation.text,
               style: const TextStyle(color: StudioColors.textPrimary, fontSize: 12.5),

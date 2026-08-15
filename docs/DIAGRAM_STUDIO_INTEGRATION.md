@@ -5,6 +5,20 @@ This document is the overview; four companion documents cover specific
 seams in depth: `STUDIO_ENGINE_HOST.md`, `WORKSPACE_INTEGRATION.md`,
 `PROPERTY_INSPECTOR_INTEGRATION.md`, `REPOSITORY_INTEGRATION.md`.
 
+**Architecture freeze (AP-DS-001):** the full, independently-verified
+architecture of Diagram Studio — Constitution, Architecture
+Specification, Interaction Model, Document Model, Engineering Model,
+Canvas Architecture, Editing Architecture, Performance Targets, and
+Implementation Roadmap — is ratified under
+[`docs/architecture/diagram_studio/`](architecture/diagram_studio/).
+That document set supersedes this page as the authoritative source for
+architectural claims (in particular: the current absence of a working
+Foundation Bridge, the absence of Engineering Intelligence Platform
+integration, and the absence of performance engineering in the canvas
+rendering path — all confirmed by direct code inspection, not assumed).
+This page remains a valid narrative overview of the two-repository
+ownership split.
+
 ## What Diagram Studio is
 
 Diagram Studio is the second major Primary Workspace, after Knowledge

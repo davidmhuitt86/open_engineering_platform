@@ -3,12 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/models/engineering_project.dart';
+import '../../core/models/object_category.dart';
 import '../../core/routing/studio_destination.dart';
 import '../../core/services/engineering_project_service.dart';
 import '../../core/services/engineering_project_storage.dart';
 import '../../core/services/foundation_runtime_service.dart';
 import '../../core/services/foundation_runtime_state.dart';
 import '../../core/theme/studio_colors.dart';
+import '../../diagram_studio/persistence/recent_projects_storage.dart';
 import '../../shared/navigation/unified_navigation.dart';
 
 /// The Project Explorer (WORK_PACKAGE_025, ENGINE-TASK-000126) — "the
@@ -51,6 +53,12 @@ class ProjectExplorerPage extends ConsumerWidget {
                 ),
               ),
               OutlinedButton.icon(
+                onPressed: () => _openFromRepository(context, ref),
+                icon: const Icon(Icons.folder_open_outlined, size: 16),
+                label: const Text('Open from Repository'),
+              ),
+              const SizedBox(width: 8),
+              OutlinedButton.icon(
                 onPressed: () => _createProject(context, ref),
                 icon: const Icon(Icons.add, size: 16),
                 label: const Text('New Project'),
@@ -71,6 +79,7 @@ class ProjectExplorerPage extends ConsumerWidget {
           child: ListView(
             padding: const EdgeInsets.symmetric(horizontal: 12),
             children: [
+              const _RecentProjectsBranch(),
               _KnowledgeBranch(foundation: foundation, ref: ref),
               _DiagramsBranch(projectState: projectState),
               _EvidenceBranch(foundation: foundation, ref: ref),
@@ -108,6 +117,111 @@ class ProjectExplorerPage extends ConsumerWidget {
     );
     await EngineeringProjectStorage.save(project);
     ref.read(engineeringProjectServiceProvider.notifier).setActiveProject(project);
+  }
+
+  /// Project Browser's "Open from Repository" entry point (AP-DS-002).
+  /// Lists Project-category Engineering Objects in the currently open
+  /// repository (via `foundation.objectList`, the same Current Object
+  /// List the Repository Explorer already reads — no direct repository
+  /// access) and, on selection, records a [RecentProjectEntry] and
+  /// navigates to Diagram Studio. Loading the selected project's actual
+  /// content is the parallel data-layer agent's responsibility — see
+  /// this task's final report for the exact assumed call
+  /// (`DiagramRepositoryService.loadDiagram`/`.loadProject`).
+  Future<void> _openFromRepository(BuildContext context, WidgetRef ref) async {
+    final foundation = ref.read(foundationRuntimeServiceProvider);
+    if (!foundation.isRepositoryOpen) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Open a repository from the Dashboard first.')),
+      );
+      return;
+    }
+    final projects = (foundation.objectList ?? const []).where((o) => o.category == ObjectCategory.project).toList();
+    final selected = await showDialog<EngineeringObjectSummaryChoice>(
+      context: context,
+      builder: (context) => _OpenFromRepositoryDialog(projects: projects),
+    );
+    if (selected == null) return;
+    await RecentProjectsStorage.recordOpened(
+      RecentProjectEntry(
+        repositoryId: foundation.repositoryStatus?.repositoryName ?? '',
+        repositoryName: foundation.repositoryStatus?.repositoryName ?? '',
+        projectObjectId: selected.objectId,
+        projectName: selected.name,
+        lastOpenedUtc: DateTime.now().toUtc().toIso8601String(),
+      ),
+    );
+    if (!context.mounted) return;
+    context.go(StudioDestination.diagram.path);
+  }
+}
+
+/// A minimal (objectId, name) pair — avoids pulling the whole
+/// `EngineeringObjectSummary` type into the dialog's return value.
+typedef EngineeringObjectSummaryChoice = ({String objectId, String name});
+
+class _OpenFromRepositoryDialog extends StatelessWidget {
+  const _OpenFromRepositoryDialog({required this.projects});
+
+  final List<dynamic> projects;
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: StudioColors.surfaceRaised,
+      title: const Text('Open from Repository', style: TextStyle(color: StudioColors.textPrimary)),
+      content: SizedBox(
+        width: 420,
+        height: 320,
+        child: projects.isEmpty
+            ? const Center(
+                child: Text(
+                  'No Project objects found in this repository.',
+                  style: TextStyle(color: StudioColors.textDisabled, fontSize: 12.5),
+                ),
+              )
+            : ListView.builder(
+                itemCount: projects.length,
+                itemBuilder: (context, index) {
+                  final project = projects[index];
+                  return ListTile(
+                    dense: true,
+                    leading: const Icon(Icons.folder_special_outlined, size: 18, color: StudioColors.textSecondary),
+                    title: Text(project.name as String, style: const TextStyle(color: StudioColors.textPrimary, fontSize: 13)),
+                    subtitle: Text(project.objectId as String, style: const TextStyle(color: StudioColors.textDisabled, fontSize: 11)),
+                    onTap: () => Navigator.of(context).pop((objectId: project.objectId as String, name: project.name as String)),
+                  );
+                },
+              ),
+      ),
+      actions: [TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel'))],
+    );
+  }
+}
+
+class _RecentProjectsBranch extends StatelessWidget {
+  const _RecentProjectsBranch();
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<RecentProjectEntry>>(
+      future: RecentProjectsStorage.load(),
+      builder: (context, snapshot) {
+        final entries = snapshot.data ?? const [];
+        return _Branch(
+          title: 'Recent Projects',
+          icon: Icons.history,
+          children: [
+            for (final entry in entries)
+              _Leaf(
+                label: entry.projectName,
+                subtitle: entry.repositoryName,
+                onTap: () => context.go(StudioDestination.diagram.path),
+              ),
+          ],
+        );
+      },
+    );
   }
 }
 

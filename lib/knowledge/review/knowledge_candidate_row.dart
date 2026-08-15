@@ -60,7 +60,7 @@ class KnowledgeCandidateRow extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
           child: Row(
             children: [
               Icon(candidate.type.icon, size: 15, color: StudioColors.textSecondary),
@@ -110,6 +110,10 @@ class KnowledgeCandidateRow extends StatelessWidget {
                 tooltip: 'Accept',
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+                style: IconButton.styleFrom(
+                  minimumSize: const Size(30, 30),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
                 icon: const Icon(Icons.check_circle_outline, size: 16),
                 color: StudioColors.success,
                 onPressed: onAccept,
@@ -118,6 +122,10 @@ class KnowledgeCandidateRow extends StatelessWidget {
                 tooltip: 'Reject',
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+                style: IconButton.styleFrom(
+                  minimumSize: const Size(30, 30),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
                 icon: const Icon(Icons.cancel_outlined, size: 16),
                 color: StudioColors.error,
                 onPressed: onReject,
@@ -126,6 +134,10 @@ class KnowledgeCandidateRow extends StatelessWidget {
                 tooltip: 'Edit',
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+                style: IconButton.styleFrom(
+                  minimumSize: const Size(30, 30),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
                 icon: const Icon(Icons.edit_outlined, size: 16),
                 onPressed: onEdit,
               ),
@@ -133,6 +145,10 @@ class KnowledgeCandidateRow extends StatelessWidget {
                 tooltip: 'Duplicate',
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+                style: IconButton.styleFrom(
+                  minimumSize: const Size(30, 30),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
                 icon: const Icon(Icons.copy_outlined, size: 16),
                 onPressed: onDuplicate,
               ),
@@ -140,6 +156,10 @@ class KnowledgeCandidateRow extends StatelessWidget {
                 tooltip: 'Delete',
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+                style: IconButton.styleFrom(
+                  minimumSize: const Size(30, 30),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
                 icon: const Icon(Icons.delete_outline, size: 16),
                 onPressed: onDelete,
               ),

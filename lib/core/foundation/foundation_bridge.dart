@@ -398,6 +398,174 @@ class FoundationBridge {
     }
   }
 
+  /// Replaces name/description/author/tags on the Engineering Object
+  /// identified by [objectId] (`oep_object_update`, AP-DS-002 — bound
+  /// for the first time this session; the underlying C function
+  /// existed since Work Package 014). [objectId], [objectType], and
+  /// the object's created timestamp never change. Throws
+  /// [FoundationBridgeException] with [FoundationErrorCategory.notFound]
+  /// if no object with [objectId] exists. Same automatic-rollback-
+  /// on-failure behavior as [createObject] while a transaction is
+  /// active.
+  EngineeringObjectSummary updateObject({
+    required String objectId,
+    required String name,
+    String description = '',
+    String author = '',
+    List<String> tags = const [],
+  }) {
+    _assertNotDisposed();
+    final objectIdPointer = objectId.toNativeUtf8();
+    final namePointer = name.toNativeUtf8();
+    final descriptionPointer = description.toNativeUtf8();
+    final authorPointer = author.toNativeUtf8();
+    final tagsPointer = _allocateTagArray(tags);
+    final outObjectPointer = malloc<OepObjectInfoNative>();
+    try {
+      _checkResult(
+        _bindings.objectUpdate(
+          _runtime,
+          objectIdPointer,
+          namePointer,
+          descriptionPointer,
+          authorPointer,
+          tagsPointer,
+          tags.length,
+          outObjectPointer,
+        ),
+      );
+      return EngineeringObjectSummary.fromNative(outObjectPointer.ref);
+    } finally {
+      malloc.free(objectIdPointer);
+      malloc.free(namePointer);
+      malloc.free(descriptionPointer);
+      malloc.free(authorPointer);
+      _freeTagArray(tagsPointer, tags.length);
+      malloc.free(outObjectPointer);
+    }
+  }
+
+  /// Deletes the Engineering Object identified by [objectId]
+  /// (`oep_object_delete`, AP-DS-002). Does not cascade to
+  /// Relationships referencing the deleted object — mirrors
+  /// Foundation's own `ObjectStore::remove` behavior. Throws
+  /// [FoundationBridgeException] with [FoundationErrorCategory.notFound]
+  /// if no such object exists.
+  void deleteObject(String objectId) {
+    _assertNotDisposed();
+    final objectIdPointer = objectId.toNativeUtf8();
+    try {
+      _checkResult(_bindings.objectDelete(_runtime, objectIdPointer));
+    } finally {
+      malloc.free(objectIdPointer);
+    }
+  }
+
+  /// Replaces `content` on the Engineering Object identified by
+  /// [objectId] (`oep_object_update_content`, AP-DS-002); every other
+  /// field is left unchanged. `content` is an opaque, application-
+  /// owned payload — Foundation never parses it (see
+  /// `EngineeringObject::content`'s doc comment in oep_foundation).
+  /// Diagram Studio uses this to persist a diagram's presentation-only
+  /// state (layout, viewport, layers, annotations, selection) that has
+  /// no independent engineering meaning of its own. Throws
+  /// [FoundationBridgeException] with [FoundationErrorCategory.notFound]
+  /// if no object with [objectId] exists.
+  EngineeringObjectSummary updateObjectContent({required String objectId, required String content}) {
+    _assertNotDisposed();
+    final objectIdPointer = objectId.toNativeUtf8();
+    final contentPointer = content.toNativeUtf8();
+    final outObjectPointer = malloc<OepObjectInfoNative>();
+    try {
+      _checkResult(_bindings.objectUpdateContent(_runtime, objectIdPointer, contentPointer, outObjectPointer));
+      return EngineeringObjectSummary.fromNative(outObjectPointer.ref);
+    } finally {
+      malloc.free(objectIdPointer);
+      malloc.free(contentPointer);
+      malloc.free(outObjectPointer);
+    }
+  }
+
+  /// Returns the `content` payload of the Engineering Object
+  /// identified by [objectId] (`oep_object_get_content`, AP-DS-002) —
+  /// the read counterpart to [updateObjectContent]. An object with no
+  /// content (including every object that predates this field) returns
+  /// an empty string, not an error. Throws [FoundationBridgeException]
+  /// with [FoundationErrorCategory.notFound] if no object with
+  /// [objectId] exists. Uses the same owned-heap-string convention as
+  /// [exportKnowledgeGraphJson] (see [_kgeExportText]), released via
+  /// exactly one [OepApiBindings.stringRelease] call.
+  String getObjectContent(String objectId) {
+    _assertNotDisposed();
+    final objectIdPointer = objectId.toNativeUtf8();
+    final textPointer = malloc<Pointer<Utf8>>();
+    final lengthPointer = malloc<Size>();
+    textPointer.value = nullptr;
+    try {
+      _checkResult(_bindings.objectGetContent(_runtime, objectIdPointer, textPointer, lengthPointer));
+      try {
+        return textPointer.value.toDartString(length: lengthPointer.value);
+      } finally {
+        _bindings.stringRelease(textPointer);
+      }
+    } finally {
+      malloc.free(objectIdPointer);
+      malloc.free(textPointer);
+      malloc.free(lengthPointer);
+    }
+  }
+
+  /// Replaces author/description on the Relationship identified by
+  /// [relationshipId] (`oep_relationship_update`, AP-DS-002 — bound for
+  /// the first time this session). [relationshipId], source/target
+  /// object ids, [type], and the created timestamp never change.
+  /// Throws [FoundationBridgeException] with
+  /// [FoundationErrorCategory.notFound] if no such relationship
+  /// exists.
+  RelationshipSummary updateRelationship({
+    required String relationshipId,
+    String author = '',
+    String description = '',
+    required Map<String, String> objectNamesById,
+  }) {
+    _assertNotDisposed();
+    final relationshipIdPointer = relationshipId.toNativeUtf8();
+    final authorPointer = author.toNativeUtf8();
+    final descriptionPointer = description.toNativeUtf8();
+    final outRelationshipPointer = malloc<OepRelationshipInfoNative>();
+    try {
+      _checkResult(
+        _bindings.relationshipUpdate(
+          _runtime,
+          relationshipIdPointer,
+          authorPointer,
+          descriptionPointer,
+          outRelationshipPointer,
+        ),
+      );
+      return RelationshipSummary.fromNative(outRelationshipPointer.ref, objectNamesById: objectNamesById);
+    } finally {
+      malloc.free(relationshipIdPointer);
+      malloc.free(authorPointer);
+      malloc.free(descriptionPointer);
+      malloc.free(outRelationshipPointer);
+    }
+  }
+
+  /// Deletes the Relationship identified by [relationshipId]
+  /// (`oep_relationship_delete`, AP-DS-002). Throws
+  /// [FoundationBridgeException] with [FoundationErrorCategory.notFound]
+  /// if no such relationship exists.
+  void deleteRelationship(String relationshipId) {
+    _assertNotDisposed();
+    final relationshipIdPointer = relationshipId.toNativeUtf8();
+    try {
+      _checkResult(_bindings.relationshipDelete(_runtime, relationshipIdPointer));
+    } finally {
+      malloc.free(relationshipIdPointer);
+    }
+  }
+
   /// Begins a transaction (Foundation Work Package 014's
   /// `oep_transaction_begin`) — "Repository Commit shall execute as one
   /// logical transaction" (Work Package 012). Only one transaction may

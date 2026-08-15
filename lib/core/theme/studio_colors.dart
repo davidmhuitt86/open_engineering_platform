@@ -18,6 +18,12 @@ abstract final class StudioColors {
   static const textDisabled = Color(0xFF5B6572);
 
   static const selection = Color(0xFF3B82F6);
+
+  /// The consistent selected-row background across list/tree rows app-
+  /// wide (Phase 4 shared-primitives work: consumers previously used
+  /// alpha 0.12 in some panels and 0.15 in others for the same visual
+  /// intent -- one value now, not a new color).
+  static final selectedRowBackground = selection.withValues(alpha: 0.12);
   static const success = Color(0xFF22C55E);
   static const warning = Color(0xFFEAB308);
   static const error = Color(0xFFEF4444);

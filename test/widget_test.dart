@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:oep_studio/app/studio_app.dart';
+import 'package:oep_studio/core/routing/studio_destination.dart';
 
 /// A bounded stand-in for `pumpAndSettle()`. The Settings Workspace
 /// (Work Package 017/018) shows an indeterminate `CircularProgressIndicator`
@@ -40,6 +41,41 @@ Future<void> settleDiagramStudioBootstrap(WidgetTester tester) async {
   });
 }
 
+/// Finds the sidebar's own `Scrollable` (`WorkbenchSidebar`, a `ListView`
+/// of WORKBENCH/RESOURCES/TOOLS/STUDIOS rows), by the stable
+/// `ValueKey('workbench-sidebar-nav-list')` its `ListView` carries. Text
+/// anchors (e.g. the 'WORKBENCH' section label) don't work here: once the
+/// list is scrolled far enough to reveal a STUDIOS row, that label itself
+/// scrolls out of the realized viewport (a plain `ListView`'s children
+/// are lazily mounted, like any `Sliver`) and stops being findable.
+Finder sidebarScrollable() =>
+    find.descendant(of: find.byKey(const ValueKey('workbench-sidebar-nav-list')), matching: find.byType(Scrollable));
+
+/// Navigates via a `StudioDestination`'s row in the Engineering Workbench
+/// sidebar (`WorkbenchSidebar`, now `StudioShell`'s single left nav,
+/// replacing the classic `StudioNavRail`). Looked up by the stable
+/// `ValueKey('sidebar-dest-<path>')` each such row carries -- a plain text
+/// finder isn't reliable here since a Studio page kept alive off-route can
+/// render the same label its own sidebar row uses. WORKBENCH/RESOURCES/
+/// TOOLS/STUDIOS rows sit in a real scrollable `ListView` -- like the old
+/// rail before it (see this file's own long-standing comment about
+/// 'Packages'/'Settings' below the realized viewport), a row past the
+/// fold isn't mounted into the Element tree until scrolled into view.
+Future<void> navigateViaSidebar(WidgetTester tester, StudioDestination destination) async {
+  final target = find.byKey(ValueKey('sidebar-dest-${destination.path}'));
+  await tester.scrollUntilVisible(target, 100, scrollable: sidebarScrollable());
+  // `scrollUntilVisible` stops the moment any part of the target overlaps
+  // the viewport -- that can leave it clipped at the very edge, where
+  // `tester.tap`'s computed center point lands outside the Scrollable's
+  // visible region and hits whatever row is actually painted there
+  // instead (a real, observed flake). `ensureVisible` scrolls the target
+  // fully into view.
+  await tester.ensureVisible(target);
+  await settle(tester);
+  await tester.tap(target);
+  await settle(tester);
+}
+
 void main() {
   testWidgets('StudioApp launches on the Dashboard and navigates via the rail', (
     WidgetTester tester,
@@ -59,18 +95,12 @@ void main() {
     expect(find.text('Welcome to OEP Studio'), findsOneWidget);
     expect(find.text('Open Repository'), findsWidgets);
 
-    // WP-PLAT-020 added a 13th Navigation Rail destination (Engineering
-    // Acquisition), pushing 'Settings' — the last rail entry — below the
-    // rail's realized/cache viewport at this test's fixed window size.
-    // The rail is a `ListView` specifically so it can scroll once there
-    // are enough destinations; scroll it into view rather than assuming
-    // every destination is always on-screen. 'Packages' identifies the
-    // rail's own `Scrollable` unambiguously (unlike 'Dashboard', which
-    // also labels the page content itself).
-    final navRailScrollable = find.ancestor(of: find.text('Packages'), matching: find.byType(Scrollable));
-    await tester.scrollUntilVisible(find.text('Settings'), 100, scrollable: navRailScrollable);
-    await settle(tester);
-    await tester.tap(find.text('Settings').first);
+    // Settings has no row of its own in `WorkbenchSidebar` (now
+    // `StudioShell`'s single left nav, replacing the classic
+    // `StudioNavRail` this comment used to describe) -- it's reached via
+    // the sidebar footer's gear `IconButton` instead (see
+    // `_SidebarFooter`).
+    await tester.tap(find.byTooltip('Settings'));
     await settle(tester);
 
     // Work Package 017: Settings is now a real Workspace (General page by
@@ -95,8 +125,7 @@ void main() {
     await tester.pumpWidget(const ProviderScope(child: StudioApp()));
     await settle(tester);
 
-    await tester.tap(find.text('Repository').first);
-    await settle(tester);
+    await navigateViaSidebar(tester, StudioDestination.repository);
 
     expect(find.text('No Repository Open'), findsOneWidget);
 
@@ -117,8 +146,7 @@ void main() {
     await tester.pumpWidget(const ProviderScope(child: StudioApp()));
     await settle(tester);
 
-    await tester.tap(find.text('Objects').first);
-    await settle(tester);
+    await navigateViaSidebar(tester, StudioDestination.objects);
 
     expect(find.text('No Category Selected'), findsOneWidget);
 
@@ -139,8 +167,7 @@ void main() {
     await tester.pumpWidget(const ProviderScope(child: StudioApp()));
     await settle(tester);
 
-    await tester.tap(find.text('Relationships').first);
-    await settle(tester);
+    await navigateViaSidebar(tester, StudioDestination.relationships);
 
     expect(find.text('No Repository Open'), findsOneWidget);
   });
@@ -159,8 +186,7 @@ void main() {
     await tester.pumpWidget(const ProviderScope(child: StudioApp()));
     await settle(tester);
 
-    await tester.tap(find.text('Search').first);
-    await settle(tester);
+    await navigateViaSidebar(tester, StudioDestination.search);
 
     expect(find.text('Search across the whole platform'), findsOneWidget);
     expect(
@@ -180,8 +206,7 @@ void main() {
     await tester.pumpWidget(const ProviderScope(child: StudioApp()));
     await settle(tester);
 
-    await tester.tap(find.text('Knowledge Studio').first);
-    await settle(tester);
+    await navigateViaSidebar(tester, StudioDestination.knowledge);
 
     expect(find.text('No Knowledge Curation Session'), findsOneWidget);
     expect(find.text('Import Queue'), findsOneWidget);
@@ -206,8 +231,7 @@ void main() {
     await tester.pumpWidget(const ProviderScope(child: StudioApp()));
     await settle(tester);
 
-    await tester.tap(find.text('Knowledge Studio').first);
-    await settle(tester);
+    await navigateViaSidebar(tester, StudioDestination.knowledge);
 
     // Create a session.
     await tester.tap(find.widgetWithText(OutlinedButton, 'New Session'));
@@ -227,9 +251,11 @@ void main() {
       findsNothing,
       reason: 'the New Session dialog should have closed after a valid submission',
     );
-    // Appears in both the session header and the Property Inspector's
-    // Session mode (no proposal/object/relationship selected yet).
-    expect(find.text('Timing Chain Manual Import'), findsNWidgets(2));
+    // Appears in the session header, the Property Inspector's Session
+    // mode (no proposal/object/relationship selected yet), and the
+    // Breadcrumb Bar's Document-level segment (Phase 2, ODS-S004 § 4
+    // Navigation Hierarchy).
+    expect(find.text('Timing Chain Manual Import'), findsNWidgets(3));
     expect(find.text('Created'), findsWidgets);
     expect(find.text('No Knowledge Curation Session'), findsNothing);
 
@@ -270,21 +296,40 @@ void main() {
     await tester.pumpWidget(const ProviderScope(child: StudioApp()));
     await settle(tester);
 
-    await tester.tap(find.text('Diagram Studio'));
+    final diagramRow = find.byKey(ValueKey('sidebar-dest-${StudioDestination.diagram.path}'));
+    await tester.scrollUntilVisible(diagramRow, 100, scrollable: sidebarScrollable());
+    await tester.ensureVisible(diagramRow); // see `navigateViaSidebar`'s own doc comment for why
+    await settle(tester);
+    await tester.tap(diagramRow);
     await tester.pump();
     await settleDiagramStudioBootstrap(tester);
 
     // The document bar (WORK_PACKAGE_024, ENGINE-TASK-000111) — a fresh
-    // Engine session starts on a blank, unsaved document.
-    expect(find.text('Untitled Diagram'), findsOneWidget);
+    // Engine session starts on a blank, unsaved document. Also appears
+    // in the Breadcrumb Bar's Document-level segment (Phase 2, ODS-S004
+    // § 4 Navigation Hierarchy) AND in the Phase 5 diagram tab bar's own
+    // tab chip, hence multiple matches.
+    expect(find.text('Untitled Diagram'), findsWidgets);
 
     // Toolbar groups (ENGINE-TASK-000113) and dockable panels
     // (ENGINE-TASK-000114) rendered. "Validation" also labels the
-    // unrelated `/validation` Navigation Rail destination, so two
-    // matches (rail label + panel title) is the correct count here.
-    expect(find.text('Diagram Explorer'), findsOneWidget);
+    // unrelated `/validation` sidebar destination (in the WorkbenchSidebar's
+    // STUDIOS section, scrolled further down the same sidebar Scrollable
+    // used above), so two matches (sidebar label + panel title) is the
+    // correct count here -- scroll its row into view first (by key -- see
+    // `navigateViaSidebar`'s own doc comment for why) since a
+    // `WorkbenchSidebar` row past the fold isn't mounted until then.
+    expect(find.text('Object Explorer'), findsOneWidget);
     expect(find.text('Layers'), findsOneWidget);
-    expect(find.text('Validation'), findsNWidgets(2));
+    final validationRow = find.byKey(ValueKey('sidebar-dest-${StudioDestination.validation.path}'));
+    await tester.scrollUntilVisible(validationRow, 100, scrollable: sidebarScrollable());
+    await tester.ensureVisible(validationRow);
+    await settle(tester);
+    // Only the sidebar's own "Validation" destination row now -- Diagram
+    // Studio's own duplicate "Validation" side panel was removed (Phase 3,
+    // Objective 6): it read the exact same `ValidationReport` the shared
+    // Output Panel's own "Validation" tab already shows.
+    expect(find.text('Validation'), findsOneWidget);
     expect(find.text('Annotations'), findsOneWidget);
     expect(find.text('Recent Commands'), findsOneWidget);
 

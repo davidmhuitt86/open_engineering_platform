@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/routing/studio_destination.dart';
 import '../../core/services/foundation_runtime_service.dart';
 import '../../core/theme/studio_colors.dart';
+import '../../shared/widgets/oep_list_view.dart';
 import '../models/library_entry.dart';
 import '../services/exchange_runtime_service.dart';
 
@@ -46,16 +47,12 @@ class ExchangeMyLibraryPanel extends ConsumerWidget {
           ),
         ),
         Expanded(
-          child: state.library.isEmpty
-              ? const Center(child: Text('No installed packages yet.', style: TextStyle(color: StudioColors.textSecondary)))
-              : ListView.separated(
-                  itemCount: state.library.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1),
-                  itemBuilder: (context, index) {
-                    final entry = state.library[index];
-                    return _LibraryRow(entry: entry, onRefresh: () => notifier.refreshInstallationStatus(entry.installationId));
-                  },
-                ),
+          child: OEPListView(
+            items: state.library,
+            emptyMessage: 'No installed packages yet.',
+            itemBuilder: (context, entry) =>
+                _LibraryRow(entry: entry, onRefresh: () => notifier.refreshInstallationStatus(entry.installationId)),
+          ),
         ),
       ],
     );

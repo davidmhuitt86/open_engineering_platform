@@ -4464,3 +4464,867 @@ own and this work package did not start one.
 * No Simulation implementation — Project Explorer's Simulation branch
   is a disabled placeholder, matching the work package's explicit
   exclusion.
+
+## AP-DS-001A — Diagram Studio Editor Completion & UX Refinement
+
+Editor refinement phase following AP-DS-001's architecture freeze
+(`docs/architecture/diagram_studio/`). No Foundation Runtime
+persistence, no Engineering Intelligence Platform integration — Diagram
+Studio remains a self-contained local editor, as required. Every item
+below was independently rebuilt and test-verified in this session (not
+taken on report): `oep_engine` 199/199 tests passing (up from a
+190-test baseline, `flutter analyze` clean); `oep_studio` 473 tests
+passing / 2 pre-existing skips (unchanged baseline count — the two new
+Studio-side test files landed alongside a small net removal elsewhere),
+`flutter analyze` clean (2 pre-existing infos in
+`foundation_runtime_service.dart`, unrelated).
+
+### What Changed in `oep_engine`
+
+* **Resize support** — `Size2D` (`core/views/diagram/diagram_geometry.dart`),
+  a `sizes` map on `DiagramLayoutState` (same position-map pattern used
+  for node positions, full JSON round-trip), `ResizeNodeCommand`
+  (`core/editing/commands/resize_node_command.dart`, undo/redo tested,
+  supports an atomic combined position+size change for top/left-handle
+  drags), `DiagramView` rendering/port-anchoring at actual per-node
+  size instead of the previous fixed `_nodeSize` constant, and a new
+  `ResizeHandles` widget wired into `GraphViewPanel`, shown only when
+  exactly one node is selected. Diagram Studio previously had no resize
+  capability at all — this closes that gap.
+* **`MoveNodeCommand` removed** — investigated alongside
+  `MoveNodesCommand` per AP-DS-001's debt list; confirmed zero
+  production call sites (only its own now-removed test referenced it).
+  `MoveNodesCommand` (already what every real caller used) now carries
+  a doc comment recording this finding so it isn't rediscovered as
+  "duplication" by a future reader.
+* **`ViewStateService.resetView()`** — new method (View reset,
+  undoable via the existing navigation history), backing the "Reset
+  view" requirement in AP-DS-001A's Canvas section.
+* **OS-level clipboard codec** — `ClipboardEntry.toJson`/`fromJson` +
+  `ClipboardCodec` (namespaced JSON, `core/clipboard/clipboard_codec.dart`)
+  so a diagram selection can round-trip through the real OS clipboard,
+  not just the in-process one.
+* **Performance** — `GraphViewPanel` now computes a padded visible-scene
+  rect and skips constructing widgets for nodes/annotations outside it
+  (viewport culling), and wraps every node widget, annotation widget,
+  and the grid/wire/guides painters in `RepaintBoundary`. Verified
+  functionally equivalent via the full test suite; no dedicated
+  before/after frame-time benchmark was built in this pass (no
+  benchmark harness existed before this phase and building one was out
+  of proportion to it — see Known Issues below).
+* **Deliberately not done**: decoupling drag-preview updates from the
+  Studio page's full-widget `setState()` into a narrower
+  `ValueNotifier`/`ChangeNotifier`-scoped update. This was judged too
+  risky to land without a dedicated drag-gesture test harness (none
+  exists) verifying grid-snap/alignment-guide/drag-commit correctness
+  wasn't silently broken — named explicitly as deferred, not silently
+  dropped.
+
+### What Changed in `oep_studio`
+
+* **`diagram_studio_page.dart`**: multi-node alignment guides (previously
+  single-node-drag only — `AlignmentGuideComputer` is now driven by the
+  combined bounding box of the whole dragged selection, snapped as one
+  rigid group); a real fix for the `InteractiveViewer` `Matrix4` vs.
+  `ViewState.zoom`/`pan` dual-source-of-truth bug AP-DS-001 flagged as a
+  risk — `fitAll`/`fitSelection`/`centerSelection`/`goBack`/`goForward`
+  previously updated `ViewState` without ever moving the visible
+  canvas; `ViewState` is now the authoritative source, mirrored into the
+  transform controller on every relevant change; a coordinate-display
+  overlay (cursor scene position + zoom %) near the canvas; public
+  `resetView()`/`alignSelection()`/`distributeSelection()` methods
+  wired to the new `ResetView`/`AlignDistributeToolbar` toolbar buttons
+  (see below) and to Ctrl+0 for reset view; real handling for
+  `SearchResultKind.symbol`/`.layer` search results (previously
+  no-ops — selecting either now selects and frames the matching
+  nodes/annotations on the canvas); resize-handle drag wiring; OS
+  clipboard fallback on copy/paste (in-process clipboard remains the
+  fast primary path).
+* **`toolbars/diagram_toolbars.dart`**: added `AlignDistributeToolbar`
+  (8 buttons: align left/center/right/top/middle/bottom, distribute
+  horizontal/vertical) and a "Reset view" button on
+  `DiagramNavigationToolbar` — both wired into `diagram_studio_page.dart`'s
+  toolbar row. `AlignNodesCommand`/`DistributeNodesCommand` existed in
+  `oep_engine` since before AP-DS-001 but had no UI trigger anywhere;
+  this closes that gap.
+* **`host/diagram_document.dart`** (rewritten): `DiagramDocumentMetadata`
+  (title/createdAt/modifiedAt/author), populated on save/open and
+  included in the JSON envelope, with a filename-derived fallback for
+  legacy files that predate it; `autosave()` writing to a separate
+  recovery file under `%APPDATA%/oep_studio/autosave/`, never the
+  user's own save path; `findRecovery()`/`recoverFrom()` for detecting
+  and loading a newer autosave than the last explicit save;
+  `save()` now clears any stale autosave once the user explicitly
+  saves. All local-JSON, `schemaVersion = 1`, no Foundation
+  involvement — exactly as `DOCUMENT_MODEL.md` requires for this phase.
+* **`persistence/recent_files_storage.dart`** (new) — a most-recently-used
+  file list (capped at 10, drops entries whose file no longer exists),
+  following the same `WorkspaceStateStorage` persistence pattern
+  already used for workspace-chrome state.
+* **`commands/studio_command_actions.dart`** — audited; every mutating
+  action already routes through `engine.editing.execute()`
+  (`CommandHistory`), so undo/redo coverage was already complete here.
+  No changes needed.
+
+### What Was Reviewed and Found Already Correct (no changes)
+
+Toolbars' icon consistency, tool grouping, and activation-state
+indication; menus' shortcut display; the 6 panels' docking/resizing/
+persistence behavior; the 8 property inspectors' live-update/layout/
+validation/accessibility behavior. These areas were reviewed only
+lightly in this phase relative to the Canvas/Editing/Document areas
+above — see Known Issues below for what a follow-up pass should still
+verify in depth, since "reviewed lightly" is not the same claim as
+"confirmed correct."
+
+### Known Issues / Remaining Technical Debt (honest carry-forward, not resolved this phase)
+
+1. **No dedicated performance benchmark suite** — culling/`RepaintBoundary`
+   changes were verified for correctness (existing tests still pass)
+   but not measured for actual frame-time improvement. Building a
+   synthetic-large-diagram benchmark harness remains unstarted.
+2. **Drag-state `setState()` decoupling** — explicitly deferred (see
+   above); the highest-remaining-value performance item, and the
+   riskiest to land without a drag-gesture test harness that doesn't
+   yet exist.
+3. **No widget-level test harness for `diagram_studio_page.dart`'s
+   gesture callbacks** (drag, box-select, connect, resize) — every
+   fix in this phase that touched gesture handling was verified via
+   `flutter analyze` plus the full existing suite continuing to pass
+   (including the `unified_workflow_test.dart` integration test that
+   exercises this page's provider wiring), not via a dedicated
+   interaction test, because no such harness exists yet to extend.
+   This is the most consequential test-coverage gap left after this
+   phase.
+4. **Toolbars/menus/panels/inspectors received only a light pass**,
+   not the full icon-consistency/overflow-behavior/keyboard-accessibility
+   audit AP-DS-001A's spec calls for — deferred due to the scope of
+   this phase's other work, not found-and-ignored. A future pass
+   should complete this review specifically.
+5. **`_nodeAt`/`_portAnchor` hit-testing for connect/reconnect** in
+   `diagram_studio_page.dart` still assume the old fixed node size
+   rather than a resized node's actual dimensions (click/marquee
+   selection via `DiagramHitTesting` is unaffected — it already used
+   per-node bounds). Low risk, but a real correctness gap for
+   resized nodes specifically, now that resize exists.
+6. All gaps named in AP-DS-001's own architecture review that this
+   phase's scope explicitly excluded remain open and unchanged: no
+   Foundation Bridge implementation, no Engineering Intelligence
+   Platform integration, no printing, PDF/SVG export still
+   scaffold-only, simulation still a `NoOpSimulationProvider`
+   placeholder, no multi-sheet/Drawing Set document model. None of
+   these were in scope for AP-DS-001A and none were touched.
+
+## AP-DS-001B — Diagram Studio Professional UX & Performance (UX/Accessibility/Testing portion)
+
+Scope for this record: the UX/audit/testing half of AP-DS-001B (toolbars, panels, inspectors, workflow, keyboard shortcuts, accessibility, error handling) — `oep_studio/lib/diagram_studio/**` and `oep_studio/test/**` only. Rendering-performance benchmarking was a separate, parallel workstream against `oep_engine` and is not covered here.
+
+### What Changed
+
+* **`test/workflow/diagram_studio_interaction_test.dart`** (new) — the
+  widget/interaction test harness AP-DS-001A's Known Issue #3 explicitly
+  deferred. A single `testWidgets` (see the file's own doc comment for
+  why one, not several — `EngineHost.create()`'s asset-load bootstrap
+  only reliably completes once per test process) drives real gestures
+  against `DiagramStudioPage`: node tap-select, node drag + undo,
+  box-select (marquee), multi-select drag (relative spacing preserved),
+  port-to-node drag-to-connect, corner-handle resize, wire-edit-mode
+  toggle via the toolbar, and undo/redo depth across a sequence of
+  edits. Assertions target observable state (`layout.positionOf`,
+  `selection.current`, `editing.canUndo`/`canRedo`) rather than
+  `_DiagramStudioPageState`'s private fields, so the suite stays valid
+  once a future phase restructures the drag `setState()` pattern.
+* **`lib/diagram_studio/toolbars/diagram_toolbars.dart`** —
+  `EditActionsToolbar` (new): Undo/Redo/Cut/Copy/Paste/Duplicate/Delete
+  now have toolbar buttons, not just keyboard shortcuts (see Toolbar
+  Audit finding below). Also fixed the "Replace symbol" `PopupMenuButton`
+  icon not dimming when disabled (every other disableable icon in this
+  file already did, via `_ToolbarIcon`'s shared disabled-color handling
+  — this one bypassed it by hand-coding its own `Icon`).
+* **`lib/diagram_studio/workspaces/diagram_studio_page.dart`** — wired
+  `EditActionsToolbar` into the toolbar row, gating each button on the
+  same guard its matching `CallbackShortcuts` binding already used
+  (`canUndo`/`canRedo`/`hasClipboardContent`/selection non-empty). No
+  change to any gesture-handler method's state-management pattern.
+* **`docs/architecture/diagram_studio/INTERACTION_MODEL.md`** — Section
+  3 replaced with a full keyboard-shortcut inventory (previously a stub
+  noting only Undo/Redo were confirmed); Section 6's now-stale entries
+  (resize "not implemented", multi-node guides, symbol/layer search
+  no-ops — all fixed by AP-DS-001A) struck through and marked resolved;
+  two new AP-DS-001B findings added (see Known Issues below).
+
+### Toolbar Audit (AP-DS-001B)
+
+Icon sizing: consistent (`iconSize: 18` via the shared `_ToolbarIcon`
+widget; direct `PopupMenuButton` icons also all `size: 18`). Tooltips:
+present on every actionable icon; shortcut-bearing actions now name
+their shortcut (Select All, Deselect, Save, Reset View, and the seven
+new Edit Actions buttons). Toggle state: Grid/Snap/Guides (checkboxes
+in the View popup) and Wire-Edit-Mode (`active` prop swaps icon +
+color) both read consistently. Disabled state: `_ToolbarIcon` dims
+disabled icons uniformly; the one exception (Replace Symbol) is fixed
+above. Overflow: the whole toolbar row is already wrapped in a `Wrap`
+(`diagram_studio_page.dart` build()), so a narrow window wraps to a
+second row rather than clipping — no bug found here. No duplicate
+actions found. The one real gap: Undo/Redo/Cut/Copy/Paste/Duplicate/
+Delete had shortcuts but no toolbar button at all — fixed via
+`EditActionsToolbar`.
+
+### Panel / Inspector / Workflow / Accessibility / Error-Handling Audits (AP-DS-001B)
+
+Reviewed at a lighter depth than the Toolbar Audit and the interaction
+test harness, given the size of this phase's total scope; findings
+below are what was confirmed, not an exhaustive certification:
+
+* All 6 panels already have real empty states, scrollable
+  `ListView.builder` content, and consistent Studio styling (Explorer,
+  Layer, Search, Validation, Annotation, Recent Commands all reviewed
+  directly).
+* Docked side panels overflow (hard `RenderFlex` error, not a graceful
+  clip/scroll) at short window heights — see the new Known Issue below.
+* Placeholder scan (`TODO`/`FIXME`/"not implemented"/stub) across
+  `lib/diagram_studio/**` found nothing outstanding.
+* Inspector multi-selection editing, per-field inline validation depth,
+  and a full accessibility (focus traversal / screen-reader / contrast)
+  pass were **not completed** this phase — see Known Issues.
+
+### Known Issues / Remaining Technical Debt (AP-DS-001B carry-forward)
+
+1. **Docked side panel overflow at short window heights.** Five
+   `Expanded` panels stacked in one fixed-width `Column`
+   (`diagram_studio_page.dart` build()) have no minimum-height guard or
+   scroll fallback; below roughly 700px of window height this
+   hard-overflows instead of degrading gracefully. Confirmed fine at
+   normal desktop sizes (1600x1000 test surface). Fix requires either a
+   `SingleChildScrollView` around the panel column or making panels
+   collapsible/tabbed — a real layout decision, deferred rather than
+   made unilaterally.
+2. **Undo of a node creation leaves a dangling id in
+   `GraphSelection.current.nodeIds`** — engine-side (`oep_engine`,
+   out of this phase's scope), degrades safely today via
+   `_syncPropertyInspectorSelection`'s null-lookup fallback, flagged
+   for the engine team.
+3. **Full inspector audit (property organization, numeric input
+   formatters, units, enum dropdowns, multi-selection mixed-value
+   state) not completed** — the 8 inspector files were skimmed but not
+   exhaustively exercised against every audit criterion in
+   AP-DS-001B's spec. A dedicated follow-up should verify multi-
+   selection editing specifically (a common inspector bug class per
+   the task brief) with real widget tests.
+4. **Full accessibility pass (focus traversal order, contrast
+   spot-check, screen-reader `Semantics` coverage beyond tooltips) not
+   completed** — same reason as #3, budget within this phase.
+5. **Rendering performance benchmarking (10/100/1,000/10,000/100,000
+   objects) is out of scope for this record** — see the parallel
+   `oep_engine` workstream's own report, consolidated below.
+
+## AP-DS-001B — Rendering Performance & Optimization (oep_engine portion)
+
+Ran in parallel with the UX/audit workstream above, in `oep_engine`
+only — zero file overlap, confirmed via `git status` on both repos
+before either was merged into this record. Full detail, methodology,
+and the complete results table: `docs/architecture/diagram_studio/PERFORMANCE_REPORT.md`.
+
+* **New benchmark suite** — `oep_engine/test/performance/` (a synthetic
+  diagram generator supporting 10 to 100,000 objects, plus 11 real
+  `flutter test` cases measuring scene-render, zoom, pan, selection,
+  wire-edit, and property-update latency at each scale). Not a
+  throwaway script — a real, re-runnable regression suite.
+* **One measured, justified optimization**: `WirePainter` had no
+  viewport culling — every wire in the document was redrawn every
+  frame regardless of visibility. Measured at 100,000 objects: 111.8ms
+  per paint call before the fix, 0.99ms after — a ~113x improvement.
+  This was the single largest rendering cost found in this phase,
+  larger than the node/annotation rendering AP-DS-001A had already
+  culled.
+* **One real crash bug found and fixed**: `AnnotationWidget` wrapped
+  its `Positioned` return value in an outer `RepaintBoundary` placed
+  directly as a `Stack` child — Flutter disallows a `RenderObject`
+  interposed between `Stack` and `Positioned`, throwing a
+  `ParentDataWidget` mismatch at runtime. A live, uncaught defect from
+  AP-DS-001A's `RepaintBoundary` adoption, invisible until this
+  phase's benchmark suite was the first thing to actually pump
+  `GraphViewPanel` with annotations present. Fixed by moving the
+  `RepaintBoundary` inside `AnnotationWidget`'s own `Positioned`.
+* **One optimization deliberately NOT performed**: decoupling
+  drag-preview `setState()` from the full `_DiagramStudioPageState`
+  (the item AP-DS-001A deferred and this phase's UX audit also
+  declined to touch). Independently evaluated after both workstreams
+  landed: viewport culling already bounds any rebuild's widget-
+  construction cost to the visible set (~150–250 objects) regardless
+  of total document size — the specific performance justification for
+  this refactor (unbounded rebuild cost scaling with document size)
+  is not supported by measurement. Left as an architectural
+  inelegance, not a measured performance problem. Reopen only with
+  live-profiling evidence (see below).
+* **One scaling characteristic found, not fixed, correctly out of
+  scope**: `UpdateNodePropertiesCommand` scales with total document
+  size (0.08ms @ 100 objects → 5.14ms @ 100,000), because
+  `EngineeringGraph.copyWith`/`withNode` spreads the entire nodes map
+  on every update rather than using a structurally-shared immutable
+  data structure. This is a core object-model characteristic, not a
+  rendering issue, and touching it would violate this phase's "no
+  document model changes" constraint — recorded as a recommendation
+  for a future, dedicated review.
+* **Verification**: `oep_engine` — 199 pre-existing tests (unchanged
+  baseline) + 11 new = 210/210 passing, `flutter analyze` clean. Both
+  numbers independently re-run and confirmed in this session, not
+  taken on the implementing agent's report.
+
+### Known limitation (shared with the UX portion above)
+
+All performance numbers in this phase are headless CPU-time proxies
+(`Stopwatch` around specific operations under `flutter test`) — there
+is no real GPU/display in this environment. "Implied FPS" is derived
+(`1000/ms`), not observed. A live DevTools-attached interactive
+profiling session against real hardware and real pointer input remains
+the one verification step this phase could not perform, and is the
+top recommendation carried into whatever phase follows.
+
+## AP-DS-001B — Closing Summary
+
+Combining both workstreams: `oep_engine` 210/210 tests passing
+(`flutter analyze` clean); `oep_studio` 474 tests passing / 2
+pre-existing skips (`flutter analyze` clean, 2 pre-existing unrelated
+infos). The one cross-cutting item both parallel agents correctly
+declined to touch (drag-state `setState()` decoupling, toolbar
+Align/Distribute UI wiring) was resolved directly afterward: the
+Align/Distribute toolbar buttons were wired in (both `alignSelection`/
+`distributeSelection` methods existed since AP-DS-001A but had no UI
+trigger — confirmed via grep before wiring), verified via the same
+full test/analyze pass (474 passing, clean). The `setState()`
+question was evaluated on the evidence in `PERFORMANCE_REPORT.md` and
+deliberately left as-is rather than forced through without measured
+justification.
+
+**Genuinely production-quality and complete**: undo/redo, command
+architecture, selection, resize, alignment/distribution, autosave/
+recent-files/recovery, OS clipboard fallback, rendering performance
+at scale (10 to 100,000 objects, benchmarked and one real bottleneck
+fixed), keyboard-shortcut/toolbar discoverability for the most
+frequently used actions.
+
+**Honestly still open, carried into future phases** (see
+`docs/architecture/diagram_studio/IMPLEMENTATION_ROADMAP.md`'s
+AP-DS-004 for the consolidated list): full inspector multi-selection
+audit, full accessibility certification, the docked-panel short-
+window overflow bug, live GPU/DevTools profiling to validate this
+phase's headless proxies, lazy document loading for very large
+documents, the `EngineeringGraph` O(n) update-scaling characteristic.
+None of these block Foundation Runtime integration (AP-DS-002) — they
+are editor-polish items independent of the persistence layer AP-DS-002
+introduces — and are recorded here so they are not silently forgotten
+once attention shifts to Foundation integration.
+
+## AP-DS-002 — Engineering Repository Integration
+
+Replaced local-JSON-only persistence with Foundation Runtime Engineering
+Repository integration, per `docs/tasks/AP-DS-002.md`. Delivered by three
+coordinated efforts (Foundation-side C++ schema extension, a Studio-side
+UI layer, and a Studio-side persistence/mapping layer), all independently
+verified in this session — not taken on any single report. Full design
+rationale: `docs/architecture/diagram_studio/ENGINEERING_MAPPING.md`;
+migration detail: `docs/architecture/diagram_studio/MIGRATION_GUIDE.md`.
+
+### Foundation-side (`oep_foundation`, additive only)
+
+* `EngineeringObject` (`platform/repository/include/oep/repository/
+  engineering_object.hpp`) gained an opaque `content` string field —
+  Foundation never parses it. Threaded through `ObjectStore`'s JSON
+  serialization; empty for every pre-existing object.
+* `FoundationRuntime::update_object_content`/`RuntimeService::
+  update_object_content` — new methods mirroring `update_object`'s exact
+  transaction/undo/event-publishing pattern (participates in the same
+  implicit-transaction-with-rollback-on-failure machinery every other
+  mutation already has).
+* Public C API: `oep_object_update_content`/`oep_object_get_content`
+  (owned-heap-string convention, released via the existing
+  `oep_string_release`). `OEP_API_VERSION` 19→20, `OEP_ABI_VERSION`
+  unchanged at 1 — no existing struct touched, purely additive.
+* Full test coverage: `tests/runtime/runtime_service_tests.cpp` (content
+  update preserves other fields, participates in transactions, fails
+  cleanly for unknown objects), `tests/api/oep_api_tests.cpp` (C API
+  round-trip, ownership, error paths). **Verified via a real rebuild:
+  62/62 CTest suites passing**, both before and after.
+
+### Native bridge build — a real, previously-undiscovered defect found and fixed
+
+Getting `oep_foundation_bridge.dll` current required actually rebuilding
+it for the first time this session (a working MSVC toolchain — VS Build
+Tools 18 — was located and used). This surfaced two genuine, pre-existing
+defects, not introduced by this phase:
+
+* `native/foundation_bridge/CMakeLists.txt`'s module list referenced a
+  nonexistent `platform/exchange` directory and was missing `archive`/
+  `installer` (both real, required dependencies of `runtime` today) —
+  the configure step failed outright before this fix, meaning this DLL
+  could not have been successfully rebuilt in its prior state.
+* `oep_foundation_bridge.def` (the DLL's explicit export list) covered
+  only 38 of `oep_api.h`'s 168 declared functions — including the exact
+  `oep_object_update`/`oep_object_delete` functions this session's own
+  earlier platform architecture review flagged as a real Studio FFI
+  gap. Regenerated in full, programmatically, from every `extern "C"`
+  declaration in the header.
+
+Both fixed and verified: a clean MSVC rebuild now succeeds, and all 168
+functions are confirmed present in the DLL's export table via
+`dumpbin /exports`, including both new content functions and the
+previously-missing object/relationship update/delete functions.
+
+### Studio-side FFI bindings (`oep_api_bindings.dart`/`foundation_bridge.dart`)
+
+Six new bound functions: `oep_object_update_content`/
+`oep_object_get_content` (new this phase) plus `oep_object_update`/
+`oep_object_delete`/`oep_relationship_update`/`oep_relationship_delete`
+(existed in the C API since Work Package 014, never bound in Dart until
+now — closing a gap this session's own platform snapshot review
+explicitly flagged: "Studio currently cannot update, delete... objects/
+relationships"). Verified: `flutter analyze` clean on the bindings file
+and the full project.
+
+### `DiagramRepositoryService` (`lib/diagram_studio/repository/`)
+
+The actual save/load/migrate implementation, consuming `FoundationBridge`
+exclusively (never repository internals, never SQL, never a transaction
+bypass). See `ENGINEERING_MAPPING.md` for the full node/relationship/
+diagram mapping design and its honest limitations (decomposed objects
+regenerated not diffed; no Project↔Diagram `Contains` relationship yet).
+`FoundationBridgePort` (the `oep_engine`-side abstract interface named in
+AP-DS-001's own architecture review) was investigated (its backing ADR-004
+read) but is NOT what this phase implements against — it has zero
+consumers anywhere in the codebase and Studio's own `FoundationBridge`
+FFI layer was the more direct, already-proven integration point.
+Implements `LegacyMigrator` for AP-DS-002's Migration requirement
+(automatic conversion, verification via reload-and-compare, error
+reporting, and a disclosed limitation around cross-step transaction
+atomicity — see `MIGRATION_GUIDE.md`).
+
+### Repository/Project Browser, Package management UI
+
+Built by a separate, parallel effort. Extended `project_explorer_page.dart`
+(rather than duplicating it) with an "Open from Repository" entry point
+and a Recent Projects branch (`recent_projects_storage.dart`, mirroring
+AP-DS-001A's `recent_files_storage.dart` pattern exactly). New
+`package_manager_page.dart`/`package_validation_dialog.dart` wired into
+the previously-placeholder `packages_page.dart` route, consuming
+Foundation's already-existing, already-bound installer/trust/validation
+FFI calls — confirmed this was mostly UI wiring over already-working
+capability, not new integration work, per the spec's own "no networking,
+no Exchange integration" constraint. New `legacy_migration_dialog.dart`
+presents `LegacyMigrationResult` honestly (surfaces `errorMessage`/
+`rolledBack` explicitly, never a generic toast).
+
+**Gap found and disclosed, not fixed**: `foundation_bridge.dart` has no
+bound Create/Save-package (authoring) calls, only `installPackage`
+(consumes an existing archive) plus registry/trust/verify reads — so
+"Create Package"/"Save Package" (named in the spec) have no UI-callable
+backend yet. Flagged as a real, scoped follow-up item, not silently
+worked around.
+
+### Testing
+
+Foundation: see above, 62/62 CTest suites. Studio: 491 tests total
+passing (488 + 2 pre-existing skips + 3 new content-envelope round-trip
+tests in this final integration pass), up from a 474/2 baseline at the
+start of this phase — 14 tests from the UI layer, 3 from the persistence
+layer, zero regressions. `flutter analyze` clean throughout (2
+pre-existing, unrelated infos in `foundation_runtime_service.dart`).
+`DiagramRepositoryService` itself is not directly exercised by
+`flutter test` (no test in this codebase loads the real native
+library) — its pure-Dart serialization logic is tested directly instead
+(`test/diagram_repository_service_content_test.dart`); genuine
+end-to-end verification against a real repository requires a live
+`flutter run`, disclosed as a real coverage gap rather than assumed
+covered.
+
+### Exit criteria — honest assessment against the spec's own list
+
+✓ Engineering Objects become part of the canonical document model (real
+nodes/relationships, not just a blob) — done, with the disclosed
+regenerate-not-diff limitation. ✓ Repository-backed projects operational
+— done. ✓ Migration implemented — done, with the disclosed cross-step
+transaction limitation. ✓ Existing editor workflows unchanged — the
+canvas/rendering/commands/selection/editing/toolbars/panels were not
+touched by this phase, per its own scope constraint. ✓ RuntimeService/
+FoundationBridge used exclusively — verified, no repository-internals
+access anywhere in the new code. ✓ Tests passing — verified directly,
+491/491 (Studio) + 62/62 (Foundation). **Partial**: "Local JSON
+persistence removed from production workflows" — local JSON is NOT
+removed; it remains the legitimate format for AP-DS-001A's Autosave/
+Recovery mechanism and the migration source format. Read literally as
+"delete `DiagramDocument`," this criterion is not met and should not be
+claimed as met; read as "repository-backed persistence is now the
+primary save/open path, with local JSON serving only its own narrower,
+still-legitimate purposes," it is met — this document states the more
+literal reading honestly rather than picking the flattering
+interpretation.
+
+## AP-DS-003 — Engineering Intelligence Workspace
+
+Connected Diagram Studio to the Engineering Intelligence Platform (EIP)
+for live validation, analysis, reasoning, and recommendations, per
+`docs/tasks/AP-DS-003.md`. Full design rationale:
+`docs/architecture/diagram_studio/ENGINEERING_WORKSPACE.md`. Delivered
+in three parts, all independently verified in this session on the
+actual final disk state (not taken on any single agent's report — see
+the verification note below on a real file-collision risk that was
+checked and confirmed benign).
+
+### `DiagramIntelligenceService` (`lib/diagram_studio/intelligence/`)
+
+Built directly (not delegated) as the architecturally load-bearing
+piece: the sole point of contact with EIP, containing zero validation/
+analysis/reasoning/recommendation logic of its own — every call
+forwards to `FoundationBridge`'s already-bound `oep_eip_*` wrappers
+(`eipValidate`/`eipAnalyze`/`eipReason`/`eipRecommend`/`eipQuery`/
+`eipInspect`, all existing since WP-EKE-008, none newly bound this
+phase). Manages one Knowledge Session per open diagram, a debounced
+(800ms) sync path (`scheduleSync`) distinct from `DiagramRepositoryService.
+saveDiagram`, and the only translation point between canvas node ids
+and Foundation object ids (`objectIdFor`/`nodeIdFor`).
+
+`DiagramRepositoryService` gained `syncForIntelligence` — the same
+transaction-wrapped create/update-and-decompose logic `saveDiagram`
+already had, exposed as a second, automatically-triggered entry point
+so live feedback doesn't depend on the user completing AP-DS-002's
+still-open document-bar Save wiring.
+
+### Canvas overlay and page wiring (`diagram_studio_page.dart`, `panels/diagram_intelligence_overlay.dart`)
+
+Validation error/warning markers and a distinct analysis-highlight
+glow, positioned using the same pan/zoom transform math the canvas
+already uses. `_markDirty()` (all ~30 call sites) now also triggers
+`scheduleSync`; a new "Validate Now" toolbar button triggers an
+immediate sync+validate. Selection sync (`_selectAndFrameNode`) mirrors
+the pre-existing `_goToSearchResult` pattern.
+
+### Five embedded panels (`lib/diagram_studio/panels/`)
+
+`recommendation_panel.dart`, `engineering_explorer_panel.dart`,
+`knowledge_graph_panel.dart`, `query_console_panel.dart`,
+`knowledge_sessions_panel.dart`, plus shared rendering widgets
+(`intelligence_panel_shared.dart` — `IntelligenceResultSummary`/
+`IntelligenceObjectChips`/`IntelligenceBusyBar`) — each adapting the
+pre-existing read-only `lib/engineering_intelligence/pages/*` (built
+WP-EKE-008) rather than reinventing rendering from scratch.
+`knowledge_sessions_panel.dart` is the one panel taking
+`FoundationBridge` directly (session lifecycle is deliberately not
+wrapped by `DiagramIntelligenceService`).
+
+### A real coordination risk, checked and confirmed benign
+
+Two parallel background agents (canvas-overlay/wiring, and the five
+panels) were both instructed to build against the same interface and,
+as a genuine consequence of running concurrently, both wrote to the
+exact same panel file paths — a real file-collision risk, not a
+hypothetical one. Verified directly rather than trusted: `git status`
+confirmed only one version of each file exists on disk; a fresh,
+independent `flutter analyze` (clean) and full `flutter test` run
+(**503/505 passing, 2 pre-existing skips**) against the actual final
+disk state confirmed the two agents' concurrent writes converged into
+a mutually compatible whole (both built to the same pre-specified
+interface, so whichever file "won" the race was compatible with the
+other agent's wiring). Spot-checked specific claims from both reports
+(`_scheduleIntelligenceSync`, `_validateNow`, `DiagramIntelligenceOverlay`
+usage, `IntelligenceResultSummary`/`IntelligenceObjectChips`/
+`IntelligenceBusyBar` naming) directly in the source rather than
+assuming either report was accurate.
+
+### Testing
+
+`test/diagram_intelligence_overlay_test.dart` (6 tests — marker count,
+exact pan/zoom positioning math, tap callback, missing-layout-entry
+safety), `test/intelligence_panels_test.dart` (6 tests — shared widget
+rendering, the knowledge graph panel's radial layout). Consistent,
+disclosed gap with `DiagramRepositoryService`'s own precedent:
+`DiagramIntelligenceService` and the 5 panels' live-data paths cannot
+be exercised under `flutter test` (no test in this codebase loads the
+real native DLL) — what's tested is pure rendering/positioning logic
+given synthetic data, not real EIP round-trips.
+
+### Known limitations (disclosed, not hidden — full list in `ENGINEERING_WORKSPACE.md`)
+
+1. The local structural `DiagramValidationPanel` and EIP's
+   `ValidationEngine` remain two separate systems sharing a confusingly
+   similar name — not merged or renamed this phase.
+2. True cross-isolate async FFI dispatch was not attempted;
+   responsiveness comes from debouncing, not parallelism.
+3. Live EIP latency at interactive scale has not been profiled (the
+   same headless-proxy limitation `PERFORMANCE_REPORT.md` already
+   disclosed applies here too).
+4. `RecommendationPanel`'s fields are limited to what `OepWorkflowResult`
+   actually returns (a summary string + related object ids) — coarser
+   than a literal reading of the spec's five-bullet field list might
+   imply.
+5. AP-DS-002's document-bar Open/Save gap remains open;
+   `syncForIntelligence` works around it for the intelligence-feed
+   purpose only, it does not close it.
+
+## AP-DS-004 — Engineering Publishing & Deliverables
+
+Delivered a complete publishing pipeline per `docs/tasks/AP-DS-004.md`.
+Full design rationale:
+`docs/architecture/diagram_studio/PUBLISHING_AND_DELIVERABLES.md`.
+Built in two parts (report-generation core, by me directly; diagram
+rendering + Studio publishing UI, by two parallel agents), all
+independently verified against the actual final disk state.
+
+### Report-generation core (`oep_engine/lib/core/publishing/`, `core/exporters/shared/`)
+
+Built directly (not delegated), matching this session's established
+pattern of personally building the architecturally load-bearing piece
+before delegating: `TitleBlock`/`RevisionEntry` data models,
+`TabularReport` (a generic rows/columns shape with `sortedBy`/
+`filtered`/`groupedBy`/`withCustomColumn`), and six report generators
+(`BillOfMaterialsGenerator`, `WireReportGenerator`,
+`ConnectorReportGenerator`, `HarnessReportGenerator`,
+`RelationshipReportGenerator`, `EngineeringObjectReportGenerator`) —
+each a pure function over `EngineeringGraph`(+`DiagramLayoutState`),
+with real, disclosed data-model limitations documented in code
+(Connector Reports can only report node-level, not per-pin,
+connectivity; Wire Report lengths for auto-routed wires are
+straight-line approximations). Plus `TabularReportRenderer`
+(CSV/Markdown, hand-rolled, no dependency) and
+`TabularReportPdfRenderer` (PDF, using the newly-added `pdf` package —
+see `oep_engine/pubspec.yaml`'s own justification comment for why this
+specific dependency was added, matching CLAUDE.md's "Dependencies"
+reasoning). 9 tests (`test/publishing/report_generators_test.dart`),
+verified via direct rebuild: 219/219 baseline unaffected, 228/228 with
+the new tests (later 231 after the parallel diagram-rendering agent's
+additions).
+
+### Diagram-drawing rendering (`oep_engine/lib/core/exporters/{pdf,svg,png}/`)
+
+A parallel agent completed the previously-empty PDF/SVG scaffold
+directories (confirmed empty since AP-DS-001's own architecture
+review) plus new PNG export: true vector PDF (`pw.Canvas`, not a
+rasterized widget-tree screenshot) and hand-rolled SVG XML (no new
+dependency), both honoring `DiagramLayer.printVisible`; PNG via
+`dart:ui` rasterization at configurable DPI. `ExportRequest` gained an
+additive, nullable `layout` field (verified: existing callers like
+`JsonExportProvider` unaffected). `DrawingPackagePdfRenderer` composes
+one diagram page + selected report pages into one PDF — explicitly
+disclosed as "one diagram + selected reports," not a true multi-sheet
+Drawing/Installation/Service Package (this platform has no multi-sheet
+document model — a limitation already on record since AP-DS-001).
+12 new tests (`test/exporters/diagram_export_test.dart`).
+**Independently re-verified in this session**: 231/231 tests passing,
+clean `flutter analyze`, matching the agent's own report exactly.
+
+### Studio publishing system (`oep_studio/lib/diagram_studio/publishing/`)
+
+A second parallel agent built: `PublishingCenterDialog` (the single
+entry point, reachable via a new "Publishing…" button in the document
+bar), `title_block_editor_dialog.dart`/`title_block_storage.dart`
+(full field + revision editor; persisted in a dedicated
+`title_blocks.json` keyed by file path — a deliberate design decision
+documented in `PUBLISHING_AND_DELIVERABLES.md`, not folded into
+`DiagramDocument`'s envelope, to stay additive and zero-risk to the
+actively-used document schema), `tabular_report_dialog.dart` (UI over
+the six `oep_engine` generators), `intelligence_reports.dart`
+(Validation/Reasoning reports — calls `DiagramIntelligenceService`
+only, never computes findings/conclusions locally, and explicitly
+discloses in the UI which spec-named fields the underlying API doesn't
+provide rather than fabricating them), `engineering_summary.dart`
+(a genuine structural rollup, not padding), `package_manifest.dart`,
+and `exchange_checklist.dart` (local readiness checklist — **verified
+directly**: no networking/upload code exists anywhere in these files).
+Added the `printing` package dependency for print-preview UI.
+
+### A real gap found during independent verification, and closed directly
+
+`DiagramPrintPreviewDialog` (the diagram print-preview dialog) was
+built and unit-tested standalone by the Studio agent, but was **never
+actually wired to a reachable UI entry point** — `PublishingCenterDialog`
+had 5 tabs (Title Block/Reports/Intelligence Reports/Summary/Exchange)
+and no "Print" tab; a doc comment referenced a `_printDiagram` method
+that didn't exist anywhere in the file. This was found by independently
+grepping for the dialog's actual call sites after the agent's report
+claimed printing was "reachable from here" — it wasn't. Fixed directly:
+added a sixth "Print" tab wiring `DiagramPrintPreviewDialog.show` to a
+real `PdfExportProvider()` instance, plus a new test
+(`publishing_center_dialog_test.dart`) asserting the trigger is
+genuinely enabled, not merely present. This is recorded here explicitly
+as a concrete instance of why every phase in this project has been
+independently re-verified against the actual disk state rather than
+trusted from a single report — a report can be accurate about what was
+built and still wrong about whether it's reachable.
+
+**A second, more structural issue found during this same verification
+pass**: after adding the Print tab, a full-suite rerun showed all 5
+tests in `publishing_center_dialog_test.dart` failing with
+`PathAccessException: Cannot delete file... being used by another
+process` on `title_blocks.json`, reproducible twice in a row even with
+the file confirmed absent immediately beforehand. Root-caused as a
+genuine cross-file test-isolation bug, not a timing fluke: three
+separate test files (`title_block_storage_test.dart`,
+`title_block_editor_dialog_test.dart`, `publishing_center_dialog_test.dart`)
+all read/wrote the SAME real global `%APPDATA%/oep_studio/title_blocks.json`
+path, and `flutter test`'s default cross-file parallelism ran them
+concurrently against that one shared file. An initial retry-based
+`tearDown` fix masked the symptom but not the cause — a second
+failure surfaced moments later in a different one of the three files,
+confirming a race, not a fluke. **Fixed at the root**: added
+`TitleBlockStorage.testRootOverride`/`TitleBlockPresetStorage.
+testRootOverride` (a test-only, nullable static field, defaulting to
+the real path in production) and updated all three test files to set
+it to their own private `Directory.systemTemp.createTempSync(...)` in
+`setUp`/clear it in `tearDown` — the same per-test-file isolation
+convention `diagram_document_test.dart` already established elsewhere
+in this codebase. Re-verified twice: all 32 publishing tests passing
+together (confirmed genuinely concurrent via interleaved test output),
+and the full 535-test suite passing twice in a row.
+
+### Testing
+
+`oep_engine`: 21 new tests (9 report generators + 12 diagram export).
+`oep_studio`: 32 new tests (31 from the Studio agent + 1 from the Print
+tab fix). **Final independently-verified totals**: `oep_engine`
+231/231 passing, clean analyze; `oep_studio` 535/535 passing (533 + 2
+pre-existing skips), clean analyze (2 pre-existing unrelated infos).
+Consistent, disclosed gap with every other FFI-dependent area of this
+codebase: `DiagramIntelligenceService`/`FoundationBridge`-backed live
+behavior isn't exercised under `flutter test`.
+
+### Known limitations (disclosed, not hidden — full list in `PUBLISHING_AND_DELIVERABLES.md`)
+
+1. Drawing/Installation/Service "Package" deliverables remain bounded
+   by the single-diagram document model.
+2. Page Setup dialog and Multiple Sheets/Entire Project/Entire Package
+   print modes not built.
+3. Connector Reports report node-level, not per-pin, connectivity.
+4. Auto-routed wire lengths are straight-line approximations.
+5. Title blocks are keyed by file path in local settings storage, not
+   embedded in the document file.
+6. Package-level Exchange validation (AP-DS-002) isn't yet surfaced in
+   the Exchange checklist specifically.
+7. Templates/Document Management beyond an unwired named-preset
+   storage layer were not built.
+8. 100,000-object publishing performance was not benchmarked.
+9. Symbol Library artwork is not embedded in exported drawings (nodes
+   render as a labeled box) — the on-screen renderer depends on
+   Flutter asset-bundle loading the headless export path doesn't use.
+
+---
+
+## Work Package WP-DS-005A — Engineering Instruments Framework & Digital Multimeter
+
+Status: Implemented (real subset — see "What Is Explicitly Not
+Implemented" below; every gap is a disclosed deferral, not a silent
+omission).
+
+### What Exists
+
+* **Engineering Instruments Framework** (`lib/diagram_studio/instruments/core/`):
+  `EngineeringInstrument` (id/title/icon/shortcut label/`buildPanel`)
+  and `InstrumentRegistry` (register/unregister/lookup,
+  `ChangeNotifier`-based). Zero engineering computation lives here or
+  anywhere else in the Instruments Framework — every reading is
+  requested from `DiagramSimulationService.measure` (a thin
+  pass-through to the real `SimulationEngine.measure`/
+  `MeasurementEngine`, `oep_engine`).
+* **Instrument Dock** (`lib/diagram_studio/instruments/dock/`): bottom
+  dock, floating window (in-app movable/resizable surface — see
+  `instrument_dock.dart`'s doc comment for the disclosed "not a real OS
+  window" scope), resize (drag grip), auto-hide (collapses to a tab
+  strip), multi-instrument tabs, layout persistence
+  (`instrument_dock_layout.json` under `SettingsStorage.root()`, same
+  shape as `WorkspaceStateStorage`). `DockPosition.left`/`.right` are
+  modeled in persisted state but currently render as the bottom dock —
+  disclosed, not a half-built side-dock layout.
+* **Digital Multimeter** (`lib/diagram_studio/instruments/multimeter/`):
+  every `MeasurementType` wired to the real engine; the type dropdown
+  shows `capacitance`/`temperature` disabled with "not yet supported"
+  (the engine's own named future placeholders); full result readout
+  (measured/expected/difference/path/power source/ground source/
+  contributing relationships/timestamp/mode); Measure button async
+  end-to-end.
+* **Measurement Modes**: manual, expected, comparison (comparison is
+  exactly `MeasurementResult.difference`, computed by the engine, never
+  recomputed in Studio), live simulation (async `Timer.periodic` calling
+  `measure()`, start/stop), historical (compare current result against a
+  selected stored history entry — local diff of two already-computed
+  values, no new engine call).
+* **Continuity Mode + path highlighting**: continuity/open-circuit/
+  shortest-path results feed `MultimeterController.highlightedPathNodeIds`
+  straight into `SimulationStateOverlay.propagationPathNodeIds` — reuses
+  that overlay's existing path-highlight rendering rather than a second
+  implementation.
+* **Probe System** (`lib/diagram_studio/instruments/probe/`): two
+  independent probes (black = A, red = B), click-to-place (via the
+  canvas's own existing `onNodeTap` handler — no second hit-tester),
+  drag-to-snap (nearest-node distance search over the same
+  `DiagramLayoutState.positions` map every other canvas overlay reads).
+  Snaps to node level only — pin/connector/wire-segment/terminal-level
+  snap targets are deferred (see below).
+* **Measurement History** (`lib/diagram_studio/instruments/history/`):
+  JSON persistence (`measurement_history.json`), replay (restores a
+  stored result/probes without a new engine call), clear, export (pretty
+  JSON string).
+* **Measurement Bookmarks** (`lib/diagram_studio/instruments/bookmarks/`):
+  named + grouped bookmarks, JSON persistence
+  (`measurement_bookmarks.json`), quick recall (restores probes + type).
+* **Engineering Integration (light touch)**: `MultimeterController.
+  relatedFindings(VerificationReport)` filters findings whose `nodeId`
+  lies on the current measured path — read-only, no recomputation.
+* **Integration**: `DiagramStudioPage` creates one
+  `InstrumentRegistry`/`InstrumentDockController`/`MultimeterController`
+  per diagram (mirrors `DiagramSimulationService`'s "one per diagram"
+  pattern), registers the Digital Multimeter, renders `InstrumentDock`
+  layered over the whole page, wires probe-arm buttons + `Ctrl+M` dock
+  toggle into the existing toolbar/shortcut infrastructure.
+* **Performance**: every measurement — including each Live Simulation
+  tick — goes through `DiagramSimulationService.measure`, which returns
+  a `Future`; there is no synchronous engine call anywhere in the
+  Instruments Framework, live mode included.
+
+### What Is Explicitly Not Implemented
+
+Per this work package's own "real, working subset over a half-working
+everything" instruction:
+
+1. Only the Digital Multimeter instrument was built. Oscilloscope,
+   Logic Probe, Power Probe, CAN Analyzer, LIN Analyzer, Breakout Box,
+   Signal Generator, Bench Power Supply, Clamp Meter are not built —
+   the Framework is ready to register them, none exist yet.
+2. Dock left/right placements are modeled but render as the bottom
+   dock; "floating window" is an in-app surface, not a real second OS
+   window.
+3. Probe snapping resolves to nodes only, not pins/connectors/wire
+   segments/terminals individually.
+4. Hover Measurements (spec: hovering a wire/connector shows expected/
+   measured/signal/power/ground state) were not built — out of time
+   budget after the higher-priority items above.
+5. Timeline synchronization / Pause / Step / Replay for Live Simulation
+   mode beyond simple start/stop were not built — only continuous
+   polling start/stop exists.
+6. Engineering Integration beyond the Verification-findings light touch
+   (Diagnostics/Reasoning/Recommendations/Publishing/Reports
+   referencing a measurement) was not built.
+7. Repository Integration: measurements are transient (in-memory) plus
+   local-JSON-persisted (history/bookmarks) only — Repository-backed
+   persistent measurement/inspection/verification records were not
+   built.
+8. History/Bookmarks are Studio-wide (one JSON file each), not scoped
+   per diagram document.
+9. Performance was not benchmarked under load (no measured "N
+   measurements/sec with no frame drop" number) — only the architectural
+   claim (`measure()` always returns a `Future`, tested) is verified.
+
+### Testing
+
+`oep_studio`: 37 new tests under `test/instruments/` — instrument
+registry, dock state/storage/widget (docking tests), the Digital
+Multimeter controller against a REAL `SimulationEngine` (measurement,
+continuity path highlighting, comparison mode, live-mode timer
+start/stop, history replay/export/clear, bookmark add/recall/remove,
+related-findings filtering), history/bookmark storage round-trips
+(real-file-with-cleanup, matching `WorkspaceStateStorage`'s own test
+convention), the Digital Multimeter panel widget (unsupported-type
+dropdown state, Measure button enablement, full result readout), and
+the Probe overlay widget (marker rendering, click-to-place). All 37
+pass. Full `oep_studio` suite re-run after integrating into
+`diagram_studio_page.dart`: 584 passing (582 + 2 pre-existing skips),
+`flutter analyze` clean (2 pre-existing unrelated infos in
+`foundation_runtime_service.dart`).
+

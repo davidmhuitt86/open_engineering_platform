@@ -30,7 +30,7 @@ class DiagramValidationPanel extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
           child: Row(
             children: [
               Text(
@@ -40,6 +40,9 @@ class DiagramValidationPanel extends StatelessWidget {
               const Spacer(),
               IconButton(
                 iconSize: 16,
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
                 tooltip: 'Revalidate',
                 icon: const Icon(Icons.refresh, color: StudioColors.textSecondary),
                 onPressed: onRevalidate,

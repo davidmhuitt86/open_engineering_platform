@@ -1,0 +1,17 @@
+{
+	"InstallScripts" : 
+	[
+		"C:/Users/david/OneDrive/Desktop/Projects/platform/oep_studio/native/foundation_bridge/build/cmake_install.cmake",
+		"C:/Users/david/OneDrive/Desktop/Projects/platform/oep_studio/native/foundation_bridge/build/foundation/repository/cmake_install.cmake",
+		"C:/Users/david/OneDrive/Desktop/Projects/platform/oep_studio/native/foundation_bridge/build/foundation/search/cmake_install.cmake",
+		"C:/Users/david/OneDrive/Desktop/Projects/platform/oep_studio/native/foundation_bridge/build/foundation/validation/cmake_install.cmake",
+		"C:/Users/david/OneDrive/Desktop/Projects/platform/oep_studio/native/foundation_bridge/build/foundation/packages/cmake_install.cmake",
+		"C:/Users/david/OneDrive/Desktop/Projects/platform/oep_studio/native/foundation_bridge/build/foundation/archive/cmake_install.cmake",
+		"C:/Users/david/OneDrive/Desktop/Projects/platform/oep_studio/native/foundation_bridge/build/foundation/installer/cmake_install.cmake",
+		"C:/Users/david/OneDrive/Desktop/Projects/platform/oep_studio/native/foundation_bridge/build/foundation/runtime/cmake_install.cmake",
+		"C:/Users/david/OneDrive/Desktop/Projects/platform/oep_studio/native/foundation_bridge/build/foundation/oep_engine/cmake_install.cmake",
+		"C:/Users/david/OneDrive/Desktop/Projects/platform/oep_studio/native/foundation_bridge/build/foundation/api/cmake_install.cmake",
+		"C:/Users/david/OneDrive/Desktop/Projects/platform/oep_studio/native/foundation_bridge/build/foundation/api/manual_test/cmake_install.cmake"
+	],
+	"Parallel" : false
+}

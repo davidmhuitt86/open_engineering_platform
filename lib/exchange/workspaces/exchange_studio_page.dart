@@ -8,11 +8,12 @@ import '../panels/exchange_marketplace_home_panel.dart';
 import '../panels/exchange_my_library_panel.dart';
 import '../panels/exchange_package_detail_panel.dart';
 import '../panels/exchange_publisher_profile_panel.dart';
+import '../panels/exchange_publishing_panel.dart';
 import '../panels/exchange_search_panel.dart';
 import '../services/exchange_runtime_service.dart';
 import '../services/exchange_runtime_state.dart';
 
-enum _ExchangeSection { marketplaceHome, search, myLibrary, downloads }
+enum _ExchangeSection { marketplaceHome, search, myLibrary, downloads, publishing }
 
 /// The Engineering Exchange workspace (WP-EXC-010) -- registered as a
 /// Studio workspace exactly like Engineering Acquisition: same
@@ -90,6 +91,7 @@ class _ExchangeStudioPageState extends ConsumerState<ExchangeStudioPage> {
       _ExchangeSection.search => const ExchangeSearchPanel(),
       _ExchangeSection.myLibrary => const ExchangeMyLibraryPanel(),
       _ExchangeSection.downloads => const ExchangeDownloadsPanel(),
+      _ExchangeSection.publishing => const ExchangePublishingPanel(),
     };
   }
 }
@@ -130,6 +132,12 @@ class _SectionRail extends StatelessWidget {
             icon: Icons.download_outlined,
             selected: section == _ExchangeSection.downloads,
             onTap: () => onSelect(_ExchangeSection.downloads),
+          ),
+          _RailItem(
+            label: 'Publishing',
+            icon: Icons.upload_outlined,
+            selected: section == _ExchangeSection.publishing,
+            onTap: () => onSelect(_ExchangeSection.publishing),
           ),
         ],
       ),

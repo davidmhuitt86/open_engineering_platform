@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/studio_colors.dart';
 import '../../knowledge/widgets/knowledge_panel.dart';
+import '../../shared/widgets/oep_list_view.dart';
 import '../models/official_source.dart';
 import '../services/acquisition_runtime_service.dart';
+import '../services/acquisition_selection.dart';
 
 /// The Official Source Registry panel (WP-PLAT-020 Phase 4/9 — Source
 /// Management). Lists every Official Source EAM knows about and lets
@@ -32,15 +34,11 @@ class AcquisitionSourcesPanel extends ConsumerWidget {
             ),
           ),
           Expanded(
-            child: sources.isEmpty
-                ? const Center(
-                    child: Text('No sources registered yet.', style: TextStyle(color: StudioColors.textSecondary)),
-                  )
-                : ListView.separated(
-                    itemCount: sources.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1),
-                    itemBuilder: (context, index) => _SourceRow(source: sources[index]),
-                  ),
+            child: OEPListView(
+              items: sources,
+              emptyMessage: 'No sources registered yet.',
+              itemBuilder: (context, source) => _SourceRow(source: source),
+            ),
           ),
         ],
       ),
@@ -85,15 +83,19 @@ class AcquisitionSourcesPanel extends ConsumerWidget {
   }
 }
 
-class _SourceRow extends StatelessWidget {
+class _SourceRow extends ConsumerWidget {
   const _SourceRow({required this.source});
 
   final OfficialSource source;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final selected = ref.watch(acquisitionSelectionProvider).source?.id == source.id;
     return ListTile(
       dense: true,
+      selected: selected,
+      selectedTileColor: StudioColors.selectedRowBackground,
+      onTap: () => ref.read(acquisitionSelectionProvider.notifier).selectSource(source),
       title: Text(source.name, style: const TextStyle(color: StudioColors.textPrimary, fontSize: 13)),
       subtitle: Text(
         '${source.category} · Trust ${source.trustLevel} · ${source.status}',

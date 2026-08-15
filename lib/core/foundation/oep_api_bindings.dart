@@ -127,6 +127,19 @@ class OepApiBindings {
       relationshipCreate = _library.lookupFunction<OepRelationshipCreateNative, OepRelationshipCreateDart>(
         'oep_relationship_create',
       ),
+      // AP-DS-002.
+      objectUpdate = _library.lookupFunction<OepObjectUpdateNative, OepObjectUpdateDart>('oep_object_update'),
+      objectDelete = _library.lookupFunction<OepObjectDeleteNative, OepObjectDeleteDart>('oep_object_delete'),
+      objectUpdateContent = _library.lookupFunction<OepObjectUpdateContentNative, OepObjectUpdateContentDart>(
+        'oep_object_update_content',
+      ),
+      objectGetContent = _library.lookupFunction<OepObjectGetContentNative, OepObjectGetContentDart>(
+        'oep_object_get_content',
+      ),
+      relationshipUpdate = _library
+          .lookupFunction<OepRelationshipUpdateNative, OepRelationshipUpdateDart>('oep_relationship_update'),
+      relationshipDelete = _library
+          .lookupFunction<OepRelationshipDeleteNative, OepRelationshipDeleteDart>('oep_relationship_delete'),
       transactionBegin = _library.lookupFunction<OepTransactionBeginNative, OepTransactionBeginDart>(
         'oep_transaction_begin',
       ),
@@ -546,6 +559,13 @@ class OepApiBindings {
   final OepRelationshipSearchResultListReleaseDart relationshipSearchResultListRelease;
   final OepObjectCreateDart objectCreate;
   final OepRelationshipCreateDart relationshipCreate;
+  // AP-DS-002.
+  final OepObjectUpdateDart objectUpdate;
+  final OepObjectDeleteDart objectDelete;
+  final OepObjectUpdateContentDart objectUpdateContent;
+  final OepObjectGetContentDart objectGetContent;
+  final OepRelationshipUpdateDart relationshipUpdate;
+  final OepRelationshipDeleteDart relationshipDelete;
   final OepTransactionBeginDart transactionBegin;
   final OepTransactionCommitDart transactionCommit;
   final OepTransactionRollbackDart transactionRollback;

@@ -89,8 +89,12 @@ class DiagramLayerPanel extends StatelessWidget {
         ),
         const Divider(height: 1),
         Padding(
-          padding: const EdgeInsets.all(8),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
           child: OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            ),
             onPressed: onCreateLayer,
             icon: const Icon(Icons.add, size: 16),
             label: const Text('New Layer'),

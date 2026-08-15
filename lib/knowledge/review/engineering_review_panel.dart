@@ -51,7 +51,7 @@ class _EngineeringReviewPanelState extends ConsumerState<EngineeringReviewPanel>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+          padding: const EdgeInsets.fromLTRB(12, 4, 12, 2),
           child: Row(
             children: [
               _TabButton(
@@ -71,7 +71,7 @@ class _EngineeringReviewPanelState extends ConsumerState<EngineeringReviewPanel>
           ),
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+          padding: const EdgeInsets.fromLTRB(12, 2, 12, 4),
           child: Align(
             alignment: Alignment.centerRight,
             child: OutlinedButton.icon(
@@ -148,12 +148,12 @@ class _CandidateListState extends ConsumerState<_CandidateList> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
           child: Row(
             children: [
               Expanded(
                 child: SizedBox(
-                  height: 32,
+                  height: 26,
                   child: TextField(
                     onChanged: (value) => setState(
                       () => _query = value.isEmpty ? _query.copyWith(clearTextFilter: true) : _query.copyWith(textFilter: value),
@@ -171,7 +171,7 @@ class _CandidateListState extends ConsumerState<_CandidateList> {
               ),
               const SizedBox(width: 8),
               SizedBox(
-                height: 32,
+                height: 26,
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<KnowledgeCandidateType?>(
                     value: _query.typeFilter,
@@ -190,7 +190,7 @@ class _CandidateListState extends ConsumerState<_CandidateList> {
               ),
               const SizedBox(width: 8),
               SizedBox(
-                height: 32,
+                height: 26,
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<KnowledgeCandidateSortField>(
                     value: _query.sortField,

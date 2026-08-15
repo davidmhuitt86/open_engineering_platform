@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/studio_colors.dart';
 import '../../knowledge/widgets/knowledge_panel.dart';
+import '../../shared/widgets/oep_list_view.dart';
 import '../models/exchange_package.dart';
 import '../models/publisher.dart';
 import '../services/exchange_runtime_service.dart';
@@ -29,16 +30,11 @@ class ExchangeMarketplaceHomePanel extends ConsumerWidget {
           child: KnowledgePanel(
             title: 'Recently Updated Packages',
             icon: Icons.inventory_2_outlined,
-            child: state.packages.isEmpty
-                ? const Center(child: Text('No packages yet.', style: TextStyle(color: StudioColors.textSecondary)))
-                : ListView.separated(
-                    itemCount: state.packages.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1),
-                    itemBuilder: (context, index) => _PackageRow(
-                      package: state.packages[index],
-                      onTap: () => notifier.selectPackage(state.packages[index].id),
-                    ),
-                  ),
+            child: OEPListView(
+              items: state.packages,
+              emptyMessage: 'No packages yet.',
+              itemBuilder: (context, package) => _PackageRow(package: package, onTap: () => notifier.selectPackage(package.id)),
+            ),
           ),
         ),
         const VerticalDivider(width: 1),
@@ -46,16 +42,12 @@ class ExchangeMarketplaceHomePanel extends ConsumerWidget {
           child: KnowledgePanel(
             title: 'Publishers',
             icon: Icons.storefront_outlined,
-            child: state.publishers.isEmpty
-                ? const Center(child: Text('No publishers yet.', style: TextStyle(color: StudioColors.textSecondary)))
-                : ListView.separated(
-                    itemCount: state.publishers.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1),
-                    itemBuilder: (context, index) => _PublisherRow(
-                      publisher: state.publishers[index],
-                      onTap: () => notifier.selectPublisher(state.publishers[index].id),
-                    ),
-                  ),
+            child: OEPListView(
+              items: state.publishers,
+              emptyMessage: 'No publishers yet.',
+              itemBuilder: (context, publisher) =>
+                  _PublisherRow(publisher: publisher, onTap: () => notifier.selectPublisher(publisher.id)),
+            ),
           ),
         ),
       ],

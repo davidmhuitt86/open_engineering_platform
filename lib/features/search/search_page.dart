@@ -121,7 +121,14 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
+              // 11px, not 12 -- now that `WorkbenchSidebar` (StudioShell's
+              // single left nav, replacing the classic `StudioNavRail`) is
+              // wider than the rail it replaced, this Row's available
+              // width shrank by a hair, and `DropdownButton` (below)
+              // can't itself shrink without overflowing internally.
+              // Shaving 1px off two imperceptible gaps recovers the
+              // needed space without touching the dropdown itself.
+              const SizedBox(width: 11),
               SizedBox(
                 height: 36,
                 child: DropdownButtonHideUnderline(
@@ -139,7 +146,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 11),
               SizedBox(
                 height: 36,
                 child: ElevatedButton(

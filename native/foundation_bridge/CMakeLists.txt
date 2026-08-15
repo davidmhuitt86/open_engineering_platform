@@ -39,7 +39,18 @@ endif()
 # module is added individually, in dependency order, exactly mirroring
 # oep_foundation/CMakeLists.txt minus platform/cli and tests.
 set(OEP_BRIDGE_FOUNDATION_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/foundation")
-foreach(module IN ITEMS repository search validation packages exchange runtime api)
+# Kept in the exact dependency order oep_foundation/CMakeLists.txt itself
+# uses (repository first, api/oep_engine last) -- mirrors it minus cli
+# and tests, per the comment above. Corrected here (AP-DS-002) to match
+# oep_foundation's actual current module set: `exchange` was never a
+# real module under oep_foundation/platform (this list predates
+# archive/installer's introduction and had silently drifted since);
+# `archive` and `installer` are genuine, required dependencies of
+# `runtime` today. Verified this build actually configures and links
+# with the corrected list -- it previously could not (add_subdirectory
+# failed outright on the nonexistent `exchange` path), meaning this DLL
+# had not been successfully rebuilt in some time.
+foreach(module IN ITEMS repository search validation packages archive installer runtime oep_engine api)
   add_subdirectory(
     "${OEP_FOUNDATION_SOURCE_DIR}/platform/${module}"
     "${OEP_BRIDGE_FOUNDATION_BINARY_DIR}/${module}"

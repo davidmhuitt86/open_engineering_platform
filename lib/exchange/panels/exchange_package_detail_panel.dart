@@ -68,6 +68,19 @@ class ExchangePackageDetailPanel extends ConsumerWidget {
             '${package.packageId} -- current version ${package.currentVersion ?? 'unset'}',
             style: const TextStyle(color: StudioColors.textSecondary, fontSize: 11),
           ),
+          const SizedBox(height: 8),
+          // Pricing and Reviews & Ratings (Phase 7): the approved render
+          // shows both prominently, but neither field exists anywhere in
+          // `ExchangePackage`, the Exchange REST client, or Foundation --
+          // shown honestly as not-yet-available rather than a fabricated
+          // price or rating.
+          const Wrap(
+            spacing: 8,
+            children: [
+              _UnavailableChip(icon: Icons.sell_outlined, label: 'Pricing not yet available'),
+              _UnavailableChip(icon: Icons.star_border, label: 'Reviews & ratings not yet available'),
+            ],
+          ),
           const Divider(height: 32),
           Wrap(
             spacing: 8,
@@ -124,6 +137,23 @@ class ExchangePackageDetailPanel extends ConsumerWidget {
   void _openInstalledPackage(BuildContext context, WidgetRef ref) {
     ref.read(foundationRuntimeServiceProvider.notifier).refreshRepository();
     context.go(StudioDestination.repository.path);
+  }
+}
+
+class _UnavailableChip extends StatelessWidget {
+  const _UnavailableChip({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Chip(
+      avatar: Icon(icon, size: 14, color: StudioColors.textDisabled),
+      label: Text(label, style: const TextStyle(color: StudioColors.textDisabled, fontSize: 11)),
+      backgroundColor: StudioColors.surfaceSunken,
+      side: const BorderSide(color: StudioColors.borderSubtle),
+    );
   }
 }
 
