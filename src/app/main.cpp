@@ -15,6 +15,7 @@
 #include "oep/acquisition/common/logger.hpp"
 #include "oep/acquisition/connectors/connector_factory.hpp"
 #include "oep/acquisition/connectors/connector_registry.hpp"
+#include "oep/acquisition/connectors/http_connector.hpp"
 #include "oep/acquisition/connectors/stub_connector.hpp"
 #include "oep/acquisition/database/database_connection.hpp"
 #include "oep/acquisition/downloads/download_service.hpp"
@@ -142,6 +143,10 @@ int main(int argc, char** argv) {
       "stub", [](const oep::acquisition::connectors::ConnectorConfig& connector_config) {
         return std::make_unique<oep::acquisition::connectors::StubConnector>(connector_config);
       });
+  connector_factory.register_type(
+      "http", [](const oep::acquisition::connectors::ConnectorConfig& connector_config) {
+        return std::make_unique<oep::acquisition::connectors::HttpConnector>(connector_config);
+      });
   oep::acquisition::connectors::ConnectorRegistry connector_registry(connector_factory);
   connector_registry.register_connector(oep::acquisition::connectors::ConnectorConfig{
       .connector_id = "example-stub",
@@ -149,6 +154,16 @@ int main(int argc, char** argv) {
       .name = "Example Stub Connector",
       .description = "Demonstrates the Connector Framework; performs no real network communication.",
       .settings = {{"capabilities", "download_files,search"}},
+  });
+  // A real connector: genuine HTTP(S) GET requests via cpp-httplib's
+  // client mode (`HttpConnector`) -- distinct from `example-stub` above,
+  // which performs no network I/O at all.
+  connector_registry.register_connector(oep::acquisition::connectors::ConnectorConfig{
+      .connector_id = "http-source",
+      .type = "http",
+      .name = "HTTP Source Connector",
+      .description = "Retrieves engineering artifacts over real HTTP/HTTPS.",
+      .settings = {{"capabilities", "download_files"}},
   });
   log.info("connector framework initialized ({} connector(s) registered)", connector_registry.list().size());
 

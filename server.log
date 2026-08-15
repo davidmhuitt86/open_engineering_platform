@@ -1,0 +1,11 @@
+[2026-08-06 21:37:48.678] [oep_acquisition] [info] OEP Acquisition Manager starting up
+[2026-08-06 21:37:48.845] [oep_acquisition] [info] database connection established (localhost:5432/oep_acquisition)
+[2026-08-06 21:37:48.901] [oep_acquisition] [info] official source registry repository connected
+[2026-08-06 21:37:48.957] [oep_acquisition] [info] acquisition job engine repository connected
+[2026-08-06 21:37:49.013] [oep_acquisition] [info] acquisition execution engine repository connected
+[2026-08-06 21:37:49.016] [oep_acquisition] [info] connector framework initialized (2 connector(s) registered)
+[2026-08-06 21:37:49.073] [oep_acquisition] [info] engineering downloader repository connected
+[2026-08-06 21:37:49.128] [oep_acquisition] [info] integrity verification engine repository connected
+[2026-08-06 21:37:49.182] [oep_acquisition] [info] metadata extraction engine repository connected
+[2026-08-06 21:37:49.240] [oep_acquisition] [info] engineering reference vault repository connected
+[2026-08-06 21:37:49.272] [oep_acquisition] [info] API server listening on 0.0.0.0:8080

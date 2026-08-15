@@ -23,6 +23,7 @@ add_executable(oep_acquisition_tests
   test_connector_factory.cpp
   test_connector_registry.cpp
   test_stub_connector.cpp
+  test_http_connector.cpp
   test_connector_api.cpp
   downloads_test_support.cpp
   test_download_validation.cpp

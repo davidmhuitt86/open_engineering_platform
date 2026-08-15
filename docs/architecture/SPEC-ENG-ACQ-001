@@ -1,0 +1,470 @@
+# SPEC-ENG-ACQ-001
+## Engineering Acquisition Wizard
+### Status
+Draft
+
+### Version
+1.0
+
+### Classification
+Architecture Specification
+
+### Applies To
+Engineering Acquisition Studio (EAM)
+
+---
+
+# 1. Purpose
+
+The Engineering Acquisition Wizard provides the primary user workflow for importing engineering knowledge into OEP.
+
+Its purpose is to guide engineers through the acquisition process while automatically maintaining the Engineering Chain of Custody (ECOC) for every acquired artifact.
+
+The wizard abstracts the internal acquisition architecture while educating the engineer on each stage of the process.
+
+---
+
+# 2. Design Philosophy
+
+The engineer should never need to understand:
+
+- Official Sources
+- Acquisition Jobs
+- Reference Vault
+- Candidate Knowledge Objects
+
+Those are implementation details.
+
+Instead the engineer should experience:
+
+Acquire Knowledge
+
+↓
+
+Review
+
+↓
+
+Approve
+
+↓
+
+Publish
+
+---
+
+# 3. Primary Entry Point
+
+Engineering Acquisition Studio
+
+Primary Action Button
+
+Acquire Engineering Knowledge
+
+This launches the wizard.
+
+---
+
+# 4. Wizard Overview
+
+Step 1
+Knowledge Type
+
+Step 2
+Source Selection
+
+Step 3
+Chain of Custody
+
+Step 4
+Acquisition Scope
+
+Step 5
+Artifact Review
+
+Step 6
+Candidate Knowledge Preview
+
+Step 7
+Engineering Review
+
+Step 8
+Publish
+
+---
+
+# 5. Step 1
+Knowledge Type
+
+Purpose
+
+Allow OEP to classify the acquisition.
+
+Choices
+
+Engineering Standard
+
+Technical Paper
+
+Research Paper
+
+Datasheet
+
+OEM Manual
+
+Installation Guide
+
+Engineering Drawing
+
+Wiring Diagram
+
+Material Specification
+
+Physics Reference
+
+Mathematics Reference
+
+Other
+
+Explanation
+
+Each acquisition type has different parsing rules.
+
+---
+
+# 6. Step 2
+Source Selection
+
+Display
+
+Existing Official Sources
+
+Search
+
+Add New Source
+
+When creating a new source
+
+The engineer never leaves the wizard.
+
+Source fields
+
+Name
+
+Organization
+
+Website
+
+Document URL
+
+Trust Level
+
+Publisher
+
+License
+
+Notes
+
+---
+
+# 7. Step 3
+Engineering Chain of Custody
+
+Purpose
+
+Establish permanent provenance.
+
+Required
+
+Original URL
+
+Publisher
+
+Publication Date
+
+Revision
+
+Language
+
+License
+
+Acquisition Method
+
+Hash Algorithm
+
+Expected Hash (optional)
+
+Engineer
+
+Display
+
+Explain why every field exists.
+
+---
+
+# 8. Step 4
+Acquisition Scope
+
+Options
+
+Entire Document
+
+Selected Pages
+
+Selected Chapters
+
+Selected Sections
+
+Highlighted Content
+
+Future
+
+Interactive page selection.
+
+Purpose
+
+The Reference Vault always stores the complete artifact.
+
+Knowledge extraction may operate on only selected content.
+
+---
+
+# 9. Step 5
+Artifact Acquisition
+
+Display
+
+Live progress
+
+Connecting...
+
+Downloading...
+
+Verifying...
+
+Hashing...
+
+Publishing...
+
+Completed
+
+Failures immediately stop the wizard.
+
+---
+
+# 10. Step 6
+Candidate Knowledge Preview
+
+Display summary
+
+Engineering Objects
+
+Relationships
+
+Equations
+
+Units
+
+Materials
+
+Symbols
+
+Behaviors
+
+Validation Rules
+
+Evidence
+
+Each item expandable.
+
+Allow deselection.
+
+---
+
+# 11. Step 7
+Engineering Review
+
+Actions
+
+Accept
+
+Reject
+
+Merge
+
+Link Existing
+
+Edit Metadata
+
+Notes
+
+This stage creates Candidate Engineering Objects.
+
+Nothing is committed yet.
+
+---
+
+# 12. Step 8
+Publish
+
+Select destination
+
+core_reference
+
+electrical_reference
+
+math_reference
+
+physics_reference
+
+materials_reference
+
+custom package
+
+Display summary
+
+Artifact Stored
+
+Chain of Custody Complete
+
+Candidate Objects Created
+
+Ready For Review
+
+---
+
+# 13. Live Progress
+
+Every acquisition operation shall produce live progress.
+
+Examples
+
+Connecting
+
+Downloading
+
+34%
+
+51%
+
+79%
+
+SHA-256 Verified
+
+Metadata Extracted
+
+Artifact Published
+
+Knowledge Extraction Started
+
+Knowledge Extraction Complete
+
+Review Package Created
+
+Completed
+
+No silent operations.
+
+---
+
+# 14. Pipeline Integration
+
+The wizard orchestrates the existing architecture.
+
+Official Source
+
+↓
+
+Acquisition Job
+
+↓
+
+Reference Vault
+
+↓
+
+Candidate Knowledge
+
+↓
+
+Knowledge Studio
+
+The engineer never manually creates jobs.
+
+The wizard performs this automatically.
+
+---
+
+# 15. Reference Vault
+
+The wizard stores the complete acquired artifact.
+
+The Reference Vault shall remain immutable.
+
+Artifacts cannot be edited.
+
+Artifacts support
+
+Open
+
+Reveal
+
+Copy Path
+
+Copy SHA-256
+
+View Metadata
+
+Open Original URL
+
+View Chain of Custody
+
+---
+
+# 16. Knowledge Studio Integration
+
+After successful extraction
+
+Knowledge Studio automatically displays
+
+New Candidate Knowledge
+
+Engineering review begins there.
+
+Acquisition Studio is complete.
+
+---
+
+# 17. User Experience
+
+Every page shall contain
+
+Purpose
+
+Explanation
+
+Expected Output
+
+Help
+
+The software should teach the acquisition workflow.
+
+---
+
+# 18. Future Extensions
+
+OCR
+
+Image Parsing
+
+Equation Recognition
+
+Diagram Recognition
+
+AI Assisted Classification
+
+Automatic Relationship Discovery
+
+Batch Acquisition
+
+Repository Synchronization
