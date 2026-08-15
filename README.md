@@ -144,7 +144,14 @@ docs/
     Tutorials
     Developer Guides
     API Documentation
+    Architecture (docs/architecture/) — Engineering Knowledge Engine
+        (platform/oep_engine) v1.0 architecture freeze, produced by
+        WP-EKE-008: Constitution, Architecture, Public API Specification,
+        Integration/Performance/Validation Reports, Known Issues, and
+        Future Roadmap (v2).
 ```
+
+The Engineering Knowledge Engine (`platform/oep_engine`) reached v1.0 with WP-EKE-008 (Engineering Knowledge Engine v1.0 Release & Platform Integration). See `docs/architecture/` for its frozen architecture and Public API specification.
 
 ---
 

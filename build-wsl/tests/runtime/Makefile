@@ -182,6 +182,44 @@ oep_trust_integration_tests/fast:
 	cd /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl && $(MAKE) $(MAKESILENT) -f tests/runtime/CMakeFiles/oep_trust_integration_tests.dir/build.make tests/runtime/CMakeFiles/oep_trust_integration_tests.dir/build
 .PHONY : oep_trust_integration_tests/fast
 
+# Convenience name for target.
+tests/runtime/CMakeFiles/oep_dependency_resolution_integration_tests.dir/rule:
+	cd /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/runtime/CMakeFiles/oep_dependency_resolution_integration_tests.dir/rule
+.PHONY : tests/runtime/CMakeFiles/oep_dependency_resolution_integration_tests.dir/rule
+
+# Convenience name for target.
+oep_dependency_resolution_integration_tests: tests/runtime/CMakeFiles/oep_dependency_resolution_integration_tests.dir/rule
+.PHONY : oep_dependency_resolution_integration_tests
+
+# fast build rule for target.
+oep_dependency_resolution_integration_tests/fast:
+	cd /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl && $(MAKE) $(MAKESILENT) -f tests/runtime/CMakeFiles/oep_dependency_resolution_integration_tests.dir/build.make tests/runtime/CMakeFiles/oep_dependency_resolution_integration_tests.dir/build
+.PHONY : oep_dependency_resolution_integration_tests/fast
+
+dependency_resolution_integration_tests.o: dependency_resolution_integration_tests.cpp.o
+.PHONY : dependency_resolution_integration_tests.o
+
+# target to build an object file
+dependency_resolution_integration_tests.cpp.o:
+	cd /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl && $(MAKE) $(MAKESILENT) -f tests/runtime/CMakeFiles/oep_dependency_resolution_integration_tests.dir/build.make tests/runtime/CMakeFiles/oep_dependency_resolution_integration_tests.dir/dependency_resolution_integration_tests.cpp.o
+.PHONY : dependency_resolution_integration_tests.cpp.o
+
+dependency_resolution_integration_tests.i: dependency_resolution_integration_tests.cpp.i
+.PHONY : dependency_resolution_integration_tests.i
+
+# target to preprocess a source file
+dependency_resolution_integration_tests.cpp.i:
+	cd /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl && $(MAKE) $(MAKESILENT) -f tests/runtime/CMakeFiles/oep_dependency_resolution_integration_tests.dir/build.make tests/runtime/CMakeFiles/oep_dependency_resolution_integration_tests.dir/dependency_resolution_integration_tests.cpp.i
+.PHONY : dependency_resolution_integration_tests.cpp.i
+
+dependency_resolution_integration_tests.s: dependency_resolution_integration_tests.cpp.s
+.PHONY : dependency_resolution_integration_tests.s
+
+# target to generate assembly for a file
+dependency_resolution_integration_tests.cpp.s:
+	cd /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl && $(MAKE) $(MAKESILENT) -f tests/runtime/CMakeFiles/oep_dependency_resolution_integration_tests.dir/build.make tests/runtime/CMakeFiles/oep_dependency_resolution_integration_tests.dir/dependency_resolution_integration_tests.cpp.s
+.PHONY : dependency_resolution_integration_tests.cpp.s
+
 foundation_runtime_tests.o: foundation_runtime_tests.cpp.o
 .PHONY : foundation_runtime_tests.o
 
@@ -287,10 +325,14 @@ help:
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
 	@echo "... test"
+	@echo "... oep_dependency_resolution_integration_tests"
 	@echo "... oep_foundation_runtime_tests"
 	@echo "... oep_package_installation_tests"
 	@echo "... oep_transaction_journal_tests"
 	@echo "... oep_trust_integration_tests"
+	@echo "... dependency_resolution_integration_tests.o"
+	@echo "... dependency_resolution_integration_tests.i"
+	@echo "... dependency_resolution_integration_tests.s"
 	@echo "... foundation_runtime_tests.o"
 	@echo "... foundation_runtime_tests.i"
 	@echo "... foundation_runtime_tests.s"

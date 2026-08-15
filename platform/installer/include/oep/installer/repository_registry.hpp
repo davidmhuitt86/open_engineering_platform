@@ -4,6 +4,8 @@
 #include <string>
 #include <vector>
 
+#include "oep/installer/oep_package_manifest.hpp"
+
 namespace oep::installer {
 
 // One record of an installed .oep package in the Repository Registry
@@ -62,6 +64,15 @@ struct RepositoryRegistryEntry {
     // checks (WP-REP-002) are unrelated to trust and are unaffected.
     std::string trust_status;
     std::string trust_fingerprint;
+
+    // Declared Dependencies (WP-REP-005, PKG-004 §7): the package's own
+    // manifest dependency declarations, captured at install time so the
+    // Dependency Resolution Engine can see transitive/circular
+    // relationships when resolving a FUTURE candidate against the set
+    // of already-installed packages, without needing to re-read every
+    // installed package's original archive (which may no longer exist
+    // on disk -- see installation_path above).
+    std::vector<DependencyDeclaration> dependencies;
 
     // Repository Contributions (WP-REP-002.md §4 "Object Count" /
     // "Relationship Count"): the Engineering Object / Relationship IDs
@@ -131,6 +142,13 @@ public:
     explicit RepositoryRegistry(std::filesystem::path packages_root);
 
     RegistryResult record_install(const RepositoryRegistryEntry& entry) const;
+
+    // Removes `package_id`'s registry.json record (WP-REP-007, Uninstall
+    // Lifecycle). Fails if the package has no record. Does not touch
+    // Engineering Objects/Relationships -- callers (FoundationRuntime)
+    // remove those themselves, through the same ObjectStore/
+    // RelationshipStore this Registry never duplicates data from.
+    RegistryResult remove_record(const std::string& package_id) const;
 
     // "Query package metadata" / "Locate installed package"
     // (WP-REP-002.md §5): does `package_id` have a Repository Registry

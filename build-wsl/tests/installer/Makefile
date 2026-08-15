@@ -252,6 +252,58 @@ oep_package_installer_tests/fast:
 	cd /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl && $(MAKE) $(MAKESILENT) -f tests/installer/CMakeFiles/oep_package_installer_tests.dir/build.make tests/installer/CMakeFiles/oep_package_installer_tests.dir/build
 .PHONY : oep_package_installer_tests/fast
 
+# Convenience name for target.
+tests/installer/CMakeFiles/oep_version_constraint_tests.dir/rule:
+	cd /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/installer/CMakeFiles/oep_version_constraint_tests.dir/rule
+.PHONY : tests/installer/CMakeFiles/oep_version_constraint_tests.dir/rule
+
+# Convenience name for target.
+oep_version_constraint_tests: tests/installer/CMakeFiles/oep_version_constraint_tests.dir/rule
+.PHONY : oep_version_constraint_tests
+
+# fast build rule for target.
+oep_version_constraint_tests/fast:
+	cd /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl && $(MAKE) $(MAKESILENT) -f tests/installer/CMakeFiles/oep_version_constraint_tests.dir/build.make tests/installer/CMakeFiles/oep_version_constraint_tests.dir/build
+.PHONY : oep_version_constraint_tests/fast
+
+# Convenience name for target.
+tests/installer/CMakeFiles/oep_dependency_resolver_tests.dir/rule:
+	cd /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/installer/CMakeFiles/oep_dependency_resolver_tests.dir/rule
+.PHONY : tests/installer/CMakeFiles/oep_dependency_resolver_tests.dir/rule
+
+# Convenience name for target.
+oep_dependency_resolver_tests: tests/installer/CMakeFiles/oep_dependency_resolver_tests.dir/rule
+.PHONY : oep_dependency_resolver_tests
+
+# fast build rule for target.
+oep_dependency_resolver_tests/fast:
+	cd /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl && $(MAKE) $(MAKESILENT) -f tests/installer/CMakeFiles/oep_dependency_resolver_tests.dir/build.make tests/installer/CMakeFiles/oep_dependency_resolver_tests.dir/build
+.PHONY : oep_dependency_resolver_tests/fast
+
+dependency_resolver_tests.o: dependency_resolver_tests.cpp.o
+.PHONY : dependency_resolver_tests.o
+
+# target to build an object file
+dependency_resolver_tests.cpp.o:
+	cd /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl && $(MAKE) $(MAKESILENT) -f tests/installer/CMakeFiles/oep_dependency_resolver_tests.dir/build.make tests/installer/CMakeFiles/oep_dependency_resolver_tests.dir/dependency_resolver_tests.cpp.o
+.PHONY : dependency_resolver_tests.cpp.o
+
+dependency_resolver_tests.i: dependency_resolver_tests.cpp.i
+.PHONY : dependency_resolver_tests.i
+
+# target to preprocess a source file
+dependency_resolver_tests.cpp.i:
+	cd /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl && $(MAKE) $(MAKESILENT) -f tests/installer/CMakeFiles/oep_dependency_resolver_tests.dir/build.make tests/installer/CMakeFiles/oep_dependency_resolver_tests.dir/dependency_resolver_tests.cpp.i
+.PHONY : dependency_resolver_tests.cpp.i
+
+dependency_resolver_tests.s: dependency_resolver_tests.cpp.s
+.PHONY : dependency_resolver_tests.s
+
+# target to generate assembly for a file
+dependency_resolver_tests.cpp.s:
+	cd /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl && $(MAKE) $(MAKESILENT) -f tests/installer/CMakeFiles/oep_dependency_resolver_tests.dir/build.make tests/installer/CMakeFiles/oep_dependency_resolver_tests.dir/dependency_resolver_tests.cpp.s
+.PHONY : dependency_resolver_tests.cpp.s
+
 ed25519_tests.o: ed25519_tests.cpp.o
 .PHONY : ed25519_tests.o
 
@@ -444,6 +496,30 @@ trust_store_tests.cpp.s:
 	cd /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl && $(MAKE) $(MAKESILENT) -f tests/installer/CMakeFiles/oep_trust_store_tests.dir/build.make tests/installer/CMakeFiles/oep_trust_store_tests.dir/trust_store_tests.cpp.s
 .PHONY : trust_store_tests.cpp.s
 
+version_constraint_tests.o: version_constraint_tests.cpp.o
+.PHONY : version_constraint_tests.o
+
+# target to build an object file
+version_constraint_tests.cpp.o:
+	cd /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl && $(MAKE) $(MAKESILENT) -f tests/installer/CMakeFiles/oep_version_constraint_tests.dir/build.make tests/installer/CMakeFiles/oep_version_constraint_tests.dir/version_constraint_tests.cpp.o
+.PHONY : version_constraint_tests.cpp.o
+
+version_constraint_tests.i: version_constraint_tests.cpp.i
+.PHONY : version_constraint_tests.i
+
+# target to preprocess a source file
+version_constraint_tests.cpp.i:
+	cd /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl && $(MAKE) $(MAKESILENT) -f tests/installer/CMakeFiles/oep_version_constraint_tests.dir/build.make tests/installer/CMakeFiles/oep_version_constraint_tests.dir/version_constraint_tests.cpp.i
+.PHONY : version_constraint_tests.cpp.i
+
+version_constraint_tests.s: version_constraint_tests.cpp.s
+.PHONY : version_constraint_tests.s
+
+# target to generate assembly for a file
+version_constraint_tests.cpp.s:
+	cd /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl && $(MAKE) $(MAKESILENT) -f tests/installer/CMakeFiles/oep_version_constraint_tests.dir/build.make tests/installer/CMakeFiles/oep_version_constraint_tests.dir/version_constraint_tests.cpp.s
+.PHONY : version_constraint_tests.cpp.s
+
 zip_reader_tests.o: zip_reader_tests.cpp.o
 .PHONY : zip_reader_tests.o
 
@@ -477,6 +553,7 @@ help:
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
 	@echo "... test"
+	@echo "... oep_dependency_resolver_tests"
 	@echo "... oep_ed25519_tests"
 	@echo "... oep_package_installer_tests"
 	@echo "... oep_package_manifest_tests"
@@ -485,7 +562,11 @@ help:
 	@echo "... oep_sha256_tests"
 	@echo "... oep_sha512_tests"
 	@echo "... oep_trust_store_tests"
+	@echo "... oep_version_constraint_tests"
 	@echo "... oep_zip_reader_tests"
+	@echo "... dependency_resolver_tests.o"
+	@echo "... dependency_resolver_tests.i"
+	@echo "... dependency_resolver_tests.s"
 	@echo "... ed25519_tests.o"
 	@echo "... ed25519_tests.i"
 	@echo "... ed25519_tests.s"
@@ -510,6 +591,9 @@ help:
 	@echo "... trust_store_tests.o"
 	@echo "... trust_store_tests.i"
 	@echo "... trust_store_tests.s"
+	@echo "... version_constraint_tests.o"
+	@echo "... version_constraint_tests.i"
+	@echo "... version_constraint_tests.s"
 	@echo "... zip_reader_tests.o"
 	@echo "... zip_reader_tests.i"
 	@echo "... zip_reader_tests.s"

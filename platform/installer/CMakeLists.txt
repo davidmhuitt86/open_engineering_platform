@@ -8,8 +8,12 @@ add_library(oep_installer STATIC
     src/ed25519.cpp
     src/trust_store.cpp
     src/package_verifier.cpp
+    src/version_constraint.cpp
+    src/dependency_resolver.cpp
     src/repository_registry.cpp
     src/package_installer.cpp
+    src/repository_change_set.cpp
+    src/merge_engine.cpp
 )
 
 target_include_directories(oep_installer PUBLIC include)

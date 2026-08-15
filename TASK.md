@@ -2,80 +2,81 @@
 # TASK.md
 ## Open Engineering Platform (OEP)
 
-Task ID: 000034 (WP-REP-004)
+Task ID: 000046 (WP-EKE-008)
 
-Status: Complete — awaiting user review/approval
+Status: Complete — Engineering Knowledge Engine v1.0 declared; all exit criteria verified; awaiting user review/approval
 
 ---
 
 # Current Task
 
-Implement WP-REP-004 — Foundation Repository Runtime, Vertical Slice 4: the **Repository Trust & Signing Subsystem**, implementing PKG-005 (Package Trust & Digital Signature): offline Ed25519 signature verification, a per-repository Trust Store of locally trusted publisher certificates, and package trust verification integrated into the installation pipeline — running strictly before any Repository Transaction begins.
+Implement WP-EKE-008 — **Engineering Knowledge Engine v1.0 Release & Platform Integration**, the eighth work package in the WP-EKE series, immediately following WP-EKE-007 (Engineering Intelligence Platform). Unlike every prior WP-EKE work package, this one introduces **no new core engine** — its own spec states explicitly "This work package SHALL NOT introduce new core engines." Its focus is integration, optimization, production readiness, user experience, documentation, and architecture freeze: complete Studio integration for the Engineering Knowledge Engine, validate complete end-to-end engineering workflows, review and optimize runtime performance, finalize the Public API, and freeze the EKE v1.0 architecture behind eight named documents.
 
 ---
 
 # Context
 
-WP-REP-001 installed unsigned packages by design; WP-REP-002 added the Repository Registry; WP-REP-003 made installation atomic via the Repository Transaction Engine. WP-REP-004 closes the trust gap both explicitly documented: every package is now cryptographically verified before it can touch the repository. PKG-001 through PKG-006, OEP-ARCH-002, CLAUDE.md, and PROJECT_MEMORY/STATUS were read before implementation.
+WP-EKE-001 through WP-EKE-007 built the Engineering Knowledge Engine's full seven-layer core architecture inside `platform/oep_engine`: the Engineering Knowledge Runtime, the canonical Knowledge Graph, the deterministic Query Engine, the data-driven Rules Engine, the composition-based Validation Engine, the Analysis & Reasoning Engine, and finally the Engineering Intelligence Platform orchestrating all six lower engines behind one unified facade. WP-EKE-008 sits at a different altitude from all seven: it does not add a layer, it integrates, hardens, and freezes what the prior seven built. CLAUDE.md, PROJECT_MEMORY.md, PROJECT_STATUS.md, CURRENT_SPRINT.md, and the WP-EKE-001 through 007 TASK.md entries were read before this work, along with `docs/tasks/WP-EKE-008.md` itself.
 
-**Design decisions:**
+**Architectural requirements given by the work package specification:**
 
-- **Hand-rolled Ed25519 verification** (`platform/installer/ed25519.hpp/.cpp`), per this codebase's established no-third-party-dependency convention (hand-rolled SHA-256/JSON parser/UUID generation already exist). Verify-only, deliberately: Foundation never signs anything and holds no private key. Built on a new hand-rolled SHA-512 (`sha512.hpp/.cpp`, distinct from the existing SHA-256 used for package hashing — Ed25519/RFC 8032 requires SHA-512). Both were validated against their respective NIST/RFC published test vectors before anything was built on top of them.
-- **Signing lives in `oep_exchange`**, not Foundation: `@oep-exchange/signing` was implemented for real (previously a TASK-EXC-0001 scaffold) using Node's built-in `node:crypto` — no new npm dependency either. The two Ed25519 implementations (C++ verifier, Node signer) are genuinely independent, cross-checked by installing a real signed archive end-to-end, not just unit-testing against shared fixtures.
-- **Trust verification runs before any Repository Transaction begins** — the user's explicit, load-bearing requirement. `install_package` calls `verify_package_trust` immediately after confirming the package isn't already installed, strictly before `open_transaction_internal`. A trust-rejected install opens no transaction and writes no journal record — proven by a dedicated test.
-- **Backward compatibility preserved by pure C API addition, not modification**: `oep_package_install_result_t` and `oep_package_details_t` (WP-REP-002) were left byte-for-byte unchanged; trust status is queried through a new function (`oep_package_get_trust_status`) and a new struct, following the same "never modify an existing struct" convention WP-REP-002/003 established. `OEP_API_VERSION` 7 → 8, `OEP_ABI_VERSION` unchanged at 1. Unsigned packages still install by default (`TrustStore` policy `require_signatures` defaults to `false`), preserving WP-REP-001–003's behavior exactly.
+1. Studio Integration: native pages for Engineering Explorer, Knowledge Graph Explorer, Query Console, Validation Dashboard, Analysis Dashboard, Reasoning Dashboard, Recommendation Panel, and Knowledge Session Manager UI — all consuming the Engineering Intelligence Platform only, no page bypassing it, no graph editing in the Knowledge Graph Explorer.
+2. Runtime Performance Optimization across memory allocation, graph construction, traversal, query planning/execution, cache usage, session/context lifetime, object loading, startup performance.
+3. End-to-End Validation of the complete pipeline: Acquire Engineering Standard -> Repository Install -> Knowledge Graph Build -> Query -> Validation -> Analysis -> Reasoning -> Recommendations -> Studio Visualization.
+4. API Freeze: review and document the Runtime API, C API, Studio FFI, and CLI, with explicit compatibility guarantees.
+5. Architecture Freeze: produce exactly eight named documents (Constitution, Architecture, Public API Specification, Integration Report, Performance Report, Validation Report, Known Issues, Future Roadmap v2) and declare EKE v1.0 complete — but only once every exit criterion is genuinely satisfied.
 
 ---
 
 # Objectives
 
-## Objective 1 — Repository Trust & Signing subsystem
-Hand-rolled SHA-512 and Ed25519 verification (RFC 8032), tested against NIST/RFC vectors. `verify_package_trust` (`package_verifier.hpp/.cpp`) implements PKG-005 §11's pipeline: structure → content hashes (every archive entry outside `signatures/`, per §9/§10 — nothing in the payload exempt) → certificate → signature → `TrustState` (`Trusted`/`Unsigned`/`UnknownPublisher`/`ExpiredCertificate`/`RevokedCertificate`/`InvalidSignature`/`Tampered`).
+## Objective 1 — End-to-End Validation
+New `tests/engine/end_to_end_workflow_tests.cpp`, exercising the full named pipeline against already-existing engines (WP-REP-001 through WP-EKE-007) with no new engine logic. Two tests: the full nine-step pipeline (`test_full_pipeline_acquire_through_studio_visualization`) and a determinism re-run (`test_pipeline_is_deterministic_across_repeated_runs`). Measured pipeline time, from this session's own run: **31.8595 ms**. Both tests pass.
 
-## Objective 2 — Trust Store
-`TrustStore` (`trust_store.hpp/.cpp`): locally trusted publisher certificates persisted under `<repository>/settings/trust/` (one JSON file per publisher, plus a policy file), entirely offline (PKG-005 §3) — no certificate authority, no online revocation feed. `add_certificate`/`get_certificate`/`list_certificates`/`revoke_certificate` (kept, marked revoked, per §12/§13's retained-history model) plus `get_policy`/`set_policy`.
+## Objective 2 — Runtime Performance Review
+A performance review pass over `platform/oep_engine`, with one concrete, source-verified fix confirmed in this session: `platform/oep_engine/src/graph_statistics.cpp`'s `compute_statistics()` no longer calls `KnowledgeGraph::all_nodes()` (an O(V) rebuild-and-copy) more than once per pass — the result is computed once and reused, with an explanatory comment left in the source. The Engine's algorithmic profile remains deterministic O(V+E)/O(V log V) throughout, with `GraphStatistics`'s O(V·(V+E)) diameter computation as the one documented, acceptable exception.
 
-## Objective 3 — Installation pipeline integration
-`FoundationRuntime::install_package` verifies trust before opening any transaction. Rejection states abort the install with nothing extracted and nothing journaled. On success, `RepositoryRegistryEntry` gains `trust_status`/`trust_fingerprint`, and `RuntimeInstallResult` gains `trust_status`.
+## Objective 3 — API Freeze
+`platform/api/include/oep/api/oep_api.h` reviewed in full (3,277 lines). `OEP_API_VERSION` confirmed still **19** (unchanged from WP-EKE-007 — this work package added no new Public C API surface, consistent with its own "no new core engines" constraint). `OEP_ABI_VERSION` confirmed still **1**, unchanged since WP-REP-001. Documented in `docs/architecture/PUBLIC_API_SPECIFICATION.md` with an explicit Compatibility Guarantees section.
 
-## Objective 4 — Foundation Runtime
-Six new pass-through methods (`trust_add_certificate`/`trust_get_certificate`/`trust_list_certificates`/`trust_revoke_certificate`/`trust_get_policy`/`trust_set_policy`) plus a `trust_store()` accessor. These are local writes to `settings/trust/`, not Repository Transactions.
+## Objective 4 — Architecture Freeze
+Eight documents produced under new `docs/architecture/`: `ENGINEERING_KNOWLEDGE_ENGINE_CONSTITUTION.md`, `ENGINEERING_KNOWLEDGE_ENGINE_ARCHITECTURE.md`, `PUBLIC_API_SPECIFICATION.md`, `INTEGRATION_REPORT.md`, `PERFORMANCE_REPORT.md`, `VALIDATION_REPORT.md`, `KNOWN_ISSUES.md`, `FUTURE_ROADMAP_V2.md`.
 
-## Objective 5 — Public C API
-`oep_trust_add_certificate`/`_get_certificate`/`_list_certificates`(+release)/`_revoke_certificate`/`_get_policy`/`_set_policy`, `oep_package_get_trust_status`, `oep_trust_state_to_string`, with new `oep_trust_state_t`/`oep_publisher_certificate_t`/`oep_certificate_list_t`/`oep_package_trust_status_t`. `OEP_API_VERSION` 8.
+## Objective 5 — Studio Integration
+**Done, independently verified.** An earlier check of `platform/oep_studio/lib/` in this session found none of the eight named pages, since a separate concurrent effort was still building them. That effort has since landed and was independently re-verified directly (not taken on the implementing agent's report alone): all eight pages exist under `lib/engineering_intelligence/pages/`, registered as a new Studio (`/engineering-intelligence`) consuming `EngineeringIntelligencePlatform` exclusively through the existing `FoundationBridge`/provider pattern, with the Knowledge Graph Explorer confirmed to have no editing affordances. `flutter analyze`: 0 new issues. `flutter test`: 463 passed / 2 skipped / 0 failed. See `docs/architecture/INTEGRATION_REPORT.md` §2.
 
-## Objective 6 — CLI
-New `oep trust trust|list|revoke|policy` command. `oep package info` now shows Trust Status and fingerprint. `oep package install`'s stale "not transactional" note (already obsolete since WP-REP-003) removed.
-
-## Objective 7 — Studio compatibility
-Foundation Bridge FFI bindings for all seven new functions (`PublisherCertificate`/`PackageTrustStatus`/`TrustState` Dart models, seven `FoundationBridge` methods); `flutter analyze`/`flutter test` verified.
+## Objective 6 — Documentation
+This file, `CURRENT_SPRINT.md`, `PROJECT_STATUS.md`, `README.md`, and the eight `docs/architecture/` documents above, all updated in this work package.
 
 ---
 
 # Explicitly Out of Scope
 
-Dependency resolution, update, uninstall, merge, networking, online trust services — per the user's exclusion list. Also explicitly deferred, named rather than silently absent: certificate authority chains and enterprise trust policies (PKG-005 §14), multiple signatures per package (§15), repository-wide re-audit/revalidation of already-installed packages (§16), and repair transactions for corrupted packages (§17) — all require capabilities (update, networking, or the merge engine) this Work Package excludes.
+- **No new core engines.** Per the work package's own explicit "SHALL NOT" statement. No new file was added under `platform/oep_engine/include/oep/engine/` or `platform/oep_engine/src/` beyond targeted edits inside existing files (e.g. `graph_statistics.cpp`).
+- **No graph editing in the Knowledge Graph Explorer.** The spec explicitly names this exclusion; the Explorer (once built) is read-only visualization.
+- **No external AI integration.** Consistent with every prior WP-EKE work package's own "SHALL NOT call external AI systems" boundary; explicitly named as v2-speculative in `docs/architecture/FUTURE_ROADMAP_V2.md`, never in-scope for v1.
+- **No new Public C API functions.** `OEP_API_VERSION` remains 19; this work package documents and freezes the existing surface, it does not extend it.
+- **No repository-event-driven automatic cache/graph invalidation.** Remains caller-driven, as documented in `KNOWN_ISSUES.md` #4 — a possible v2 direction, not built here.
+- **No persistence for sessions.** Every session type remains in-memory/process-local, unchanged from WP-EKE-004 through WP-EKE-007.
 
 ---
 
 # Verification Record
 
-**Build:** WSL Ubuntu CMake 3.28.3 / g++ 13.3.0 (no Windows-native C++ toolchain on this host — same environmental limitation as Tasks 000031–000033; MSVC not independently re-verified). Full build succeeded with no errors.
+**Build:** existing build verified functional; no new engine source added.
 
-**A real, pre-existing bug was found and fixed in shared JSON infrastructure**: `platform/repository/json_value.cpp`'s `serialize()` never actually wrote `Bool`/`Number` values (a silent no-op, present since the JSON module was first written, undiscovered because nothing had ever serialized a boolean before `TrustStore`'s `revoked` field). Fixed (`as_bool()`/`as_number()` accessors added, `write_value` writes `true`/`false`/the numeric literal); caught immediately by the new `oep_trust_store_tests`' first run, before anything was built on top of it.
+**Regression suite:** **62 registered CTest suites, 62/62 passing**, verified in this session via `ctest` inside `.scratch_build/wprep006` (a small number of individual runs showed transient `text file is busy` failures on a different subset of tests each time — a WSL9P filesystem locking artifact, not a code or test defect; every affected test passed independently when re-run standalone, e.g. `./tests/engine/oep_validation_engine_tests` -> "All validation_engine tests passed."). This is the same 61-suite baseline WP-EKE-007 reported, plus 1 new suite (`oep_end_to_end_workflow_tests`) added by this work package.
 
-**A real bug was found and fixed in `@oep-exchange/signing`** (`oep_exchange`, not `oep_foundation`): its file-sort used `String.prototype.localeCompare`, which orders certain paths (e.g. `"LICENSE.md"` vs. `"licenses/LICENSE.md"`) differently than C++'s `std::string::operator<` — the exact order Foundation's verifier reconstructs its content-hash payload with. A genuinely signed `engineering-demo.oep` installed as `InvalidSignature` until this was found (during end-to-end validation, not unit testing) and fixed to sort byte-wise; a regression test now pins the correct order.
+**End-to-end pipeline timing:** **31.8595 ms**, measured directly via `./tests/engine/oep_end_to_end_workflow_tests` in this session.
 
-**Regression suite:** 38/38 CTest suites pass, including new `oep_sha512_tests`, `oep_ed25519_tests` (RFC 8032 §7.1 vectors plus tamper/malleability rejection cases), `oep_trust_store_tests`, `oep_package_verifier_tests` (trusted/unsigned/unknown-publisher/revoked/tampered/extra-entry/bad-signature/unsupported-algorithm), `oep_trust_integration_tests` (Runtime-level, including the "no transaction opened on trust rejection" proof), and `oep_trust_command_tests`; extended `oep_api_tests`.
+**API version:** `OEP_API_VERSION` **19** (unchanged), `OEP_ABI_VERSION` **1** (unchanged since WP-REP-001), both verified by direct header inspection in this session.
 
-**Signing package (`oep_exchange`):** `@oep-exchange/signing` — 12/12 vitest cases pass, including the byte-wise-ordering regression test above.
+**Studio:** all eight named UI pages verified present under `platform/oep_studio/lib/engineering_intelligence/pages/`, registered in Studio routing, consuming `FoundationBridge`/`EngineeringIntelligencePlatform` exclusively. `flutter analyze` 0 new issues; `flutter test` 463 passed / 2 skipped / 0 failed — both re-run directly in this session.
 
-**End-to-end CLI validation:** a real Ed25519 key pair was generated (`oep-package keygen`), `engineering-demo.oep`'s source tree was actually signed (`oep-package sign`) and rebuilt (Stored compression, as prior work packages require), then installed against a fresh `oep init` repository: (1) install rejected as `UnknownPublisher` before the publisher was trusted, with an empty transaction journal proving trust ran first; (2) `oep trust trust` + reinstall succeeded, `oep package info` showing `Trust Status: Trusted` with the correct fingerprint, and exactly one Committed transaction; (3) a second repository with the publisher trusted-then-revoked rejected the same install as `RevokedCertificate`. All steps passed.
-
-**Studio:** `flutter analyze` — 0 new issues (2 pre-existing unrelated lints); `flutter test` — all 460 tests passed (2 pre-existing skips).
+**Architecture freeze:** all eight named documents produced under `docs/architecture/` in this work package.
 
 ---
 
 # After Completion
 
-Stop and await formal review/approval of WP-REP-004 before beginning WP-REP-005, per the user's explicit instruction.
+**Engineering Knowledge Engine v1.0 is declared complete.** Every exit criterion in the work package's own spec is satisfied and independently verified in this session, not merely reported by a delegated agent: end-to-end workflow validation (9-step pipeline, deterministic, ~32ms), Studio integration (all 8 pages present, routed, `flutter analyze`/`flutter test` clean), runtime optimization (one confirmed fix), the API freeze (`OEP_API_VERSION` 19 / `OEP_ABI_VERSION` 1, unchanged), and the architecture freeze (all eight `docs/architecture/` documents). This closes the Engineering Knowledge Engine roadmap (WP-EKE-001 through WP-EKE-008). Stopping to await formal review/approval before any further work package begins.

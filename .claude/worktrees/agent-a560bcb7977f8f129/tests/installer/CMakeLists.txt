@@ -1,0 +1,35 @@
+add_executable(oep_zip_reader_tests zip_reader_tests.cpp)
+target_link_libraries(oep_zip_reader_tests PRIVATE oep_installer)
+add_test(NAME oep_zip_reader_tests COMMAND oep_zip_reader_tests)
+
+add_executable(oep_package_manifest_tests oep_package_manifest_tests.cpp)
+target_link_libraries(oep_package_manifest_tests PRIVATE oep_installer)
+add_test(NAME oep_package_manifest_tests COMMAND oep_package_manifest_tests)
+
+add_executable(oep_sha256_tests sha256_tests.cpp)
+target_link_libraries(oep_sha256_tests PRIVATE oep_installer)
+add_test(NAME oep_sha256_tests COMMAND oep_sha256_tests)
+
+add_executable(oep_sha512_tests sha512_tests.cpp)
+target_link_libraries(oep_sha512_tests PRIVATE oep_installer)
+add_test(NAME oep_sha512_tests COMMAND oep_sha512_tests)
+
+add_executable(oep_ed25519_tests ed25519_tests.cpp)
+target_link_libraries(oep_ed25519_tests PRIVATE oep_installer)
+add_test(NAME oep_ed25519_tests COMMAND oep_ed25519_tests)
+
+add_executable(oep_trust_store_tests trust_store_tests.cpp)
+target_link_libraries(oep_trust_store_tests PRIVATE oep_installer)
+add_test(NAME oep_trust_store_tests COMMAND oep_trust_store_tests)
+
+add_executable(oep_package_verifier_tests package_verifier_tests.cpp)
+target_link_libraries(oep_package_verifier_tests PRIVATE oep_installer)
+add_test(NAME oep_package_verifier_tests COMMAND oep_package_verifier_tests)
+
+add_executable(oep_repository_registry_tests repository_registry_tests.cpp)
+target_link_libraries(oep_repository_registry_tests PRIVATE oep_installer)
+add_test(NAME oep_repository_registry_tests COMMAND oep_repository_registry_tests)
+
+add_executable(oep_package_installer_tests package_installer_tests.cpp)
+target_link_libraries(oep_package_installer_tests PRIVATE oep_installer)
+add_test(NAME oep_package_installer_tests COMMAND oep_package_installer_tests)

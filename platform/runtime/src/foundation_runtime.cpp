@@ -339,6 +339,25 @@ RuntimeInstallResult FoundationRuntime::install_package(const std::filesystem::p
         }
     }
 
+    // DEPENDENCY RESOLUTION (WP-REP-005, PKG-004) — deliberately AFTER
+    // trust verification and still BEFORE any Repository Transaction
+    // begins, per this Work Package's explicit requirement. Operates
+    // solely on the manifest's declared dependencies and the Repository
+    // Registry's already-installed set; never touches the network or the
+    // Engineering Exchange.
+    const std::vector<oep::installer::InstalledPackageSnapshot> installed_snapshot = installed_snapshot_for_resolver();
+    const oep::installer::DependencyResolutionReport resolution = oep::installer::resolve_dependencies(
+        manifest.package_id, manifest.version, manifest.dependencies, installed_snapshot);
+    if (resolution.result != oep::installer::DependencyResolutionResult::Resolved) {
+        std::string detail;
+        for (std::size_t i = 0; i < resolution.errors.size(); ++i) {
+            detail += resolution.errors[i];
+            if (i + 1 != resolution.errors.size()) detail += "; ";
+        }
+        return {false, "dependency resolution failed for '" + manifest.package_id + "': " + detail,
+                manifest.package_id, manifest.version, 0, 0, oep::installer::to_string(trust.state)};
+    }
+
     // ATOMIC (WP-REP-003, Repository Transaction Engine): the whole
     // install runs inside one Repository Transaction. Any failure below
     // rolls back every create performed so far and journals the
@@ -398,6 +417,7 @@ RuntimeInstallResult FoundationRuntime::install_package(const std::filesystem::p
     record.runtime_state = "Installed";
     record.trust_status = oep::installer::to_string(trust.state);
     record.trust_fingerprint = trust.fingerprint;
+    record.dependencies = manifest.dependencies;
     record.object_ids = object_ids;
     record.relationship_ids = relationship_ids;
 
@@ -444,6 +464,720 @@ RuntimeInstalledPackagesResult FoundationRuntime::list_installed_packages() cons
     }
     const oep::installer::ListInstalledResult listed = registry_->list_installed();
     return {listed.success, listed.error, listed.packages};
+}
+
+std::vector<std::string> FoundationRuntime::find_required_dependents(const std::string& target_package_id,
+                                                                       const std::string& exclude_package_id,
+                                                                       const std::string& candidate_version) const {
+    std::vector<std::string> dependents;
+    const oep::installer::ListInstalledResult listed = registry_->list_installed();
+    if (!listed.success) {
+        return dependents;
+    }
+    for (const oep::installer::RepositoryRegistryEntry& entry : listed.packages) {
+        if (entry.package_id == exclude_package_id) {
+            continue;
+        }
+        for (const oep::installer::DependencyDeclaration& dependency : entry.dependencies) {
+            if (dependency.package_id != target_package_id || dependency.optional) {
+                continue;
+            }
+            if (candidate_version.empty()) {
+                dependents.push_back(entry.package_id);
+            } else {
+                const oep::installer::ConstraintCheckResult check =
+                    oep::installer::version_satisfies(candidate_version, dependency.version_constraint);
+                if (!check.success || !check.satisfied) {
+                    dependents.push_back(entry.package_id);
+                }
+            }
+            break;
+        }
+    }
+    return dependents;
+}
+
+RuntimeUninstallImpactResult FoundationRuntime::analyze_uninstall_impact(const std::string& package_id) const {
+    if (state_ != RuntimeState::RepositoryOpen) {
+        return {false, "cannot analyze uninstall impact: no repository is currently open", false, 0, 0, {}, false};
+    }
+    const oep::installer::IsInstalledResult existing = registry_->is_installed(package_id);
+    if (!existing.success) {
+        return {false, "could not check the Repository Registry: " + existing.error, false, 0, 0, {}, false};
+    }
+    if (!existing.installed) {
+        return {true, "", false, 0, 0, {}, false};
+    }
+    const std::vector<std::string> blocking = find_required_dependents(package_id, package_id, "");
+    RuntimeUninstallImpactResult result;
+    result.success = true;
+    result.found = true;
+    result.objects_affected = static_cast<int>(existing.record.object_ids.size());
+    result.relationships_affected = static_cast<int>(existing.record.relationship_ids.size());
+    result.blocking_dependents = blocking;
+    result.removable = blocking.empty();
+    return result;
+}
+
+RuntimeUninstallResult FoundationRuntime::uninstall_package(const std::string& package_id) {
+    if (state_ != RuntimeState::RepositoryOpen) {
+        return {false, "cannot uninstall a package: no repository is currently open", package_id, 0, 0};
+    }
+    if (transaction_active_) {
+        return {false, "cannot uninstall a package while a transaction is already active", package_id, 0, 0};
+    }
+
+    const oep::installer::IsInstalledResult existing = registry_->is_installed(package_id);
+    if (!existing.success) {
+        return {false, "could not check the Repository Registry: " + existing.error, package_id, 0, 0};
+    }
+    if (!existing.installed) {
+        return {false, "package '" + package_id + "' is not installed", package_id, 0, 0};
+    }
+
+    // IMPACT ANALYSIS (WP-REP-007) — deliberately BEFORE any Repository
+    // Transaction begins, mirroring install_package's
+    // Trust-before-Dependency-before-Transaction ordering: here, impact
+    // analysis is the gate that must pass before mutation, just as
+    // dependency resolution is for install.
+    const std::vector<std::string> blocking = find_required_dependents(package_id, package_id, "");
+    if (!blocking.empty()) {
+        std::string detail;
+        for (std::size_t i = 0; i < blocking.size(); ++i) {
+            detail += blocking[i];
+            if (i + 1 != blocking.size()) detail += ", ";
+        }
+        return {false,
+                "cannot uninstall '" + package_id + "': required by installed package(s): " + detail, package_id,
+                0, 0};
+    }
+
+    open_transaction_internal("uninstall " + package_id);
+
+    // Relationships before objects: a package's own contributed
+    // relationships always reference its own contributed objects (an
+    // installed package cannot reference another package's objects
+    // without a declared dependency, which the impact check above
+    // already refused to bypass), so removing relationships first never
+    // leaves a dangling reference for ObjectStore/RelationshipStore to
+    // reject.
+    for (const std::string& relationship_id : existing.record.relationship_ids) {
+        const oep::repository::LoadRelationshipResult loaded = relationships_->load(relationship_id);
+        if (!loaded.success) {
+            rollback_transaction_internal();
+            return {false,
+                    "failed to load Relationship '" + relationship_id + "' during uninstall: " + loaded.error +
+                        " — the uninstall was rolled back; nothing was removed",
+                    package_id, 0, 0};
+        }
+        const oep::repository::RelationshipResult removed = relationships_->remove(relationship_id);
+        if (!removed.success) {
+            rollback_transaction_internal();
+            return {false,
+                    "failed to remove Relationship '" + relationship_id + "' during uninstall: " + removed.error +
+                        " — the uninstall was rolled back; nothing was removed",
+                    package_id, 0, 0};
+        }
+        TransactionLogEntry entry;
+        entry.kind = TransactionLogEntry::Kind::RelationshipDeleted;
+        entry.relationship_snapshot = loaded.relationship;
+        transaction_log_.push_back(std::move(entry));
+        journal_operation("RelationshipDeleted", relationship_id,
+                           "present:" + oep::repository::to_string(loaded.relationship.relationship_type), "absent");
+    }
+
+    for (const std::string& object_id : existing.record.object_ids) {
+        const oep::repository::LoadObjectResult loaded = objects_->load(object_id);
+        if (!loaded.success) {
+            rollback_transaction_internal();
+            return {false,
+                    "failed to load Engineering Object '" + object_id + "' during uninstall: " + loaded.error +
+                        " — the uninstall was rolled back; nothing was removed",
+                    package_id, 0, 0};
+        }
+        const oep::repository::ObjectResult removed = objects_->remove(object_id);
+        if (!removed.success) {
+            rollback_transaction_internal();
+            return {false,
+                    "failed to remove Engineering Object '" + object_id + "' during uninstall: " + removed.error +
+                        " — the uninstall was rolled back; nothing was removed",
+                    package_id, 0, 0};
+        }
+        TransactionLogEntry entry;
+        entry.kind = TransactionLogEntry::Kind::ObjectDeleted;
+        entry.object_snapshot = loaded.object;
+        transaction_log_.push_back(std::move(entry));
+        journal_operation("ObjectDeleted", object_id, "present:" + loaded.object.name, "absent");
+    }
+
+    const oep::installer::RegistryResult unrecorded = registry_->remove_record(package_id);
+    if (!unrecorded.success) {
+        rollback_transaction_internal();
+        return {false,
+                "removing the Repository Registry record failed: " + unrecorded.error +
+                    " — the uninstall was rolled back; nothing was removed",
+                package_id, 0, 0};
+    }
+    journal_operation("PackageUnrecorded", package_id, "installed:" + existing.record.version, "absent");
+
+    commit_transaction_internal();
+
+    search_->build_index(*objects_, *relationships_);
+    graph_->build_graph(*objects_, *relationships_);
+
+    return {true, "", package_id, static_cast<int>(existing.record.object_ids.size()),
+            static_cast<int>(existing.record.relationship_ids.size())};
+}
+
+RuntimeUpdateImpactResult FoundationRuntime::analyze_update_impact(const std::filesystem::path& archive_path) const {
+    if (state_ != RuntimeState::RepositoryOpen) {
+        RuntimeUpdateImpactResult result;
+        result.success = false;
+        result.error = "cannot analyze update impact: no repository is currently open";
+        return result;
+    }
+
+    const oep::installer::ExtractPackageResult extracted = oep::installer::extract_package(archive_path);
+    if (!extracted.success) {
+        RuntimeUpdateImpactResult result;
+        result.success = false;
+        result.error = "could not extract package: " + extracted.error;
+        return result;
+    }
+    const oep::installer::OepPackageManifest& manifest = extracted.package.manifest;
+
+    RuntimeUpdateImpactResult result;
+    result.success = true;
+    result.candidate_version = manifest.version;
+
+    const oep::installer::IsInstalledResult existing = registry_->is_installed(manifest.package_id);
+    if (!existing.success) {
+        result.success = false;
+        result.error = "could not check the Repository Registry: " + existing.error;
+        return result;
+    }
+    result.currently_installed = existing.installed;
+    if (!existing.installed) {
+        return result; // updatable stays false: there is nothing to replace.
+    }
+    result.current_version = existing.record.version;
+
+    const oep::installer::TrustVerification trust = oep::installer::verify_package_trust(archive_path, *trust_store_);
+    if (!trust.success) {
+        result.success = false;
+        result.error = "could not verify package trust: " + trust.error;
+        return result;
+    }
+    result.trust_status = oep::installer::to_string(trust.state);
+    const bool trust_blocks = trust.state != oep::installer::TrustState::Trusted &&
+                               trust.state != oep::installer::TrustState::Unsigned;
+
+    // Resolve the candidate's dependencies against the installed set
+    // with the CURRENT version of this same package excluded, since it
+    // is what would be replaced -- otherwise a package would always
+    // appear to conflict with itself.
+    std::vector<oep::installer::InstalledPackageSnapshot> installed_snapshot = installed_snapshot_for_resolver();
+    installed_snapshot.erase(std::remove_if(installed_snapshot.begin(), installed_snapshot.end(),
+                                             [&](const oep::installer::InstalledPackageSnapshot& snapshot) {
+                                                 return snapshot.package_id == manifest.package_id;
+                                             }),
+                              installed_snapshot.end());
+    result.dependency_report = oep::installer::resolve_dependencies(manifest.package_id, manifest.version,
+                                                                      manifest.dependencies, installed_snapshot);
+
+    result.broken_dependents =
+        find_required_dependents(manifest.package_id, manifest.package_id, manifest.version);
+
+    result.updatable = !trust_blocks &&
+                        result.dependency_report.result == oep::installer::DependencyResolutionResult::Resolved &&
+                        result.broken_dependents.empty();
+    return result;
+}
+
+RuntimeUpdateResult FoundationRuntime::update_package(const std::filesystem::path& archive_path) {
+    if (state_ != RuntimeState::RepositoryOpen) {
+        return {false, "cannot update a package: no repository is currently open", "", "", "", 0, 0, 0, 0, ""};
+    }
+    if (transaction_active_) {
+        return {false, "cannot update a package while a transaction is already active", "", "", "", 0, 0, 0, 0, ""};
+    }
+
+    const oep::installer::ExtractPackageResult extracted = oep::installer::extract_package(archive_path);
+    if (!extracted.success) {
+        return {false, "could not extract package: " + extracted.error, "", "", "", 0, 0, 0, 0, ""};
+    }
+    const oep::installer::OepPackageManifest& manifest = extracted.package.manifest;
+
+    const oep::installer::IsInstalledResult existing = registry_->is_installed(manifest.package_id);
+    if (!existing.success) {
+        return {false, "could not check the Repository Registry: " + existing.error, manifest.package_id, "",
+                manifest.version, 0, 0, 0, 0, ""};
+    }
+    if (!existing.installed) {
+        return {false, "package '" + manifest.package_id + "' is not installed; use install_package instead",
+                manifest.package_id, "", manifest.version, 0, 0, 0, 0, ""};
+    }
+    const std::string previous_version = existing.record.version;
+
+    // TRUST VERIFICATION (WP-REP-004) then DEPENDENCY RESOLUTION
+    // (WP-REP-005), in that order, BEFORE any Repository Transaction
+    // begins -- exactly install_package's ordering, reused unchanged.
+    const oep::installer::TrustVerification trust = oep::installer::verify_package_trust(archive_path, *trust_store_);
+    if (!trust.success) {
+        return {false, "could not verify package trust: " + trust.error, manifest.package_id, previous_version,
+                manifest.version, 0, 0, 0, 0, ""};
+    }
+    const bool trust_blocks_install = trust.state != oep::installer::TrustState::Trusted &&
+                                       trust.state != oep::installer::TrustState::Unsigned;
+    if (trust_blocks_install) {
+        return {false,
+                "package trust verification failed (" + oep::installer::to_string(trust.state) +
+                    "): " + trust.detail,
+                manifest.package_id, previous_version, manifest.version, 0, 0, 0, 0,
+                oep::installer::to_string(trust.state)};
+    }
+    if (trust.state == oep::installer::TrustState::Unsigned) {
+        const oep::installer::TrustPolicyResult policy = trust_store_->get_policy();
+        if (policy.success && policy.require_signatures) {
+            return {false,
+                    "this repository's trust policy requires signed packages, and '" + manifest.package_id +
+                        "' is unsigned",
+                    manifest.package_id, previous_version, manifest.version, 0, 0, 0, 0,
+                    oep::installer::to_string(trust.state)};
+        }
+    }
+
+    std::vector<oep::installer::InstalledPackageSnapshot> installed_snapshot = installed_snapshot_for_resolver();
+    installed_snapshot.erase(std::remove_if(installed_snapshot.begin(), installed_snapshot.end(),
+                                             [&](const oep::installer::InstalledPackageSnapshot& snapshot) {
+                                                 return snapshot.package_id == manifest.package_id;
+                                             }),
+                              installed_snapshot.end());
+    const oep::installer::DependencyResolutionReport resolution = oep::installer::resolve_dependencies(
+        manifest.package_id, manifest.version, manifest.dependencies, installed_snapshot);
+    if (resolution.result != oep::installer::DependencyResolutionResult::Resolved) {
+        std::string detail;
+        for (std::size_t i = 0; i < resolution.errors.size(); ++i) {
+            detail += resolution.errors[i];
+            if (i + 1 != resolution.errors.size()) detail += "; ";
+        }
+        return {false, "dependency resolution failed for '" + manifest.package_id + "': " + detail,
+                manifest.package_id, previous_version, manifest.version, 0, 0, 0, 0,
+                oep::installer::to_string(trust.state)};
+    }
+
+    // UPDATE IMPACT (WP-REP-007): refuse if any OTHER installed
+    // package's required dependency on this package would break.
+    const std::vector<std::string> broken =
+        find_required_dependents(manifest.package_id, manifest.package_id, manifest.version);
+    if (!broken.empty()) {
+        std::string detail;
+        for (std::size_t i = 0; i < broken.size(); ++i) {
+            detail += broken[i];
+            if (i + 1 != broken.size()) detail += ", ";
+        }
+        return {false,
+                "cannot update '" + manifest.package_id + "' to " + manifest.version +
+                    ": would break required dependency for installed package(s): " + detail,
+                manifest.package_id, previous_version, manifest.version, 0, 0, 0, 0,
+                oep::installer::to_string(trust.state)};
+    }
+
+    // ATOMIC (WP-REP-003): remove the old version and install the new
+    // one inside ONE Repository Transaction. A failure at any point
+    // rolls back everything -- the repository is never left with
+    // neither version, nor both.
+    open_transaction_internal("update " + manifest.package_id);
+
+    for (const std::string& relationship_id : existing.record.relationship_ids) {
+        const oep::repository::LoadRelationshipResult loaded = relationships_->load(relationship_id);
+        if (!loaded.success) {
+            rollback_transaction_internal();
+            return {false,
+                    "failed to load Relationship '" + relationship_id + "' during update: " + loaded.error +
+                        " — the update was rolled back; the previous version remains installed",
+                    manifest.package_id, previous_version, manifest.version, 0, 0, 0, 0, ""};
+        }
+        const oep::repository::RelationshipResult removed = relationships_->remove(relationship_id);
+        if (!removed.success) {
+            rollback_transaction_internal();
+            return {false,
+                    "failed to remove Relationship '" + relationship_id + "' during update: " + removed.error +
+                        " — the update was rolled back; the previous version remains installed",
+                    manifest.package_id, previous_version, manifest.version, 0, 0, 0, 0, ""};
+        }
+        TransactionLogEntry log_entry;
+        log_entry.kind = TransactionLogEntry::Kind::RelationshipDeleted;
+        log_entry.relationship_snapshot = loaded.relationship;
+        transaction_log_.push_back(std::move(log_entry));
+        journal_operation("RelationshipDeleted", relationship_id,
+                           "present:" + oep::repository::to_string(loaded.relationship.relationship_type), "absent");
+    }
+    const int objects_removed = static_cast<int>(existing.record.object_ids.size());
+    for (const std::string& object_id : existing.record.object_ids) {
+        const oep::repository::LoadObjectResult loaded = objects_->load(object_id);
+        if (!loaded.success) {
+            rollback_transaction_internal();
+            return {false,
+                    "failed to load Engineering Object '" + object_id + "' during update: " + loaded.error +
+                        " — the update was rolled back; the previous version remains installed",
+                    manifest.package_id, previous_version, manifest.version, 0, 0, 0, 0, ""};
+        }
+        const oep::repository::ObjectResult removed = objects_->remove(object_id);
+        if (!removed.success) {
+            rollback_transaction_internal();
+            return {false,
+                    "failed to remove Engineering Object '" + object_id + "' during update: " + removed.error +
+                        " — the update was rolled back; the previous version remains installed",
+                    manifest.package_id, previous_version, manifest.version, 0, 0, 0, 0, ""};
+        }
+        TransactionLogEntry log_entry;
+        log_entry.kind = TransactionLogEntry::Kind::ObjectDeleted;
+        log_entry.object_snapshot = loaded.object;
+        transaction_log_.push_back(std::move(log_entry));
+        journal_operation("ObjectDeleted", object_id, "present:" + loaded.object.name, "absent");
+    }
+    const oep::installer::RegistryResult unrecorded = registry_->remove_record(manifest.package_id);
+    if (!unrecorded.success) {
+        rollback_transaction_internal();
+        return {false,
+                "removing the previous Repository Registry record failed: " + unrecorded.error +
+                    " — the update was rolled back; the previous version remains installed",
+                manifest.package_id, previous_version, manifest.version, 0, 0, 0, 0, ""};
+    }
+    journal_operation("PackageUnrecorded", manifest.package_id, "installed:" + previous_version, "absent");
+
+    std::vector<std::string> object_ids;
+    std::vector<std::string> relationship_ids;
+    for (const oep::repository::EngineeringObject& object : extracted.package.objects) {
+        const oep::repository::LoadObjectResult created = objects_->create(object);
+        if (!created.success) {
+            rollback_transaction_internal();
+            return {false,
+                    "failed to create Engineering Object '" + object.name + "' during update: " + created.error +
+                        " — the update was rolled back; the previous version remains installed",
+                    manifest.package_id, previous_version, manifest.version, 0, 0, 0, 0, ""};
+        }
+        TransactionLogEntry log_entry;
+        log_entry.kind = TransactionLogEntry::Kind::ObjectCreated;
+        log_entry.object_snapshot = created.object;
+        transaction_log_.push_back(std::move(log_entry));
+        journal_operation("ObjectCreated", created.object.object_id, "absent", "present:" + created.object.name);
+        object_ids.push_back(created.object.object_id);
+    }
+    for (const oep::repository::Relationship& relationship : extracted.package.relationships) {
+        const oep::repository::LoadRelationshipResult created = relationships_->create(relationship);
+        if (!created.success) {
+            rollback_transaction_internal();
+            return {false,
+                    "failed to create Relationship during update: " + created.error +
+                        " — the update was rolled back; the previous version remains installed",
+                    manifest.package_id, previous_version, manifest.version, 0, 0, 0, 0, ""};
+        }
+        TransactionLogEntry log_entry;
+        log_entry.kind = TransactionLogEntry::Kind::RelationshipCreated;
+        log_entry.relationship_snapshot = created.relationship;
+        transaction_log_.push_back(std::move(log_entry));
+        journal_operation("RelationshipCreated", created.relationship.relationship_id, "absent",
+                           "present:" + oep::repository::to_string(created.relationship.relationship_type));
+        relationship_ids.push_back(created.relationship.relationship_id);
+    }
+
+    oep::installer::RepositoryRegistryEntry record;
+    record.package_id = manifest.package_id;
+    record.version = manifest.version;
+    record.title = manifest.title;
+    record.summary = manifest.summary;
+    record.category = manifest.category;
+    record.schema_version = manifest.schema_version;
+    record.engineering_domains = manifest.engineering_domains;
+    record.publisher_id = manifest.publisher_id;
+    record.publisher_name = manifest.publisher_name;
+    record.installed_utc = oep::repository::current_timestamp_utc();
+    record.source = "local";
+    record.runtime_state = "Installed";
+    record.trust_status = oep::installer::to_string(trust.state);
+    record.trust_fingerprint = trust.fingerprint;
+    record.dependencies = manifest.dependencies;
+    record.object_ids = object_ids;
+    record.relationship_ids = relationship_ids;
+
+    std::error_code absolute_error;
+    const std::filesystem::path absolute_archive = std::filesystem::absolute(archive_path, absolute_error);
+    record.installation_path = absolute_error ? archive_path.string() : absolute_archive.string();
+    const std::optional<std::string> hash = oep::installer::sha256_hex_file(archive_path);
+    record.package_hash = hash.has_value() ? *hash : "";
+
+    const oep::installer::RegistryResult recorded = registry_->record_install(record);
+    if (!recorded.success) {
+        rollback_transaction_internal();
+        return {false,
+                "recording the updated install in the Repository Registry failed: " + recorded.error +
+                    " — the update was rolled back; the previous version remains installed",
+                manifest.package_id, previous_version, manifest.version, 0, 0, 0, 0, ""};
+    }
+    journal_operation("PackageRecorded", manifest.package_id, "absent", "installed:" + manifest.version);
+
+    commit_transaction_internal();
+
+    search_->build_index(*objects_, *relationships_);
+    graph_->build_graph(*objects_, *relationships_);
+
+    return {true,
+            "",
+            manifest.package_id,
+            previous_version,
+            manifest.version,
+            objects_removed,
+            static_cast<int>(existing.record.relationship_ids.size()),
+            static_cast<int>(object_ids.size()),
+            static_cast<int>(relationship_ids.size()),
+            oep::installer::to_string(trust.state)};
+}
+
+RuntimeMergePlanResult FoundationRuntime::plan_merge(const std::filesystem::path& archive_path) const {
+    if (state_ != RuntimeState::RepositoryOpen) {
+        RuntimeMergePlanResult result;
+        result.success = false;
+        result.error = "cannot plan a merge: no repository is currently open";
+        return result;
+    }
+
+    const oep::installer::ExtractPackageResult extracted = oep::installer::extract_package(archive_path);
+    if (!extracted.success) {
+        RuntimeMergePlanResult result;
+        result.success = false;
+        result.error = "could not extract package: " + extracted.error;
+        return result;
+    }
+    const oep::installer::OepPackageManifest& manifest = extracted.package.manifest;
+
+    RuntimeMergePlanResult result;
+    result.success = true;
+    result.package_id = manifest.package_id;
+    result.version = manifest.version;
+
+    const oep::installer::IsInstalledResult existing = registry_->is_installed(manifest.package_id);
+    if (!existing.success) {
+        result.success = false;
+        result.error = "could not check the Repository Registry: " + existing.error;
+        return result;
+    }
+    result.already_registered = existing.installed;
+
+    // TRUST then DEPENDENCY, in that order (WP-REP-008 requirement #3:
+    // Trust-before-Dependency-before-Merge), reusing both subsystems
+    // exactly as install_package/update_package already do.
+    const oep::installer::TrustVerification trust = oep::installer::verify_package_trust(archive_path, *trust_store_);
+    if (!trust.success) {
+        result.success = false;
+        result.error = "could not verify package trust: " + trust.error;
+        return result;
+    }
+    result.trust_status = oep::installer::to_string(trust.state);
+    result.trust_blocks =
+        trust.state != oep::installer::TrustState::Trusted && trust.state != oep::installer::TrustState::Unsigned;
+    if (!result.trust_blocks && trust.state == oep::installer::TrustState::Unsigned) {
+        const oep::installer::TrustPolicyResult policy = trust_store_->get_policy();
+        if (policy.success && policy.require_signatures) {
+            result.trust_blocks = true;
+        }
+    }
+
+    const std::vector<oep::installer::InstalledPackageSnapshot> installed_snapshot = installed_snapshot_for_resolver();
+    result.dependency_report = oep::installer::resolve_dependencies(manifest.package_id, manifest.version,
+                                                                      manifest.dependencies, installed_snapshot);
+    result.dependency_blocks = result.dependency_report.result != oep::installer::DependencyResolutionResult::Resolved;
+
+    // MERGE PLANNING (WP-REP-008 requirement #6: side-effect-free) —
+    // computed regardless of the trust/dependency verdicts above, so a
+    // caller inspecting a blocked plan can still see exactly what would
+    // have changed.
+    const oep::repository::ListObjectsResult target_objects = objects_->list_all();
+    const oep::repository::ListRelationshipsResult target_relationships = relationships_->list_all();
+    result.plan = oep::installer::plan_merge(manifest.package_id + "@" + manifest.version, extracted.package.objects,
+                                              extracted.package.relationships,
+                                              target_objects.success ? target_objects.objects
+                                                                      : std::vector<oep::repository::EngineeringObject>{},
+                                              target_relationships.success
+                                                  ? target_relationships.relationships
+                                                  : std::vector<oep::repository::Relationship>{});
+
+    result.mergeable = !result.trust_blocks && !result.dependency_blocks && !result.already_registered &&
+                        result.plan.mergeable();
+    return result;
+}
+
+RuntimeMergeResult FoundationRuntime::execute_merge(const std::filesystem::path& archive_path) {
+    if (state_ != RuntimeState::RepositoryOpen) {
+        return {false, "cannot execute a merge: no repository is currently open", "", "", 0, 0, ""};
+    }
+    if (transaction_active_) {
+        return {false, "cannot execute a merge while a transaction is already active", "", "", 0, 0, ""};
+    }
+
+    const RuntimeMergePlanResult plan_result = plan_merge(archive_path);
+    if (!plan_result.success) {
+        return {false, plan_result.error, plan_result.package_id, plan_result.version, 0, 0, ""};
+    }
+    if (plan_result.already_registered) {
+        return {false, "package '" + plan_result.package_id + "' is already registered; merge does not replace an installed package (use update_package)",
+                plan_result.package_id, plan_result.version, 0, 0, plan_result.trust_status};
+    }
+    if (plan_result.trust_blocks) {
+        return {false, "package trust verification failed (" + plan_result.trust_status + ")", plan_result.package_id,
+                plan_result.version, 0, 0, plan_result.trust_status};
+    }
+    if (plan_result.dependency_blocks) {
+        std::string detail;
+        for (std::size_t i = 0; i < plan_result.dependency_report.errors.size(); ++i) {
+            detail += plan_result.dependency_report.errors[i];
+            if (i + 1 != plan_result.dependency_report.errors.size()) detail += "; ";
+        }
+        return {false, "dependency resolution failed for '" + plan_result.package_id + "': " + detail,
+                plan_result.package_id, plan_result.version, 0, 0, plan_result.trust_status};
+    }
+    if (!plan_result.plan.mergeable()) {
+        std::string detail;
+        for (std::size_t i = 0; i < plan_result.plan.conflicts.size(); ++i) {
+            const oep::installer::MergeConflict& conflict = plan_result.plan.conflicts[i];
+            detail += oep::installer::to_string(conflict.kind) + " on '" + conflict.entity_id + "': " + conflict.detail;
+            if (i + 1 != plan_result.plan.conflicts.size()) detail += "; ";
+        }
+        return {false, "merge has unresolved conflicts: " + detail, plan_result.package_id, plan_result.version, 0, 0,
+                plan_result.trust_status};
+    }
+
+    // ATOMIC (WP-REP-003, reused unchanged): apply the whole change set
+    // inside ONE Repository Transaction (requirement #2: never mutate
+    // state outside a Transaction).
+    open_transaction_internal("merge " + plan_result.package_id);
+
+    std::vector<std::string> object_ids;
+    std::vector<std::string> relationship_ids;
+
+    for (const oep::installer::ObjectChange& change : plan_result.plan.change_set.object_changes()) {
+        const oep::repository::LoadObjectResult created = objects_->create(change.object());
+        if (!created.success) {
+            rollback_transaction_internal();
+            return {false,
+                    "failed to create Engineering Object '" + change.object().name + "' during merge: " + created.error +
+                        " — the merge was rolled back; nothing was merged",
+                    plan_result.package_id, plan_result.version, 0, 0, plan_result.trust_status};
+        }
+        TransactionLogEntry entry;
+        entry.kind = TransactionLogEntry::Kind::ObjectCreated;
+        entry.object_snapshot = created.object;
+        transaction_log_.push_back(std::move(entry));
+        journal_operation("ObjectCreated", created.object.object_id, "absent", "present:" + created.object.name);
+        object_ids.push_back(created.object.object_id);
+    }
+
+    for (const oep::installer::RelationshipChange& change : plan_result.plan.change_set.relationship_changes()) {
+        const oep::repository::LoadRelationshipResult created = relationships_->create(change.relationship());
+        if (!created.success) {
+            rollback_transaction_internal();
+            return {false, "failed to create Relationship during merge: " + created.error +
+                               " — the merge was rolled back; nothing was merged",
+                    plan_result.package_id, plan_result.version, 0, 0, plan_result.trust_status};
+        }
+        TransactionLogEntry entry;
+        entry.kind = TransactionLogEntry::Kind::RelationshipCreated;
+        entry.relationship_snapshot = created.relationship;
+        transaction_log_.push_back(std::move(entry));
+        journal_operation("RelationshipCreated", created.relationship.relationship_id, "absent",
+                           "present:" + oep::repository::to_string(created.relationship.relationship_type));
+        relationship_ids.push_back(created.relationship.relationship_id);
+    }
+
+    const oep::installer::ExtractPackageResult extracted = oep::installer::extract_package(archive_path);
+    const oep::installer::OepPackageManifest& manifest = extracted.package.manifest;
+
+    oep::installer::RepositoryRegistryEntry record;
+    record.package_id = manifest.package_id;
+    record.version = manifest.version;
+    record.title = manifest.title;
+    record.summary = manifest.summary;
+    record.category = manifest.category;
+    record.schema_version = manifest.schema_version;
+    record.engineering_domains = manifest.engineering_domains;
+    record.publisher_id = manifest.publisher_id;
+    record.publisher_name = manifest.publisher_name;
+    record.installed_utc = oep::repository::current_timestamp_utc();
+    record.source = "merge";
+    record.runtime_state = "Installed";
+    record.trust_status = plan_result.trust_status;
+    record.dependencies = manifest.dependencies;
+    // Ownership/provenance (requirement #5): only the entities THIS
+    // merge actually created are recorded as this package's own —
+    // objects/relationships that already existed with identical content
+    // (a benign no-op, see plan_merge) remain owned by whichever
+    // package (or manual creation) originally contributed them.
+    record.object_ids = object_ids;
+    record.relationship_ids = relationship_ids;
+
+    std::error_code absolute_error;
+    const std::filesystem::path absolute_archive = std::filesystem::absolute(archive_path, absolute_error);
+    record.installation_path = absolute_error ? archive_path.string() : absolute_archive.string();
+    const std::optional<std::string> hash = oep::installer::sha256_hex_file(archive_path);
+    record.package_hash = hash.has_value() ? *hash : "";
+
+    const oep::installer::RegistryResult recorded = registry_->record_install(record);
+    if (!recorded.success) {
+        rollback_transaction_internal();
+        return {false,
+                "recording the merge in the Repository Registry failed: " + recorded.error +
+                    " — the merge was rolled back; nothing was merged",
+                plan_result.package_id, plan_result.version, 0, 0, plan_result.trust_status};
+    }
+    journal_operation("PackageRecorded", manifest.package_id, "absent", "merged:" + manifest.version);
+
+    commit_transaction_internal();
+
+    search_->build_index(*objects_, *relationships_);
+    graph_->build_graph(*objects_, *relationships_);
+
+    return {true,
+            "",
+            plan_result.package_id,
+            plan_result.version,
+            static_cast<int>(object_ids.size()),
+            static_cast<int>(relationship_ids.size()),
+            plan_result.trust_status};
+}
+
+std::vector<oep::installer::InstalledPackageSnapshot> FoundationRuntime::installed_snapshot_for_resolver() const {
+    std::vector<oep::installer::InstalledPackageSnapshot> snapshot;
+    const oep::installer::ListInstalledResult listed = registry_->list_installed();
+    if (!listed.success) {
+        return snapshot;
+    }
+    snapshot.reserve(listed.packages.size());
+    for (const oep::installer::RepositoryRegistryEntry& entry : listed.packages) {
+        oep::installer::InstalledPackageSnapshot package;
+        package.package_id = entry.package_id;
+        package.version = entry.version;
+        package.dependencies = entry.dependencies;
+        snapshot.push_back(std::move(package));
+    }
+    return snapshot;
+}
+
+RuntimeDependencyResolutionResult FoundationRuntime::resolve_package_dependencies(
+    const std::filesystem::path& archive_path) const {
+    if (state_ != RuntimeState::RepositoryOpen) {
+        return {false, "cannot resolve dependencies: no repository is currently open", {}};
+    }
+
+    const oep::installer::ExtractPackageResult extracted = oep::installer::extract_package(archive_path);
+    if (!extracted.success) {
+        return {false, "could not extract package: " + extracted.error, {}};
+    }
+    const oep::installer::OepPackageManifest& manifest = extracted.package.manifest;
+
+    const oep::installer::DependencyResolutionReport report = oep::installer::resolve_dependencies(
+        manifest.package_id, manifest.version, manifest.dependencies, installed_snapshot_for_resolver());
+    return {true, "", report};
 }
 
 RuntimeInstalledPackageResult FoundationRuntime::get_installed_package(const std::string& package_id) const {
@@ -830,6 +1564,47 @@ RuntimeObjectMutationResult FoundationRuntime::update_object(const std::string& 
     entry.object_snapshot = existing.object; // pre-update record, for undo
     transaction_log_.push_back(std::move(entry));
     journal_operation("ObjectUpdated", object_id, "present:" + existing.object.name, "present:" + updated.name);
+
+    if (implicit_transaction) {
+        commit_transaction_internal();
+    }
+
+    const oep::repository::LoadObjectResult reloaded = objects_->load(object_id);
+    return {true, "", reloaded.success ? reloaded.object : updated};
+}
+
+RuntimeObjectMutationResult FoundationRuntime::update_object_content(const std::string& object_id,
+                                                                      const std::string& content) {
+    if (state_ != RuntimeState::RepositoryOpen) {
+        return {false, "no repository is currently open", {}};
+    }
+
+    const bool implicit_transaction = !transaction_active_;
+    if (implicit_transaction) {
+        open_transaction_internal("object content update");
+    }
+
+    const oep::repository::LoadObjectResult existing = objects_->load(object_id);
+    if (!existing.success) {
+        rollback_transaction_internal();
+        return {false, existing.error, {}};
+    }
+
+    oep::repository::EngineeringObject updated = existing.object;
+    updated.content = content;
+
+    const oep::repository::ObjectResult result = objects_->update(updated);
+    if (!result.success) {
+        rollback_transaction_internal();
+        return {false, result.error, {}};
+    }
+
+    TransactionLogEntry entry;
+    entry.kind = TransactionLogEntry::Kind::ObjectUpdated;
+    entry.object_snapshot = existing.object; // pre-update record (incl. prior content), for undo
+    transaction_log_.push_back(std::move(entry));
+    journal_operation("ObjectUpdated", object_id, "content-length:" + std::to_string(existing.object.content.size()),
+                       "content-length:" + std::to_string(content.size()));
 
     if (implicit_transaction) {
         commit_transaction_internal();

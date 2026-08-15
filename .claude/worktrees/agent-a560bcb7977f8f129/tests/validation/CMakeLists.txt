@@ -1,0 +1,3 @@
+add_executable(oep_repository_validator_tests repository_validator_tests.cpp)
+target_link_libraries(oep_repository_validator_tests PRIVATE oep_validation oep_repository)
+add_test(NAME oep_repository_validator_tests COMMAND oep_repository_validator_tests)

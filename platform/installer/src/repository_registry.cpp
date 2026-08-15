@@ -22,6 +22,18 @@ json::Value string_array_to_json(const std::vector<std::string>& values) {
     return json::Value::array(std::move(array));
 }
 
+json::Value dependencies_to_json(const std::vector<DependencyDeclaration>& dependencies) {
+    json::Array array;
+    for (const DependencyDeclaration& dependency : dependencies) {
+        json::Object fields;
+        fields.emplace_back("packageId", json::Value::string(dependency.package_id));
+        fields.emplace_back("version", json::Value::string(dependency.version_constraint));
+        fields.emplace_back("optional", json::Value::boolean(dependency.optional));
+        array.push_back(json::Value::object(std::move(fields)));
+    }
+    return json::Value::array(std::move(array));
+}
+
 json::Value to_json(const RepositoryRegistryEntry& entry) {
     json::Object fields;
     fields.emplace_back("packageId", json::Value::string(entry.package_id));
@@ -40,6 +52,7 @@ json::Value to_json(const RepositoryRegistryEntry& entry) {
     fields.emplace_back("runtimeState", json::Value::string(entry.runtime_state));
     fields.emplace_back("trustStatus", json::Value::string(entry.trust_status));
     fields.emplace_back("trustFingerprint", json::Value::string(entry.trust_fingerprint));
+    fields.emplace_back("dependencies", dependencies_to_json(entry.dependencies));
     fields.emplace_back("objectIds", string_array_to_json(entry.object_ids));
     fields.emplace_back("relationshipIds", string_array_to_json(entry.relationship_ids));
     return json::Value::object(std::move(fields));
@@ -59,6 +72,32 @@ std::vector<std::string> read_string_array_field(const json::Value& value, const
     for (const json::Value& entry : found->as_array()) {
         if (entry.is_string()) {
             result.push_back(entry.as_string());
+        }
+    }
+    return result;
+}
+
+bool read_bool_field(const json::Value& value, const char* key) {
+    const json::Value* found = value.find(key);
+    return found != nullptr && found->is_bool() && found->as_bool();
+}
+
+std::vector<DependencyDeclaration> read_dependencies_field(const json::Value& value) {
+    std::vector<DependencyDeclaration> result;
+    const json::Value* found = value.find("dependencies");
+    if (found == nullptr || !found->is_array()) {
+        return result;
+    }
+    for (const json::Value& entry : found->as_array()) {
+        if (!entry.is_object()) {
+            continue;
+        }
+        DependencyDeclaration dependency;
+        dependency.package_id = read_string_field(entry, "packageId");
+        dependency.version_constraint = read_string_field(entry, "version");
+        dependency.optional = read_bool_field(entry, "optional");
+        if (!dependency.package_id.empty()) {
+            result.push_back(std::move(dependency));
         }
     }
     return result;
@@ -103,6 +142,7 @@ ParsedRecord read_registry_file(const std::filesystem::path& path) {
     entry.runtime_state = read_string_field(parsed.value, "runtimeState");
     entry.trust_status = read_string_field(parsed.value, "trustStatus");
     entry.trust_fingerprint = read_string_field(parsed.value, "trustFingerprint");
+    entry.dependencies = read_dependencies_field(parsed.value);
     entry.object_ids = read_string_array_field(parsed.value, "objectIds");
     entry.relationship_ids = read_string_array_field(parsed.value, "relationshipIds");
     return {true, "", entry};
@@ -176,6 +216,28 @@ RegistryResult RepositoryRegistry::record_install(const RepositoryRegistryEntry&
         std::filesystem::remove(temp_path, error_code);
         return {false, "could not finalize '" + path.string() + "': " + error_code.message()};
     }
+
+    return {true, ""};
+}
+
+RegistryResult RepositoryRegistry::remove_record(const std::string& package_id) const {
+    const std::filesystem::path path = path_for(package_id);
+
+    std::error_code error_code;
+    if (!std::filesystem::exists(path, error_code)) {
+        return {false, "package '" + package_id + "' has no Repository Registry record"};
+    }
+
+    std::filesystem::remove(path, error_code);
+    if (error_code) {
+        return {false, "could not remove '" + path.string() + "': " + error_code.message()};
+    }
+    // Best-effort: remove the now-empty <packages_root>/<packageId>/
+    // directory too. Not an error if it fails or isn't empty (it
+    // shouldn't be anything else, but a stray file left by a future
+    // Work Package should never turn a successful uninstall into a
+    // reported failure).
+    std::filesystem::remove(path.parent_path(), error_code);
 
     return {true, ""};
 }

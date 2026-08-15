@@ -8,9 +8,12 @@
 #include "oep/archive/export_manifest.hpp"
 #include "oep/archive/repository_template.hpp"
 #include "oep/archive/template_manifest.hpp"
+#include "oep/installer/dependency_resolver.hpp"
+#include "oep/installer/merge_engine.hpp"
 #include "oep/installer/package_verifier.hpp"
 #include "oep/installer/repository_registry.hpp"
 #include "oep/installer/trust_store.hpp"
+#include "oep/installer/version_constraint.hpp"
 #include "oep/runtime/transaction_journal.hpp"
 #include "oep/packages/package_manager.hpp"
 #include "oep/repository/audit_store.hpp"
@@ -287,6 +290,123 @@ struct RuntimeTrustPolicyResult {
     bool require_signatures = false;
 };
 
+// Dependency Resolution (WP-REP-005, PKG-004). `success` is the
+// operational outcome of the CALL itself (false only if the archive
+// couldn't be read/parsed, or no repository is open) -- distinct from
+// `report.result`, which is the DRE's own Resolved/Failed verdict.
+// Calling this never modifies the repository (PKG-004 §2 "side-effect
+// free"): it is a pure read against the currently installed set.
+struct RuntimeDependencyResolutionResult {
+    bool success = false;
+    std::string error;
+    oep::installer::DependencyResolutionReport report;
+};
+
+// Uninstall Impact Analysis (WP-REP-007): the dry-run report
+// analyze_uninstall_impact produces. `removable` is true iff `found` and
+// `blocking_dependents` is empty -- uninstall_package refuses to touch
+// the repository unless removable is true, exactly mirroring how
+// install_package refuses to open a transaction unless dependency
+// resolution succeeds (this Work Package's "Trust-before-Dependency-
+// before-Transaction" ordering, applied to the uninstall lifecycle: here
+// impact analysis plays the role dependency resolution played for
+// install).
+struct RuntimeUninstallImpactResult {
+    bool success = false;
+    std::string error;
+    bool found = false;
+    int objects_affected = 0;
+    int relationships_affected = 0;
+    // package_ids of OTHER installed packages with a REQUIRED (non-
+    // optional) dependency on the package being analyzed. Non-empty
+    // means uninstalling would leave a dependent's required dependency
+    // unsatisfied -- PKG-004 territory, reused here rather than
+    // reimplemented (see find_required_dependents in the .cpp).
+    std::vector<std::string> blocking_dependents;
+    bool removable = false;
+};
+
+struct RuntimeUninstallResult {
+    bool success = false;
+    std::string error;
+    std::string package_id;
+    int objects_removed = 0;
+    int relationships_removed = 0;
+};
+
+// Update Impact Analysis (WP-REP-007): the dry-run report
+// analyze_update_impact produces for replacing an installed package with
+// a new version from `archive_path`. Reuses Trust verification and the
+// Dependency Resolution Engine exactly as install_package does (against
+// the installed set with the CURRENT version of this same package
+// excluded, since it is what's being replaced), plus one thing neither
+// of those checks on their own: whether any OTHER installed package's
+// existing REQUIRED dependency constraint on this package would become
+// unsatisfied by the candidate version (`broken_dependents`).
+struct RuntimeUpdateImpactResult {
+    bool success = false;
+    std::string error;
+    bool currently_installed = false;
+    std::string current_version;
+    std::string candidate_version;
+    std::string trust_status;
+    oep::installer::DependencyResolutionReport dependency_report;
+    std::vector<std::string> broken_dependents;
+    // true iff currently_installed, trust does not block install,
+    // dependency_report.result == Resolved, and broken_dependents is
+    // empty.
+    bool updatable = false;
+};
+
+struct RuntimeUpdateResult {
+    bool success = false;
+    std::string error;
+    std::string package_id;
+    std::string previous_version;
+    std::string new_version;
+    int objects_removed = 0;
+    int relationships_removed = 0;
+    int objects_created = 0;
+    int relationships_created = 0;
+    std::string trust_status;
+};
+
+// Merge Engine (WP-REP-008). plan_merge is side-effect-free
+// (requirement #6): it extracts `archive_path`, runs Trust verification
+// then Dependency Resolution against the CURRENTLY installed set —
+// exactly install_package's ordering, reused unchanged — and, only if
+// neither blocks it, plans the object/relationship diff via
+// oep::installer::plan_merge. `mergeable` is true iff trust does not
+// block, dependency resolution is Resolved, and the resulting
+// MergePlan.conflicts is empty. Unlike install_package, a package
+// already partially or fully present with IDENTICAL content is not an
+// error -- merge is idempotent; only a REGISTRY entry already existing
+// for this package_id is disallowed (merge is not update -- see
+// execute_merge).
+struct RuntimeMergePlanResult {
+    bool success = false;
+    std::string error;
+    std::string package_id;
+    std::string version;
+    std::string trust_status;
+    bool trust_blocks = false;
+    oep::installer::DependencyResolutionReport dependency_report;
+    bool dependency_blocks = false;
+    bool already_registered = false;
+    oep::installer::MergePlan plan;
+    bool mergeable = false;
+};
+
+struct RuntimeMergeResult {
+    bool success = false;
+    std::string error;
+    std::string package_id;
+    std::string version;
+    int objects_created = 0;
+    int relationships_created = 0;
+    std::string trust_status;
+};
+
 // The single entry point through which applications interact with
 // Foundation. FoundationRuntime coordinates the Repository, Search,
 // Validation, and Package Manager subsystems; it never reimplements
@@ -412,6 +532,17 @@ public:
     RuntimeObjectMutationResult update_object(const std::string& object_id, const std::string& name,
                                                const std::string& description, const std::string& author,
                                                const std::vector<std::string>& tags);
+
+    // Replaces only `content` on the object identified by `object_id`;
+    // every other field (name, description, author, tags, object_type,
+    // created_utc) is preserved from the stored object, unlike
+    // update_object above, which always replaces the full editable field
+    // set. A dedicated method rather than an optional parameter on
+    // update_object because callers that only need to persist content
+    // (e.g. Diagram Studio saving layout/viewport state on every editing
+    // command) would otherwise have to re-supply name/description/author/
+    // tags on every call just to leave them unchanged (AP-DS-002).
+    RuntimeObjectMutationResult update_object_content(const std::string& object_id, const std::string& content);
 
     RuntimeResult delete_object(const std::string& object_id);
 
@@ -557,11 +688,123 @@ public:
     // WP-REP-001–003's default unsigned-install behavior. On success or
     // a trust failure, RuntimeInstallResult::trust_status names the
     // resolved TrustState.
+    //
+    // DEPENDENCY-RESOLVED since WP-REP-005 (Dependency Resolution
+    // Engine): immediately after trust verification succeeds and still
+    // BEFORE any Repository Transaction begins, the manifest's declared
+    // dependencies are resolved (oep::installer::resolve_dependencies)
+    // against the currently installed set. A Failed resolution (a
+    // missing required dependency, an unsatisfied version constraint, or
+    // a circular dependency, per PKG-004 §6/§10) rejects the install
+    // outright — nothing is extracted, no transaction is ever opened.
+    // The DRE never downloads or acquires anything (PKG-004 §17); a
+    // missing dependency is reported, never fetched. See
+    // resolve_package_dependencies() below for the same resolution as a
+    // standalone, side-effect-free query.
     RuntimeInstallResult install_package(const std::filesystem::path& archive_path);
 
     // Lists every package the Repository Registry has recorded as
     // installed.
     RuntimeInstalledPackagesResult list_installed_packages() const;
+
+    // ---------------------------------------------------------------
+    // Package Uninstall (WP-REP-007)
+    // ---------------------------------------------------------------
+    //
+    // Removes every Engineering Object/Relationship `package_id`
+    // contributed at install time, then its Repository Registry record.
+    // ATOMIC: the whole uninstall runs inside one Repository Transaction
+    // (reusing the Transaction Engine exactly as install_package does),
+    // so a failure partway through rolls back every delete already
+    // performed. Fails outright (removes nothing, opens no transaction)
+    // if the package is not installed, or if any OTHER installed
+    // package has a REQUIRED dependency on it (see
+    // analyze_uninstall_impact) -- this Work Package does not implement
+    // a --force override; that remains for a future work package
+    // alongside ownership policies. Fails with "a transaction is
+    // already active" if called inside an explicit caller transaction,
+    // matching install_package's own no-nesting rule.
+
+    // Read-only, side-effect-free pre-flight check (PKG-004 §2's
+    // "side-effect free" applied to uninstall): reports what
+    // uninstall_package WOULD do, without doing it. Requires an open
+    // repository. Fails (success == false) only for an operational
+    // problem (no repository open, unreadable registry); a package that
+    // cannot be safely uninstalled still returns success == true, with
+    // `removable == false` and `blocking_dependents` populated.
+    RuntimeUninstallImpactResult analyze_uninstall_impact(const std::string& package_id) const;
+
+    RuntimeUninstallResult uninstall_package(const std::string& package_id);
+
+    // ---------------------------------------------------------------
+    // Package Update (WP-REP-007)
+    // ---------------------------------------------------------------
+    //
+    // Replaces the currently-installed version of `archive_path`'s
+    // package with the version `archive_path` declares, as ONE atomic
+    // Repository Transaction (reusing the Transaction Engine): removes
+    // the old version's contributed Objects/Relationships and Registry
+    // record, then installs the new version exactly as install_package
+    // would, all inside a single transaction so a failure at any point
+    // rolls back the ENTIRE update (the repository is never left with
+    // neither version, nor both). TRUST-VERIFIED and
+    // DEPENDENCY-RESOLVED before the transaction opens, in that order,
+    // exactly like install_package -- and additionally refuses to
+    // proceed if any OTHER installed package's required dependency on
+    // this package would become unsatisfied by the candidate version
+    // (see analyze_update_impact). Fails outright if the package is not
+    // currently installed (this is not install_package -- there is
+    // nothing to replace) or if a transaction is already active.
+
+    // Read-only, side-effect-free pre-flight check: reports what
+    // update_package WOULD do, without doing it. Requires an open
+    // repository. Fails (success == false) only if the archive itself
+    // could not be read/parsed, or no repository is open.
+    RuntimeUpdateImpactResult analyze_update_impact(const std::filesystem::path& archive_path) const;
+
+    RuntimeUpdateResult update_package(const std::filesystem::path& archive_path);
+
+    // ---------------------------------------------------------------
+    // Merge Engine (WP-REP-008)
+    // ---------------------------------------------------------------
+    //
+    // Merges `archive_path`'s Repository Fragment (objects/relationships)
+    // into the currently open repository via the canonical
+    // RepositoryChangeSet (oep::installer::RepositoryChangeSet),
+    // generalizing install_package: rather than assuming the content is
+    // entirely new and failing hard on the first collision,
+    // execute_merge first PLANS (see plan_merge) a conflict-free subset,
+    // then applies it -- ONE Repository Transaction, reusing the
+    // Transaction Engine exactly as install/uninstall/update do. Refuses
+    // outright (opens no transaction) if the plan is not mergeable
+    // (blocked by trust, by dependency resolution, or by any detected
+    // conflict) or if the package_id is already recorded in the
+    // Repository Registry (merge is not update -- see update_package for
+    // replacing an installed package's version).
+
+    // Read-only, side-effect-free (WP-REP-008 requirement #6). Requires
+    // an open repository. Fails (success == false) only for an
+    // operational problem (archive unreadable, no repository open); a
+    // plan that is not mergeable on its own merits (trust/dependency/
+    // conflicts) still returns success == true with `mergeable == false`.
+    RuntimeMergePlanResult plan_merge(const std::filesystem::path& archive_path) const;
+
+    RuntimeMergeResult execute_merge(const std::filesystem::path& archive_path);
+
+    // ---------------------------------------------------------------
+    // Dependency Resolution (WP-REP-005)
+    // ---------------------------------------------------------------
+    //
+    // Resolves `archive_path`'s manifest dependencies against the
+    // currently installed set WITHOUT installing anything — a pure,
+    // read-only, side-effect-free query (PKG-004 §2), usable as a
+    // pre-flight check before install_package, or purely for
+    // inspection/diagnostics (`oep package resolve`). Requires an open
+    // repository. Fails (success == false) only if the archive itself
+    // could not be read or its manifest is invalid; a resolution that
+    // fails on its own merits (missing/conflicting/cyclic) still
+    // returns success == true, with the verdict in `report.result`.
+    RuntimeDependencyResolutionResult resolve_package_dependencies(const std::filesystem::path& archive_path) const;
 
     // ---------------------------------------------------------------
     // Package Lifecycle Queries (WP-REP-002 §5/§6)
@@ -689,6 +932,25 @@ private:
     // or implicit — this guard is belt-and-braces).
     void journal_operation(const std::string& operation, const std::string& target_id,
                             const std::string& previous_state, const std::string& new_state);
+
+    // Adapts the Repository Registry's currently installed packages into
+    // the shape the Dependency Resolution Engine consumes (WP-REP-005).
+    // Requires a repository to be open.
+    std::vector<oep::installer::InstalledPackageSnapshot> installed_snapshot_for_resolver() const;
+
+    // Every OTHER installed package (package_id != exclude_package_id)
+    // that declares a REQUIRED (non-optional) dependency on
+    // `target_package_id`. When `candidate_version` is non-empty, a
+    // dependent is only included if its version_constraint would NOT be
+    // satisfied by `candidate_version` (WP-REP-007's update-impact
+    // check); when empty, EVERY required dependent is included
+    // regardless of constraint (WP-REP-007's uninstall-impact check,
+    // where there is no replacement version to satisfy anything).
+    // Reuses oep::installer::version_satisfies rather than reimplementing
+    // constraint matching.
+    std::vector<std::string> find_required_dependents(const std::string& target_package_id,
+                                                        const std::string& exclude_package_id,
+                                                        const std::string& candidate_version) const;
 };
 
 } // namespace oep::runtime

@@ -1,0 +1,14 @@
+{
+  "packageId": "com.oep.demo.engineering-showcase",
+  "version": "1.0.0",
+  "title": "Engineering Demo Package",
+  "installedUtc": "2026-07-19T23:14:40.524Z",
+  "source": "local",
+  "objectIds": [
+    "983c83c1-6a74-4b46-9bff-3e876e756697",
+    "f8c97088-71d9-4f34-969f-b5d49d951627"
+  ],
+  "relationshipIds": [
+    "245a4e20-a08d-4e0a-ab91-f350646784d1"
+  ]
+}

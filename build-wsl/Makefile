@@ -543,6 +543,32 @@ oep_package_installer_tests/fast:
 .PHONY : oep_package_installer_tests/fast
 
 #=============================================================================
+# Target rules for targets named oep_version_constraint_tests
+
+# Build rule for target.
+oep_version_constraint_tests: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 oep_version_constraint_tests
+.PHONY : oep_version_constraint_tests
+
+# fast build rule for target.
+oep_version_constraint_tests/fast:
+	$(MAKE) $(MAKESILENT) -f tests/installer/CMakeFiles/oep_version_constraint_tests.dir/build.make tests/installer/CMakeFiles/oep_version_constraint_tests.dir/build
+.PHONY : oep_version_constraint_tests/fast
+
+#=============================================================================
+# Target rules for targets named oep_dependency_resolver_tests
+
+# Build rule for target.
+oep_dependency_resolver_tests: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 oep_dependency_resolver_tests
+.PHONY : oep_dependency_resolver_tests
+
+# fast build rule for target.
+oep_dependency_resolver_tests/fast:
+	$(MAKE) $(MAKESILENT) -f tests/installer/CMakeFiles/oep_dependency_resolver_tests.dir/build.make tests/installer/CMakeFiles/oep_dependency_resolver_tests.dir/build
+.PHONY : oep_dependency_resolver_tests/fast
+
+#=============================================================================
 # Target rules for targets named oep_foundation_runtime_tests
 
 # Build rule for target.
@@ -593,6 +619,19 @@ oep_trust_integration_tests: cmake_check_build_system
 oep_trust_integration_tests/fast:
 	$(MAKE) $(MAKESILENT) -f tests/runtime/CMakeFiles/oep_trust_integration_tests.dir/build.make tests/runtime/CMakeFiles/oep_trust_integration_tests.dir/build
 .PHONY : oep_trust_integration_tests/fast
+
+#=============================================================================
+# Target rules for targets named oep_dependency_resolution_integration_tests
+
+# Build rule for target.
+oep_dependency_resolution_integration_tests: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 oep_dependency_resolution_integration_tests
+.PHONY : oep_dependency_resolution_integration_tests
+
+# fast build rule for target.
+oep_dependency_resolution_integration_tests/fast:
+	$(MAKE) $(MAKESILENT) -f tests/runtime/CMakeFiles/oep_dependency_resolution_integration_tests.dir/build.make tests/runtime/CMakeFiles/oep_dependency_resolution_integration_tests.dir/build
+.PHONY : oep_dependency_resolution_integration_tests/fast
 
 #=============================================================================
 # Target rules for targets named oep_api_tests
@@ -782,6 +821,8 @@ help:
 	@echo "... oep_capi_manual_test"
 	@echo "... oep_cli_commands_tests"
 	@echo "... oep_cli_core"
+	@echo "... oep_dependency_resolution_integration_tests"
+	@echo "... oep_dependency_resolver_tests"
 	@echo "... oep_ed25519_tests"
 	@echo "... oep_engineering_object_tests"
 	@echo "... oep_export_command_tests"
@@ -820,6 +861,7 @@ help:
 	@echo "... oep_trust_integration_tests"
 	@echo "... oep_trust_store_tests"
 	@echo "... oep_validation"
+	@echo "... oep_version_constraint_tests"
 	@echo "... oep_zip_reader_tests"
 .PHONY : help
 

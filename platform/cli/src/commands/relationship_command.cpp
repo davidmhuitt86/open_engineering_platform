@@ -7,6 +7,7 @@
 #include "oep/runtime/foundation_runtime.hpp"
 #include "foundation_version.hpp"
 #include "repository_path_option.hpp"
+#include "runtime_event_log.hpp"
 
 namespace oep::cli::commands {
 
@@ -101,6 +102,9 @@ int RelationshipCommand::create(const std::vector<std::string>& args) const {
         runtime.shutdown();
         return 1;
     }
+
+    global_event_bus().publish(oep::runtime::EventType::RelationshipCreated, created.relationship.relationship_id,
+                                created.relationship.source_object_id + " -> " + created.relationship.target_object_id);
 
     std::cout << "Created relationship '" << created.relationship.relationship_id << "' ("
                << oep::repository::to_string(created.relationship.relationship_type) << ") '"
@@ -222,6 +226,8 @@ int RelationshipCommand::remove(const std::vector<std::string>& args) const {
         runtime.shutdown();
         return 1;
     }
+
+    global_event_bus().publish(oep::runtime::EventType::RelationshipDeleted, relationship_id, "");
 
     std::cout << "Deleted relationship '" << relationship_id << "'\n";
 

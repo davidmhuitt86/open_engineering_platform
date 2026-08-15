@@ -5,6 +5,21 @@
 
 namespace oep::installer {
 
+// One entry of a manifest's `dependencies` array (PKG-002 §5, PKG-004 §7):
+// a required-or-optional dependency on another package, by Package ID and
+// a version constraint (PKG-004 §8). Deliberately package-ID dependencies
+// only — PKG-004 §7's "Virtual Capability" dependencies (targeting a
+// capability rather than a specific package) require a Capability
+// primitive/registry that does not exist anywhere in this codebase
+// (CLAUDE.md's Five Primitive Rule: "No additional primitive types shall
+// be introduced without explicit architectural approval") and are
+// therefore out of WP-REP-005's scope, not an oversight.
+struct DependencyDeclaration {
+    std::string package_id;
+    std::string version_constraint; // e.g. ">=1.0.0", "^2.1", "1.0.0"; empty = any version
+    bool optional = false;
+};
+
 // The Exchange marketplace's Package Manifest (PKG-002), read from
 // `manifest/package.json` inside a `.oep` archive. Distinct from
 // oep::packages::PackageManifest (OEP-SPEC-010's local, UUIDv4-identified
@@ -29,6 +44,8 @@ struct OepPackageManifest {
     // the Repository Registry's "Manifest Metadata" field and package
     // search (WP-REP-002.md §8, "search by ... Engineering Domain").
     std::vector<std::string> engineering_domains;
+    // dependencies (PKG-002 §5, WP-REP-005) — see DependencyDeclaration.
+    std::vector<DependencyDeclaration> dependencies;
 };
 
 struct ParseManifestResult {

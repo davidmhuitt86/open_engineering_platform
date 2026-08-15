@@ -10,15 +10,129 @@
 #include <vector>
 
 #include "oep/api/oep_api.h"
+#include "oep/engine/analysis_engine.hpp"
+#include "oep/engine/engineering_context.hpp"
+#include "oep/engine/engineering_intelligence_platform.hpp"
+#include "oep/engine/engineering_query_engine.hpp"
+#include "oep/engine/knowledge_graph_engine.hpp"
+#include "oep/engine/reasoning_engine.hpp"
+#include "oep/engine/rules_engine.hpp"
+#include "oep/engine/validation_engine.hpp"
 #include "oep/runtime/foundation_runtime.hpp"
+#include "oep/runtime/repository_events.hpp"
+#include "oep/runtime/runtime_context.hpp"
+#include "oep/runtime/runtime_service.hpp"
 
 // The concrete type behind the opaque OEP_Runtime handle. Applications
 // only ever see a pointer to this type as `struct oep_runtime_impl*`;
 // its layout is never part of the ABI contract.
+//
+// WP-REP-006 adds `events` and `service` alongside the existing
+// `runtime` member. `service` is a thin orchestration layer over
+// `runtime` (RuntimeService — see runtime_service.hpp); it owns no
+// business logic of its own. API functions are migrated to call
+// through `service` incrementally, starting with
+// oep_package_install; every other function continues to call
+// `runtime` directly, exactly as before this work package, and remains
+// fully functional (WP-REP-006 requirement #11: "Existing APIs remain
+// functional but become thin wrappers" describes an incremental
+// migration, not a one-shot rewrite of every function).
+// WP-EKE-001 adds `engine_context`, constructed from `service` (never
+// from `runtime` directly) -- the Engineering Knowledge Runtime's
+// EngineeringContext consumes Foundation EXCLUSIVELY through
+// RuntimeService, matching WP-REP-007/WP-REP-008's established pattern
+// for newer capabilities. `engine_context` holds this handle's Object
+// Loader cache and Runtime Graph; both persist for the handle's
+// lifetime (oep_engine_load_graph must be called at least once, and
+// again after any mutation the caller wants reflected in subsequent
+// queries/traversals).
+// WP-EKE-002 adds `knowledge_graph_engine`, constructed from
+// `engine_context` (never from `service`/`runtime` directly) --
+// KnowledgeGraphEngine consumes Foundation EXCLUSIVELY through
+// EngineeringContext, preserving the same "consume only the layer
+// directly beneath you" boundary WP-EKE-001 established for
+// `engine_context` itself. `knowledge_graph_engine` holds this handle's
+// canonical Knowledge Graph; it persists for the handle's lifetime
+// (oep_kge_build_graph must be called at least once, and again --
+// or oep_kge_refresh_graph -- after any mutation the caller wants
+// reflected in subsequent validation/algorithm/statistics/export calls).
+// WP-EKE-003 adds `engineering_query_engine`, constructed from
+// `knowledge_graph_engine` (never from `engine_context`/`service`/
+// `runtime` directly) -- EngineeringQueryEngine consumes the Knowledge
+// Graph Engine EXCLUSIVELY, preserving the same layering boundary.
+// `engineering_query_engine` holds this handle's query plan/result
+// cache and most-recently-executed QueryStatistics; both persist for
+// the handle's lifetime and require a prior oep_kge_build_graph/
+// oep_kge_refresh_graph call before any oep_eqe_* function succeeds.
+// WP-EKE-004 adds `rules_engine`, constructed from `engine_context`,
+// `knowledge_graph_engine`, and `engineering_query_engine` (never from
+// `service`/`runtime` directly) -- RulesEngine consumes exactly those
+// three, preserving the same layering boundary. `rules_engine` holds
+// this handle's in-memory Rule Registry; it persists for the handle's
+// lifetime but is NEVER persisted to the repository itself -- a fresh
+// oep_runtime_impl always starts with zero registered rules.
+// WP-EKE-005 adds `validation_engine`, constructed from `engine_context`,
+// `knowledge_graph_engine`, `engineering_query_engine`, and
+// `rules_engine` (never from `service`/`runtime` directly) --
+// ValidationEngine consumes exactly those four, preserving the same
+// layering boundary. `validation_engine` holds this handle's in-memory
+// ValidationSession registry; it persists for the handle's lifetime but
+// is NEVER persisted to the repository itself -- a fresh
+// oep_runtime_impl always starts with zero validation sessions.
+// WP-EKE-006 adds `reasoning_engine`, constructed from `engine_context`,
+// `knowledge_graph_engine`, `engineering_query_engine`, `rules_engine`,
+// and `validation_engine` (never from `service`/`runtime` directly) --
+// ReasoningEngine consumes exactly those five, preserving the same
+// layering boundary. `reasoning_engine` holds this handle's in-memory
+// ReasoningSession registry (used by both its own sessions and the
+// AnalysisEngine it owns internally); it persists for the handle's
+// lifetime but is NEVER persisted to the repository itself -- a fresh
+// oep_runtime_impl always starts with zero reasoning sessions.
+// WP-EKE-007 adds `analysis_engine` and `intelligence_platform`.
+// `analysis_engine` is constructed from `knowledge_graph_engine` alone
+// (never from `service`/`runtime` directly) -- AnalysisEngine's own
+// constructor takes only a KnowledgeGraphEngine&. Note that
+// `reasoning_engine` already owns its OWN internal AnalysisEngine
+// instance (see reasoning_engine.hpp); this handle-level
+// `analysis_engine` is a SEPARATE instance, required because
+// EngineeringIntelligencePlatform's constructor takes an
+// AnalysisEngine& of its own (distinct from the one ReasoningEngine
+// privately owns) -- both are stateless wrappers over the same
+// KnowledgeGraphEngine, so holding two instances has no behavioral
+// difference. `intelligence_platform` is constructed from
+// `engine_context`, `knowledge_graph_engine`, `engineering_query_engine`,
+// `rules_engine`, `validation_engine`, `analysis_engine`, and
+// `reasoning_engine` (never from `service`/`runtime` directly) --
+// EngineeringIntelligencePlatform consumes exactly those seven,
+// preserving the same layering boundary. `intelligence_platform` holds
+// this handle's in-memory KnowledgeSession registry and Runtime
+// Metrics; both persist for the handle's lifetime but are NEVER
+// persisted to the repository itself -- a fresh oep_runtime_impl always
+// starts with zero sessions and all-zero metrics.
 struct oep_runtime_impl {
-    explicit oep_runtime_impl(std::string foundation_version) : runtime(std::move(foundation_version)) {}
+    explicit oep_runtime_impl(std::string foundation_version)
+        : runtime(std::move(foundation_version)), service(oep::runtime::RuntimeContext(runtime, events)),
+          engine_context(service), knowledge_graph_engine(engine_context),
+          engineering_query_engine(knowledge_graph_engine),
+          rules_engine(engine_context, knowledge_graph_engine, engineering_query_engine),
+          validation_engine(engine_context, knowledge_graph_engine, engineering_query_engine, rules_engine),
+          reasoning_engine(engine_context, knowledge_graph_engine, engineering_query_engine, rules_engine,
+                            validation_engine),
+          analysis_engine(knowledge_graph_engine),
+          intelligence_platform(engine_context, knowledge_graph_engine, engineering_query_engine, rules_engine,
+                                 validation_engine, analysis_engine, reasoning_engine) {}
 
     oep::runtime::FoundationRuntime runtime;
+    oep::runtime::EventBus events;
+    oep::runtime::RuntimeService service;
+    oep::engine::EngineeringContext engine_context;
+    oep::engine::KnowledgeGraphEngine knowledge_graph_engine;
+    oep::engine::EngineeringQueryEngine engineering_query_engine;
+    oep::engine::RulesEngine rules_engine;
+    oep::engine::ValidationEngine validation_engine;
+    oep::engine::ReasoningEngine reasoning_engine;
+    oep::engine::AnalysisEngine analysis_engine;
+    oep::engine::EngineeringIntelligencePlatform intelligence_platform;
 };
 
 namespace oep::api::detail {

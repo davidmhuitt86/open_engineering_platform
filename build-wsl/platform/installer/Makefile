@@ -140,6 +140,30 @@ oep_installer/fast:
 	cd /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl && $(MAKE) $(MAKESILENT) -f platform/installer/CMakeFiles/oep_installer.dir/build.make platform/installer/CMakeFiles/oep_installer.dir/build
 .PHONY : oep_installer/fast
 
+src/dependency_resolver.o: src/dependency_resolver.cpp.o
+.PHONY : src/dependency_resolver.o
+
+# target to build an object file
+src/dependency_resolver.cpp.o:
+	cd /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl && $(MAKE) $(MAKESILENT) -f platform/installer/CMakeFiles/oep_installer.dir/build.make platform/installer/CMakeFiles/oep_installer.dir/src/dependency_resolver.cpp.o
+.PHONY : src/dependency_resolver.cpp.o
+
+src/dependency_resolver.i: src/dependency_resolver.cpp.i
+.PHONY : src/dependency_resolver.i
+
+# target to preprocess a source file
+src/dependency_resolver.cpp.i:
+	cd /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl && $(MAKE) $(MAKESILENT) -f platform/installer/CMakeFiles/oep_installer.dir/build.make platform/installer/CMakeFiles/oep_installer.dir/src/dependency_resolver.cpp.i
+.PHONY : src/dependency_resolver.cpp.i
+
+src/dependency_resolver.s: src/dependency_resolver.cpp.s
+.PHONY : src/dependency_resolver.s
+
+# target to generate assembly for a file
+src/dependency_resolver.cpp.s:
+	cd /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl && $(MAKE) $(MAKESILENT) -f platform/installer/CMakeFiles/oep_installer.dir/build.make platform/installer/CMakeFiles/oep_installer.dir/src/dependency_resolver.cpp.s
+.PHONY : src/dependency_resolver.cpp.s
+
 src/ed25519.o: src/ed25519.cpp.o
 .PHONY : src/ed25519.o
 
@@ -332,6 +356,30 @@ src/trust_store.cpp.s:
 	cd /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl && $(MAKE) $(MAKESILENT) -f platform/installer/CMakeFiles/oep_installer.dir/build.make platform/installer/CMakeFiles/oep_installer.dir/src/trust_store.cpp.s
 .PHONY : src/trust_store.cpp.s
 
+src/version_constraint.o: src/version_constraint.cpp.o
+.PHONY : src/version_constraint.o
+
+# target to build an object file
+src/version_constraint.cpp.o:
+	cd /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl && $(MAKE) $(MAKESILENT) -f platform/installer/CMakeFiles/oep_installer.dir/build.make platform/installer/CMakeFiles/oep_installer.dir/src/version_constraint.cpp.o
+.PHONY : src/version_constraint.cpp.o
+
+src/version_constraint.i: src/version_constraint.cpp.i
+.PHONY : src/version_constraint.i
+
+# target to preprocess a source file
+src/version_constraint.cpp.i:
+	cd /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl && $(MAKE) $(MAKESILENT) -f platform/installer/CMakeFiles/oep_installer.dir/build.make platform/installer/CMakeFiles/oep_installer.dir/src/version_constraint.cpp.i
+.PHONY : src/version_constraint.cpp.i
+
+src/version_constraint.s: src/version_constraint.cpp.s
+.PHONY : src/version_constraint.s
+
+# target to generate assembly for a file
+src/version_constraint.cpp.s:
+	cd /mnt/c/Users/david/OneDrive/Desktop/Projects/platform/oep_foundation/build-wsl && $(MAKE) $(MAKESILENT) -f platform/installer/CMakeFiles/oep_installer.dir/build.make platform/installer/CMakeFiles/oep_installer.dir/src/version_constraint.cpp.s
+.PHONY : src/version_constraint.cpp.s
+
 src/zip_reader.o: src/zip_reader.cpp.o
 .PHONY : src/zip_reader.o
 
@@ -366,6 +414,9 @@ help:
 	@echo "... rebuild_cache"
 	@echo "... test"
 	@echo "... oep_installer"
+	@echo "... src/dependency_resolver.o"
+	@echo "... src/dependency_resolver.i"
+	@echo "... src/dependency_resolver.s"
 	@echo "... src/ed25519.o"
 	@echo "... src/ed25519.i"
 	@echo "... src/ed25519.s"
@@ -390,6 +441,9 @@ help:
 	@echo "... src/trust_store.o"
 	@echo "... src/trust_store.i"
 	@echo "... src/trust_store.s"
+	@echo "... src/version_constraint.o"
+	@echo "... src/version_constraint.i"
+	@echo "... src/version_constraint.s"
 	@echo "... src/zip_reader.o"
 	@echo "... src/zip_reader.i"
 	@echo "... src/zip_reader.s"

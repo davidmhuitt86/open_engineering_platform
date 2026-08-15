@@ -1,0 +1,3 @@
+add_executable(oep_search_engine_tests search_engine_tests.cpp)
+target_link_libraries(oep_search_engine_tests PRIVATE oep_search oep_repository)
+add_test(NAME oep_search_engine_tests COMMAND oep_search_engine_tests)

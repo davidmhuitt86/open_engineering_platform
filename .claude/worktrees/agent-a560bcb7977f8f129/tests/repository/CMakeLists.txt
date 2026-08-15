@@ -1,0 +1,23 @@
+add_executable(oep_repository_tests metadata_tests.cpp)
+target_link_libraries(oep_repository_tests PRIVATE oep_repository)
+add_test(NAME oep_repository_tests COMMAND oep_repository_tests)
+
+add_executable(oep_engineering_object_tests engineering_object_tests.cpp)
+target_link_libraries(oep_engineering_object_tests PRIVATE oep_repository)
+add_test(NAME oep_engineering_object_tests COMMAND oep_engineering_object_tests)
+
+add_executable(oep_relationship_tests relationship_tests.cpp)
+target_link_libraries(oep_relationship_tests PRIVATE oep_repository)
+add_test(NAME oep_relationship_tests COMMAND oep_relationship_tests)
+
+add_executable(oep_graph_engine_tests graph_engine_tests.cpp)
+target_link_libraries(oep_graph_engine_tests PRIVATE oep_repository)
+add_test(NAME oep_graph_engine_tests COMMAND oep_graph_engine_tests)
+
+add_executable(oep_audit_store_tests audit_store_tests.cpp)
+target_link_libraries(oep_audit_store_tests PRIVATE oep_repository)
+add_test(NAME oep_audit_store_tests COMMAND oep_audit_store_tests)
+
+add_executable(oep_batch_processor_tests batch_processor_tests.cpp)
+target_link_libraries(oep_batch_processor_tests PRIVATE oep_repository)
+add_test(NAME oep_batch_processor_tests COMMAND oep_batch_processor_tests)

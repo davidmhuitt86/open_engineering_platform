@@ -37,6 +37,7 @@ json::Value to_json(const EngineeringObject& object) {
     fields.emplace_back("version", json::Value::string(object.version));
     fields.emplace_back("author", json::Value::string(object.author));
     fields.emplace_back("tags", json::Value::array(std::move(tags)));
+    fields.emplace_back("content", json::Value::string(object.content));
     return json::Value::object(std::move(fields));
 }
 
@@ -100,6 +101,10 @@ ParsedObject read_object_file(const std::filesystem::path& path) {
     object.version = read_string_field(parsed.value, "version");
     object.author = read_string_field(parsed.value, "author");
     object.tags = read_tags(parsed.value);
+    // Absent in files written before AP-DS-002 — read_string_field already
+    // returns "" when the key is missing, matching a pre-existing object's
+    // correct, empty content.
+    object.content = read_string_field(parsed.value, "content");
 
     return {true, "", object};
 }

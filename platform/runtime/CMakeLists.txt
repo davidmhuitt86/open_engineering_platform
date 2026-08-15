@@ -3,6 +3,8 @@ cmake_minimum_required(VERSION 3.25)
 add_library(oep_runtime STATIC
     src/foundation_runtime.cpp
     src/transaction_journal.cpp
+    src/repository_events.cpp
+    src/runtime_service.cpp
 )
 
 target_include_directories(oep_runtime PUBLIC include)

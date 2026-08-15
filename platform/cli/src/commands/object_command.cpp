@@ -7,6 +7,7 @@
 #include "oep/runtime/foundation_runtime.hpp"
 #include "foundation_version.hpp"
 #include "repository_path_option.hpp"
+#include "runtime_event_log.hpp"
 
 namespace oep::cli::commands {
 
@@ -100,6 +101,9 @@ int ObjectCommand::create(const std::vector<std::string>& args) const {
         runtime.shutdown();
         return 1;
     }
+
+    global_event_bus().publish(oep::runtime::EventType::ObjectCreated, created.object.object_id,
+                                created.object.name);
 
     std::cout << "Created object '" << created.object.object_id << "' ("
                << oep::repository::to_string(created.object.object_type) << ") '" << created.object.name << "'\n";
@@ -225,6 +229,8 @@ int ObjectCommand::remove(const std::vector<std::string>& args) const {
         runtime.shutdown();
         return 1;
     }
+
+    global_event_bus().publish(oep::runtime::EventType::ObjectDeleted, object_id, "");
 
     std::cout << "Deleted object '" << object_id << "'\n";
 

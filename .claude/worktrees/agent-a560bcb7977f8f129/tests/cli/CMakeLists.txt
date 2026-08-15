@@ -1,0 +1,47 @@
+add_executable(oep_cli_commands_tests cli_commands_tests.cpp)
+target_link_libraries(oep_cli_commands_tests PRIVATE oep_cli_core)
+add_test(NAME oep_cli_commands_tests COMMAND oep_cli_commands_tests)
+
+add_executable(oep_object_command_tests object_command_tests.cpp)
+target_link_libraries(oep_object_command_tests PRIVATE oep_cli_core)
+add_test(NAME oep_object_command_tests COMMAND oep_object_command_tests)
+
+add_executable(oep_relationship_command_tests relationship_command_tests.cpp)
+target_link_libraries(oep_relationship_command_tests PRIVATE oep_cli_core)
+add_test(NAME oep_relationship_command_tests COMMAND oep_relationship_command_tests)
+
+add_executable(oep_search_command_tests search_command_tests.cpp)
+target_link_libraries(oep_search_command_tests PRIVATE oep_cli_core)
+add_test(NAME oep_search_command_tests COMMAND oep_search_command_tests)
+
+add_executable(oep_graph_command_tests graph_command_tests.cpp)
+target_link_libraries(oep_graph_command_tests PRIVATE oep_cli_core)
+add_test(NAME oep_graph_command_tests COMMAND oep_graph_command_tests)
+
+add_executable(oep_export_command_tests export_command_tests.cpp)
+target_link_libraries(oep_export_command_tests PRIVATE oep_cli_core)
+add_test(NAME oep_export_command_tests COMMAND oep_export_command_tests)
+
+add_executable(oep_import_command_tests import_command_tests.cpp)
+target_link_libraries(oep_import_command_tests PRIVATE oep_cli_core)
+add_test(NAME oep_import_command_tests COMMAND oep_import_command_tests)
+
+add_executable(oep_template_command_tests template_command_tests.cpp)
+target_link_libraries(oep_template_command_tests PRIVATE oep_cli_core)
+add_test(NAME oep_template_command_tests COMMAND oep_template_command_tests)
+
+add_executable(oep_batch_command_tests batch_command_tests.cpp)
+target_link_libraries(oep_batch_command_tests PRIVATE oep_cli_core)
+add_test(NAME oep_batch_command_tests COMMAND oep_batch_command_tests)
+
+add_executable(oep_package_command_tests package_command_tests.cpp)
+target_link_libraries(oep_package_command_tests PRIVATE oep_cli_core)
+add_test(NAME oep_package_command_tests COMMAND oep_package_command_tests)
+
+add_executable(oep_transaction_command_tests transaction_command_tests.cpp)
+target_link_libraries(oep_transaction_command_tests PRIVATE oep_cli_core)
+add_test(NAME oep_transaction_command_tests COMMAND oep_transaction_command_tests)
+
+add_executable(oep_trust_command_tests trust_command_tests.cpp)
+target_link_libraries(oep_trust_command_tests PRIVATE oep_cli_core)
+add_test(NAME oep_trust_command_tests COMMAND oep_trust_command_tests)

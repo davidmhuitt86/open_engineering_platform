@@ -3,9 +3,13 @@
 #include <filesystem>
 #include <iostream>
 
+#include "oep/installer/merge_engine.hpp"
 #include "oep/runtime/foundation_runtime.hpp"
+#include "oep/runtime/runtime_context.hpp"
+#include "oep/runtime/runtime_service.hpp"
 #include "foundation_version.hpp"
 #include "repository_path_option.hpp"
+#include "runtime_event_log.hpp"
 
 namespace oep::cli::commands {
 
@@ -51,7 +55,8 @@ std::string PackageCommand::description() const {
 
 int PackageCommand::execute(const std::vector<std::string>& args) const {
     if (args.empty()) {
-        std::cerr << "oep: 'package' requires a subcommand (install, list, info, contents, verify, locate, search)\n";
+        std::cerr << "oep: 'package' requires a subcommand (install, list, info, contents, verify, locate, search, "
+                      "resolve, uninstall-impact, uninstall, update-impact, update, merge-plan, merge)\n";
         std::cerr << "Usage: " << usage() << "\n";
         return 1;
     }
@@ -66,6 +71,13 @@ int PackageCommand::execute(const std::vector<std::string>& args) const {
     if (subcommand == "verify") return verify(rest);
     if (subcommand == "locate") return locate(rest);
     if (subcommand == "search") return search(rest);
+    if (subcommand == "resolve") return resolve(rest);
+    if (subcommand == "uninstall-impact") return uninstall_impact(rest);
+    if (subcommand == "uninstall") return uninstall(rest);
+    if (subcommand == "update-impact") return update_impact(rest);
+    if (subcommand == "update") return update(rest);
+    if (subcommand == "merge-plan") return merge_plan(rest);
+    if (subcommand == "merge") return merge(rest);
 
     std::cerr << "oep: unknown 'package' subcommand '" << subcommand << "'\n";
     std::cerr << "Usage: " << usage() << "\n";
@@ -89,9 +101,14 @@ int PackageCommand::install(const std::vector<std::string>& args) const {
             // Installation is atomic since WP-REP-003 (Repository
             // Transaction Engine): a failure has already been rolled back
             // by the Runtime; nothing was installed.
+            global_event_bus().publish(oep::runtime::EventType::PackageInstallFailed, archive_path.string(),
+                                        result.error);
             std::cerr << "oep: install failed: " << result.error << "\n";
             return 1;
         }
+
+        global_event_bus().publish(oep::runtime::EventType::PackageInstalled, result.package_id,
+                                    "version " + result.version);
 
         std::cout << "Installed package '" << result.package_id << "' version " << result.version << "\n";
         std::cout << "  Objects:       " << result.objects_created << "\n";
@@ -317,6 +334,280 @@ int PackageCommand::search(const std::vector<std::string>& args) const {
                 print_package_line(package);
             }
         }
+        return 0;
+    });
+}
+
+int PackageCommand::resolve(const std::vector<std::string>& args) const {
+    std::vector<std::string> remaining = args;
+    const std::filesystem::path repository_path = extract_repository_path(remaining);
+
+    if (remaining.empty()) {
+        std::cerr << "oep: 'package resolve' requires a package archive\n";
+        std::cerr << "Usage: " << usage() << "\n";
+        return 1;
+    }
+    const std::filesystem::path archive_path = remaining[0];
+
+    return with_open_repository(repository_path, [&archive_path](oep::runtime::FoundationRuntime& runtime) {
+        const oep::runtime::RuntimeDependencyResolutionResult result =
+            runtime.resolve_package_dependencies(archive_path);
+        if (!result.success) {
+            std::cerr << "oep: could not resolve dependencies: " << result.error << "\n";
+            return 1;
+        }
+
+        const oep::installer::DependencyResolutionReport& report = result.report;
+        std::cout << "Package:      " << report.candidate_package_id << " " << report.candidate_version << "\n";
+        std::cout << "Result:       " << oep::installer::to_string(report.result) << "\n";
+
+        if (report.entries.empty()) {
+            std::cout << "Dependencies: (none declared)\n";
+        } else {
+            std::cout << "Dependencies:\n";
+            for (const oep::installer::DependencyResolutionEntry& entry : report.entries) {
+                std::cout << "  " << entry.package_id;
+                if (!entry.version_constraint.empty()) std::cout << " " << entry.version_constraint;
+                std::cout << "\t" << oep::installer::to_string(entry.state);
+                if (!entry.installed_version.empty()) std::cout << "\t(installed " << entry.installed_version << ")";
+                if (entry.optional) std::cout << "\t[optional]";
+                std::cout << "\n";
+            }
+        }
+
+        if (report.cycle.has_value()) {
+            std::cout << "Cycle:       ";
+            for (std::size_t i = 0; i < report.cycle->chain.size(); ++i) {
+                std::cout << " " << report.cycle->chain[i];
+                if (i + 1 != report.cycle->chain.size()) std::cout << " ->";
+            }
+            std::cout << "\n";
+        }
+
+        if (!report.install_order.empty()) {
+            std::cout << "Install order:";
+            for (const std::string& package_id : report.install_order) {
+                std::cout << " " << package_id;
+            }
+            std::cout << "\n";
+        }
+
+        for (const std::string& error : report.errors) {
+            std::cerr << "  error: " << error << "\n";
+        }
+        for (const std::string& warning : report.warnings) {
+            std::cerr << "  warning: " << warning << "\n";
+        }
+
+        return report.result == oep::installer::DependencyResolutionResult::Resolved ? 0 : 1;
+    });
+}
+
+int PackageCommand::uninstall_impact(const std::vector<std::string>& args) const {
+    std::vector<std::string> remaining = args;
+    const std::filesystem::path repository_path = extract_repository_path(remaining);
+
+    if (remaining.empty()) {
+        std::cerr << "oep: 'package uninstall-impact' requires a package id\n";
+        std::cerr << "Usage: " << usage() << "\n";
+        return 1;
+    }
+    const std::string package_id = remaining[0];
+
+    // WP-REP-007: uninstall/update are routed exclusively through
+    // RuntimeService, unlike install/resolve above (which predate this
+    // Work Package's "exclusive entry point" requirement).
+    return with_open_repository(repository_path, [&package_id](oep::runtime::FoundationRuntime& runtime) {
+        oep::runtime::RuntimeService service(oep::runtime::RuntimeContext(runtime, global_event_bus()));
+        const oep::runtime::RuntimeService::UninstallImpactReport report =
+            service.analyze_uninstall_impact(oep::runtime::RuntimeService::AnalyzeUninstallImpactRequest(package_id));
+        if (!report.success) {
+            std::cerr << "oep: could not analyze uninstall impact: " << report.error << "\n";
+            return 1;
+        }
+
+        std::cout << "Package:               " << package_id << "\n";
+        std::cout << "Found:                 " << (report.found ? "yes" : "no") << "\n";
+        std::cout << "Objects affected:      " << report.objects_affected << "\n";
+        std::cout << "Relationships affected:" << " " << report.relationships_affected << "\n";
+        if (report.blocking_dependents.empty()) {
+            std::cout << "Blocking dependents:   (none)\n";
+        } else {
+            std::cout << "Blocking dependents:\n";
+            for (const std::string& dependent : report.blocking_dependents) {
+                std::cout << "  " << dependent << "\n";
+            }
+        }
+        std::cout << "Removable:             " << (report.removable ? "yes" : "no") << "\n";
+
+        return report.removable ? 0 : 1;
+    });
+}
+
+int PackageCommand::uninstall(const std::vector<std::string>& args) const {
+    std::vector<std::string> remaining = args;
+    const std::filesystem::path repository_path = extract_repository_path(remaining);
+
+    if (remaining.empty()) {
+        std::cerr << "oep: 'package uninstall' requires a package id\n";
+        std::cerr << "Usage: " << usage() << "\n";
+        return 1;
+    }
+    const std::string package_id = remaining[0];
+
+    return with_open_repository(repository_path, [&package_id](oep::runtime::FoundationRuntime& runtime) {
+        oep::runtime::RuntimeService service(oep::runtime::RuntimeContext(runtime, global_event_bus()));
+        const oep::runtime::RuntimeService::UninstallPackageResponse result =
+            service.uninstall_package(oep::runtime::RuntimeService::UninstallPackageRequest(package_id));
+        if (!result.success) {
+            std::cerr << "oep: uninstall failed: " << result.error << "\n";
+            return 1;
+        }
+
+        std::cout << "Uninstalled package '" << result.package_id << "'\n";
+        std::cout << "  Objects removed:       " << result.objects_removed << "\n";
+        std::cout << "  Relationships removed: " << result.relationships_removed << "\n";
+        return 0;
+    });
+}
+
+int PackageCommand::update_impact(const std::vector<std::string>& args) const {
+    std::vector<std::string> remaining = args;
+    const std::filesystem::path repository_path = extract_repository_path(remaining);
+
+    if (remaining.empty()) {
+        std::cerr << "oep: 'package update-impact' requires a package archive\n";
+        std::cerr << "Usage: " << usage() << "\n";
+        return 1;
+    }
+    const std::filesystem::path archive_path = remaining[0];
+
+    return with_open_repository(repository_path, [&archive_path](oep::runtime::FoundationRuntime& runtime) {
+        oep::runtime::RuntimeService service(oep::runtime::RuntimeContext(runtime, global_event_bus()));
+        const oep::runtime::RuntimeService::UpdateImpactReport report =
+            service.analyze_update_impact(oep::runtime::RuntimeService::AnalyzeUpdateImpactRequest(archive_path));
+        if (!report.success) {
+            std::cerr << "oep: could not analyze update impact: " << report.error << "\n";
+            return 1;
+        }
+
+        std::cout << "Currently installed: " << (report.currently_installed ? "yes" : "no") << "\n";
+        std::cout << "Current version:     "
+                  << (report.current_version.empty() ? "(none)" : report.current_version) << "\n";
+        std::cout << "Candidate version:   " << report.candidate_version << "\n";
+        std::cout << "Trust status:        " << (report.trust_status.empty() ? "(not recorded)" : report.trust_status)
+                  << "\n";
+        if (report.broken_dependents.empty()) {
+            std::cout << "Broken dependents:   (none)\n";
+        } else {
+            std::cout << "Broken dependents:\n";
+            for (const std::string& dependent : report.broken_dependents) {
+                std::cout << "  " << dependent << "\n";
+            }
+        }
+        std::cout << "Updatable:           " << (report.updatable ? "yes" : "no") << "\n";
+
+        return report.updatable ? 0 : 1;
+    });
+}
+
+int PackageCommand::update(const std::vector<std::string>& args) const {
+    std::vector<std::string> remaining = args;
+    const std::filesystem::path repository_path = extract_repository_path(remaining);
+
+    if (remaining.empty()) {
+        std::cerr << "oep: 'package update' requires a package archive\n";
+        std::cerr << "Usage: " << usage() << "\n";
+        return 1;
+    }
+    const std::filesystem::path archive_path = remaining[0];
+
+    return with_open_repository(repository_path, [&archive_path](oep::runtime::FoundationRuntime& runtime) {
+        oep::runtime::RuntimeService service(oep::runtime::RuntimeContext(runtime, global_event_bus()));
+        const oep::runtime::RuntimeService::UpdatePackageResponse result =
+            service.update_package(oep::runtime::RuntimeService::UpdatePackageRequest(archive_path));
+        if (!result.success) {
+            std::cerr << "oep: update failed: " << result.error << "\n";
+            return 1;
+        }
+
+        std::cout << "Updated package '" << result.package_id << "' from " << result.previous_version << " to "
+                  << result.new_version << "\n";
+        std::cout << "  Objects removed:       " << result.objects_removed << "\n";
+        std::cout << "  Relationships removed: " << result.relationships_removed << "\n";
+        std::cout << "  Objects created:       " << result.objects_created << "\n";
+        std::cout << "  Relationships created: " << result.relationships_created << "\n";
+        std::cout << "  Trust status:          " << result.trust_status << "\n";
+        return 0;
+    });
+}
+
+int PackageCommand::merge_plan(const std::vector<std::string>& args) const {
+    std::vector<std::string> remaining = args;
+    const std::filesystem::path repository_path = extract_repository_path(remaining);
+
+    if (remaining.empty()) {
+        std::cerr << "oep: 'package merge-plan' requires a package archive\n";
+        std::cerr << "Usage: " << usage() << "\n";
+        return 1;
+    }
+    const std::filesystem::path archive_path = remaining[0];
+
+    return with_open_repository(repository_path, [&archive_path](oep::runtime::FoundationRuntime& runtime) {
+        oep::runtime::RuntimeService service(oep::runtime::RuntimeContext(runtime, global_event_bus()));
+        const oep::runtime::RuntimeService::MergePlanReport report =
+            service.plan_merge(oep::runtime::RuntimeService::PlanMergeRequest(archive_path));
+        if (!report.success) {
+            std::cerr << "oep: could not analyze merge plan: " << report.error << "\n";
+            return 1;
+        }
+
+        std::cout << "Package:                " << report.package_id << "\n";
+        std::cout << "Version:                " << report.version << "\n";
+        std::cout << "Trust status:           "
+                  << (report.trust_status.empty() ? "(not recorded)" : report.trust_status) << "\n";
+        std::cout << "Already registered:     " << (report.already_registered ? "yes" : "no") << "\n";
+        std::cout << "Objects to create:      " << report.plan.change_set.object_changes().size() << "\n";
+        std::cout << "Relationships to create: " << report.plan.change_set.relationship_changes().size() << "\n";
+        if (report.plan.conflicts.empty()) {
+            std::cout << "Conflicts:              (none)\n";
+        } else {
+            std::cout << "Conflicts:\n";
+            for (const oep::installer::MergeConflict& conflict : report.plan.conflicts) {
+                std::cout << "  " << oep::installer::to_string(conflict.kind) << " " << conflict.entity_id << ": "
+                          << conflict.detail << "\n";
+            }
+        }
+        std::cout << "Mergeable:              " << (report.mergeable ? "yes" : "no") << "\n";
+
+        return report.mergeable ? 0 : 1;
+    });
+}
+
+int PackageCommand::merge(const std::vector<std::string>& args) const {
+    std::vector<std::string> remaining = args;
+    const std::filesystem::path repository_path = extract_repository_path(remaining);
+
+    if (remaining.empty()) {
+        std::cerr << "oep: 'package merge' requires a package archive\n";
+        std::cerr << "Usage: " << usage() << "\n";
+        return 1;
+    }
+    const std::filesystem::path archive_path = remaining[0];
+
+    return with_open_repository(repository_path, [&archive_path](oep::runtime::FoundationRuntime& runtime) {
+        oep::runtime::RuntimeService service(oep::runtime::RuntimeContext(runtime, global_event_bus()));
+        const oep::runtime::RuntimeService::ExecuteMergeResponse result =
+            service.execute_merge(oep::runtime::RuntimeService::ExecuteMergeRequest(archive_path));
+        if (!result.success) {
+            std::cerr << "oep: merge failed: " << result.error << "\n";
+            return 1;
+        }
+
+        std::cout << "Merged package '" << result.package_id << "' version " << result.version << "\n";
+        std::cout << "  Objects created:       " << result.objects_created << "\n";
+        std::cout << "  Relationships created: " << result.relationships_created << "\n";
+        std::cout << "  Trust status:          " << result.trust_status << "\n";
         return 0;
     });
 }

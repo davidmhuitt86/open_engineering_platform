@@ -32,6 +32,16 @@ struct EngineeringObject {
     std::string version = "1.0.0";
     std::string author;
     std::vector<std::string> tags;
+
+    // Opaque, application-owned payload (AP-DS-002, OEP-SPEC-004
+    // amendment). Foundation never parses or interprets this field — it
+    // exists so a consuming application (e.g. Diagram Studio) can persist
+    // presentation-layer state that has no independent engineering
+    // meaning of its own (layout positions, viewport, selection state)
+    // alongside the object it describes, without inventing a new
+    // primitive or duplicating the object elsewhere. Empty for every
+    // object that predates this field or has no such payload.
+    std::string content;
 };
 
 // Validates required fields, object_id's UUIDv4 format, and version's
