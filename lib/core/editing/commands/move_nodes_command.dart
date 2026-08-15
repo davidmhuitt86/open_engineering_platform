@@ -2,9 +2,15 @@ import '../../views/diagram/diagram_geometry.dart';
 import '../editing_command.dart';
 import '../editing_session.dart';
 
-/// Moves multiple nodes as one undoable step (ENGINE-TASK-000081: "Move
-/// Multiple Nodes"). One command, not N individual [MoveNodeCommand]s, so
-/// a single undo reverts the whole drag.
+/// Moves one or more nodes as a single undoable step (ENGINE-TASK-000081:
+/// "Move Node(s)"). Used for both single- and multi-node drags — a
+/// dedicated single-node `MoveNodeCommand` existed early in
+/// WORK_PACKAGE_021 but was removed during AP-DS-001A: it had no
+/// production call sites (`MoveNodesCommand` with a one-entry map is
+/// exactly equivalent and is what every caller — the Diagram Studio
+/// canvas drag handler included — already used), so keeping both was
+/// pure duplication. One command, not N single-node commands, so a
+/// single undo reverts the whole drag regardless of selection size.
 class MoveNodesCommand implements EditingCommand {
   final Map<String, Point2D> newPositions;
 

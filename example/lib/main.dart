@@ -1168,6 +1168,13 @@ class _HostShellState extends State<HostShell> {
                             onReconnectDragUpdate: _handleReconnectDragUpdate,
                             onReconnectDragEnd: _handleReconnectDragEnd,
                             onInteractionEnd: _syncViewStateFromTransform,
+                            // AP-DS-001A resize support is Diagram
+                            // Studio-only for now; the Demonstration Host
+                            // wires no-ops so it keeps compiling against
+                            // GraphViewPanel's shared contract.
+                            onNodeResizeStart: (_, _) {},
+                            onNodeResizeUpdate: (_) {},
+                            onNodeResizeEnd: () {},
                           );
                           return Column(
                             children: [

@@ -31,6 +31,7 @@ export '../core/views/diagram/diagram_layout_state.dart';
 export '../core/views/diagram/diagram_renderer.dart';
 export '../core/views/diagram/diagram_scene.dart';
 export '../core/views/diagram/diagram_view.dart';
+export '../core/views/diagram/fallback_port_layout.dart';
 export '../core/views/diagram/grid_computer.dart';
 export '../core/views/diagram/grid_line.dart';
 export '../core/views/diagram/in_memory_layout_provider.dart';

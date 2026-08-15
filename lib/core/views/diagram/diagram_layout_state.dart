@@ -31,6 +31,11 @@ class DiagramLayoutState {
   final Map<String, String> layerAssignments;
   final Map<String, NodeTransform> transforms;
 
+  /// Per-node explicit size (AP-DS-001A resize support). A node with no
+  /// entry here renders at [DiagramLayout.nodeSize] x
+  /// [DiagramLayout.nodeSize], same fallback pattern as [positions].
+  final Map<String, Size2D> sizes;
+
   const DiagramLayoutState({
     this.positions = const {},
     this.wireOverrides = const {},
@@ -38,6 +43,7 @@ class DiagramLayoutState {
     this.layers = const {},
     this.layerAssignments = const {},
     this.transforms = const {},
+    this.sizes = const {},
   });
 
   static const DiagramLayoutState empty = DiagramLayoutState();
@@ -49,6 +55,7 @@ class DiagramLayoutState {
     Map<String, DiagramLayer>? layers,
     Map<String, String>? layerAssignments,
     Map<String, NodeTransform>? transforms,
+    Map<String, Size2D>? sizes,
   }) {
     return DiagramLayoutState(
       positions: positions ?? this.positions,
@@ -57,6 +64,7 @@ class DiagramLayoutState {
       layers: layers ?? this.layers,
       layerAssignments: layerAssignments ?? this.layerAssignments,
       transforms: transforms ?? this.transforms,
+      sizes: sizes ?? this.sizes,
     );
   }
 
@@ -155,6 +163,19 @@ class DiagramLayoutState {
     return copyWith(transforms: next);
   }
 
+  // --- Sizes (AP-DS-001A resize support) --------------------------------
+
+  Size2D? sizeOf(String nodeId) => sizes[nodeId];
+
+  DiagramLayoutState withSize(String nodeId, Size2D size) {
+    return copyWith(sizes: {...sizes, nodeId: size});
+  }
+
+  DiagramLayoutState withoutSize(String nodeId) {
+    final next = {...sizes}..remove(nodeId);
+    return copyWith(sizes: next);
+  }
+
   // --- Serialization ----------------------------------------------------
 
   Map<String, Object?> toJson() => {
@@ -166,6 +187,7 @@ class DiagramLayoutState {
         'layers': layers.map((id, l) => MapEntry(id, l.toJson())),
         'layerAssignments': layerAssignments,
         'transforms': transforms.map((id, t) => MapEntry(id, t.toJson())),
+        'sizes': sizes.map((id, s) => MapEntry(id, {'width': s.width, 'height': s.height})),
       };
 
   factory DiagramLayoutState.fromJson(Map<String, Object?> json) {
@@ -175,6 +197,7 @@ class DiagramLayoutState {
     final rawLayers = json['layers'] as Map? ?? const {};
     final rawLayerAssignments = json['layerAssignments'] as Map? ?? const {};
     final rawTransforms = json['transforms'] as Map? ?? const {};
+    final rawSizes = json['sizes'] as Map? ?? const {};
 
     Point2D pointFrom(Object? value) {
       final point = value as Map;
@@ -200,6 +223,13 @@ class DiagramLayoutState {
             id as String,
             NodeTransform.fromJson(Map<String, Object?>.from(value as Map)),
           )),
+      sizes: rawSizes.map((id, value) {
+        final size = value as Map;
+        return MapEntry(
+          id as String,
+          Size2D((size['width'] as num).toDouble(), (size['height'] as num).toDouble()),
+        );
+      }),
     );
   }
 }

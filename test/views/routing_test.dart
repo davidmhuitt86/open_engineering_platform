@@ -1,6 +1,30 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:engineering_engine/engineering_engine.dart';
 
+// A path is a sequence of orthogonal (horizontal or vertical) segments --
+// true for every path `OrthogonalRoutingProvider` produces.
+bool segmentIntersectsRect(Point2D a, Point2D b, Rect2D r) {
+  if ((a.dy - b.dy).abs() < 0.001) {
+    // Horizontal segment at y = a.dy.
+    final y = a.dy;
+    final left = a.dx < b.dx ? a.dx : b.dx;
+    final right = a.dx > b.dx ? a.dx : b.dx;
+    return y > r.top && y < r.bottom && right > r.left && left < r.right;
+  }
+  // Vertical segment at x = a.dx.
+  final x = a.dx;
+  final top = a.dy < b.dy ? a.dy : b.dy;
+  final bottom = a.dy > b.dy ? a.dy : b.dy;
+  return x > r.left && x < r.right && bottom > r.top && top < r.bottom;
+}
+
+bool pathIntersectsRect(List<Point2D> path, Rect2D r) {
+  for (var i = 0; i < path.length - 1; i++) {
+    if (segmentIntersectsRect(path[i], path[i + 1], r)) return true;
+  }
+  return false;
+}
+
 void main() {
   group('OrthogonalRoutingProvider', () {
     test('returns a direct two-point path when already horizontal', () {
@@ -130,6 +154,106 @@ void main() {
     });
   });
 
+  group('OrthogonalRoutingProvider obstacle avoidance (user-requested: never cross a component)', () {
+    test('exits each port perpendicular to its own node before jogging sideways', () {
+      final provider = OrthogonalRoutingProvider();
+      final path = provider.route(
+        const RoutingRequest(
+          relationshipId: 'r1',
+          source: Point2D(50, 0),
+          target: Point2D(150, 100),
+          sourceExitDirection: 'down',
+          targetExitDirection: 'up',
+        ),
+        RoutingContext(),
+      );
+      expect(path.first, const Point2D(50, 0));
+      expect(path.last, const Point2D(150, 100));
+      // First leg travels straight down from the source port (same x,
+      // increasing y) -- never diagonally toward the target.
+      expect(path[1].dx, 50);
+      expect(path[1].dy, greaterThan(0));
+      // Last leg approaches the target port straight from above (same
+      // x, y below the target's).
+      final beforeLast = path[path.length - 2];
+      expect(beforeLast.dx, 150);
+      expect(beforeLast.dy, lessThan(100));
+    });
+
+    test('routes around a component sitting directly between two ports instead of through it', () {
+      final provider = OrthogonalRoutingProvider();
+      // A top-row port (exits down) connecting to a bottom-row port
+      // (exits up) one column over, with a third component's card
+      // squarely in the corridor between them -- the exact "wire needs
+      // to go to the component next to it" scenario described.
+      const obstacle = Rect2D(left: 30, top: 40, right: 70, bottom: 60);
+      final context = RoutingContext(obstacles: {'blocker': obstacle});
+
+      final path = provider.route(
+        const RoutingRequest(
+          relationshipId: 'r1',
+          source: Point2D(0, 0),
+          target: Point2D(100, 100),
+          sourceNodeId: 'a',
+          targetNodeId: 'b',
+          sourceExitDirection: 'down',
+          targetExitDirection: 'up',
+        ),
+        context,
+      );
+
+      expect(pathIntersectsRect(path, obstacle), isFalse,
+          reason: 'the routed wire must go around the obstacle, never through it');
+    });
+
+    test('a component next to (not between) the two ports is left alone', () {
+      final provider = OrthogonalRoutingProvider();
+      // This obstacle's x-range doesn't overlap the source/target
+      // corridor at all, so it must not affect the route.
+      const farAway = Rect2D(left: 500, top: 40, right: 540, bottom: 60);
+      final context = RoutingContext(obstacles: {'far': farAway});
+
+      final path = provider.route(
+        const RoutingRequest(
+          relationshipId: 'r1',
+          source: Point2D(0, 0),
+          target: Point2D(0, 100),
+          sourceNodeId: 'a',
+          targetNodeId: 'b',
+          sourceExitDirection: 'down',
+          targetExitDirection: 'up',
+        ),
+        context,
+      );
+
+      expect(pathIntersectsRect(path, farAway), isFalse);
+    });
+
+    test('a wire never treats its own source/target node as an obstacle', () {
+      final provider = OrthogonalRoutingProvider();
+      // The source node's own bounding box necessarily overlaps its own
+      // port anchor -- excluded via sourceNodeId, or every route from a
+      // real node would be considered "blocked" by itself.
+      const ownNode = Rect2D(left: -10, top: -10, right: 10, bottom: 10);
+      final context = RoutingContext(obstacles: {'a': ownNode});
+
+      final path = provider.route(
+        const RoutingRequest(
+          relationshipId: 'r1',
+          source: Point2D(0, 0),
+          target: Point2D(100, 100),
+          sourceNodeId: 'a',
+          targetNodeId: 'b',
+          sourceExitDirection: 'down',
+          targetExitDirection: 'up',
+        ),
+        context,
+      );
+      expect(path.first, const Point2D(0, 0));
+      expect(path.last, const Point2D(100, 100));
+    });
+  });
+
   group('DiagramView with routing + layout', () {
     test('uses tracked layout positions over the auto-layout fallback', () {
       final graph = (GraphBuilder(id: 'g')
@@ -209,6 +333,54 @@ void main() {
       // Both wires originate from 'a', so DiagramView passes the same
       // trunkKey (the shared source node id) — they must share a column.
       expect(r1.points[1].dx, r2.points[1].dx);
+    });
+
+    test('a wire between two real nodes routes around a real component next to it (user-requested)', () {
+      // Two-row wiring-harness layout: 'a' on the top row (exit down),
+      // 'b' on the bottom row (exit up), and 'blocker' sitting in the
+      // corridor between them -- the exact scenario described: "if a
+      // wire needs to go to the component next to it... never have a
+      // wire cross over a component."
+      final graph = (GraphBuilder(id: 'g')
+            ..addNode(
+              id: 'a',
+              category: NodeCategory.component,
+              displayName: 'A',
+              metadata: const {'exit': 'down'},
+              ports: const [Port(id: 'out', name: 'Out')],
+            )
+            ..addNode(
+              id: 'b',
+              category: NodeCategory.component,
+              displayName: 'B',
+              metadata: const {'exit': 'up'},
+              ports: const [Port(id: 'in', name: 'In')],
+            )
+            ..addNode(id: 'blocker', category: NodeCategory.component, displayName: 'Blocker')
+            ..connect('a', 'b', id: 'r1'))
+          .build();
+      final layout = DiagramLayoutState.empty
+          .withPosition('a', const Point2D(0, 0))
+          .withPosition('b', const Point2D(150, 300))
+          .withPosition('blocker', const Point2D(80, 140));
+
+      final scene = DiagramView().render(
+        graph,
+        layout: layout,
+        routing: OrthogonalRoutingProvider(),
+      );
+
+      final blockerNode = scene.nodes.firstWhere((n) => n.nodeId == 'blocker');
+      final blockerRect = Rect2D(
+        left: blockerNode.position.dx,
+        top: blockerNode.position.dy,
+        right: blockerNode.position.dx + blockerNode.width,
+        bottom: blockerNode.position.dy + blockerNode.height,
+      );
+
+      final wire = scene.wires.firstWhere((w) => w.relationshipId == 'r1');
+      expect(pathIntersectsRect(wire.points, blockerRect), isFalse,
+          reason: 'the wire between a and b must route around blocker, never through it');
     });
   });
 

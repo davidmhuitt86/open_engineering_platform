@@ -124,6 +124,14 @@ class ViewStateService implements ViewStateProvider {
     );
   }
 
+  /// "View reset" (AP-DS-001A Canvas section): returns zoom/pan to the
+  /// default zoom=1/pan=origin state, recording the prior view on the
+  /// navigation history the same way every other viewport jump does, so
+  /// it composes with Go Back/Go Forward.
+  void resetView() {
+    _applyTarget(const ViewportTarget(zoom: 1, pan: Point2D(0, 0)));
+  }
+
   bool get canGoBack => navigationHistory.canGoBack;
   bool get canGoForward => navigationHistory.canGoForward;
 

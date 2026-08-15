@@ -10,6 +10,7 @@ import 'interfaces/selection_provider.dart';
 import 'interfaces/serialization_provider.dart';
 import 'interfaces/simulation_provider.dart';
 import 'interfaces/symbol_provider.dart';
+import 'simulation/simulation_engine.dart';
 import 'interfaces/validation_provider.dart';
 import 'interfaces/view_state_provider.dart';
 
@@ -80,6 +81,7 @@ class EngineRegistry {
   ImportProvider get import => require<ImportProvider>();
   ExportProvider get export => require<ExportProvider>();
   SimulationProvider get simulation => require<SimulationProvider>();
+  SimulationEngine get simulationEngine => require<SimulationEngine>();
   SerializationProvider get serialization => require<SerializationProvider>();
   LayoutProvider get layout => require<LayoutProvider>();
   ClipboardProvider get clipboard => require<ClipboardProvider>();

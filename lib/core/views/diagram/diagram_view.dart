@@ -3,11 +3,14 @@ import '../../graph/models/engineering_node.dart';
 import '../../interfaces/routing_provider.dart';
 import '../../interfaces/symbol_provider.dart';
 import '../../selection/graph_selection.dart';
+import '../../symbols/models/symbol_port.dart';
 import '../view.dart';
 import 'diagram_geometry.dart';
 import 'diagram_layout.dart';
 import 'diagram_layout_state.dart';
 import 'diagram_scene.dart';
+import 'fallback_port_layout.dart';
+import 'rect2d.dart';
 import 'routing_context.dart';
 import 'routing_request.dart';
 
@@ -68,18 +71,29 @@ class DiagramView implements EngineeringView<DiagramScene> {
       return layout?.layerById(layerId)?.visible ?? true;
     }
 
+    // AP-DS-001A resize support: a node with a tracked `layout.sizeOf`
+    // entry renders at that explicit size; otherwise it falls back to the
+    // fixed `DiagramLayout.nodeSize`, same fallback pattern as position.
+    Size2D sizeOf(String nodeId) =>
+        layout?.sizeOf(nodeId) ?? const Size2D(DiagramLayout.nodeSize, DiagramLayout.nodeSize);
+
     final nodeVisuals = graph.nodes.values.where((node) => isNodeVisible(node.id)).map((node) {
       final position = positionOf(node.id);
+      final size = sizeOf(node.id);
       final selected = selection?.containsNode(node.id) ?? node.runtime.selected;
       final highlighted = highlightedNodeIds.contains(node.id) || node.runtime.highlighted;
       return DiagramNodeVisual(
         nodeId: node.id,
         symbolId: node.symbolId,
         position: position,
-        width: DiagramLayout.nodeSize,
-        height: DiagramLayout.nodeSize,
+        width: size.width,
+        height: size.height,
         selected: selected,
         highlighted: highlighted,
+        displayName: node.displayName,
+        category: node.category,
+        ports: node.ports,
+        metadata: node.metadata,
       );
     }).toList();
 
@@ -90,21 +104,41 @@ class DiagramView implements EngineeringView<DiagramScene> {
     final orderedRelationships = graph.relationships.values.toList()
       ..sort((a, b) => a.id.compareTo(b.id));
 
-    final routingContext = RoutingContext();
+    // "Never cross a component" (user-requested obstacle avoidance): every
+    // node's current bounding box, so `OrthogonalRoutingProvider` can
+    // route wires around components it isn't connecting, not just between
+    // two bare anchor points. Built from the exact same position/size data
+    // already computed above for `nodeVisuals`.
+    final obstacles = {
+      for (final visual in nodeVisuals)
+        visual.nodeId: Rect2D(
+          left: visual.position.dx,
+          top: visual.position.dy,
+          right: visual.position.dx + visual.width,
+          bottom: visual.position.dy + visual.height,
+        ),
+    };
+    final routingContext = RoutingContext(obstacles: obstacles);
     final wireVisuals = orderedRelationships.map((relationship) {
       final sourceNode = graph.nodes[relationship.sourceNode];
       final targetNode = graph.nodes[relationship.targetNode];
-      final sourceAnchor = _anchorFor(
+      final sourcePosition = positionOf(relationship.sourceNode);
+      final sourceSize = sizeOf(relationship.sourceNode);
+      final targetPosition = positionOf(relationship.targetNode);
+      final targetSize = sizeOf(relationship.targetNode);
+      final sourceResolved = _anchorFor(
         sourceNode,
-        positionOf(relationship.sourceNode),
+        sourcePosition,
+        sourceSize,
         symbols,
-        towards: positionOf(relationship.targetNode),
+        towards: targetPosition,
       );
-      final targetAnchor = _anchorFor(
+      final targetResolved = _anchorFor(
         targetNode,
-        positionOf(relationship.targetNode),
+        targetPosition,
+        targetSize,
         symbols,
-        towards: positionOf(relationship.sourceNode),
+        towards: sourcePosition,
       );
 
       // WORK_PACKAGE_023, ENGINE-TASK-000099: a manual wire override
@@ -115,13 +149,17 @@ class DiagramView implements EngineeringView<DiagramScene> {
       // router itself computes for un-overridden relationships.
       final points = layout?.wireOverrideOf(relationship.id) ??
           (routing == null
-              ? [sourceAnchor, targetAnchor]
+              ? [sourceResolved.anchor, targetResolved.anchor]
               : routing.route(
                   RoutingRequest(
                     relationshipId: relationship.id,
-                    source: sourceAnchor,
-                    target: targetAnchor,
+                    source: sourceResolved.anchor,
+                    target: targetResolved.anchor,
                     trunkKey: relationship.sourceNode,
+                    sourceNodeId: relationship.sourceNode,
+                    targetNodeId: relationship.targetNode,
+                    sourceExitDirection: sourceResolved.direction,
+                    targetExitDirection: targetResolved.direction,
                   ),
                   routingContext,
                 ));
@@ -161,27 +199,47 @@ class DiagramView implements EngineeringView<DiagramScene> {
   /// specific ports (SDD-027), so this snaps to whichever port is
   /// geometrically closest to [towards] rather than a named port —
   /// documented scoping decision, see docs/ROUTING_ENGINE.md.
-  Point2D _anchorFor(
+  ///
+  /// Also reports which edge of the node that anchor sits on
+  /// (`'up'`/`'down'`/`'left'`/`'right'`, or `null` for a center
+  /// fallback/interior anchor) — [OrthogonalRoutingProvider] uses this
+  /// to exit each port perpendicular to its own node rather than cutting
+  /// straight across it toward the other endpoint.
+  ({Point2D anchor, String? direction}) _anchorFor(
     EngineeringNode? node,
     Point2D nodePosition,
+    Size2D nodeSize,
     SymbolProvider? symbols, {
     required Point2D towards,
   }) {
     final center = nodePosition.translate(
-      DiagramLayout.nodeSize / 2,
-      DiagramLayout.nodeSize / 2,
+      nodeSize.width / 2,
+      nodeSize.height / 2,
     );
-    if (node?.symbolId == null || symbols == null) return center;
+    if (node == null) return (anchor: center, direction: null);
 
-    final symbol = symbols.lookup(node!.symbolId!);
-    if (symbol == null || symbol.ports.isEmpty) return center;
+    // (Phase 14 -- UI Layout Ratification.) Prefer the visual Symbol's
+    // own authored port geometry when one resolves; otherwise fall back
+    // to the SAME real-port-derived geometry `graph_view_panel.dart`'s
+    // pin rendering and `diagram_studio_page.dart`'s drag-to-connect
+    // anchor both use (`fallbackPorts`) -- all three must agree, or a
+    // wire visually detaches from the pin it's meant to reach.
+    final symbolPorts = (symbols != null && node.symbolId != null) ? symbols.lookup(node.symbolId!)?.ports ?? const [] : const <SymbolPort>[];
+    final ports = symbolPorts.isNotEmpty ? symbolPorts : fallbackPorts(node.ports, exit: (node.metadata['exit'] as String?) ?? 'down');
+    if (ports.isEmpty) return (anchor: center, direction: null);
 
     Point2D? nearest;
+    double? nearestPortX;
+    double? nearestPortY;
     double nearestDistance = double.infinity;
-    for (final port in symbol.ports) {
+    for (final port in ports) {
+      // Port coordinates are normalized [0,1] fractions of node size
+      // (unchanged by resize — WORK_PACKAGE_021 port model), so anchors
+      // scale with the node's actual (possibly resized) width/height
+      // rather than the fixed `DiagramLayout.nodeSize`.
       final anchor = nodePosition.translate(
-        port.x * DiagramLayout.nodeSize,
-        port.y * DiagramLayout.nodeSize,
+        port.x * nodeSize.width,
+        port.y * nodeSize.height,
       );
       final dx = anchor.dx - towards.dx;
       final dy = anchor.dy - towards.dy;
@@ -189,8 +247,23 @@ class DiagramView implements EngineeringView<DiagramScene> {
       if (distance < nearestDistance) {
         nearestDistance = distance;
         nearest = anchor;
+        nearestPortX = port.x;
+        nearestPortY = port.y;
       }
     }
-    return nearest ?? center;
+    if (nearest == null) return (anchor: center, direction: null);
+    return (anchor: nearest, direction: _edgeDirectionOf(nearestPortX!, nearestPortY!));
+  }
+
+  /// Which of a node's four edges a normalized `[0,1]` port position sits
+  /// on -- `null` for an interior port (not on any edge), since there's
+  /// no single perpendicular direction to exit in that case.
+  String? _edgeDirectionOf(double portX, double portY) {
+    const edge = 0.001;
+    if (portY <= edge) return 'up';
+    if (portY >= 1 - edge) return 'down';
+    if (portX <= edge) return 'left';
+    if (portX >= 1 - edge) return 'right';
+    return null;
   }
 }

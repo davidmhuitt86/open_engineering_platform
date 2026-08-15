@@ -15,6 +15,16 @@ dependencies:
   flutter:
     sdk: flutter
   flutter_svg: ^2.0.10+1
+  # AP-DS-004 (Engineering Publishing & Deliverables): real PDF generation
+  # for drawing/report export and printing. Hand-rolling a PDF writer
+  # capable of multi-page vector graphics + text + embedded fonts is a
+  # project unto itself with no reasonable in-house substitute within
+  # this phase's scope (unlike sha256/ed25519/ZIP elsewhere in this
+  # platform, which are small, well-specified formats); `pdf` is the
+  # de facto standard, actively maintained, minimal-dependency Dart PDF
+  # library — the same reasoning CLAUDE.md's own "Dependencies" section
+  # asks for was applied before adding this.
+  pdf: ^3.11.1
 
 dev_dependencies:
   flutter_test:

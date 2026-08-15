@@ -52,17 +52,7 @@ void main() {
     });
   });
 
-  group('MoveNodeCommand / MoveNodesCommand', () {
-    test('move updates layout only, revert restores previous position', () {
-      final move = MoveNodeCommand('a', const Point2D(100, 100));
-      final after = move.apply(session);
-      expect(after.layout.positionOf('a'), const Point2D(100, 100));
-      expect(after.graph, same(session.graph)); // graph untouched — SDD-024 Rule 5
-
-      final reverted = move.revert(after);
-      expect(reverted.layout.positionOf('a'), isNull);
-    });
-
+  group('MoveNodesCommand', () {
     test('moving multiple nodes is one undoable step', () {
       final moveMany = MoveNodesCommand({'a': const Point2D(5, 5), 'b': const Point2D(6, 6)});
       final after = moveMany.apply(session);

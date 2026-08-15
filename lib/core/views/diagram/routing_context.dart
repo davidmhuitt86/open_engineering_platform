@@ -1,3 +1,5 @@
+import 'rect2d.dart';
+
 /// Lane-allocation state shared across every [RoutingProvider.route] call
 /// within one render pass — a fresh `RoutingContext` per `DiagramView.render`
 /// call keeps parallel routes from overlapping (concept from the reference
@@ -8,6 +10,23 @@ class RoutingContext {
 
   final Map<int, int> _columnUsage = {};
   final Map<String, double> _trunkColumns = {};
+
+  /// Every node's current bounding box, by node id -- `DiagramView.render`
+  /// populates this once per pass from the same position/size data it
+  /// already computes for every node, so [RoutingProvider] implementations
+  /// can route around real component geometry instead of only knowing
+  /// two endpoint anchors.
+  final Map<String, Rect2D> obstacles;
+
+  RoutingContext({this.obstacles = const {}});
+
+  /// Every obstacle rect except the ones owned by [excludeNodeIds] -- a
+  /// wire's own source/target node must never be treated as something it
+  /// needs to route around (its anchor sits exactly on that node's edge).
+  List<Rect2D> obstaclesExcluding(Set<String?> excludeNodeIds) => [
+        for (final entry in obstacles.entries)
+          if (!excludeNodeIds.contains(entry.key)) entry.value,
+      ];
 
   /// Returns a column x-coordinate near [preferredX], offset by
   /// [laneSpacing] (alternating left/right) each time the same preferred

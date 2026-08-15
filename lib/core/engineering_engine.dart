@@ -35,6 +35,7 @@ import 'search/search_service.dart';
 import 'selection/selection_service.dart';
 import 'shared/ids.dart';
 import 'simulation/no_op_simulation_provider.dart';
+import 'simulation/simulation_engine.dart';
 import 'symbols/library/symbol_library.dart';
 import 'validation/validation_report.dart';
 import 'validation/validation_service.dart';
@@ -123,6 +124,7 @@ class EngineeringEngine {
       ..register<ImportProvider>(JsonImportProvider())
       ..register<ExportProvider>(JsonExportProvider())
       ..register<SimulationProvider>(NoOpSimulationProvider())
+      ..register<SimulationEngine>(SimulationEngine())
       ..register<LayoutProvider>(InMemoryLayoutProvider())
       ..register<ClipboardProvider>(InMemoryClipboardProvider())
       ..register<RoutingProvider>(OrthogonalRoutingProvider())

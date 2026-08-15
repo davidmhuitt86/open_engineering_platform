@@ -18,3 +18,22 @@ class Point2D {
   @override
   String toString() => 'Point2D($dx, $dy)';
 }
+
+/// A plain 2D size (width/height), used for per-node resize (AP-DS-001A).
+/// Same rationale as [Point2D]: no `dart:ui` dependency here.
+class Size2D {
+  final double width;
+  final double height;
+
+  const Size2D(this.width, this.height);
+
+  @override
+  bool operator ==(Object other) =>
+      other is Size2D && other.width == width && other.height == height;
+
+  @override
+  int get hashCode => Object.hash(width, height);
+
+  @override
+  String toString() => 'Size2D($width, $height)';
+}

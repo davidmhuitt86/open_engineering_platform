@@ -14,6 +14,15 @@ class AnnotationWidget extends StatelessWidget {
   final VoidCallback onDragEnd;
   final VoidCallback onEditRequested;
 
+  /// A right-click (secondary-button tap) on this annotation (OEP
+  /// Diagram Studio -- Phase 4, Part 6): reuses this widget's own real,
+  /// already-rendered `GestureDetector` hit region -- the same one
+  /// `onTap` uses -- rather than a separately computed approximation
+  /// of the annotation's text-dependent bounds (no such bounds are
+  /// stored on `DiagramAnnotation` itself). `null` for callers that
+  /// don't need contextual-menu targeting.
+  final void Function(Offset globalPosition)? onSecondaryTapUp;
+
   const AnnotationWidget({
     super.key,
     required this.annotation,
@@ -23,19 +32,34 @@ class AnnotationWidget extends StatelessWidget {
     required this.onDragUpdate,
     required this.onDragEnd,
     required this.onEditRequested,
+    this.onSecondaryTapUp,
   });
 
   @override
   Widget build(BuildContext context) {
+    if (annotation.type == AnnotationType.portLabel) return _buildPortLabel();
     return Positioned(
       left: annotation.position.dx,
       top: annotation.position.dy,
-      child: Transform.rotate(
+      // RepaintBoundary goes *inside* Positioned (AP-DS-001B fix): this
+      // widget is placed directly as a Stack child by GraphViewPanel, and
+      // Positioned must be the direct Stack child for Flutter's
+      // ParentDataWidget matching to work — wrapping this whole widget in
+      // an outer RepaintBoundary (as GraphViewPanel previously did)
+      // interposes a RenderObject between Stack and Positioned and throws
+      // "Incorrect use of ParentDataWidget" for every annotation at
+      // runtime. Isolating repaint at this inner boundary still gets the
+      // performance benefit (this annotation's own subtree repaints
+      // independently of its siblings) without breaking Positioned's
+      // required adjacency to Stack.
+      child: RepaintBoundary(
+        child: Transform.rotate(
         angle: annotation.rotation * 3.1415926535 / 180,
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: onTap,
           onDoubleTap: onEditRequested,
+          onSecondaryTapUp: onSecondaryTapUp == null ? null : (details) => onSecondaryTapUp!(details.globalPosition),
           onPanStart: (_) => onDragStart(),
           onPanUpdate: (details) => onDragUpdate(details.delta),
           onPanEnd: (_) => onDragEnd(),
@@ -51,6 +75,44 @@ class AnnotationWidget extends StatelessWidget {
               annotation.text.isEmpty ? '(empty)' : annotation.text,
               style: const TextStyle(fontSize: 12),
               overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+      ),
+      ),
+    );
+  }
+
+  /// (User-requested: a pin/port label should render like the
+  /// reference screenshot -- small plain caps text sitting right at
+  /// the pin, no bordered box.) Same tap/drag/edit gestures as the
+  /// boxed style above, just without [_backgroundFor]'s
+  /// `Container`/`Border` -- a real terminal name on a wiring diagram
+  /// isn't drawn as a sticky note.
+  Widget _buildPortLabel() {
+    return Positioned(
+      left: annotation.position.dx,
+      top: annotation.position.dy,
+      child: RepaintBoundary(
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: onTap,
+          onDoubleTap: onEditRequested,
+          onSecondaryTapUp: onSecondaryTapUp == null ? null : (details) => onSecondaryTapUp!(details.globalPosition),
+          onPanStart: (_) => onDragStart(),
+          onPanUpdate: (details) => onDragUpdate(details.delta),
+          onPanEnd: (_) => onDragEnd(),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 2),
+            decoration: selected ? BoxDecoration(border: Border.all(color: Colors.blue, width: 1)) : null,
+            child: Text(
+              annotation.text.isEmpty ? '(empty)' : annotation.text,
+              style: const TextStyle(
+                fontSize: 8,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.3,
+                color: Colors.black87,
+              ),
             ),
           ),
         ),

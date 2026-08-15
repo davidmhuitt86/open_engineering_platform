@@ -2,6 +2,7 @@
 /// ENGINE-TASK-000083).
 library;
 
+export '../core/clipboard/clipboard_codec.dart';
 export '../core/clipboard/clipboard_entry.dart';
 export '../core/clipboard/clipboard_extraction.dart';
 export '../core/clipboard/clipboard_service.dart';

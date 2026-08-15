@@ -28,4 +28,38 @@ class ClipboardEntry {
   });
 
   bool get isEmpty => nodes.isEmpty && annotations.isEmpty;
+
+  // --- Serialization (AP-DS-001A: OS clipboard round-trip) --------------
+
+  Map<String, Object?> toJson() => {
+        'nodes': nodes.map((n) => n.toJson()).toList(),
+        'relationships': relationships.map((r) => r.toJson()).toList(),
+        'groups': groups.map((g) => g.toJson()).toList(),
+        'positions': positions.map((id, p) => MapEntry(id, {'dx': p.dx, 'dy': p.dy})),
+        'annotations': annotations.map((a) => a.toJson()).toList(),
+      };
+
+  factory ClipboardEntry.fromJson(Map<String, Object?> json) {
+    Point2D pointFrom(Object? value) {
+      final point = value as Map;
+      return Point2D((point['dx'] as num).toDouble(), (point['dy'] as num).toDouble());
+    }
+
+    final rawPositions = json['positions'] as Map? ?? const {};
+    return ClipboardEntry(
+      nodes: (json['nodes'] as List? ?? const [])
+          .map((n) => EngineeringNode.fromJson(Map<String, Object?>.from(n as Map)))
+          .toList(),
+      relationships: (json['relationships'] as List? ?? const [])
+          .map((r) => EngineeringRelationship.fromJson(Map<String, Object?>.from(r as Map)))
+          .toList(),
+      groups: (json['groups'] as List? ?? const [])
+          .map((g) => EngineeringGroup.fromJson(Map<String, Object?>.from(g as Map)))
+          .toList(),
+      positions: rawPositions.map((id, value) => MapEntry(id as String, pointFrom(value))),
+      annotations: (json['annotations'] as List? ?? const [])
+          .map((a) => DiagramAnnotation.fromJson(Map<String, Object?>.from(a as Map)))
+          .toList(),
+    );
+  }
 }

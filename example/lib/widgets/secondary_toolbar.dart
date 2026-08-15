@@ -206,6 +206,8 @@ class SecondaryToolbar extends StatelessWidget {
         return 'Free Text';
       case AnnotationType.revisionNote:
         return 'Revision Note';
+      case AnnotationType.portLabel:
+        return 'Pin Label';
     }
   }
 }

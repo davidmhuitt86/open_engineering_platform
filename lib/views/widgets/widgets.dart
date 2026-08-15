@@ -13,6 +13,7 @@ export 'grid_painter.dart';
 export 'guides_painter.dart';
 export 'origin_indicator.dart';
 export 'reconnect_handle.dart';
+export 'resize_handles.dart';
 export 'symbol_node_widget.dart';
 export 'wire_edit_handles.dart';
 export 'wire_painter.dart';

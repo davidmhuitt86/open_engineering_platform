@@ -10,6 +10,15 @@ enum AnnotationType {
   componentLabel,
   freeText,
   revisionNote,
+
+  /// A label for one specific port/pin on a node (user-requested: click
+  /// a pin or port in Edit mode, add a label to it) -- distinct from
+  /// [componentLabel] (labels the whole node) the same way a pin is
+  /// distinct from the component it's on. Renders without
+  /// [AnnotationWidget]'s usual bordered box (see that widget's own doc
+  /// comment) -- small plain text sitting right at the pin, matching
+  /// how a real terminal name reads on a wiring diagram.
+  portLabel,
 }
 
 /// A drafting annotation — text label, leader note, callout, wire/
@@ -36,6 +45,14 @@ class DiagramAnnotation {
 
   final String? anchorNodeId;
   final String? anchorRelationshipId;
+
+  /// The id of the [Port]/[SymbolPort] this label belongs to, for
+  /// [AnnotationType.portLabel] -- same soft-reference contract as
+  /// [anchorNodeId]/[anchorRelationshipId] (a dangling reference just
+  /// renders unanchored, never corrupts the annotation). [anchorNodeId]
+  /// is still set alongside this to the port's owning node, since a
+  /// port id alone isn't unique across the whole graph.
+  final String? anchorPortId;
   final Map<String, Object?> metadata;
 
   const DiagramAnnotation({
@@ -46,6 +63,7 @@ class DiagramAnnotation {
     this.rotation = 0,
     this.anchorNodeId,
     this.anchorRelationshipId,
+    this.anchorPortId,
     this.metadata = const {},
   });
 
@@ -58,6 +76,8 @@ class DiagramAnnotation {
     bool clearAnchorNodeId = false,
     String? anchorRelationshipId,
     bool clearAnchorRelationshipId = false,
+    String? anchorPortId,
+    bool clearAnchorPortId = false,
     Map<String, Object?>? metadata,
   }) {
     return DiagramAnnotation(
@@ -70,6 +90,7 @@ class DiagramAnnotation {
       anchorRelationshipId: clearAnchorRelationshipId
           ? null
           : (anchorRelationshipId ?? this.anchorRelationshipId),
+      anchorPortId: clearAnchorPortId ? null : (anchorPortId ?? this.anchorPortId),
       metadata: metadata ?? this.metadata,
     );
   }
@@ -82,6 +103,7 @@ class DiagramAnnotation {
         'rotation': rotation,
         'anchorNodeId': anchorNodeId,
         'anchorRelationshipId': anchorRelationshipId,
+        'anchorPortId': anchorPortId,
         'metadata': metadata,
       };
 
@@ -94,7 +116,8 @@ class DiagramAnnotation {
         other.position == position &&
         other.rotation == rotation &&
         other.anchorNodeId == anchorNodeId &&
-        other.anchorRelationshipId == anchorRelationshipId;
+        other.anchorRelationshipId == anchorRelationshipId &&
+        other.anchorPortId == anchorPortId;
   }
 
   @override
@@ -106,6 +129,7 @@ class DiagramAnnotation {
         rotation,
         anchorNodeId,
         anchorRelationshipId,
+        anchorPortId,
       );
 
   factory DiagramAnnotation.fromJson(Map<String, Object?> json) {
@@ -124,6 +148,7 @@ class DiagramAnnotation {
       rotation: (json['rotation'] as num?)?.toDouble() ?? 0,
       anchorNodeId: json['anchorNodeId'] as String?,
       anchorRelationshipId: json['anchorRelationshipId'] as String?,
+      anchorPortId: json['anchorPortId'] as String?,
       metadata: Map<String, Object?>.from(json['metadata'] as Map? ?? const {}),
     );
   }

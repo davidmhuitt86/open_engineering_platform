@@ -89,6 +89,18 @@ void main() {
         service.goForward();
         expect(service.canGoForward, isFalse);
       });
+
+      test('resetView (AP-DS-001A "View reset") returns to zoom=1/pan=origin and is undoable', () {
+        service.setZoom(2.5);
+        service.setPan(const Point2D(120, 80));
+        service.resetView();
+        expect(service.current.zoom, 1);
+        expect(service.current.pan, const Point2D(0, 0));
+        expect(service.canGoBack, isTrue);
+        service.goBack();
+        expect(service.current.zoom, 2.5);
+        expect(service.current.pan, const Point2D(120, 80));
+      });
     });
   });
 
