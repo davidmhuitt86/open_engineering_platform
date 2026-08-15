@@ -1,0 +1,90 @@
+name: oep_studio
+description: "OEP Studio — the graphical desktop application for the Open Engineering Platform."
+publish_to: "none"
+version: 0.1.0
+
+environment:
+  sdk: ^3.5.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Routing (SDD-003 Navigation Framework, SDD-004 Workspace Framework)
+  go_router: ^14.6.2
+
+  # State management (Studio Services layer)
+  flutter_riverpod: ^2.6.1
+
+  # Foundation Bridge (SDD-006): dart:ffi marshaling helpers (Utf8, malloc).
+  ffi: ^2.1.3
+
+  # Native folder picker for the Open Repository workflow (STUDIO-TASK-000004).
+  file_selector: ^1.0.3
+
+  # PDF Source Viewer (STUDIO-TASK-000019) — page rendering, navigation, zoom.
+  pdfrx: ^2.4.7
+
+  # OCR Session Cache (Work Package 013 STUDIO-TASK-000037) — SHA-256
+  # content fingerprinting for cache invalidation. Dart-team-maintained,
+  # BSD-3, no native code.
+  crypto: ^3.0.6
+
+  # AnthropicProvider (Work Package 018 STUDIO-TASK-000056) — the
+  # Messages API request/response transport. Dart-team-maintained.
+  http: ^1.2.2
+
+  cupertino_icons: ^1.0.8
+
+  # Diagram Studio (WORK_PACKAGE_024, ENGINE-TASK-000108): the
+  # Engineering Engine's public API. Studio never imports anything under
+  # `package:engineering_engine/core/` — only this single root barrel.
+  engineering_engine:
+    path: ../oep_engine
+
+  # Symbol rendering for Diagram Studio's canvas (the Engine ships symbol
+  # *geometry* data only, per SDD-025/026 — no Flutter in `lib/core`).
+  # Same version the Engineering Engine Demonstration Host already uses.
+  flutter_svg: ^2.0.10+1
+
+  # Printing System (AP-DS-004 Engineering Publishing & Deliverables) —
+  # the Flutter-official, actively-maintained package for cross-platform
+  # print preview / OS print-dialog / "save as PDF" UI. Same reasoning
+  # `oep_engine`'s own `pdf` dependency comment applies here: de facto
+  # standard, maintained by the same team as the `pdf` package it is
+  # built on top of (same `PdfPageFormat`/document type `oep_engine`'s
+  # renderers already produce, so no format-conversion layer is needed
+  # between "oep_engine built a pw.Document" and "oep_studio previews or
+  # prints it"), minimal additional dependency surface.
+  printing: ^5.13.4
+
+  # `PdfPageFormat` (used directly by the diagram Print Preview dialog) —
+  # already a transitive dependency of `printing`/`oep_engine`'s `pdf`
+  # dependency; declared directly here too since we import it directly
+  # (avoid relying on an undeclared transitive dependency).
+  pdf: ^3.11.1
+
+  # OEP Instruments Runtime (oep_instruments repository) — Diagram
+  # Studio is the Host half of the OEP Instrument Protocol; this
+  # dependency provides only the transport-independent Host-side
+  # plumbing (OipHostServer, the OipMessage/OipMessageCategory wire
+  # model) this app's own instruments_host bridge uses to answer
+  # measurement requests from a connected instrument client (e.g. the
+  # Android Digital Multimeter app) — never engineering logic itself,
+  # matching the OIP Constitution's own "Diagram Studio remains the
+  # engineering authority" boundary.
+  oep_instruments_runtime:
+    path: ../oep_instruments/platform/oep_instruments
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+
+  # assets:
+  #   - assets/icons/
+  #   - assets/images/
+  #   - assets/themes/
