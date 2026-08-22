@@ -40,6 +40,7 @@ export '../core/editing/commands/ungroup_command.dart';
 export '../core/editing/commands/update_annotation_command.dart';
 export '../core/editing/commands/update_evidence_link_command.dart';
 export '../core/editing/commands/update_layer_command.dart';
+export '../core/editing/commands/update_node_metadata_command.dart';
 export '../core/editing/commands/update_node_properties_command.dart';
 export '../core/editing/commands/update_port_command.dart';
 export '../core/editing/commands/update_relationship_properties_command.dart';

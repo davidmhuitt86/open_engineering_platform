@@ -13,6 +13,13 @@ import 'studio_registry.dart';
 /// owns the one thing that isn't per-destination: the [ShellRoute]
 /// wrapper every destination renders inside.
 final appRouter = GoRouter(
+  // AP-DIAGRAM-V2-BRIDGE-002 — reverted per this file's own standing
+  // instruction ("revert before any real work"): `/diagram` now
+  // auto-opens a real Legacy V2 WebView2 surface on mount, which cannot
+  // initialize under `flutter test`'s headless environment — leaving
+  // the app's default launch location pointed at it was causing broad,
+  // unrelated test failures for any test that merely launched the app
+  // generically (never explicitly navigating to Diagram Studio).
   initialLocation: StudioDestination.dashboard.path,
   routes: [
     ShellRoute(

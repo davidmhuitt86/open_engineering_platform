@@ -7,7 +7,7 @@
 [data-theme="dark"]{
   --ink:#f1f1ec;
   --bg:#e8e4dc;
-  --amber:#f59e0b;
+  --amber:#3b82f6; /* OEP accent (was amber #f59e0b) — matches StudioColors.selection, AP-OEP-DIAGRAM-CHROME-001 */
   --lcd-bg:#1a2e1a;
   --lcd-fg:#39ff14;
   --purple:#7c3aed;
@@ -51,7 +51,7 @@
 [data-theme="light"]{
   --ink:#1a1a1a;
   --bg:#eef0f2;
-  --amber:#b45309;
+  --amber:#1d4ed8; /* OEP accent (was amber #b45309) — matches StudioColors.selection, AP-OEP-DIAGRAM-CHROME-001 */
   --lcd-bg:#0d2410;
   --lcd-fg:#16a34a;
   --purple:#6d28d9;
@@ -103,7 +103,12 @@ body{font-size:10px}
 #topbar-wrap{display:flex;flex-direction:column;flex-shrink:0;border-bottom:2px solid var(--amber);background:var(--surf-0);}
 #topbar{background:var(--surf-0);color:var(--text-hi);min-height:34px;padding:4px 10px;display:flex;align-items:center;gap:6px;flex-shrink:0;font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;overflow-x:auto;overflow-y:hidden;flex-wrap:nowrap;}
 #topbar::-webkit-scrollbar{display:none}
-#topbar-logo{font-size:14px;font-weight:900;color:var(--amber);white-space:nowrap;margin-right:2px}
+#topbar-logo{font-size:13px;font-weight:700;color:var(--ink);white-space:nowrap;margin-right:2px;display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:normal}
+/* AP-OEP-DIAGRAM-UX-002 — exact visual match of the OEP app's own
+   brand mark (`_OepMark` in workbench_sidebar.dart: 28x28,
+   StudioColors.selection #3b82f6 bg, radius 6, white bold "O"),
+   scaled down for this topbar's ~34px height. */
+#topbar-logo-mark{width:20px;height:20px;flex-shrink:0;border-radius:5px;background:#3b82f6;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;font-family:inherit}
 #topbar-actions{background:var(--surf-1);padding:4px 10px;display:flex;align-items:center;gap:4px;flex-wrap:wrap;border-top:1px solid var(--border-0);}
 #topbar-actions .sep{height:16px}
 .sep{width:1px;height:18px;background:var(--border-1);flex-shrink:0}
@@ -135,7 +140,7 @@ body{font-size:10px}
 #wire-layer{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;overflow:visible}
 .mod-card{position:absolute;background:var(--card-bg);border:1.5px solid var(--card-border);border-radius:3px;box-shadow:var(--shadow-soft);user-select:none;min-width:40px;z-index:10;}
 .mod-card.dragging{box-shadow:0 6px 20px rgba(0,0,0,.35);opacity:.92;z-index:100;cursor:grabbing}
-.mod-card.wire-selected{box-shadow:0 0 0 2px var(--amber),0 0 0 4px #fde68a,0 0 0 6px var(--amber)}
+.mod-card.wire-selected{box-shadow:0 0 0 2px var(--amber),0 0 0 4px #bfdbfe,0 0 0 6px var(--amber)}
 .mod-card.wire-src{box-shadow:0 0 0 2px #0891b2,0 0 0 5px rgba(8,145,178,.3)}
 .mod-card.sel-flash{box-shadow:0 0 0 2px var(--purple),0 0 0 5px rgba(124,58,237,.25)}
 #viewport.edit-mode .mod-card{cursor:grab}

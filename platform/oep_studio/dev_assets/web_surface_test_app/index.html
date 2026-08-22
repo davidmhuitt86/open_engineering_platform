@@ -1,0 +1,22 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Web Surface Test App</title>
+<style>
+  body { font-family: sans-serif; background: #1e1e1e; color: #ddd; padding: 24px; }
+  button { font-size: 16px; padding: 8px 16px; margin-top: 12px; }
+  #count { font-size: 32px; margin: 12px 0; }
+</style>
+</head>
+<body>
+  <h1>Web Surface Test App</h1>
+  <p>A second, independent local <code>file://</code> application — not part of
+     Legacy V2, used only to prove two Web Surfaces can hold separate
+     JavaScript state at the same time (AP-STUDIO-WEB-SURFACE-001, Phase 4/11).</p>
+  <div id="count">0</div>
+  <button onclick="document.getElementById('count').textContent = Number(document.getElementById('count').textContent) + 1">
+    Increment (this surface's own state)
+  </button>
+</body>
+</html>

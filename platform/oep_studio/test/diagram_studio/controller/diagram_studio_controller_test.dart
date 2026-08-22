@@ -1,40 +1,20 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_test/flutter_test.dart';
 import 'package:engineering_engine/engineering_engine.dart';
+import 'package:flutter/widgets.dart';
+import 'package:flutter_test/flutter_test.dart';
 
-import 'package:oep_studio/core/theme/studio_theme.dart';
-import 'package:oep_studio/diagram_studio/controller/diagram_studio_controller.dart';
-import 'package:oep_studio/diagram_studio/workspaces/diagram_studio_page.dart';
+import '../../support/diagram_studio_controller_harness.dart';
+import '../../support/isolated_settings_storage.dart';
 
 /// Focused tests for `DiagramStudioController` (WAVE 1, AP-DIAGRAM-W1) —
-/// verifies the extracted controller is the real gateway
-/// `DiagramStudioPage` now uses, and that centralizing dirty-marking
-/// there did not change *when* the document becomes dirty. Reaches the
-/// controller off the live page's own `State` (`tester.state(...) as
-/// dynamic`), the same pattern `diagram_studio_interaction_test.dart`
-/// already uses to reach engine-level state without depending on private
-/// field layout beyond a name.
+/// verifies the controller is the real gateway to `engine.editing.execute`,
+/// and that centralizing dirty-marking there did not change *when* the
+/// document becomes dirty.
+///
+/// AP-DIAGRAM-V2-BRIDGE-010 — reaches the controller via
+/// [bootstrapDiagramStudioController] (the real provider-driven bootstrap,
+/// § that helper's own doc comment), not the retired native
+/// `DiagramStudioPage`'s own `State`.
 void main() {
-  Widget harness() {
-    return ProviderScope(
-      child: MaterialApp(
-        theme: StudioTheme.dark,
-        home: const Scaffold(body: DiagramStudioPage()),
-      ),
-    );
-  }
-
-  Future<void> bootstrap(WidgetTester tester) async {
-    await tester.runAsync(() async {
-      for (var i = 0; i < 100; i++) {
-        await Future.delayed(const Duration(milliseconds: 100));
-        await tester.pump();
-        if (find.byTooltip('Add node').evaluate().isNotEmpty) return;
-      }
-    });
-  }
-
   Future<void> settle(WidgetTester tester) async {
     for (var i = 0; i < 10; i++) {
       await tester.pump(const Duration(milliseconds: 50));
@@ -48,14 +28,14 @@ void main() {
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
+      // AP-DIAGRAM-W2-D1: isolates this test's bootstrap (tabs/workspace/
+      // document-autosave) from this real machine's actual persisted
+      // state — see the helper's own doc comment. A blank-slate bootstrap
+      // is also what makes the `isEmpty` assertion below meaningful.
+      useIsolatedSettingsStorage();
 
-      await tester.pumpWidget(harness());
-      await bootstrap(tester);
-      expect(find.byTooltip('Add node'), findsOneWidget, reason: 'Engine bootstrap must complete before controller tests run');
-
-      final state = tester.state(find.byType(DiagramStudioPage)) as dynamic;
-      final DiagramStudioController controller = state.controllerForTest as DiagramStudioController;
-      final EngineeringEngine engine = state.engine as EngineeringEngine;
+      final (controller, _) = await bootstrapDiagramStudioController(tester);
+      final engine = controller.engine;
 
       // --- The controller is real and already the page's sole gateway ------
       expect(controller, isNotNull);

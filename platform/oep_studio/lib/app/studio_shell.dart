@@ -21,6 +21,7 @@ import '../core/workspace/workspace_manager.dart';
 import '../knowledge/models/ocr_processing_status.dart';
 import '../shared/widgets/output_panel.dart';
 import '../shared/widgets/property_inspector_panel.dart';
+import '../web_surface/web_surfaces_host_page.dart';
 import '../workbench/perspective/perspective_manager.dart';
 import '../workbench/widgets/workbench_sidebar.dart';
 import 'widgets/command_palette_dialog.dart';
@@ -139,6 +140,48 @@ class _StudioShellState extends ConsumerState<StudioShell> with WidgetsBindingOb
   ProviderSubscription<AcquisitionServiceState>? _progressBridge;
   ProviderSubscription<EngineeringProjectState>? _workspaceBridge;
   ProviderSubscription<FoundationServiceState>? _foundationBridge;
+
+  /// AP-OEP-DIAGRAM-UX-001 — constructed exactly once, alive for this
+  /// `State`'s entire lifetime (which spans every navigation, since
+  /// `StudioShell` is the one persistent widget the `ShellRoute` never
+  /// tears down between destinations — confirmed by `didUpdateWidget`
+  /// already existing below to react to `selected` changes rather than
+  /// `initState` re-running). Kept permanently mounted in `build()` via
+  /// `Offstage` (never conditionally excluded from the tree) so its
+  /// `LegacyV2WebViewPage`/WebView2 control starts initializing the
+  /// moment the app boots — not the moment the user first navigates to
+  /// Diagram Studio, which previously meant a real WebView2 cold-start +
+  /// V2's own JS bootstrap on every single visit (each router rebuild
+  /// created a brand-new `WebSurfacesHostPage` from scratch). Every
+  /// other Studio is intentionally unaffected — this is a Diagram-
+  /// Studio-only carve-out, matching the existing chrome-bypass carve-out
+  /// immediately below in `build()`, not a general keep-alive routing
+  /// change.
+  ///
+  /// A `GlobalKey`, not just a stable field/object identity, is required
+  /// here: the diagram and non-diagram branches below return
+  /// structurally different `Scaffold` trees (§ the `build()` carve-out
+  /// this mirrors), so this widget moves to a genuinely different tree
+  /// position depending on `widget.selected` — plain object identity
+  /// only preserves `State` when a widget stays at the *same* tree
+  /// position across rebuilds; a `GlobalKey` is Flutter's documented
+  /// mechanism for relocating a live Element across different parents in
+  /// one build pass without disposing/recreating it.
+  final GlobalKey _diagramStudioHostKey = GlobalKey();
+  late final Widget _diagramStudioHost = WebSurfacesHostPage(key: _diagramStudioHostKey, autoOpenLegacyV2: true);
+
+  /// Preloading unconditionally under `flutter test` mounts a real
+  /// WebView2-backed `LegacyV2WebViewPage` in the background of every
+  /// single widget test that pumps the full app shell — including
+  /// hundreds with nothing to do with Diagram Studio — which hung
+  /// `pumpAndSettle` broadly (confirmed by running the full suite after
+  /// adding the preload). `app_router.dart`'s own standing comment
+  /// already documents WebView2 as unreliable under the headless test
+  /// binding; this flag preserves the pre-preload behavior (only mount
+  /// the real widget once `widget.selected` actually is Diagram Studio,
+  /// exactly as `widget.child`-based navigation always did) under test,
+  /// while still eagerly preloading for real users.
+  bool get _isUnderTest => WidgetsBinding.instance.runtimeType.toString() != 'WidgetsFlutterBinding';
 
   PlatformEventBus get _eventBus => widget._eventBus ?? PlatformEventBus.instance;
   WorkspaceManager get _workspaceManager => widget._workspaceManager ?? WorkspaceManager.instance;
@@ -368,7 +411,7 @@ class _StudioShellState extends ConsumerState<StudioShell> with WidgetsBindingOb
             // responsible for its own top strip/status surfaces now
             // that it has the whole screen.
             if (widget.selected == StudioDestination.diagram) {
-              return Scaffold(backgroundColor: StudioColors.background, body: widget.child);
+              return Scaffold(backgroundColor: StudioColors.background, body: _diagramStudioHost);
             }
             final showInspector = ref.watch(propertyInspectorVisibleProvider);
             return Scaffold(
@@ -414,7 +457,21 @@ class _StudioShellState extends ConsumerState<StudioShell> with WidgetsBindingOb
                           // "diagram open" flag.
                           diagramSessionActive: ref.watch(engineeringProjectServiceProvider.select((s) => s.session != null)),
                         ),
-                        Expanded(child: widget.child),
+                        Expanded(
+                          child: Stack(
+                            children: [
+                              // AP-OEP-DIAGRAM-UX-001 — kept mounted and
+                              // warming behind whichever Studio is
+                              // actually visible right now (see
+                              // `_diagramStudioHost`'s own doc comment).
+                              // Skipped under test (`_isUnderTest`) —
+                              // see that getter's own doc comment for
+                              // why.
+                              if (!_isUnderTest) Offstage(offstage: true, child: _diagramStudioHost),
+                              widget.child,
+                            ],
+                          ),
+                        ),
                         if (showInspector) const PropertyInspectorPanel(),
                       ],
                     ),

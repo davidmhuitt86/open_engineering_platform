@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
+
 import '../models/settings_exception.dart';
 
 /// Local JSON persistence for the User Configuration (Work Package 017
@@ -18,7 +20,46 @@ import '../models/settings_exception.dart';
 /// reaching the UI (Work Package 017 Error Handling: "Corrupt
 /// configuration ... Display professional messages").
 abstract final class SettingsStorage {
+  /// AP-DIAGRAM-W2-D1 (Wave 2 Stage D1 — Workspace Persistence Test
+  /// Isolation Hardening): the sole test seam for isolating persistence
+  /// tests from this real machine's actual `%APPDATA%/oep_studio`.
+  /// `null` (the only value production code ever sees) means [root]
+  /// resolves the real production location exactly as before this
+  /// change — production behavior is unaffected. Every Studio
+  /// persistence class that ultimately stores under
+  /// `SettingsStorage.root()` (`WorkspaceStateStorage`,
+  /// `DiagramTabsStorage`, `DiagramDocument`'s autosave directory,
+  /// `DiagramStudioSettingsStorage`, `RecentFilesStorage`,
+  /// `InstrumentDockStorage`, `SettingsStorage` itself, and every other
+  /// caller enumerated in `docs/DIAGRAM_STUDIO_COMPOSITION_BOUNDARY.md`'s
+  /// persistence inventory) resolves through this one method, so
+  /// overriding it here isolates all of them at once — no per-class
+  /// seam is needed, and none of their own code changes.
+  static Directory? _testRootOverride;
+
+  /// Sets (or clears, with `null`) the directory [root] returns instead
+  /// of the real production location. Deliberately a plain static
+  /// toggle rather than a second persistence abstraction or a Riverpod
+  /// provider: `SettingsStorage` and everything built on it is a
+  /// static-method utility with no dependency-injection seam anywhere
+  /// today, and adding one purely to make this override cleaner would
+  /// be a persistence-subsystem redesign this hardening pass is
+  /// explicitly not authorized to do.
+  ///
+  /// Callers (tests) own the override's lifecycle: set it to a real,
+  /// disposable temp directory before exercising any persistence code,
+  /// and reset it to `null` afterward (an `addTearDown` in the same
+  /// test, so a failure doesn't leak the override into a later test in
+  /// the same isolate). This method does not manage that lifecycle
+  /// itself.
+  @visibleForTesting
+  static void debugSetTestRootOverride(Directory? directory) {
+    _testRootOverride = directory;
+  }
+
   static Directory root() {
+    final override = _testRootOverride;
+    if (override != null) return override;
     final base =
         Platform.environment['APPDATA'] ?? Platform.environment['LOCALAPPDATA'] ?? Directory.systemTemp.path;
     return Directory('$base${Platform.pathSeparator}oep_studio');

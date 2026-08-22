@@ -7,6 +7,7 @@ import 'package:oep_studio/core/auth/auth_result.dart';
 import 'package:oep_studio/core/auth/authentication_provider.dart';
 import 'package:oep_studio/core/auth/authentication_service.dart';
 import 'package:oep_studio/core/routing/studio_destination.dart';
+import 'package:oep_studio/diagram_studio/webview/legacy_v2_webview.dart';
 
 /// A deterministic in-memory `AuthenticationService` -- the same
 /// pattern `onboarding_flow_test.dart` already established, duplicated
@@ -85,11 +86,19 @@ void main() {
     expect(find.text('Studio launch will be implemented in the next phase.'), findsNothing);
 
     // `StudioApp`/`appRouter` is now live and has navigated to Diagram
-    // Studio -- proven by its real bootstrap completing (the same
-    // "Add node" tooltip every other Diagram Studio test waits for).
-    for (var i = 0; i < 40 && find.byTooltip('Add node').evaluate().isEmpty; i++) {
+    // Studio -- proven by its real bootstrap completing. AP-DIAGRAM-V2-
+    // BRIDGE-010: the "Add node" tooltip this test used to wait for
+    // belonged to the native renderer, retired by that task -- `/diagram`
+    // has rendered the Web Surface host (Legacy V2 auto-opened) since
+    // AP-DIAGRAM-V2-BRIDGE-002. AP-OEP-DIAGRAM-UX-001 replaced the
+    // "Legacy V2 (open)" text button this test used to wait for with an
+    // icon-only "+"/globe toolbar and a tab strip whose label now tracks
+    // the open document's title rather than a fixed string, so the
+    // stable confirmation signal is the actual embedded widget type
+    // instead of any particular piece of UI text.
+    for (var i = 0; i < 40 && find.byType(LegacyV2WebViewPage).evaluate().isEmpty; i++) {
       await settle(tester);
     }
-    expect(find.byTooltip('Add node'), findsOneWidget, reason: 'Diagram Studio must actually be the active route, fully bootstrapped');
+    expect(find.byType(LegacyV2WebViewPage), findsOneWidget, reason: 'Diagram Studio must actually be the active route, fully bootstrapped with Legacy V2 auto-opened');
   });
 }

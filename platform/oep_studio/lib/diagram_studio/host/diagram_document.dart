@@ -57,6 +57,21 @@ class DiagramDocument {
 
   String _ensureId() => _documentId ??= _generateId();
 
+  /// AP-DIAGRAM-V2-BRIDGE-003, Phase 2 — the stable per-in-memory-document
+  /// identity this bridge needs, exposed publicly. Already existed as
+  /// [_ensureId] (used internally to name the autosave/recovery file) —
+  /// this task adds no new identity mechanism, only a public accessor.
+  /// Distinguishes two different never-saved documents in the same
+  /// session even though `path` is `null` for both, because [close]
+  /// resets `_documentId` to `null` (line below) and this getter
+  /// regenerates a fresh one lazily on next access — so "new document A"
+  /// and "new document B" (created via `newDocument()`, which calls
+  /// `close()` first) get different ids despite being the same
+  /// `DiagramDocument` Dart object instance (`EngineeringProjectState`
+  /// mutates it in place rather than replacing it — confirmed by reading
+  /// `EngineeringProjectService.newDocument`/`closeDocument` directly).
+  String get id => _ensureId();
+
   static String _generateId() {
     final random = Random();
     return List.generate(16, (_) => random.nextInt(16).toRadixString(16)).join();

@@ -3,12 +3,14 @@ import 'package:engineering_engine/engineering_engine.dart';
 import 'package:oep_studio/diagram_studio/persistence/diagram_workspace_state.dart';
 import 'package:oep_studio/diagram_studio/persistence/workspace_state_storage.dart';
 
+import 'support/isolated_settings_storage.dart';
+
 /// `DiagramWorkspaceState` toJson/fromJson round-trip, plus
-/// `WorkspaceStateStorage` against the real `%APPDATA%/oep_studio/`
-/// directory (WORK_PACKAGE_024, ENGINE-TASK-000115) — the same
-/// real-file-access-with-cleanup convention `knowledge_session_storage_test.dart`
-/// already uses, since neither storage class has (or should gain) a
-/// directory-override parameter purely for testability.
+/// `WorkspaceStateStorage` (WORK_PACKAGE_024, ENGINE-TASK-000115).
+/// AP-DIAGRAM-W2-D1: the `WorkspaceStateStorage` tests below use
+/// `useIsolatedSettingsStorage()` rather than reading/backing up/
+/// restoring this real machine's actual `%APPDATA%/oep_studio/` —
+/// see that helper's own doc comment for why.
 void main() {
   test('DiagramWorkspaceState round-trips through JSON, including ViewState', () {
     const state = DiagramWorkspaceState(
@@ -50,16 +52,17 @@ void main() {
   });
 
   test('WorkspaceStateStorage.load() returns initial state when no file exists yet', () async {
-    // Uses whatever real %APPDATA%/oep_studio/ directory this machine
-    // has; only asserts the fallback behavior, never assumes a clean
-    // slate (a real diagram_studio_workspace.json may already exist
-    // from manual use of the app).
+    useIsolatedSettingsStorage();
+    // A fresh isolated root genuinely has no file yet, so this now
+    // asserts the real fallback default exactly, not just "non-null".
     final loaded = await WorkspaceStateStorage.load();
-    expect(loaded, isNotNull);
+    expect(loaded.lastDocumentPath, isNull);
+    expect(loaded.showLayerPanel, isTrue);
+    expect(loaded.showSearchPanel, isTrue);
   });
 
   test('WorkspaceStateStorage save() then load() round-trips a real change', () async {
-    final original = await WorkspaceStateStorage.load();
+    useIsolatedSettingsStorage();
     const probe = DiagramWorkspaceState(
       lastDocumentPath: 'workspace-storage-test-probe.json',
       showLayerPanel: false,
@@ -68,18 +71,13 @@ void main() {
       sidePanelsWidth: 401,
     );
 
-    try {
-      await WorkspaceStateStorage.save(probe);
-      final reloaded = await WorkspaceStateStorage.load();
+    await WorkspaceStateStorage.save(probe);
+    final reloaded = await WorkspaceStateStorage.load();
 
-      expect(reloaded.lastDocumentPath, 'workspace-storage-test-probe.json');
-      expect(reloaded.showLayerPanel, isFalse);
-      expect(reloaded.showSearchPanel, isFalse);
-      expect(reloaded.explorerWidth, 199);
-      expect(reloaded.sidePanelsWidth, 401);
-    } finally {
-      // Restore whatever was there before this test ran.
-      await WorkspaceStateStorage.save(original);
-    }
+    expect(reloaded.lastDocumentPath, 'workspace-storage-test-probe.json');
+    expect(reloaded.showLayerPanel, isFalse);
+    expect(reloaded.showSearchPanel, isFalse);
+    expect(reloaded.explorerWidth, 199);
+    expect(reloaded.sidePanelsWidth, 401);
   });
 }

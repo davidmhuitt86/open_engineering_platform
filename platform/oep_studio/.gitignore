@@ -37,6 +37,11 @@ migrate_working_dir/
 # Manager (lib/core/security/), not in a file in this repository.
 *.env
 
+# Dev-only tooling state (tools/flutter_hot_reload.ps1) — ephemeral VM
+# Service connection info (PID, local-loopback URI); never something to
+# commit, and the VM Service URI can carry an auth token.
+/.dev_tools/
+
 # Symbolication related
 app.*.symbols
 

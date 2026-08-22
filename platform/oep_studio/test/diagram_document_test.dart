@@ -5,15 +5,22 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:engineering_engine/engineering_engine.dart';
 import 'package:oep_studio/diagram_studio/host/diagram_document.dart';
 
+import 'support/isolated_settings_storage.dart';
+
 /// Exercises `DiagramDocument` against a real temp directory
 /// (WORK_PACKAGE_024, ENGINE-TASK-000111) — Open/Save/Save As/Close/
 /// Dirty State, and that Graph + Layout round-trip together as one
 /// file (the Repository Integration resolution documented in
-/// `docs/REPOSITORY_INTEGRATION.md`).
+/// `docs/REPOSITORY_INTEGRATION.md`). The document's own save/open
+/// paths already used a dedicated [tempDir], but its *autosave*
+/// companion file (`host/diagram_document.dart`) is written under
+/// `SettingsStorage.root()/autosave/` — AP-DIAGRAM-W2-D1 isolates that
+/// too, so this file never touches the real `%APPDATA%/oep_studio`.
 void main() {
   late Directory tempDir;
 
   setUp(() {
+    useIsolatedSettingsStorage();
     tempDir = Directory.systemTemp.createTempSync('diagram_document_test_');
   });
 

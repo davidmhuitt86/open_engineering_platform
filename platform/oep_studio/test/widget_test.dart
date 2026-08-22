@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:oep_studio/app/studio_app.dart';
 import 'package:oep_studio/core/routing/studio_destination.dart';
+import 'package:oep_studio/diagram_studio/webview/legacy_v2_webview.dart';
 
 /// A bounded stand-in for `pumpAndSettle()`. The Settings Workspace
 /// (Work Package 017/018) shows an indeterminate `CircularProgressIndicator`
@@ -304,38 +305,25 @@ void main() {
     await tester.pump();
     await settleDiagramStudioBootstrap(tester);
 
-    // The document bar (WORK_PACKAGE_024, ENGINE-TASK-000111) — a fresh
-    // Engine session starts on a blank, unsaved document. Also appears
-    // in the Breadcrumb Bar's Document-level segment (Phase 2, ODS-S004
-    // § 4 Navigation Hierarchy) AND in the Phase 5 diagram tab bar's own
-    // tab chip, hence multiple matches.
-    expect(find.text('Untitled Diagram'), findsWidgets);
-
-    // Toolbar groups (ENGINE-TASK-000113) and dockable panels
-    // (ENGINE-TASK-000114) rendered. "Validation" also labels the
-    // unrelated `/validation` sidebar destination (in the WorkbenchSidebar's
-    // STUDIOS section, scrolled further down the same sidebar Scrollable
-    // used above), so two matches (sidebar label + panel title) is the
-    // correct count here -- scroll its row into view first (by key -- see
-    // `navigateViaSidebar`'s own doc comment for why) since a
-    // `WorkbenchSidebar` row past the fold isn't mounted until then.
-    expect(find.text('Object Explorer'), findsOneWidget);
-    expect(find.text('Layers'), findsOneWidget);
-    final validationRow = find.byKey(ValueKey('sidebar-dest-${StudioDestination.validation.path}'));
-    await tester.scrollUntilVisible(validationRow, 100, scrollable: sidebarScrollable());
-    await tester.ensureVisible(validationRow);
-    await settle(tester);
-    // Only the sidebar's own "Validation" destination row now -- Diagram
-    // Studio's own duplicate "Validation" side panel was removed (Phase 3,
-    // Objective 6): it read the exact same `ValidationReport` the shared
-    // Output Panel's own "Validation" tab already shows.
-    expect(find.text('Validation'), findsOneWidget);
-    expect(find.text('Annotations'), findsOneWidget);
-    expect(find.text('Recent Commands'), findsOneWidget);
-
-    // The shared Property Inspector (docked at the StudioShell level,
-    // untouched by Diagram Studio) still shows its own default state.
-    expect(find.text('No Object Selected'), findsOneWidget);
+    // AP-DIAGRAM-V2-BRIDGE-002/010 — `/diagram` renders the Web Surface
+    // host (Legacy V2 auto-opened), never the native renderer
+    // (`docs/DIAGRAM_STUDIO_V2_BRIDGE_PRODUCTION_ARCHITECTURE.md`). The
+    // native renderer itself was retired by AP-DIAGRAM-V2-BRIDGE-010
+    // once the parity/dependency audit confirmed it was safe to do so
+    // (`docs/DIAGRAM_STUDIO_V2_BRIDGE_MIGRATION_PLAN.md` §19) — the "Use
+    // Classic Renderer (fallback)" link this test used to assert is gone
+    // along with it. AP-OEP-DIAGRAM-UX-001 replaced the "Legacy V2
+    // (open)" text button with an icon-only toolbar and removed the
+    // "Native OEP" debug tab from the default/auto-opened set entirely
+    // (it's no longer expected to coexist by default), so this assertion
+    // now checks for the actual embedded widget instead of that removed
+    // UI text.
+    expect(find.byType(LegacyV2WebViewPage), findsOneWidget,
+        reason: 'Legacy V2 auto-opens as the default tab on the production Diagram Studio route');
+    expect(find.text('Native OEP'), findsNothing,
+        reason: 'the Native OEP debug tab was removed from the default tab set by AP-OEP-DIAGRAM-UX-001');
+    expect(find.text('Use Classic Renderer (fallback)'), findsNothing,
+        reason: 'the native-renderer fallback was removed once AP-DIAGRAM-V2-BRIDGE-010 retired the native renderer');
   });
 }
 

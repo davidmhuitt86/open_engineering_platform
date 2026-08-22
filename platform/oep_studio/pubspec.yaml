@@ -76,6 +76,40 @@ dependencies:
   oep_instruments_runtime:
     path: ../oep_instruments/platform/oep_instruments
 
+  # AP-DIAGRAM-V2-WEBVIEW-POC-001: Windows-only WebView2 host, used to
+  # prove whether the legacy V2 reference application
+  # (reference/legacy_wiring_sim_v2/eke-wiring-sim/) can run unmodified
+  # inside OEP Studio. Actively-maintained, WebView2-backed, Windows-only
+  # implementation (matching this POC's explicit Windows-only scope) —
+  # not the federated `webview_flutter`/`webview_flutter_windows` pair,
+  # whose Windows implementation was still preview-quality at the time
+  # of this task. No engineering logic, no bridge to Engine — see
+  # `lib/diagram_studio/webview/legacy_v2_webview.dart`'s own doc
+  # comment for the full account of what this dependency is and isn't
+  # used for.
+  # AP-DIAGRAM-V2-WEBVIEW-POC-001: Windows-only WebView2 host, used to
+  # prove whether the legacy V2 reference application
+  # (reference/legacy_wiring_sim_v2/eke-wiring-sim/) can run unmodified
+  # inside OEP Studio. `webview_flutter`/`webview_flutter_windows` was
+  # tried first (the "actively maintained, federated" candidate this
+  # task's own instructions named) but its Windows implementation
+  # (v1.1.1) does not actually implement `webview_flutter`'s
+  # `WebViewPlatform` contract — it re-exports the same raw
+  # `WebviewController`/`Webview` API as the standalone `webview_windows`
+  # package under a different name (confirmed by reading its own
+  # `lib/webview_flutter_windows.dart` and `lib/webview_windows.dart` —
+  # identical exports), so `WebViewPlatform.instance` is never set and
+  # every `webview_flutter` call fails at runtime. `webview_windows`
+  # 0.4.0 itself (the direct package) fails to *compile* its native
+  # plugin against this machine's MSVC toolchain (a hard
+  # `<experimental/coroutine>` removal error). `webview_flutter_windows`
+  # 1.1.1's own native plugin compiles successfully and its raw
+  # `WebviewController`/`Webview` API works — so this dependency is kept,
+  # used directly (not through `webview_flutter`'s abstraction, which it
+  # doesn't actually provide). See
+  # `docs/DIAGRAM_STUDIO_V2_WEBVIEW_POC.md` for the full account.
+  webview_flutter_windows: ^1.1.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

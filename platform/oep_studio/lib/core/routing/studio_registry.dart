@@ -25,6 +25,7 @@ import '../../features/search/search_page.dart';
 import '../../features/validation/validation_page.dart';
 import '../../knowledge/workspaces/knowledge_studio_page.dart';
 import '../../settings/pages/knowledge_studio_settings_page.dart';
+import '../../web_surface/web_surfaces_host_page.dart';
 import '../../settings/services/settings_provider.dart';
 import '../../settings/workspace/settings_workspace_page.dart';
 import '../models/search_scope.dart';
@@ -297,6 +298,14 @@ class StudioRegistry {
       settingsProvider: const DiagramStudioSettingsProvider(),
       searchProvider: _searchDiagram,
       capabilities: const [
+        // AP-DIAGRAM-V2-BRIDGE-002, Phase 2 — `/diagram`'s pageBuilder
+        // now renders the Web Surface host (Legacy V2 auto-opened), not
+        // `EngineeringWorkbenchPage` directly — see `_diagramBuilder`'s
+        // own doc comment and
+        // `docs/DIAGRAM_STUDIO_V2_BRIDGE_PRODUCTION_ARCHITECTURE.md`.
+        // These capability descriptions describe what Diagram Studio
+        // *does*, which is unchanged by this task (the destination, not
+        // its meaning, moved) — left as-is.
         CapabilityDescriptor(
           id: 'diagram.editing',
           label: 'Diagram Editing',
@@ -448,6 +457,21 @@ class StudioRegistry {
       destination: StudioDestination.copilot,
       pageBuilder: _copilotBuilder,
     ),
+    // AP-DIAGRAM-V2-BRIDGE-010 — this route no longer hosts a native
+    // Diagram Studio renderer (`diagramPerspective` was removed from
+    // `workbenchPerspectives`, § that file's own comment). It is KEPT
+    // — not deleted alongside the native renderer — because it is the
+    // only route that mounts the multi-Perspective `EngineeringWorkbenchPage`
+    // shell at all, which still hosts the real, independently-used
+    // Engineering and Instruments Perspectives (`engineeringPerspective`/
+    // `instrumentsPerspective`) — deleting this route would make those
+    // unreachable, a regression outside this task's scope. Deliberately
+    // NOT in `_otherStudioDestinations` (`workbench_sidebar.dart`), so
+    // it doesn't compete with `/diagram`'s own Navigation Rail entry.
+    const StudioDescriptor(
+      destination: StudioDestination.diagramClassic,
+      pageBuilder: _diagramClassicBuilder,
+    ),
     const StudioDescriptor(
       destination: StudioDestination.settings,
       pageBuilder: _settingsBuilder,
@@ -458,7 +482,21 @@ class StudioRegistry {
 Widget _dashboardBuilder(BuildContext context, GoRouterState state) => const DashboardPage();
 Widget _projectExplorerBuilder(BuildContext context, GoRouterState state) => const ProjectExplorerPage();
 Widget _knowledgeBuilder(BuildContext context, GoRouterState state) => const KnowledgeStudioPage();
-Widget _diagramBuilder(BuildContext context, GoRouterState state) => EngineeringWorkbenchPage(
+/// The production Diagram Studio path: `Studio → Diagram Studio
+/// (/diagram) → Web Surface Host → Legacy V2` (auto-opened) —
+/// unchanged by AP-DIAGRAM-V2-BRIDGE-010's native-renderer retirement,
+/// since this route never depended on the native renderer to begin
+/// with (it was `EngineeringWorkbenchPage(...)` directly only prior to
+/// AP-DIAGRAM-V2-BRIDGE-002, see git history).
+Widget _diagramBuilder(BuildContext context, GoRouterState state) =>
+    const WebSurfacesHostPage(autoOpenLegacyV2: true);
+
+/// AP-DIAGRAM-V2-BRIDGE-010 — the multi-Perspective Workbench shell
+/// (Engineering/Instruments Perspectives), reachable only at
+/// `/diagram-classic` (§ the `StudioDescriptor`'s own comment for why
+/// this route was kept rather than deleted alongside the native Diagram
+/// Studio renderer).
+Widget _diagramClassicBuilder(BuildContext context, GoRouterState state) => EngineeringWorkbenchPage(
       perspectives: workbenchPerspectives,
       perspectiveManager: PerspectiveManager.instance,
       showSidebar: false, // StudioShell already renders the (shared) sidebar.

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/studio_colors.dart';
 import '../perspective/perspective.dart';
-import 'diagram_perspective.dart';
 import 'engineering_perspective.dart';
 import 'instruments_perspective.dart';
 
@@ -19,7 +18,11 @@ import 'instruments_perspective.dart';
 /// content is an honest placeholder rather than fabricated functionality;
 /// see each perspective's own file for what, if anything, it hosts today.
 final List<Perspective> workbenchPerspectives = [
-  diagramPerspective,
+  // AP-DIAGRAM-V2-BRIDGE-010 — `diagramPerspective` (which hosted the
+  // native Diagram Studio renderer, `DiagramStudioPage`) was removed
+  // once the parity/dependency audit confirmed the native renderer was
+  // safe to retire. Legacy V2, bridged via the Web Surface host at
+  // `/diagram`, is now the sole Diagram Studio surface.
   _placeholder(id: 'home', title: 'Home', icon: Icons.home_outlined),
   _placeholder(id: 'dashboard', title: 'Dashboard', icon: Icons.space_dashboard_outlined),
   _placeholder(id: 'inspection', title: 'Inspection', icon: Icons.search_outlined),

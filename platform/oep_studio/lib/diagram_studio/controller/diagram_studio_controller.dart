@@ -5,7 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:engineering_engine/engineering_engine.dart';
 
 import '../../core/context/engineering_interaction_context.dart';
+import '../../core/models/engineering_inspectable.dart';
 import '../../core/services/engineering_project_service.dart';
+import '../../core/services/foundation_runtime_service.dart';
 import '../commands/studio_command_actions.dart';
 import '../host/diagram_document.dart';
 import '../intelligence/diagram_intelligence_service.dart';
@@ -66,13 +68,61 @@ import '../tabs/diagram_tabs_controller.dart';
 /// It is reachable from Diagram Studio only via this controller's
 /// [commands] field — nothing in `diagram_studio/workspaces/` constructs
 /// or calls a `StudioCommandActions` of its own.
+///
+/// **Three distinct lifetimes (WAVE 2 STAGE C, AP-DIAGRAM-W2-C):** this
+/// class, the documents/tabs it orchestrates, and the widget that
+/// displays them do not share a lifetime, and Stage C's whole purpose is
+/// making sure the code never accidentally couples them:
+///
+///   A. **Application/Studio session** — this controller itself (via
+///      `controller/diagram_studio_controller_provider.dart`, Stage A)
+///      and the `EngineHost`/`EngineeringEngine` it wraps
+///      (`engineeringProjectServiceProvider`, WORK_PACKAGE_025). Both are
+///      constructed once and live for the app session.
+///   B. **Document/tab** — a `DiagramDocument` (owned by
+///      `EngineeringProjectNotifier`, via [newDocument]/[openDocument]/
+///      [saveDocument]/[saveDocumentAs]/[closeDocument]) and a
+///      `DiagramTab` (owned by `DiagramTabsNotifier`, via [closeTab]/
+///      [activateTab]/[reopenRecentlyClosed]/[togglePin]/[setTabMode]).
+///      Every method in this lifetime is invoked from exactly one place:
+///      a `DiagramStudioPage` handler wired to an explicit user action
+///      (a menu item, a tab click, a keyboard shortcut) — never from
+///      `initState`/`build`/a rebuild. The one exception is [bootstrap]'s
+///      own seed-tab fallback, and [bootstrap] itself belongs to lifetime
+///      A, not C: it is the provider's `build()`, which Riverpod runs
+///      exactly once per app session regardless of how many times the
+///      widget that reads it mounts.
+///   C. **Flutter widget mount** — `DiagramStudioPage`'s own `State`:
+///      loading flag, panel visibility/width fields, and every
+///      interaction-state field enumerated in this class's own method
+///      docs below, none of which this controller touches.
+///
+///   Because B's operations are only ever user-triggered and A's
+///   bootstrap only ever runs once, mounting/unmounting/remounting C
+///   (lifetime the page's `State` goes through on every navigation)
+///   cannot recreate a document, cannot recreate a tab, and cannot
+///   re-invoke `engine.editing.resetSession`/`beginEditingSession` — see
+///   `test/diagram_studio/controller/diagram_studio_document_tab_lifecycle_test.dart`
+///   for the regression coverage proving this against the real engine
+///   and tab providers, not just by inspection.
 class DiagramStudioController {
-  DiagramStudioController({required this.engine, required WidgetRef ref})
+  DiagramStudioController({required this.engine, required Ref ref})
       : _ref = ref,
         commands = StudioCommandActions(engine);
 
   final EngineeringEngine engine;
-  final WidgetRef _ref;
+
+  /// AP-DIAGRAM-W2-A: typed as the Riverpod-generic [Ref] rather than
+  /// Flutter's [WidgetRef] so this controller can be constructed from
+  /// inside a `Notifier.build()` (see
+  /// `controller/diagram_studio_controller_provider.dart`) as well as
+  /// from a widget's own `WidgetRef` — `WidgetRef` does not itself
+  /// extend `Ref`, so it cannot be passed where a `Ref` is required, but
+  /// every call site below only ever uses `.read(...)`, which both
+  /// interfaces expose identically. This controller never calls
+  /// `.watch(...)`/`.listen(...)`, so nothing here depends on which one
+  /// it actually is at the call site.
+  final Ref _ref;
 
   /// Composed, not duplicated — see class doc comment.
   final StudioCommandActions commands;
@@ -200,6 +250,53 @@ class DiagramStudioController {
     markDirty();
   }
 
+  /// AP-DIAGRAM-V2-WEBVIEW-002 — same shape as [addNode], generalized
+  /// with an explicit [displayName] and [metadata] so a caller (the
+  /// Legacy V2 module-lifecycle bridge, `diagram_studio/webview/
+  /// legacy_v2_state_adapter.dart`) can stash bridge-owned extension data
+  /// on the node it creates (e.g. the originating V2 module's own
+  /// label/category, so a later Engine undo-of-delete can be
+  /// re-synchronized back into V2 with more than a bare id) — using
+  /// `EngineeringNode.metadata`, which the Engine's own doc comment
+  /// already describes as "Extension-contributed data... never
+  /// interpreted by the core engine," not a new storage mechanism.
+  void addNodeWithMetadata(
+    String symbolId,
+    Point2D position, {
+    String? displayName,
+    Map<String, Object?> metadata = const {},
+  }) {
+    final symbol = engine.registry.symbols.resolve(symbolId);
+    final id = engine.graph.generateId('node');
+    final node = EngineeringNode(
+      id: id,
+      category: NodeCategory.component,
+      displayName: displayName ?? symbol.name,
+      symbolId: symbolId,
+      metadata: metadata,
+    );
+    engine.editing.execute(CreateNodeCommand(node, position: position));
+    engine.registry.selection.selectNode(id);
+    markDirty();
+  }
+
+  /// AP-DIAGRAM-V2-WEBVIEW-002 — existing [DeleteNodeCommand], exposed
+  /// by explicit node id rather than current selection (unlike
+  /// [deleteSelection]) so a caller like the V2 module-lifecycle bridge
+  /// can delete a specific bridged node without depending on, or
+  /// perturbing, whatever OEP's own selection currently is.
+  void deleteNode(String nodeId) {
+    engine.editing.execute(DeleteNodeCommand(nodeId));
+    markDirty();
+  }
+
+  /// AP-DIAGRAM-V2-WEBVIEW-002 — existing [RenameNodeCommand], exposed
+  /// by explicit node id for the same reason as [deleteNode].
+  void renameNode(String nodeId, String newDisplayName) {
+    engine.editing.execute(RenameNodeCommand(nodeId, newDisplayName));
+    markDirty();
+  }
+
   void groupSelection() {
     if (selection.nodeIds.length < 2) return;
     final group = EngineeringGroup(
@@ -243,6 +340,16 @@ class DiagramStudioController {
     markDirty();
   }
 
+  /// AP-DIAGRAM-V2-BRIDGE-004 — existing `DeleteRelationshipCommand`,
+  /// exposed by explicit id for the same reason `deleteNode` is: a
+  /// caller (the V2 wire-deletion bridge) can delete a specific
+  /// relationship without depending on, or perturbing, whatever OEP's
+  /// own selection currently is.
+  void deleteRelationship(String relationshipId) {
+    engine.editing.execute(DeleteRelationshipCommand(relationshipId));
+    markDirty();
+  }
+
   void reconnectRelationship(String relationshipId, {String? newSourceNode, String? newTargetNode}) {
     engine.editing.execute(ReconnectRelationshipCommand(
       relationshipId,
@@ -254,6 +361,34 @@ class DiagramStudioController {
 
   void setWireRoute(String relationshipId, List<Point2D>? points) {
     engine.editing.execute(SetWireRouteCommand(relationshipId, points));
+    markDirty();
+  }
+
+  /// Merges [patch] into a relationship's `metadata` bag (AP-DIAGRAM-V2-006)
+  /// via the existing, previously-unused `UpdateRelationshipPropertiesCommand`
+  /// (`oep_engine/lib/core/editing/commands/update_relationship_properties_command.dart`,
+  /// ENGINE-TASK-000085) — a generic metadata-patch command, not written
+  /// for this task. A `null` value in [patch] removes that key (the
+  /// command's own documented convention), which is how the Property
+  /// Inspector's Wire Label/Wire Color fields clear a value. Used for the
+  /// `wireColor`/`label` keys AP-DIAGRAM-V2-005 already established as
+  /// real, but any relationship metadata key could go through this same
+  /// method — it is not wire-specific itself.
+  void updateRelationshipMetadata(String relationshipId, Map<String, Object?> patch) {
+    engine.editing.execute(UpdateRelationshipPropertiesCommand(relationshipId, patch));
+    markDirty();
+  }
+
+  /// AP-DIAGRAM-V2-BRIDGE-011 — the node-side sibling of
+  /// [updateRelationshipMetadata], via the newly-added
+  /// `UpdateNodeMetadataCommand` (§ that command's own doc comment for
+  /// why `metadata`, not `properties`, is the correct field). Same
+  /// generic, key-agnostic shape — a `null` patch value removes that key.
+  /// First real use is bridging V2's module "notes" field
+  /// (`LegacyV2StateAdapter._handleModulePropertiesChanged`), but this
+  /// method is not notes-specific.
+  void updateNodeMetadata(String nodeId, Map<String, Object?> patch) {
+    engine.editing.execute(UpdateNodeMetadataCommand(nodeId, patch));
     markDirty();
   }
 
@@ -424,7 +559,7 @@ class DiagramStudioController {
   /// those fields exist. The document-relevant fields of that same
   /// loaded state (`lastDocumentPath`, `viewState`) are already applied
   /// internally, exactly where the page used to apply them.
-  static Future<(DiagramStudioController, DiagramWorkspaceState)> bootstrap({required WidgetRef ref}) async {
+  static Future<(DiagramStudioController, DiagramWorkspaceState)> bootstrap({required Ref ref}) async {
     final notifier = ref.read(engineeringProjectServiceProvider.notifier);
     final isFirstStart = ref.read(engineeringProjectServiceProvider).engineHost == null;
     final host = await notifier.ensureEngineStarted();
@@ -467,22 +602,88 @@ class DiagramStudioController {
       ref.read(diagramTabsProvider.notifier).openTab(path: controller.documentPath, title: titleForPath(controller.documentPath));
     }
 
+    // AP-DIAGRAM-V2-BRIDGE-010 — extracted from the retired native
+    // `DiagramStudioPage._bootstrap`'s own `_selectionSub` (this half of
+    // it only — the other half, wire-edit-mode point reseeding, was
+    // genuinely native-canvas-specific and did not move). Selection→
+    // Property-Inspector sync is real, UI-independent business logic
+    // (confirmed by this task's own extraction audit): the shared,
+    // cross-Studio `PropertyInspectorPanel`
+    // (`lib/shared/widgets/property_inspector_panel.dart`) needs
+    // *something* feeding it `EngineeringInspectable` selections
+    // regardless of which surface (native canvas or the V2 bridge, via
+    // `LegacyV2StateAdapter`'s `GraphSelection` mirroring) actually
+    // changed the selection. Living here, keyed off `engine.registry
+    // .selection.changes` directly, makes it work for both without
+    // either needing to know about the other. Not torn down explicitly
+    // — this controller is app-wide/session-long-lived (§ this class's
+    // own provider's doc comment), the same lifetime `engine` itself
+    // already has, so there is nothing shorter-lived for this
+    // subscription to leak past.
+    controller.engine.registry.selection.changes.listen((_) => controller._syncPropertyInspectorSelection(ref));
+    controller._syncPropertyInspectorSelection(ref);
+
     return (controller, workspace);
   }
 
-  // --- Workspace persistence (WAVE 2, AP-DIAGRAM-W2 Step 8) ----------------
-  //
-  // The actual disk write is the one thing this controller owns; the
-  // `DiagramWorkspaceState` value itself is assembled by the page (it
-  // carries panel visibility/width fields this controller has no
-  // business holding — genuinely Flutter-presentation state, not
-  // Engine-facing data) and handed in ready to persist. This keeps the
-  // existing, correct separation between `DiagramDocument` (engineering
-  // data), `DiagramWorkspaceState` (UI state), `DiagramTabsStorage`
-  // (temporary workspace state), and `DiagramStudioSettings` (user
-  // preferences) exactly as it was — nothing is conflated by this move.
+  void _syncPropertyInspectorSelection(Ref ref) {
+    final notifier = ref.read(foundationRuntimeServiceProvider.notifier);
+    final session = this.session;
+    final currentSelection = selection;
+    if (session == null || currentSelection.length != 1) {
+      notifier.clearEngineeringInspectableSelection();
+      return;
+    }
+    if (currentSelection.nodeIds.isNotEmpty) {
+      final node = session.graph.nodes[currentSelection.nodeIds.first];
+      if (node != null) {
+        notifier.selectEngineeringInspectable(EngineeringInspectable.node(node));
+        return;
+      }
+    }
+    if (currentSelection.relationshipIds.isNotEmpty) {
+      final relationship = session.graph.relationships[currentSelection.relationshipIds.first];
+      if (relationship != null) {
+        notifier.selectEngineeringInspectable(EngineeringInspectable.relationship(relationship));
+        return;
+      }
+    }
+    if (currentSelection.groupIds.isNotEmpty) {
+      final group = session.graph.groups[currentSelection.groupIds.first];
+      if (group != null) {
+        notifier.selectEngineeringInspectable(EngineeringInspectable.group(group));
+        return;
+      }
+    }
+    if (currentSelection.annotationIds.isNotEmpty) {
+      final annotation = session.layout.annotationOf(currentSelection.annotationIds.first);
+      if (annotation != null) {
+        notifier.selectEngineeringInspectable(EngineeringInspectable.annotation(annotation));
+        return;
+      }
+    }
+    notifier.clearEngineeringInspectableSelection();
+  }
 
-  Future<void> persistWorkspaceState(DiagramWorkspaceState state) => WorkspaceStateStorage.save(state);
+  // --- Workspace persistence ------------------------------------------------
+  //
+  // WAVE 2 Step 8 originally put the `WorkspaceStateStorage.save` call
+  // here, reasoning that the disk write was a legitimate Controller
+  // responsibility while the `DiagramWorkspaceState` value itself
+  // (panel visibility/width fields) stayed page-assembled. WAVE 2 STAGE
+  // D (AP-DIAGRAM-W2-D) supersedes that: workspace persistence is a
+  // separate concern from Engine editing orchestration, so it now has
+  // its own dedicated, non-widget, app-session-scoped owner —
+  // `diagramWorkspacePersistenceProvider`
+  // (`persistence/diagram_workspace_persistence_provider.dart`) — rather
+  // than living partly here and partly on the page. This controller no
+  // longer has a `persistWorkspaceState` method; `DiagramStudioPage`
+  // calls the provider directly. This keeps the existing, correct
+  // separation between `DiagramDocument` (engineering data),
+  // `DiagramWorkspaceState` (UI state), `DiagramTabsStorage` (temporary
+  // workspace state), and `DiagramStudioSettings` (user preferences)
+  // exactly as it was — nothing is conflated by this move, only
+  // relocated to a more appropriate owner.
 
   // --- Document lifecycle (WAVE 2, AP-DIAGRAM-W2 Step 6) --------------------
   //

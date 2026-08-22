@@ -71,6 +71,17 @@ enum StudioDestination {
     Icons.auto_awesome_outlined,
     Icons.auto_awesome,
   ),
+  // AP-DIAGRAM-V2-BRIDGE-010 — no longer a "native renderer fallback";
+  // this route hosts the multi-Perspective `EngineeringWorkbenchPage`
+  // shell, which the Engineering and Instruments Perspectives still
+  // need reachable (§ `studio_registry.dart`'s own comment on this
+  // destination). Not renamed/relocated in this task — kept minimal.
+  diagramClassic(
+    'Engineering Workbench (Perspectives)',
+    '/diagram-classic',
+    Icons.dashboard_customize_outlined,
+    Icons.dashboard_customize,
+  ),
   settings('Settings', '/settings', Icons.settings_outlined, Icons.settings);
 
   const StudioDestination(this.label, this.path, this.icon, this.selectedIcon);
