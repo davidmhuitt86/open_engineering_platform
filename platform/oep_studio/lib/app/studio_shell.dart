@@ -22,6 +22,9 @@ import '../knowledge/models/ocr_processing_status.dart';
 import '../shared/widgets/output_panel.dart';
 import '../shared/widgets/property_inspector_panel.dart';
 import '../web_surface/web_surfaces_host_page.dart';
+import '../workspace/engineering_workspace_page.dart';
+import '../workspace/workspace_tab.dart';
+import '../workspace/workspace_tabs_controller.dart';
 import '../workbench/perspective/perspective_manager.dart';
 import '../workbench/widgets/workbench_sidebar.dart';
 import 'widgets/command_palette_dialog.dart';
@@ -169,6 +172,31 @@ class _StudioShellState extends ConsumerState<StudioShell> with WidgetsBindingOb
   /// one build pass without disposing/recreating it.
   final GlobalKey _diagramStudioHostKey = GlobalKey();
   late final Widget _diagramStudioHost = WebSurfacesHostPage(key: _diagramStudioHostKey, autoOpenLegacyV2: true);
+
+  /// AP-OEP-WORKSPACE-ROUTING-001 — the exact same "persistent host kept
+  /// alive underneath whichever Studio is actually visible" pattern
+  /// [_diagramStudioHost] above already established, applied to the
+  /// Engineering Workspace. Unlike Diagram Studio, the Workspace never
+  /// moves to a structurally different `Scaffold` tree (it always renders
+  /// inside the normal-chrome content `Stack` below, for every
+  /// destination that isn't Diagram) — it stays at the same tree
+  /// position across every rebuild, so plain widget identity (a `late
+  /// final` field, no `GlobalKey`) is enough for Flutter to keep its
+  /// `Element`/`State` alive; a `GlobalKey` is only needed when a widget
+  /// relocates between different parents, which this one never does.
+  ///
+  /// This is the fix for AP-OEP-WORKSPACE-LIFECYCLE-001's own documented
+  /// finding: leaving `/workspace` for another route and returning used
+  /// to rebuild `EngineeringWorkspacePage` from scratch (a brand new
+  /// `Element`), because `app_router.dart`'s plain `ShellRoute` swaps
+  /// `widget.child` out and back in on every route change. Building
+  /// `EngineeringWorkspacePage` here instead, once, and simply toggling
+  /// its `Offstage` visibility in `build()`, keeps it — and everything
+  /// mounted inside its own `IndexedStack` of open tabs, including a live
+  /// Diagram tab's WebView — alive across route changes, without
+  /// touching `app_router.dart`, `ShellRoute`, `StudioRegistry`, or
+  /// `WorkspaceTabsController` at all.
+  late final Widget _workspaceHost = const EngineeringWorkspacePage();
 
   /// Preloading unconditionally under `flutter test` mounts a real
   /// WebView2-backed `LegacyV2WebViewPage` in the background of every
@@ -456,6 +484,23 @@ class _StudioShellState extends ConsumerState<StudioShell> with WidgetsBindingOb
                           // validation churn) -- never a fabricated
                           // "diagram open" flag.
                           diagramSessionActive: ref.watch(engineeringProjectServiceProvider.select((s) => s.session != null)),
+                          // AP-OEP-WORKSPACE-UX-001, Rule 1/Phase 3 — only
+                          // supplied while the Engineering Workspace is
+                          // the active destination (`WorkbenchSidebar`
+                          // itself owns none of this decision, per its
+                          // own doc comment): a directly-mapped row's tap
+                          // opens/activates a workspace tab instead of
+                          // navigating away from the workspace. Every
+                          // other destination keeps its existing,
+                          // unmodified `context.go` navigation.
+                          onActivateWorkspaceSurface: widget.selected == StudioDestination.workspace
+                              ? (destination) {
+                                  if (destination == StudioDestination.workspace) return;
+                                  final surfaceId =
+                                      destination == StudioDestination.diagram ? WorkspaceTab.diagramSurfaceId : destination.name;
+                                  ref.read(workspaceTabsControllerProvider).openSurface(surfaceId);
+                                }
+                              : null,
                         ),
                         Expanded(
                           child: Stack(
@@ -468,7 +513,13 @@ class _StudioShellState extends ConsumerState<StudioShell> with WidgetsBindingOb
                               // see that getter's own doc comment for
                               // why.
                               if (!_isUnderTest) Offstage(offstage: true, child: _diagramStudioHost),
-                              widget.child,
+                              // AP-OEP-WORKSPACE-ROUTING-001 — always
+                              // present, only ever hidden/shown, never
+                              // removed from the tree while any
+                              // non-Diagram destination is active; see
+                              // `_workspaceHost`'s own doc comment.
+                              Offstage(offstage: widget.selected != StudioDestination.workspace, child: _workspaceHost),
+                              if (widget.selected != StudioDestination.workspace) widget.child,
                             ],
                           ),
                         ),

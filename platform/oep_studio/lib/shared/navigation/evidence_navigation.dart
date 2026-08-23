@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:engineering_engine/engineering_engine.dart';
 
 import '../../core/models/recent_history_entry.dart';
 import '../../core/routing/studio_destination.dart';
 import '../../core/services/engineering_project_service.dart';
 import '../../core/services/foundation_runtime_service.dart';
+import 'workspace_aware_navigation.dart';
 
 /// Evidence Integration (WORK_PACKAGE_025, ENGINE-TASK-000123) — lets an
 /// Engineering Graph object (a node or relationship's `EvidenceLink`)
@@ -32,6 +32,21 @@ import '../../core/services/foundation_runtime_service.dart';
 /// No UI exists to *create* an `EvidenceLink` from Diagram Studio — see
 /// `docs/ENGINEERING_PROJECT.md` for why that's out of this work
 /// package's scope ("No new engineering editing features").
+///
+/// AP-OEP-DIAGRAM-CONTEXT-001 — this turned out to be the strongest
+/// Diagram → Surface workflow already in the codebase: a real,
+/// production "Go to Evidence" button
+/// (`EngineeringEvidenceLinkProperties`'s own `FilledButton.icon`) that
+/// selects a node/relationship, inspects one of its evidence links, and
+/// jumps straight to the exact Knowledge Session source material —
+/// stronger evidence than `EngineeringNode.repositoryObjectId` (a real
+/// Engine field with real Validation/Verification consumers, but never
+/// actually populated anywhere in Studio's current node-creation path,
+/// confirmed by exhaustive `grep`— see this package's own audit report).
+/// The only change here is *how* the destination becomes visible — see
+/// `openOrActivateDestination`'s own doc comment — everything else
+/// (the lookup, the explicit "could not be found" failure state, the
+/// engine selection mirroring) is untouched.
 Future<void> goToEvidence(BuildContext context, WidgetRef ref, EvidenceLink link) async {
   final foundation = ref.read(foundationRuntimeServiceProvider);
   final sourceMaterial = foundation.sourceMaterials.where((s) => s.id == link.sourceReference).firstOrNull;
@@ -59,7 +74,7 @@ Future<void> goToEvidence(BuildContext context, WidgetRef ref, EvidenceLink link
   engine?.registry.selection.focusEvidence(link.id);
   engine?.registry.navigation.syncEvidence(link.id);
 
-  context.go(StudioDestination.knowledge.path);
+  openOrActivateDestination(context, ref, StudioDestination.knowledge);
 
   ref.read(engineeringProjectServiceProvider.notifier).recordHistory(RecentHistoryEntry(
         id: link.id,

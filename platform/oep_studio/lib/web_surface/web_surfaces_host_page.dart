@@ -4,26 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../acquisition/workspaces/acquisition_studio_page.dart';
-import '../core/routing/studio_destination.dart';
 import '../core/services/engineering_project_service.dart';
+import '../core/surfaces/surface_definition.dart';
+import '../core/surfaces/surface_registry.dart';
 import '../core/theme/studio_colors.dart';
 import '../diagram_studio/controller/diagram_studio_controller_provider.dart';
 import '../diagram_studio/webview/legacy_v2_webview.dart';
-import '../engineering_intelligence/engineering_intelligence_page.dart';
-import '../exchange/workspaces/exchange_studio_page.dart';
-import '../features/copilot/copilot_page.dart';
-import '../features/dashboard/dashboard_page.dart';
-import '../features/graph/graph_page.dart';
-import '../features/objects/objects_page.dart';
-import '../features/packages/packages_page.dart';
-import '../features/project_explorer/project_explorer_page.dart';
-import '../features/relationships/relationships_page.dart';
-import '../features/repository/repository_page.dart';
-import '../features/search/search_page.dart';
-import '../features/validation/validation_page.dart';
-import '../knowledge/workspaces/knowledge_studio_page.dart';
-import '../settings/workspace/settings_workspace_page.dart';
 import 'web_surface.dart';
 import 'web_surface_tabs_controller.dart';
 import 'web_surface_tabs_storage.dart';
@@ -108,13 +94,13 @@ class WebSurfacesHostPage extends ConsumerStatefulWidget {
   ConsumerState<WebSurfacesHostPage> createState() => _WebSurfacesHostPageState();
 }
 
-/// A native OEP destination embedded as tab content (§ class doc
-/// comment, kind 3). Deliberately not a [WebSurface] — see there for why.
+/// A native OEP Surface embedded as tab content (§ class doc comment,
+/// kind 3). Deliberately not a [WebSurface] — see there for why.
 class _NativeTab {
-  _NativeTab({required this.id, required this.destination});
+  _NativeTab({required this.id, required this.surface});
 
   final String id;
-  final StudioDestination destination;
+  final SurfaceDefinition surface;
 }
 
 class _WebSurfacesHostPageState extends ConsumerState<WebSurfacesHostPage> {
@@ -197,14 +183,14 @@ class _WebSurfacesHostPageState extends ConsumerState<WebSurfacesHostPage> {
   }
 
   /// "+" menu — opens (or focuses, if already open) a native tab for
-  /// [destination].
-  void _openNativeTab(StudioDestination destination) {
-    final existing = _nativeTabs.where((t) => t.destination == destination).firstOrNull;
+  /// [surface].
+  void _openNativeTab(SurfaceDefinition surface) {
+    final existing = _nativeTabs.where((t) => t.surface.id == surface.id).firstOrNull;
     if (existing != null) {
       setState(() => _activeTabId = existing.id);
       return;
     }
-    final tab = _NativeTab(id: 'native-${destination.name}', destination: destination);
+    final tab = _NativeTab(id: 'native-${surface.id}', surface: surface);
     setState(() {
       _nativeTabs.add(tab);
       _activeTabId = tab.id;
@@ -312,39 +298,12 @@ class _WebSurfacesHostPageState extends ConsumerState<WebSurfacesHostPage> {
     return WebSurfaceView(key: ValueKey(surface.id), surface: surface);
   }
 
+  /// Constructs the tab content directly from the `SurfaceDefinition`
+  /// (`core/surfaces/surface_registry.dart`) — the canonical source
+  /// this task's own migration replaced the former hand-maintained
+  /// per-destination `switch` with.
   Widget _buildNativeContent(_NativeTab tab) {
-    return KeyedSubtree(key: ValueKey(tab.id), child: _nativeDestinationPage(tab.destination));
-  }
-
-  /// Directly constructs the real page widget for [destination] — not
-  /// via `StudioDescriptor.pageBuilder` (`studio_registry.dart`), which
-  /// takes a `GoRouterState` this embedded-tab context doesn't have.
-  /// Every builder that matters here ignores `state` already (confirmed
-  /// by reading each one) except Settings, whose `initialPageId` query
-  /// param a plain tab has no equivalent for — `null` (its own default)
-  /// is used instead.
-  Widget _nativeDestinationPage(StudioDestination destination) {
-    return switch (destination) {
-      StudioDestination.dashboard => const DashboardPage(),
-      StudioDestination.projectExplorer => const ProjectExplorerPage(),
-      StudioDestination.knowledge => const KnowledgeStudioPage(),
-      StudioDestination.acquisition => const AcquisitionStudioPage(),
-      StudioDestination.repository => const RepositoryPage(),
-      StudioDestination.objects => const ObjectsPage(),
-      StudioDestination.relationships => const RelationshipsPage(),
-      StudioDestination.search => const SearchPage(),
-      StudioDestination.graph => const GraphPage(),
-      StudioDestination.validation => const ValidationPage(),
-      StudioDestination.packages => const PackagesPage(),
-      StudioDestination.engineeringIntelligence => const EngineeringIntelligencePage(),
-      StudioDestination.exchange => const ExchangeStudioPage(),
-      StudioDestination.copilot => const CopilotPage(),
-      StudioDestination.settings => const SettingsWorkspacePage(initialPageId: null),
-      // Diagram/diagramClassic are not offered in the "+" menu (see
-      // `_TabStrip`'s own menu-building code) — Diagram Studio is this
-      // page itself, and Classic hosts Perspectives unrelated to tabs.
-      StudioDestination.diagram || StudioDestination.diagramClassic => const SizedBox.shrink(),
-    };
+    return KeyedSubtree(key: ValueKey(tab.id), child: tab.surface.build(context));
   }
 }
 
@@ -380,31 +339,10 @@ class _TabStrip extends StatelessWidget {
   final void Function(String id) onActivate;
   final void Function(String id) onClose;
   final VoidCallback onNewDiagram;
-  final void Function(StudioDestination) onOpenNativeTab;
+  final void Function(SurfaceDefinition) onOpenNativeTab;
   final VoidCallback onOpenWebUrl;
   final VoidCallback onBackToOep;
   final Map<String, String> titleOverrides;
-
-  /// Every destination offered in the "+" dropdown besides Diagram
-  /// Studio itself (covered by its own "New Diagram" item) and Classic
-  /// (Perspectives shell, not a tab-shaped destination).
-  static const _nativeDestinations = [
-    StudioDestination.dashboard,
-    StudioDestination.projectExplorer,
-    StudioDestination.knowledge,
-    StudioDestination.acquisition,
-    StudioDestination.repository,
-    StudioDestination.objects,
-    StudioDestination.relationships,
-    StudioDestination.search,
-    StudioDestination.graph,
-    StudioDestination.validation,
-    StudioDestination.packages,
-    StudioDestination.engineeringIntelligence,
-    StudioDestination.exchange,
-    StudioDestination.copilot,
-    StudioDestination.settings,
-  ];
 
   @override
   Widget build(BuildContext context) {
@@ -460,8 +398,8 @@ class _TabStrip extends StatelessWidget {
                   for (final tab in nativeTabs)
                     _TabChip(
                       id: tab.id,
-                      displayTitle: tab.destination.label,
-                      icon: tab.destination.icon,
+                      displayTitle: tab.surface.title,
+                      icon: tab.surface.icon,
                       iconColor: StudioColors.textSecondary,
                       active: tab.id == activeId,
                       onTap: () => onActivate(tab.id),
@@ -483,10 +421,14 @@ class _TabStrip extends StatelessWidget {
                 child: const _MenuRow(icon: Icons.polyline, label: 'New Diagram'),
               ),
               const PopupMenuDivider(),
-              for (final destination in _nativeDestinations)
+              // AP-OEP-SURFACE-ARCHITECTURE-002 — sourced from the
+              // canonical `SurfaceRegistry` (derived from
+              // `StudioRegistry.defaultRegistry`), replacing the former
+              // hand-maintained `_nativeDestinations` list.
+              for (final surface in SurfaceRegistry.all)
                 PopupMenuItem<void>(
-                  onTap: () => onOpenNativeTab(destination),
-                  child: _MenuRow(icon: destination.icon, label: destination.label),
+                  onTap: () => onOpenNativeTab(surface),
+                  child: _MenuRow(icon: surface.icon, label: surface.title),
                 ),
             ],
           ),
@@ -516,11 +458,21 @@ class _MenuRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
-      mainAxisSize: MainAxisSize.min,
       children: [
         Icon(icon, size: 16, color: StudioColors.textSecondary),
         const SizedBox(width: 10),
-        Text(label, style: const TextStyle(fontSize: 13, color: StudioColors.textPrimary)),
+        // AP-OEP-WORKSPACE-SHELL-001 — a long title (e.g. "Engineering
+        // Intelligence") overflowed the popup menu's fixed item width;
+        // `Flexible`+ellipsis (found and fixed via the new workspace
+        // shell's identical `_MenuRow`, discovered by its own widget
+        // test) rather than letting it clip unbounded.
+        Flexible(
+          child: Text(
+            label,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 13, color: StudioColors.textPrimary),
+          ),
+        ),
       ],
     );
   }

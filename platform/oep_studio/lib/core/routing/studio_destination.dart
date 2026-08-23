@@ -7,6 +7,18 @@ import 'package:flutter/material.dart';
 /// rather than duplicating it.
 enum StudioDestination {
   dashboard('Dashboard', '/', Icons.dashboard_outlined, Icons.dashboard),
+  // AP-OEP-WORKSPACE-SHELL-001 — the first OEP-wide tabbed workspace
+  // (`EngineeringWorkspacePage`), built on the canonical `SurfaceRegistry`
+  // (AP-OEP-SURFACE-ARCHITECTURE-002/003). Deliberately a new,
+  // additional destination, not a replacement of any existing one —
+  // the sidebar and every existing route remain fully functional and
+  // reachable exactly as before.
+  workspace(
+    'Engineering Workspace',
+    '/workspace',
+    Icons.tab_outlined,
+    Icons.tab,
+  ),
   projectExplorer(
     'Project Explorer',
     '/project',

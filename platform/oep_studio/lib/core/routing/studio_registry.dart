@@ -28,6 +28,7 @@ import '../../settings/pages/knowledge_studio_settings_page.dart';
 import '../../web_surface/web_surfaces_host_page.dart';
 import '../../settings/services/settings_provider.dart';
 import '../../settings/workspace/settings_workspace_page.dart';
+import '../../workspace/engineering_workspace_page.dart';
 import '../models/search_scope.dart';
 import '../models/unified_search_result.dart';
 import '../services/engineering_project_service.dart';
@@ -257,6 +258,10 @@ class StudioRegistry {
       pageBuilder: _dashboardBuilder,
     ),
     const StudioDescriptor(
+      destination: StudioDestination.workspace,
+      pageBuilder: _workspaceBuilder,
+    ),
+    const StudioDescriptor(
       destination: StudioDestination.projectExplorer,
       pageBuilder: _projectExplorerBuilder,
     ),
@@ -480,6 +485,7 @@ class StudioRegistry {
 }
 
 Widget _dashboardBuilder(BuildContext context, GoRouterState state) => const DashboardPage();
+Widget _workspaceBuilder(BuildContext context, GoRouterState state) => const EngineeringWorkspacePage();
 Widget _projectExplorerBuilder(BuildContext context, GoRouterState state) => const ProjectExplorerPage();
 Widget _knowledgeBuilder(BuildContext context, GoRouterState state) => const KnowledgeStudioPage();
 /// The production Diagram Studio path: `Studio → Diagram Studio

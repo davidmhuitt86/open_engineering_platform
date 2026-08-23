@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/operations/operation.dart';
 import '../../core/operations/operation_manager.dart';
 import '../../core/routing/studio_destination.dart';
+import '../../core/surfaces/surface_registry.dart';
 import '../../core/theme/studio_colors.dart';
 import '../perspective/perspective.dart';
 import '../perspective/perspective_manager.dart';
@@ -45,7 +46,29 @@ import 'workbench_sidebar_state.dart';
 /// Diagram Studio" entry point with the Studio's own real label, matching
 /// what the classic `StudioNavRail` (now no longer mounted, see
 /// `StudioShell`) always exposed.
+///
+/// AP-OEP-SURFACE-ARCHITECTURE-003 — this list itself (which
+/// destinations appear here, in what order, and which are hidden while
+/// a diagram session is active) is unchanged: it is a real, independent
+/// filtering/ordering decision, not Surface identity. What changed is
+/// *where each row's icon/label now comes from* — see the STUDIOS
+/// section in `_ExpandedSidebar.build()`, which now sources
+/// `SurfaceRegistry.forId(destination.name)` wherever a `SurfaceDefinition`
+/// exists (every entry here except [StudioDestination.diagram] and
+/// [StudioDestination.workspace], both of which `SurfaceRegistry`
+/// deliberately excludes — Diagram Studio and the workspace shell
+/// itself each have their own dedicated path, § `SurfaceRegistry`'s own
+/// doc comment — so those two rows keep reading `StudioDestination`
+/// directly, a documented exception, not an oversight).
+///
+/// AP-OEP-WORKSPACE-SHELL-001 — [StudioDestination.workspace] is listed
+/// first: the sidebar remains fully available as fallback/legacy
+/// navigation (per this task's own Phase 8), but the new tabbed
+/// workspace is the intended primary entry point, so it's the most
+/// prominent row rather than buried alphabetically/by registration
+/// order.
 const _otherStudioDestinations = [
+  StudioDestination.workspace,
   StudioDestination.dashboard,
   StudioDestination.projectExplorer,
   StudioDestination.knowledge,
@@ -82,10 +105,23 @@ class WorkbenchSidebar extends StatefulWidget {
     required this.perspectiveManager,
     this.current = StudioDestination.diagram,
     this.diagramSessionActive = false,
+    this.onActivateWorkspaceSurface,
     WorkbenchSidebarState? sidebarState,
   }) : _sidebarState = sidebarState;
 
   final PerspectiveManager perspectiveManager;
+
+  /// AP-OEP-WORKSPACE-UX-001 — when non-null (only while [current] is
+  /// [StudioDestination.workspace]: wired up by `StudioShell`, never by
+  /// this widget itself), a tap on a STUDIOS/RESOURCES/TOOLS row that
+  /// has a `SurfaceDefinition` opens or activates it as a workspace tab
+  /// instead of navigating away via `context.go`. Deliberately a
+  /// callback, not a `WorkspaceTabsController` reference — this widget
+  /// stays a pure navigation shortcut with zero tab-management
+  /// responsibility of its own (§ this task's own Phase 3 instruction);
+  /// `StudioShell` owns reading `workspaceTabsControllerProvider` and
+  /// deciding when this callback should even be supplied.
+  final void Function(StudioDestination destination)? onActivateWorkspaceSurface;
 
   /// (Phase 14 § 10.) Whether Diagram Studio's own engine session is
   /// currently bootstrapped (`EngineeringProjectState.session != null`)
@@ -142,6 +178,7 @@ class _WorkbenchSidebarState extends State<WorkbenchSidebar> {
           perspectiveManager: widget.perspectiveManager,
           current: widget.current,
           diagramSessionActive: widget.diagramSessionActive,
+          onActivateWorkspaceSurface: widget.onActivateWorkspaceSurface,
           onCollapse: _sidebar.toggleCollapsed,
           searchController: _searchController,
           matches: _matches,
@@ -246,6 +283,7 @@ class _ExpandedSidebar extends StatelessWidget {
     required this.perspectiveManager,
     required this.current,
     this.diagramSessionActive = false,
+    this.onActivateWorkspaceSurface,
     required this.onCollapse,
     required this.searchController,
     required this.matches,
@@ -257,12 +295,29 @@ class _ExpandedSidebar extends StatelessWidget {
   final PerspectiveManager perspectiveManager;
   final StudioDestination current;
   final bool diagramSessionActive;
+  final void Function(StudioDestination destination)? onActivateWorkspaceSurface;
   final VoidCallback onCollapse;
   final TextEditingController searchController;
   final bool Function(String label) matches;
   final VoidCallback onSearchChanged;
   final String? expandedPerspectiveId;
   final ValueChanged<String> onToggleExpanded;
+
+  /// AP-OEP-WORKSPACE-UX-001, Phase 3/Rule 2 — routes a directly-mapped
+  /// row's tap through the workspace tab controller (open-or-activate,
+  /// never a duplicate — the controller's own `openSurface` already
+  /// implements this) when available, falling back to the existing
+  /// `context.go` navigation otherwise. This is the one, small, shared
+  /// decision point every affected row below calls — not a second
+  /// tab-management mechanism, just where to send the tap.
+  void _goToDestination(BuildContext context, StudioDestination destination) {
+    final onActivate = onActivateWorkspaceSurface;
+    if (onActivate != null) {
+      onActivate(destination);
+      return;
+    }
+    context.go(destination.path);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -368,28 +423,45 @@ class _ExpandedSidebar extends StatelessWidget {
                       perspectiveManager.activate('library');
                     },
                   ),
+                // AP-OEP-SURFACE-ARCHITECTURE-003 — icon/label now
+                // sourced from the canonical `SurfaceRegistry` (they were
+                // previously hardcoded literals here, a second, silent
+                // duplication of `StudioDestination`'s own icon/label
+                // beyond the STUDIOS section below — the exact kind of
+                // drift the audit's Phase 5 test asserts against).
+                // Force-unwrapped: `SurfaceRegistry` is derived from
+                // every registered `StudioDestination` except
+                // diagram/diagramClassic, so `repository`/`packages`/
+                // `search`/`settings` are always present (asserted by
+                // `surface_registry_test.dart`'s own parity test).
                 if (!minimized && matches('Repository'))
                   _SimpleRow(
                     key: ValueKey('sidebar-dest-${StudioDestination.repository.path}'),
-                    icon: Icons.folder_outlined,
-                    label: 'Repository',
-                    onTap: () => context.go(StudioDestination.repository.path),
+                    icon: SurfaceRegistry.forId(StudioDestination.repository.name)!.icon,
+                    label: SurfaceRegistry.forId(StudioDestination.repository.name)!.title,
+                    onTap: () => _goToDestination(context, StudioDestination.repository),
                   ),
                 if (!minimized && matches('Packages'))
                   _SimpleRow(
                     key: ValueKey('sidebar-dest-${StudioDestination.packages.path}'),
-                    icon: Icons.inventory_2_outlined,
-                    label: 'Packages',
-                    onTap: () => context.go(StudioDestination.packages.path),
+                    icon: SurfaceRegistry.forId(StudioDestination.packages.name)!.icon,
+                    label: SurfaceRegistry.forId(StudioDestination.packages.name)!.title,
+                    onTap: () => _goToDestination(context, StudioDestination.packages),
                   ),
                 const SizedBox(height: 10),
                 _SectionLabel('TOOLS'),
                 if (matches('Search'))
                   _SimpleRow(
                     key: ValueKey('sidebar-dest-${StudioDestination.search.path}'),
-                    icon: Icons.search,
-                    label: 'Search',
-                    onTap: () => context.go(StudioDestination.search.path),
+                    // Disclosed minor visual delta: this row previously
+                    // hardcoded `Icons.search` (filled), which never
+                    // actually matched `StudioDestination.search.icon`
+                    // (`Icons.search_outlined`) — a pre-existing drift
+                    // this migration corrects by construction rather
+                    // than perpetuates.
+                    icon: SurfaceRegistry.forId(StudioDestination.search.name)!.icon,
+                    label: SurfaceRegistry.forId(StudioDestination.search.name)!.title,
+                    onTap: () => _goToDestination(context, StudioDestination.search),
                   ),
                 if (matches('Tasks & Jobs')) const _TasksAndJobsRow(),
                 if (matches('Reports'))
@@ -411,16 +483,21 @@ class _ExpandedSidebar extends StatelessWidget {
                   if ((!minimized || !_hiddenWhileDiagramActive.contains(destination)) && matches(destination.label))
                     _SimpleRow(
                       key: ValueKey('sidebar-dest-${destination.path}'),
-                      icon: destination.icon,
-                      label: destination.label,
+                      // AP-OEP-SURFACE-ARCHITECTURE-003 — sourced from
+                      // `SurfaceRegistry` wherever a `SurfaceDefinition`
+                      // exists (every destination here except `diagram`,
+                      // which `SurfaceRegistry` deliberately excludes —
+                      // § `_otherStudioDestinations`'s own doc comment).
+                      icon: SurfaceRegistry.forId(destination.name)?.icon ?? destination.icon,
+                      label: SurfaceRegistry.forId(destination.name)?.title ?? destination.label,
                       active: current == destination,
-                      onTap: () => context.go(destination.path),
+                      onTap: () => _goToDestination(context, destination),
                     ),
               ],
             ),
           ),
           const Divider(height: 1),
-          const _SidebarFooter(),
+          _SidebarFooter(onActivateWorkspaceSurface: onActivateWorkspaceSurface),
         ],
       ),
     );
@@ -759,7 +836,9 @@ class _OperationTile extends StatelessWidget {
 /// fabricated name) with a generic role label, since this codebase has no
 /// per-user profile/auth system to draw a real role from.
 class _SidebarFooter extends StatelessWidget {
-  const _SidebarFooter();
+  const _SidebarFooter({this.onActivateWorkspaceSurface});
+
+  final void Function(StudioDestination destination)? onActivateWorkspaceSurface;
 
   @override
   Widget build(BuildContext context) {
@@ -780,11 +859,21 @@ class _SidebarFooter extends StatelessWidget {
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.settings_outlined, size: 16),
+            // AP-OEP-SURFACE-ARCHITECTURE-003 — sourced from
+            // `SurfaceRegistry`, same reasoning as the Repository/
+            // Packages/Search rows above.
+            icon: Icon(SurfaceRegistry.forId(StudioDestination.settings.name)!.icon, size: 16),
             color: StudioColors.textSecondary,
             visualDensity: VisualDensity.compact,
-            tooltip: 'Settings',
-            onPressed: () => context.go(StudioDestination.settings.path),
+            tooltip: SurfaceRegistry.forId(StudioDestination.settings.name)!.title,
+            onPressed: () {
+              final onActivate = onActivateWorkspaceSurface;
+              if (onActivate != null) {
+                onActivate(StudioDestination.settings);
+                return;
+              }
+              context.go(StudioDestination.settings.path);
+            },
           ),
         ],
       ),

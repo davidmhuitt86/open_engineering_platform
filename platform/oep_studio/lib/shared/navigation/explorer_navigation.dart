@@ -1,10 +1,10 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../core/objects/engineering_object_runtime.dart';
 import '../../core/routing/studio_destination.dart';
 import '../../core/services/foundation_runtime_service.dart';
+import 'workspace_aware_navigation.dart';
 
 /// Navigates to the Object Explorer, selecting [objectId]'s category and
 /// the object itself, so the Property Inspector updates to Object mode.
@@ -26,7 +26,7 @@ void goToObject(BuildContext context, WidgetRef ref, String objectId) {
   final notifier = ref.read(foundationRuntimeServiceProvider.notifier);
   notifier.selectCategory(object.category);
   notifier.selectObject(object);
-  context.go(StudioDestination.objects.path);
+  openOrActivateDestination(context, ref, StudioDestination.objects);
 }
 
 /// Navigates to the Relationship Explorer, selecting [relationshipId],
@@ -38,5 +38,5 @@ void goToRelationship(BuildContext context, WidgetRef ref, String relationshipId
   final relationship = EngineeringObjectRuntime.instance.relationshipById(relationshipId);
   if (relationship == null) return;
   ref.read(foundationRuntimeServiceProvider.notifier).selectRelationship(relationship);
-  context.go(StudioDestination.relationships.path);
+  openOrActivateDestination(context, ref, StudioDestination.relationships);
 }

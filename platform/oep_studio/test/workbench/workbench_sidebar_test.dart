@@ -277,7 +277,15 @@ void main() {
       await expectAbsentAfterFullScroll(tester, find.byKey(ValueKey('sidebar-dest-${StudioDestination.acquisition.path}')));
       await expectAbsentAfterFullScroll(tester, find.byKey(ValueKey('sidebar-dest-${StudioDestination.projectExplorer.path}')));
 
-      // Still reachable -- global functions, not DS-specific.
+      // Still reachable -- global functions, not DS-specific. The
+      // `expectAbsentAfterFullScroll` calls above leave the list dragged
+      // all the way to its end; `library`/`dashboard` sit near the top
+      // (AP-OEP-WORKSPACE-SHELL-001 added one more row, `workspace`,
+      // ahead of `dashboard`, shifting positions slightly), so scroll
+      // back to the top first rather than relying on `scrollUntilVisible`
+      // to reverse direction on its own.
+      await tester.drag(navScrollable(), const Offset(0, 4000));
+      await tester.pumpAndSettle();
       await expectVisible(tester, find.byKey(const ValueKey('sidebar-perspective-library')));
       await expectVisible(tester, find.byKey(ValueKey('sidebar-dest-${StudioDestination.dashboard.path}')));
       await expectVisible(tester, find.byKey(ValueKey('sidebar-dest-${StudioDestination.knowledge.path}')));

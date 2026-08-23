@@ -1,6 +1,5 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:engineering_engine/engineering_engine.dart';
 
 import '../../acquisition/services/acquisition_runtime_service.dart';
@@ -12,6 +11,7 @@ import '../../core/services/engineering_project_service.dart';
 import '../../core/services/foundation_runtime_service.dart';
 import '../../exchange/services/exchange_runtime_service.dart';
 import 'explorer_navigation.dart';
+import 'workspace_aware_navigation.dart';
 
 /// Platform-wide navigation (WORK_PACKAGE_025, ENGINE-TASK-000120) —
 /// built *on top of* the existing `explorer_navigation.dart`
@@ -52,7 +52,7 @@ void goToKnowledgeObject(BuildContext context, WidgetRef ref, String id) {
   final candidate = foundation.candidates.where((c) => c.id == id).firstOrNull;
   if (candidate != null) {
     ref.read(foundationRuntimeServiceProvider.notifier).selectKnowledgeCandidate(candidate);
-    context.go(StudioDestination.knowledge.path);
+    openOrActivateDestination(context, ref, StudioDestination.knowledge);
     _record(ref, id: id, label: candidate.name, destination: StudioDestination.knowledge);
   }
 }
@@ -91,6 +91,14 @@ void _selectCorrespondingDiagramNode(WidgetRef ref, {required String repositoryO
 /// ENGINE-TASK-000118 hoisted the Engine out of `DiagramStudioPage`'s
 /// own private `State`, nothing outside that page could reach
 /// `engine.registry.selection` at all.
+///
+/// AP-OEP-WORKSPACE-CONTEXT-001/002 — the selection itself (above)
+/// already lands on the one shared, Engine-owned authority
+/// (`engineeringProjectServiceProvider`'s `GraphSelection`) that both
+/// the standalone `/diagram` route and the Workspace's own embedded
+/// Diagram tab read from — no object or id is copied anywhere. The only
+/// thing this changes is *how* the destination becomes visible — see
+/// `openOrActivateDestination`'s own doc comment.
 void goToDiagramElement(BuildContext context, WidgetRef ref, {String? nodeId, String? relationshipId}) {
   final projectState = ref.read(engineeringProjectServiceProvider);
   final engine = projectState.engine;
@@ -98,11 +106,11 @@ void goToDiagramElement(BuildContext context, WidgetRef ref, {String? nodeId, St
   if (nodeId != null) {
     engine.registry.selection.selectNode(nodeId);
     final label = projectState.session?.graph.nodes[nodeId]?.displayName ?? nodeId;
-    context.go(StudioDestination.diagram.path);
+    openOrActivateDestination(context, ref, StudioDestination.diagram);
     _record(ref, id: nodeId, label: label, destination: StudioDestination.diagram);
   } else if (relationshipId != null) {
     engine.registry.selection.selectRelationship(relationshipId);
-    context.go(StudioDestination.diagram.path);
+    openOrActivateDestination(context, ref, StudioDestination.diagram);
     _record(ref, id: relationshipId, label: relationshipId, destination: StudioDestination.diagram);
   }
 }
@@ -131,7 +139,7 @@ void goToValidationResult(BuildContext context, WidgetRef ref, ValidationFinding
       return;
     }
   }
-  context.go(StudioDestination.validation.path);
+  openOrActivateDestination(context, ref, StudioDestination.validation);
   _record(ref, id: finding.code, label: finding.message, destination: StudioDestination.validation);
 }
 
@@ -144,7 +152,7 @@ void goToAcquisitionResult(BuildContext context, WidgetRef ref, UnifiedSearchRes
   if (result.category == UnifiedSearchResultCategory.acquisitionJob) {
     ref.read(acquisitionRuntimeServiceProvider.notifier).selectJob(result.id);
   }
-  context.go(StudioDestination.acquisition.path);
+  openOrActivateDestination(context, ref, StudioDestination.acquisition);
   _record(ref, id: result.id, label: result.label, destination: StudioDestination.acquisition);
 }
 
@@ -161,7 +169,7 @@ void goToExchangeResult(BuildContext context, WidgetRef ref, UnifiedSearchResult
   } else {
     notifier.selectPackage(result.id);
   }
-  context.go(StudioDestination.exchange.path);
+  openOrActivateDestination(context, ref, StudioDestination.exchange);
   _record(ref, id: result.id, label: result.label, destination: StudioDestination.exchange);
 }
 
@@ -193,7 +201,7 @@ void goToSearchResult(BuildContext context, WidgetRef ref, UnifiedSearchResult r
       // Demonstration Host's own Search Panel, which likewise treats
       // symbol/layer results as informational only) — just switch to
       // Diagram Studio, where the result was found.
-      context.go(StudioDestination.diagram.path);
+      openOrActivateDestination(context, ref, StudioDestination.diagram);
       _record(ref, id: result.id, label: result.label, destination: StudioDestination.diagram);
   }
 }
