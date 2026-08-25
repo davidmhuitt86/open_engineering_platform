@@ -112,8 +112,11 @@ not a candidate.
 | Engine graph/document state | **Already survives** — same reasoning, `engineeringProjectServiceProvider`/`diagramStudioControllerProvider` are app-wide singletons |
 | Anything not yet opened as a Workspace tab | **Should intentionally reset** — out of scope; no persistence to disk, no restoration of a *previous session's* tabs, only continuity of the *current* session's already-open tabs across route changes |
 
-No disk persistence or serialization was introduced. The mechanism is
-purely "don't destroy the live widget," not "save and restore state."
+No disk persistence or serialization was introduced by *this* package —
+the mechanism here is purely "don't destroy the live widget," not "save
+and restore state." (A later package, `AP-OEP-WORKSPACE-PERSISTENCE-001`,
+did add disk persistence for the open/active Surface identity
+specifically — see this document's §7 status update.)
 
 ## 5. Selected architecture — exact implementation changes
 
@@ -200,6 +203,12 @@ directly, not rendered pixels.
 - Restoring a *previous application session's* open tabs (persistence
   to disk) remains explicitly out of scope, per this package's own
   instruction and every prior Workspace package's standing constraint.
+  **Status update (DOCS-SYNC-001 reconciliation note):** this specific
+  limitation was subsequently resolved by `AP-OEP-WORKSPACE-PERSISTENCE-001`
+  — `lib/workspace/workspace_tabs_storage.dart` now persists the ordered
+  open-Surface-id list and active id across restarts. Everything else in
+  this section, and this package's own scope (in-session route-change
+  continuity, not disk persistence), is unaffected and remains accurate.
 - The Workspace host, being permanently mounted once created, means a
   Diagram tab opened during a test run that never gets closed will keep
   a `LegacyV2WebViewPage` alive for the rest of that test's lifetime —

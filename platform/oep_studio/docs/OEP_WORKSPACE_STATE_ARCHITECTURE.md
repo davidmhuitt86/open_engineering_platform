@@ -5,6 +5,23 @@ serialization, or restoration was implemented. This document records
 what exists today, what a future Workspace-session persistence layer
 would need, and whether the architecture is ready for it.
 
+> **Implementation status update (AP-OEP-WORKSPACE-PERSISTENCE-001, later
+> package — DOCS-SYNC-001 reconciliation note, not a rewrite of the audit
+> below).** The §7 schema this audit proposed-but-did-not-implement **has
+> since been implemented**, essentially verbatim: `WorkspaceTabsController`
+> now persists `{surfaces: [...], activeId}` via
+> `lib/workspace/workspace_tabs_storage.dart` to
+> `%APPDATA%/oep_studio/workspace_tabs.json`, restored once per app
+> session. `activeProjectId`/`activeDocumentId` were correctly excluded,
+> exactly as §7 concluded. Everything else this audit flagged as
+> intentionally excluded (§2/§4) — Copilot conversation, Engine undo/
+> redo, WebView/V2 internal state, multi-document/multi-project state —
+> remains correctly unimplemented; no scope beyond §7's schema has been
+> built. The reasoning below (§1–§6, §8–§9) is left unchanged as the
+> historical record that justified this scope; only §7/§10's "not yet
+> built" framing is now out of date, corrected here rather than rewritten
+> in place.
+
 ## 1. Complete Workspace state inventory
 
 | Component | State item | Classification |
@@ -200,6 +217,10 @@ implementation is required to *prove* the architecture. The existing
 `WebSurfaceTabsStorage` already proves it; no further proof-of-concept
 is needed.
 
+> **Status update:** implemented as proposed by `AP-OEP-WORKSPACE-PERSISTENCE-001`
+> — see `lib/workspace/workspace_tabs_storage.dart` and this document's
+> own top-of-file note.
+
 ## 8. Multi-document implications
 
 The current architecture has exactly one Engine/session authority, one
@@ -256,3 +277,7 @@ only for that one optional enhancement.
 None proposed automatically — per this package's own instruction, no
 persistence implementation begins until a future package explicitly
 elects to build the §7 schema.
+
+> **Status update:** that future package was `AP-OEP-WORKSPACE-PERSISTENCE-001`,
+> completed. §10's classification (READY, narrowly scoped to §7) held —
+> no prerequisite work was needed for the schema actually built.

@@ -45,6 +45,21 @@ class WorkspaceTabsController extends ChangeNotifier {
   String? _lastPersistedActiveSurfaceId;
   bool _lastPersistedSentinel = false;
 
+  /// AP-OEP-WORKSPACE-RESTORATION-001 — every write chains onto this
+  /// Future instead of firing independently. `_persistIfChanged`'s
+  /// `unawaited(_storage.save(...))` calls are fire-and-forget by
+  /// design (the controller's public API stays synchronous), but two
+  /// such calls issued in quick succession (e.g. two `openSurface`
+  /// calls in the same synchronous caller, with no `await` between
+  /// them) have no inherent ordering guarantee once they're both
+  /// in-flight `dart:io` operations — without this chain, whichever
+  /// write's OS-level completion lands last would win, which is not
+  /// necessarily the *later* call, silently persisting stale state.
+  /// Chaining guarantees writes land on disk in the same order they
+  /// were requested, with zero change to what's written or when the
+  /// first write in a burst starts.
+  Future<void> _writeChain = Future<void>.value();
+
   List<WorkspaceTab> get tabs => List.unmodifiable(_tabs);
   String? get activeId => _activeId;
   WorkspaceTab? get active => _activeId == null ? null : _tabs.where((t) => t.id == _activeId).firstOrNull;
@@ -58,9 +73,15 @@ class WorkspaceTabsController extends ChangeNotifier {
   String openSurface(String surfaceId) {
     final existing = _tabs.where((t) => t.surfaceId == surfaceId).firstOrNull;
     if (existing != null) {
-      _activeId = existing.id;
-      notifyListeners();
-      _persistIfChanged();
+      // AP-OEP-WORKSPACE-UX-002 — re-selecting the tab that's already
+      // active is a genuine no-op (nothing about "what's open" or
+      // "what's active" changes); skip the rebuild/persist-check churn
+      // rather than announcing a change that didn't happen.
+      if (existing.id != _activeId) {
+        _activeId = existing.id;
+        notifyListeners();
+        _persistIfChanged();
+      }
       return existing.id;
     }
     // A deterministic id (`surfaceId` itself, prefixed), not a
@@ -80,6 +101,10 @@ class WorkspaceTabsController extends ChangeNotifier {
   }
 
   void activate(String id) {
+    // AP-OEP-WORKSPACE-UX-002 — same no-op guard as [openSurface]'s
+    // reuse-if-open branch: activating the tab that's already active
+    // changes nothing.
+    if (id == _activeId) return;
     if (_tabs.any((t) => t.id == id)) {
       _activeId = id;
       notifyListeners();
@@ -182,14 +207,20 @@ class WorkspaceTabsController extends ChangeNotifier {
       return;
     }
     _rememberLastPersisted(surfaces, activeSurfaceId);
-    unawaited(_storage.save(surfaces: surfaces, activeId: activeSurfaceId));
+    _enqueueSave(surfaces, activeSurfaceId);
   }
 
   Future<void> _persist() async {
     final surfaces = [for (final tab in _tabs) tab.surfaceId];
     final activeSurfaceId = active?.surfaceId;
     _rememberLastPersisted(surfaces, activeSurfaceId);
-    await _storage.save(surfaces: surfaces, activeId: activeSurfaceId);
+    await _enqueueSave(surfaces, activeSurfaceId);
+  }
+
+  Future<void> _enqueueSave(List<String> surfaces, String? activeSurfaceId) {
+    final next = _writeChain.then((_) => _storage.save(surfaces: surfaces, activeId: activeSurfaceId));
+    _writeChain = next;
+    return next;
   }
 }
 

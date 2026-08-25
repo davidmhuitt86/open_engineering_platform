@@ -7,6 +7,8 @@ import 'package:oep_studio/core/routing/studio_destination.dart';
 import 'package:oep_studio/workspace/workspace_tab.dart';
 import 'package:oep_studio/workspace/workspace_tabs_controller.dart';
 
+import '../support/isolated_settings_storage.dart';
+
 /// AP-OEP-WORKSPACE-UX-001 — the real, end-to-end property this package
 /// exists to prove: a sidebar click, while the Engineering Workspace is
 /// the active destination, mutates the *same* shared
@@ -72,6 +74,7 @@ void main() {
   /// this is purely about letting Knowledge/Repository render without
   /// spurious `RenderFlex overflow` noise.
   void useRealisticViewport(WidgetTester tester) {
+    useIsolatedSettingsStorage();
     tester.view.physicalSize = const Size(1600, 1000);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);

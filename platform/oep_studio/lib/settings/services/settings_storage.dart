@@ -57,6 +57,16 @@ abstract final class SettingsStorage {
     _testRootOverride = directory;
   }
 
+  /// AP-OEP-WORKSPACE-PERSISTENCE-001 — lets a test-isolation helper
+  /// (`useIsolatedSettingsStorage`) restore whatever override was
+  /// already active before it ran, instead of hard-resetting to `null`
+  /// (the real production location). Needed once a *global*,
+  /// whole-suite override can be active underneath a more specific,
+  /// single-test override (see `test/flutter_test_config.dart`) — never
+  /// read by production code.
+  @visibleForTesting
+  static Directory? get debugTestRootOverride => _testRootOverride;
+
   static Directory root() {
     final override = _testRootOverride;
     if (override != null) return override;

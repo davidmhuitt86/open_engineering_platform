@@ -4,10 +4,23 @@ import 'package:oep_studio/core/surfaces/surface_registry.dart';
 import 'package:oep_studio/workspace/workspace_tab.dart';
 import 'package:oep_studio/workspace/workspace_tabs_controller.dart';
 
+import '../support/isolated_settings_storage.dart';
+
 /// AP-OEP-WORKSPACE-SHELL-001 — focused tests for the new workspace tab
 /// model/controller. Does not touch DiagramTab, WebSurfaceTabsController,
 /// or any Diagram/V2 behavior — those are unmodified by this package.
+///
+/// AP-OEP-WORKSPACE-PERSISTENCE-001 — every `WorkspaceTabsController()`
+/// built below now uses the real, default `WorkspaceTabsStorage` (this
+/// file predates persistence and has no reason to inject a fake), so
+/// `useIsolatedSettingsStorage()` keeps its real (but fire-and-forget)
+/// writes off this machine's actual `%APPDATA%/oep_studio` — the same
+/// isolation seam every other real-storage test in this repo already
+/// uses. Persistence *behavior* itself is covered by
+/// `workspace_tabs_persistence_test.dart`, not here.
 void main() {
+  setUp(useIsolatedSettingsStorage);
+
   group('WorkspaceTab', () {
     test('a native surface tab resolves title/icon live from SurfaceRegistry, not a stored copy', () {
       final surface = SurfaceRegistry.all.first;
@@ -65,6 +78,30 @@ void main() {
 
       expect(controller.tabs, hasLength(2));
       expect(controller.active!.isDiagram, isTrue);
+    });
+
+    test('AP-OEP-WORKSPACE-UX-002: re-opening the already-active tab does not notify listeners or attempt a persist write', () {
+      final controller = WorkspaceTabsController();
+      final surfaceId = controller.openSurface(SurfaceRegistry.all.first.id);
+      var notifications = 0;
+      controller.addListener(() => notifications++);
+
+      controller.openSurface(SurfaceRegistry.all.first.id); // already the active tab
+
+      expect(notifications, 0, reason: 'nothing about what is open or active actually changed');
+      expect(controller.activeId, surfaceId);
+    });
+
+    test('AP-OEP-WORKSPACE-UX-002: re-activating the already-active tab does not notify listeners', () {
+      final controller = WorkspaceTabsController();
+      final aId = controller.openSurface(SurfaceRegistry.all[0].id);
+      var notifications = 0;
+      controller.addListener(() => notifications++);
+
+      controller.activate(aId); // already the active tab
+
+      expect(notifications, 0);
+      expect(controller.activeId, aId);
     });
 
     test('activate switches the active tab without closing anything', () {

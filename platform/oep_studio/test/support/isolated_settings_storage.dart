@@ -46,9 +46,17 @@ Directory useIsolatedSettingsStorage() {
     );
   }
 
+  // AP-OEP-WORKSPACE-PERSISTENCE-001 — capture whatever override was
+  // already active (e.g. `test/flutter_test_config.dart`'s own
+  // whole-suite isolation) and restore *that*, not `null`, once this
+  // test ends. Hard-resetting to `null` would fall back to the real
+  // production `SettingsStorage.root()` for every later test in the
+  // same file/isolate — exactly the hazard this helper exists to
+  // prevent.
+  final previousOverride = SettingsStorage.debugTestRootOverride;
   SettingsStorage.debugSetTestRootOverride(dir);
   addTearDown(() {
-    SettingsStorage.debugSetTestRootOverride(null);
+    SettingsStorage.debugSetTestRootOverride(previousOverride);
     // Best-effort only: a `persist()`-style call made from a
     // `testWidgets` fake-async zone still schedules a real `dart:io`
     // write (see `diagram_workspace_persistence_provider_test.dart`'s

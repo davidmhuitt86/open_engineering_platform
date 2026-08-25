@@ -1,9 +1,14 @@
 import 'dart:async';
 
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:webview_flutter_windows/webview_flutter_windows.dart';
 
+import '../core/services/foundation_runtime_service.dart';
 import '../core/theme/studio_colors.dart';
+import '../knowledge/models/knowledge_validation_exception.dart';
+import 'web_browser_settings_provider.dart';
 import 'web_surface.dart';
 
 /// AP-STUDIO-WEB-SURFACE-001 — a generic Web Surface: one
@@ -32,7 +37,7 @@ import 'web_surface.dart';
 /// switched away from. This is what makes V2's state (and every other
 /// surface's own JS/navigation state) survive tab switching, verified
 /// live (see the architecture doc §11).
-class WebSurfaceView extends StatefulWidget {
+class WebSurfaceView extends ConsumerStatefulWidget {
   const WebSurfaceView({super.key, required this.surface, this.showChrome = true});
 
   final WebSurface surface;
@@ -43,10 +48,10 @@ class WebSurfaceView extends StatefulWidget {
   final bool showChrome;
 
   @override
-  State<WebSurfaceView> createState() => _WebSurfaceViewState();
+  ConsumerState<WebSurfaceView> createState() => _WebSurfaceViewState();
 }
 
-class _WebSurfaceViewState extends State<WebSurfaceView> with AutomaticKeepAliveClientMixin {
+class _WebSurfaceViewState extends ConsumerState<WebSurfaceView> with AutomaticKeepAliveClientMixin {
   final WebviewController _controller = WebviewController();
   final TextEditingController _urlField = TextEditingController();
   bool _ready = false;
@@ -83,11 +88,125 @@ class _WebSurfaceViewState extends State<WebSurfaceView> with AutomaticKeepAlive
     }
   }
 
-  void _navigate(String url) {
-    var target = url.trim();
+  /// Matches an explicit URI scheme prefix ("https:", "about:", "file:",
+  /// "data:", ...) — anything already shaped like this is used exactly
+  /// as typed, never search-encoded or re-prefixed. Needed so the
+  /// homepage default (`about:blank`) and the Home button both still
+  /// work regardless of the search-on-typed-text setting.
+  static final RegExp _schemePattern = RegExp(r'^[a-zA-Z][a-zA-Z0-9+.-]*:');
+
+  /// A bare domain/host ("example.com", "localhost:8080") is still a
+  /// navigable address even without a scheme; anything else typed into
+  /// the address bar (a space anywhere, or no dot at all) reads as a
+  /// search query, not a URL.
+  bool _looksLikeAddress(String input) => !input.contains(' ') && (input.contains('.') || input.startsWith('localhost'));
+
+  void _navigate(String input) {
+    var target = input.trim();
     if (target.isEmpty) return;
-    if (!target.contains('://')) target = 'https://$target';
+    if (_schemePattern.hasMatch(target)) {
+      // already a fully-qualified address (https:, about:, file:, ...), use as-is
+    } else if (_looksLikeAddress(target)) {
+      target = 'https://$target';
+    } else if (ref.read(webBrowserSettingsProvider).searchOnTypedText) {
+      target = 'https://www.google.com/search?q=${Uri.encodeQueryComponent(target)}';
+    } else {
+      target = 'https://$target';
+    }
     unawaited(_controller.loadUrl(target));
+  }
+
+  /// "Import to Diagram Studio" — the native WebView2 control this
+  /// widget embeds exposes no hook to add/intercept its own right-click
+  /// context menu, and no download-completed callback (confirmed by
+  /// reading `webview_flutter_windows`'s own API surface: no
+  /// `onContextMenuRequested`, no download event of any kind). The
+  /// browser's own native "Save picture as…"/"Save as…" already saves a
+  /// file to disk unchanged; this button picks up from there — the user
+  /// saves normally, then imports that saved file as Source Material via
+  /// the same, already-existing `attachSourceMaterial` path Knowledge
+  /// Studio's own Import Queue panel uses (`import_queue_panel.dart`) —
+  /// not a new import pipeline.
+  Future<void> _importToKnowledge() async {
+    final picked = await openFile();
+    if (picked == null) return;
+    if (!mounted) return;
+    try {
+      await ref.read(foundationRuntimeServiceProvider.notifier).attachSourceMaterial(picked.path);
+    } on KnowledgeValidationException catch (error) {
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text("Couldn't Import"),
+          content: Text(error.message),
+          actions: [TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('OK'))],
+        ),
+      );
+    }
+  }
+
+  Future<void> _openSettings() async {
+    final settings = ref.read(webBrowserSettingsProvider);
+    final homepageController = TextEditingController(text: settings.homepageUrl);
+    var searchOnTypedText = settings.searchOnTypedText;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: const Text('Browser Settings'),
+          content: SizedBox(
+            width: 360,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Homepage', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: homepageController,
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    hintText: 'about:blank or https://example.com',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Loaded when a new blank web tab is opened.',
+                  style: TextStyle(fontSize: 11, color: StudioColors.textSecondary),
+                ),
+                const SizedBox(height: 16),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Search with Google', style: TextStyle(fontSize: 13)),
+                  subtitle: const Text(
+                    "When what you type in the address bar isn't a web address",
+                    style: TextStyle(fontSize: 11),
+                  ),
+                  value: searchOnTypedText,
+                  onChanged: (value) => setDialogState(() => searchOnTypedText = value),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('Cancel')),
+            FilledButton(
+              onPressed: () {
+                ref.read(webBrowserSettingsProvider.notifier).update(
+                      homepageUrl: homepageController.text.trim().isEmpty ? 'about:blank' : homepageController.text.trim(),
+                      searchOnTypedText: searchOnTypedText,
+                    );
+                Navigator.of(dialogContext).pop();
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+    homepageController.dispose();
   }
 
   @override
@@ -129,6 +248,12 @@ class _WebSurfaceViewState extends State<WebSurfaceView> with AutomaticKeepAlive
                   color: StudioColors.textSecondary,
                   onPressed: _ready ? () => _controller.reload() : null,
                 ),
+                IconButton(
+                  tooltip: 'Home',
+                  icon: const Icon(Icons.home_outlined, size: 18),
+                  color: StudioColors.textSecondary,
+                  onPressed: _ready ? () => _navigate(ref.read(webBrowserSettingsProvider).homepageUrl) : null,
+                ),
                 Expanded(
                   child: TextField(
                     controller: _urlField,
@@ -152,6 +277,18 @@ class _WebSurfaceViewState extends State<WebSurfaceView> with AutomaticKeepAlive
                   icon: const Icon(Icons.arrow_forward_ios, size: 14),
                   color: StudioColors.textSecondary,
                   onPressed: () => _navigate(_urlField.text),
+                ),
+                IconButton(
+                  tooltip: 'Import a saved image/PDF into Diagram Studio (as Source Material)',
+                  icon: const Icon(Icons.file_download_outlined, size: 18),
+                  color: StudioColors.textSecondary,
+                  onPressed: _importToKnowledge,
+                ),
+                IconButton(
+                  tooltip: 'Browser Settings',
+                  icon: const Icon(Icons.menu, size: 18),
+                  color: StudioColors.textSecondary,
+                  onPressed: _openSettings,
                 ),
               ],
             ),

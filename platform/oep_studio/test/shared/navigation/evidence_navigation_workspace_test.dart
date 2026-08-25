@@ -12,6 +12,8 @@ import 'package:oep_studio/knowledge/models/source_material_type.dart';
 import 'package:oep_studio/shared/navigation/evidence_navigation.dart';
 import 'package:oep_studio/workspace/workspace_tabs_controller.dart';
 
+import '../../support/isolated_settings_storage.dart';
+
 /// AP-OEP-DIAGRAM-CONTEXT-001 — the strongest Diagram → Surface workflow
 /// found in the audit: `goToEvidence`, the real, already-shipped
 /// "Go to Evidence" button in `EngineeringEvidenceLinkProperties`
@@ -41,6 +43,7 @@ void main() {
     required String initialLocation,
     required void Function(BuildContext, WidgetRef) action,
   }) async {
+    useIsolatedSettingsStorage();
     final container = ProviderContainer(
       overrides: [foundationRuntimeServiceProvider.overrideWith(_FakeFoundationNotifier.new)],
     );

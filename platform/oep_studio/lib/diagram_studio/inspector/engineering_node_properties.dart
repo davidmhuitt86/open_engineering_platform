@@ -3,9 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:engineering_engine/engineering_engine.dart';
 
 import '../../core/models/engineering_inspectable.dart';
+import '../../core/services/engineering_project_service.dart';
 import '../../core/services/foundation_runtime_service.dart';
 import '../../core/theme/studio_colors.dart';
+import '../../shared/navigation/unified_navigation.dart';
 import '../../shared/widgets/property_field.dart';
+import '../../shared/widgets/validation_findings_list.dart';
 
 /// Property Inspector mode for a selected Engineering Graph node
 /// (WORK_PACKAGE_024, ENGINE-TASK-000110). Display only, exactly like
@@ -18,6 +21,17 @@ import '../../shared/widgets/property_field.dart';
 /// it, switching the Property Inspector to
 /// `EngineeringEvidenceLinkProperties`, which offers "Go to Evidence"
 /// (ENGINE-TASK-000123).
+///
+/// AP-OEP-DIAGRAM-VALIDATION-001 — a "Validation Findings" section is
+/// shown between Ports and Evidence Links, but only when the live
+/// `ValidationReport` (`engineeringProjectServiceProvider`, the same
+/// app-wide, auto-recomputed authority the global Validation Surface
+/// itself reads — no second validation state, nothing cached here)
+/// contains at least one finding whose `subjectId` exactly equals this
+/// node's own canonical `id`. Activating a finding goes through the
+/// existing, already-Workspace-aware `goToValidationResult` — the same
+/// helper the Validation Surface and Search already use — never a new
+/// navigation path.
 class EngineeringNodeProperties extends ConsumerWidget {
   const EngineeringNodeProperties({required this.node, this.symbolName, super.key});
 
@@ -26,6 +40,9 @@ class EngineeringNodeProperties extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final report = ref.watch(engineeringProjectServiceProvider).validationReport;
+    final findings = (report?.findings ?? const []).where((f) => f.subjectId == node.id).toList();
+
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -38,6 +55,15 @@ class EngineeringNodeProperties extends ConsumerWidget {
           value: node.repositoryObjectId ?? '(unsaved to Repository)',
         ),
         PropertyField(label: 'Ports', value: node.ports.isEmpty ? '—' : node.ports.map((p) => p.name).join(', ')),
+        if (findings.isNotEmpty) ...[
+          const Padding(
+            padding: EdgeInsets.only(bottom: 4),
+            child: Text('Validation Findings', style: TextStyle(color: StudioColors.textSecondary, fontSize: 11)),
+          ),
+          for (final finding in findings)
+            ValidationFindingTile(finding: finding, onTap: () => goToValidationResult(context, ref, finding)),
+          const SizedBox(height: 12),
+        ],
         const Padding(
           padding: EdgeInsets.only(bottom: 4),
           child: Text('Evidence Links', style: TextStyle(color: StudioColors.textSecondary, fontSize: 11)),

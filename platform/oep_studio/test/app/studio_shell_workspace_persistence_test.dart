@@ -10,6 +10,8 @@ import 'package:oep_studio/knowledge/workspaces/knowledge_studio_page.dart';
 import 'package:oep_studio/workspace/engineering_workspace_page.dart';
 import 'package:oep_studio/workspace/workspace_tabs_controller.dart';
 
+import '../support/isolated_settings_storage.dart';
+
 /// AP-OEP-WORKSPACE-ROUTING-001 — proves the fix for
 /// AP-OEP-WORKSPACE-LIFECYCLE-001's own documented finding: leaving
 /// `/workspace` for another route and returning used to rebuild
@@ -56,6 +58,7 @@ void main() {
       );
 
   Future<ProviderContainer> pumpApp(WidgetTester tester) async {
+    useIsolatedSettingsStorage();
     tester.view.physicalSize = const Size(1600, 1000);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);

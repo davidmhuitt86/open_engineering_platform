@@ -15,6 +15,7 @@ import '../persistence/diagram_workspace_state.dart';
 import '../persistence/workspace_state_storage.dart';
 import '../tabs/diagram_tab.dart';
 import '../tabs/diagram_tabs_controller.dart';
+import '../webview/diagram_editing_host.dart';
 
 /// The Diagram Studio Controller / Adapter (WAVE 1, AP-DIAGRAM-W1) — the
 /// execution gateway for Diagram Studio's own interactive editing.
@@ -105,11 +106,12 @@ import '../tabs/diagram_tabs_controller.dart';
 ///   `test/diagram_studio/controller/diagram_studio_document_tab_lifecycle_test.dart`
 ///   for the regression coverage proving this against the real engine
 ///   and tab providers, not just by inspection.
-class DiagramStudioController {
+class DiagramStudioController implements DiagramEditingHost {
   DiagramStudioController({required this.engine, required Ref ref})
       : _ref = ref,
         commands = StudioCommandActions(engine);
 
+  @override
   final EngineeringEngine engine;
 
   /// AP-DIAGRAM-W2-A: typed as the Riverpod-generic [Ref] rather than
@@ -125,6 +127,7 @@ class DiagramStudioController {
   final Ref _ref;
 
   /// Composed, not duplicated — see class doc comment.
+  @override
   final StudioCommandActions commands;
 
   bool get canUndo => commands.canUndo;
@@ -143,9 +146,11 @@ class DiagramStudioController {
   GraphSelection get selection => _projectState.selection;
   EditingSession? get session => _projectState.session;
   ViewState get viewState => _projectState.viewState;
+  @override
   DiagramDocument get document => _projectState.document;
   DiagramDocument get _document => document;
 
+  @override
   String? get documentPath => document.path;
   bool get isDirty => document.isDirty;
 
@@ -260,6 +265,7 @@ class DiagramStudioController {
   /// `EngineeringNode.metadata`, which the Engine's own doc comment
   /// already describes as "Extension-contributed data... never
   /// interpreted by the core engine," not a new storage mechanism.
+  @override
   void addNodeWithMetadata(
     String symbolId,
     Point2D position, {
@@ -285,6 +291,7 @@ class DiagramStudioController {
   /// [deleteSelection]) so a caller like the V2 module-lifecycle bridge
   /// can delete a specific bridged node without depending on, or
   /// perturbing, whatever OEP's own selection currently is.
+  @override
   void deleteNode(String nodeId) {
     engine.editing.execute(DeleteNodeCommand(nodeId));
     markDirty();
@@ -292,6 +299,7 @@ class DiagramStudioController {
 
   /// AP-DIAGRAM-V2-WEBVIEW-002 — existing [RenameNodeCommand], exposed
   /// by explicit node id for the same reason as [deleteNode].
+  @override
   void renameNode(String nodeId, String newDisplayName) {
     engine.editing.execute(RenameNodeCommand(nodeId, newDisplayName));
     markDirty();
@@ -318,6 +326,7 @@ class DiagramStudioController {
     markDirty();
   }
 
+  @override
   void moveNodes(Map<String, Point2D> newPositions) {
     engine.editing.execute(MoveNodesCommand(newPositions));
     markDirty();
@@ -330,6 +339,7 @@ class DiagramStudioController {
 
   // --- Wire / relationship commands ------------------------------------------
 
+  @override
   void createRelationship(String sourceNodeId, String targetNodeId) {
     engine.editing.execute(CreateRelationshipCommand(EngineeringRelationship(
       id: engine.graph.generateId('rel'),
@@ -345,6 +355,7 @@ class DiagramStudioController {
   /// caller (the V2 wire-deletion bridge) can delete a specific
   /// relationship without depending on, or perturbing, whatever OEP's
   /// own selection currently is.
+  @override
   void deleteRelationship(String relationshipId) {
     engine.editing.execute(DeleteRelationshipCommand(relationshipId));
     markDirty();
@@ -374,6 +385,7 @@ class DiagramStudioController {
   /// `wireColor`/`label` keys AP-DIAGRAM-V2-005 already established as
   /// real, but any relationship metadata key could go through this same
   /// method — it is not wire-specific itself.
+  @override
   void updateRelationshipMetadata(String relationshipId, Map<String, Object?> patch) {
     engine.editing.execute(UpdateRelationshipPropertiesCommand(relationshipId, patch));
     markDirty();
@@ -387,6 +399,7 @@ class DiagramStudioController {
   /// First real use is bridging V2's module "notes" field
   /// (`LegacyV2StateAdapter._handleModulePropertiesChanged`), but this
   /// method is not notes-specific.
+  @override
   void updateNodeMetadata(String nodeId, Map<String, Object?> patch) {
     engine.editing.execute(UpdateNodeMetadataCommand(nodeId, patch));
     markDirty();
@@ -707,6 +720,7 @@ class DiagramStudioController {
     _ref.read(diagramTabsProvider.notifier).openTab(path: path, title: titleForPath(path));
   }
 
+  @override
   Future<void> saveDocument() => _ref.read(engineeringProjectServiceProvider.notifier).saveDocument();
 
   Future<void> saveDocumentAs(String path) async {

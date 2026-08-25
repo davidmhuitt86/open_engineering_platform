@@ -7,6 +7,8 @@ import 'package:oep_studio/core/surfaces/surface_registry.dart';
 import 'package:oep_studio/workspace/engineering_workspace_page.dart';
 import 'package:oep_studio/workspace/workspace_tabs_controller.dart';
 
+import '../support/isolated_settings_storage.dart';
+
 /// AP-OEP-WORKSPACE-LIFECYCLE-001 — the empirically-testable parts of
 /// this package's own audit: multi-tab switching, duplicate policy,
 /// close semantics that don't touch each other, and the Workspace
@@ -23,6 +25,8 @@ import 'package:oep_studio/workspace/workspace_tabs_controller.dart';
 /// source inspection instead (`legacy_v2_webview.dart`'s own
 /// `dispose()`, `DiagramStudioController`'s app-wide provider scope).
 void main() {
+  setUp(useIsolatedSettingsStorage);
+
   Widget workspaceHarness() => const ProviderScope(
         child: MaterialApp(home: Scaffold(body: EngineeringWorkspacePage())),
       );

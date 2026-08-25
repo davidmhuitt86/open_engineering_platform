@@ -10,6 +10,7 @@ import '../core/surfaces/surface_registry.dart';
 import '../core/theme/studio_colors.dart';
 import '../diagram_studio/controller/diagram_studio_controller_provider.dart';
 import '../diagram_studio/webview/legacy_v2_webview.dart';
+import 'web_browser_settings_provider.dart';
 import 'web_surface.dart';
 import 'web_surface_tabs_controller.dart';
 import 'web_surface_tabs_storage.dart';
@@ -203,8 +204,9 @@ class _WebSurfacesHostPageState extends ConsumerState<WebSurfacesHostPage> {
   /// new-tab behavior, not a dialog-first flow.
   void _openBlankWebTab() {
     final id = 'web-${DateTime.now().microsecondsSinceEpoch}';
+    final homepageUrl = ref.read(webBrowserSettingsProvider).homepageUrl;
     setState(() {
-      _tabs.add(WebSurface(id: id, title: 'New Tab', initialUrl: 'about:blank'));
+      _tabs.add(WebSurface(id: id, title: 'New Tab', initialUrl: homepageUrl));
       _activeTabId = id;
     });
     unawaited(_persistTabs());

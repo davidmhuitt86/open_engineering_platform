@@ -22,6 +22,8 @@ import 'package:oep_studio/shared/navigation/explorer_navigation.dart';
 import 'package:oep_studio/shared/navigation/unified_navigation.dart';
 import 'package:oep_studio/workspace/workspace_tabs_controller.dart';
 
+import '../../support/isolated_settings_storage.dart';
+
 /// AP-OEP-WORKSPACE-CONTEXT-002 — extends AP-001's workspace-aware
 /// pattern (proven for `goToDiagramElement`) across the rest of
 /// `unified_navigation.dart`/`explorer_navigation.dart`, all now
@@ -96,6 +98,7 @@ void main() {
     required void Function(BuildContext, WidgetRef) action,
     List<Override> overrides = const [],
   }) async {
+    useIsolatedSettingsStorage();
     final container = ProviderContainer(overrides: overrides);
     addTearDown(container.dispose);
     await tester.pumpWidget(UncontrolledProviderScope(

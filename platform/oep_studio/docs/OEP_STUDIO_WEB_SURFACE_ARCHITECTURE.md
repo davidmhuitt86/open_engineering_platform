@@ -478,6 +478,17 @@ with no own `Scaffold`) — matching every other `StudioDescriptor` target
 (`DashboardPage` etc.), which render inside the shell's own frame rather
 than building a second one.
 
+> **Correction (DOCS-SYNC-001 reconciliation note):** `StudioDestination.webSurfaces`
+> does **not** exist in the current `lib/core/routing/studio_destination.dart`
+> (confirmed by direct source inspection — no `webSurfaces` entry, no
+> `/web-surfaces` route). Whatever this Nav-Rail promotion accomplished
+> at the time this document was written did not survive into the current
+> codebase; `WebSurfacesHostPage` today is reached only as Diagram
+> Studio's own internal Web Surface host (`/diagram`'s `pageBuilder`,
+> auto-opening Legacy V2), not as an independent top-level destination.
+> The rest of this document's description of the `WebSurface`/
+> `WebSurfaceTabsController` mechanics (§2 and below) remains accurate.
+
 **What was removed**: both `kDebugMode`-gated dev buttons in
 `diagram_studio_page.dart` ("Open Legacy V2 (dev)" and "Open Web Surfaces
 (dev)") and their now-unused imports — per this task's explicit "do not

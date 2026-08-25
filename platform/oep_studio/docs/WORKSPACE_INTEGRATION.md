@@ -4,6 +4,18 @@ How `DiagramStudioPage` fits into Studio's existing workspace, toolbar,
 panel, and settings patterns (WORK_PACKAGE_024, ENGINE-TASK-000108/
 000112/000113/000114/000115).
 
+> **Superseded (DOCS-SYNC-001 reconciliation note).** The native
+> `DiagramStudioPage` this document describes as the production Diagram
+> Studio implementation was later retired (`AP-DIAGRAM-V2-BRIDGE-010`) in
+> favor of the WebView-embedded Legacy V2 renderer
+> (`LegacyV2WebViewPage`, reached via `WebSurfacesHostPage`'s
+> auto-opened Web Surface). `StudioDestination.diagram` and its route
+> still exist as described below, but its `pageBuilder` no longer
+> renders this class. This document is retained as a historical record
+> of WORK_PACKAGE_024's own integration work, not a description of the
+> current Diagram Studio implementation — see
+> `docs/DIAGRAM_STUDIO_V2_BRIDGE_PRODUCTION_ARCHITECTURE.md` for that.
+
 ## Routing
 
 `StudioDestination.diagram` (`lib/core/routing/studio_destination.dart`)

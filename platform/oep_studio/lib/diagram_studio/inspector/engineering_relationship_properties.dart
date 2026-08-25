@@ -3,14 +3,21 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:engineering_engine/engineering_engine.dart';
 
 import '../../core/models/engineering_inspectable.dart';
+import '../../core/services/engineering_project_service.dart';
 import '../../core/services/foundation_runtime_service.dart';
 import '../../core/theme/studio_colors.dart';
+import '../../shared/navigation/unified_navigation.dart';
 import '../../shared/widgets/property_field.dart';
+import '../../shared/widgets/validation_findings_list.dart';
 
 /// Property Inspector mode for a selected Engineering Graph relationship
 /// (WORK_PACKAGE_024, ENGINE-TASK-000110). As of WORK_PACKAGE_025
 /// (ENGINE-TASK-000122), see `EngineeringNodeProperties`'s doc comment
 /// for why evidence links are tappable rows rather than a bare count.
+///
+/// AP-OEP-DIAGRAM-VALIDATION-001 — see `EngineeringNodeProperties`'s own
+/// doc comment for the "Validation Findings" section this mirrors
+/// exactly, matched here on `ValidationFinding.subjectId == relationship.id`.
 class EngineeringRelationshipProperties extends ConsumerWidget {
   const EngineeringRelationshipProperties({
     required this.relationship,
@@ -25,6 +32,9 @@ class EngineeringRelationshipProperties extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final report = ref.watch(engineeringProjectServiceProvider).validationReport;
+    final findings = (report?.findings ?? const []).where((f) => f.subjectId == relationship.id).toList();
+
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -36,6 +46,15 @@ class EngineeringRelationshipProperties extends ConsumerWidget {
           label: 'Repository Relationship',
           value: relationship.repositoryRelationshipId ?? '(unsaved to Repository)',
         ),
+        if (findings.isNotEmpty) ...[
+          const Padding(
+            padding: EdgeInsets.only(bottom: 4),
+            child: Text('Validation Findings', style: TextStyle(color: StudioColors.textSecondary, fontSize: 11)),
+          ),
+          for (final finding in findings)
+            ValidationFindingTile(finding: finding, onTap: () => goToValidationResult(context, ref, finding)),
+          const SizedBox(height: 12),
+        ],
         const Padding(
           padding: EdgeInsets.only(bottom: 4),
           child: Text('Evidence Links', style: TextStyle(color: StudioColors.textSecondary, fontSize: 11)),

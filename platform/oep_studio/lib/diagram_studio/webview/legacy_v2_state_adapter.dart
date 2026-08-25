@@ -2,8 +2,8 @@ import 'dart:async';
 
 import 'package:engineering_engine/engineering_engine.dart';
 
-import '../controller/diagram_studio_controller.dart';
 import '../simulation/diagram_simulation_service.dart';
+import 'diagram_editing_host.dart';
 import 'legacy_v2_bridge_transport.dart';
 
 /// AP-DIAGRAM-V2-WEBVIEW-001/002 — the adaptation layer of the OEP↔Legacy
@@ -11,7 +11,7 @@ import 'legacy_v2_bridge_transport.dart';
 /// x/y pair) and OEP diagram concepts (`EngineeringNode`, `Point2D`), and
 /// translates between them. Never touches `engine.editing.execute` or
 /// any Engine internal directly — every mutation goes through the
-/// existing [DiagramStudioController] methods (`addNodeWithMetadata`/
+/// existing [DiagramEditingHost] methods (`addNodeWithMetadata`/
 /// `moveNodes`/`deleteNode`/`renameNode`), unchanged.
 ///
 /// **Identity mapping** (POC-003 finding, carried forward unchanged): V2's
@@ -62,7 +62,7 @@ class LegacyV2StateAdapter {
     channel.onSaveRequested = _handleSaveRequested;
   }
 
-  final DiagramStudioController controller;
+  final DiagramEditingHost controller;
 
   /// [LegacyV2BridgeTransport] in production; a lightweight fake in tests.
   final LegacyV2Channel channel;

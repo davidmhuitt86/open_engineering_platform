@@ -8,6 +8,19 @@ generalization), PROPOSED (a recommendation requiring ratification), or
 OPEN (genuinely undetermined by this audit). No production code was
 modified to produce this document.
 
+> **Implementation status update (DOCS-SYNC-001 reconciliation note, not
+> a rewrite of this audit).** This document's §5 Surface Registry
+> proposal was subsequently built — `lib/core/surfaces/surface_registry.dart`
+> (`SurfaceRegistry`) is the current, canonical, app-wide Surface source,
+> used identically by the sidebar, the "+" New Tab menu, and cross-Surface
+> navigation (`AP-OEP-SURFACE-ARCHITECTURE-002/003`, `AP-OEP-WORKSPACE-SHELL-001`,
+> `AP-OEP-WORKSPACE-UX-001`). Statements below describing the "+" menu as
+> "only reachable from inside Diagram Studio today, not yet the app's
+> primary entry point" (§7) or the Surface Registry as merely proposed
+> (§5, §20) describe this document's own point in time, not current
+> reality. The audit reasoning itself is left unchanged as the historical
+> record that led to the current implementation.
+
 ---
 
 ## 1. Current navigation architecture (Phase 1)
