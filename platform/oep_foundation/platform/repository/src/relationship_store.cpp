@@ -30,6 +30,7 @@ json::Value to_json(const Relationship& relationship) {
     fields.emplace_back("createdUtc", json::Value::string(relationship.created_utc));
     fields.emplace_back("author", json::Value::string(relationship.author));
     fields.emplace_back("description", json::Value::string(relationship.description));
+    fields.emplace_back("diagramId", json::Value::string(relationship.diagram_id));
     return json::Value::object(std::move(fields));
 }
 
@@ -76,6 +77,10 @@ ParsedRelationship read_relationship_file(const std::filesystem::path& path) {
     relationship.created_utc = read_string_field(parsed.value, "createdUtc");
     relationship.author = read_string_field(parsed.value, "author");
     relationship.description = read_string_field(parsed.value, "description");
+    // Absent in files written before AP-OEP-FOUNDATION-GRAPH-IDENTITY-001 —
+    // same "missing key means empty/no diagram" default as
+    // EngineeringObject::diagram_id.
+    relationship.diagram_id = read_string_field(parsed.value, "diagramId");
 
     return {true, "", relationship};
 }
@@ -288,6 +293,38 @@ ListRelationshipsResult RelationshipStore::list_all() const {
         const ParsedRelationship parsed = read_relationship_file(entry.path());
         if (!parsed.success) {
             invalid_entries.push_back(entry.path().string() + ": " + parsed.error);
+            continue;
+        }
+        relationships.push_back(parsed.relationship);
+    }
+
+    if (error_code) {
+        return {false, "could not enumerate '" + root_.string() + "': " + error_code.message(), {}, {}};
+    }
+
+    return {true, "", relationships, invalid_entries};
+}
+
+ListRelationshipsResult RelationshipStore::list_by_diagram(const std::string& diagram_id) const {
+    std::vector<Relationship> relationships;
+    std::vector<std::string> invalid_entries;
+
+    std::error_code error_code;
+    if (!std::filesystem::exists(root_, error_code)) {
+        return {true, "", relationships, invalid_entries};
+    }
+
+    for (const std::filesystem::directory_entry& entry :
+         std::filesystem::directory_iterator(root_, error_code)) {
+        if (!entry.is_regular_file() || entry.path().extension() != ".json") {
+            continue;
+        }
+        const ParsedRelationship parsed = read_relationship_file(entry.path());
+        if (!parsed.success) {
+            invalid_entries.push_back(entry.path().string() + ": " + parsed.error);
+            continue;
+        }
+        if (parsed.relationship.diagram_id != diagram_id) {
             continue;
         }
         relationships.push_back(parsed.relationship);

@@ -153,6 +153,11 @@ final class OepObjectInfoNative extends Struct {
 
   @Array(oepMaxObjectTags, oepMaxTagLength)
   external Array<Array<Uint8>> tags;
+
+  /// AP-OEP-FOUNDATION-GRAPH-IDENTITY-001, OEP_API_VERSION 21. Appended
+  /// at the end, matching the C struct's own append-only extension.
+  @Array(oepMaxObjectId)
+  external Array<Uint8> diagramId;
 }
 
 /// Mirrors `oep_object_list_t`. `items` is a Foundation-owned heap
@@ -210,6 +215,11 @@ final class OepRelationshipInfoNative extends Struct {
 
   @Array(oepMaxTimestamp)
   external Array<Uint8> createdUtc;
+
+  /// AP-OEP-FOUNDATION-GRAPH-IDENTITY-001, OEP_API_VERSION 21. Appended
+  /// at the end, matching the C struct's own append-only extension.
+  @Array(oepMaxObjectId)
+  external Array<Uint8> diagramId;
 }
 
 /// Mirrors `oep_relationship_list_t`. `items` is a Foundation-owned heap
@@ -950,6 +960,52 @@ typedef OepRelationshipUpdateNative = OepResultNative Function(
   Pointer<OepRelationshipInfoNative> outRelationship,
 );
 typedef OepRelationshipDeleteNative = OepResultNative Function(Pointer<Void> runtime, Pointer<Utf8> relationshipId);
+
+// Diagram/Graph Identity and Membership
+// (AP-OEP-FOUNDATION-GRAPH-IDENTITY-001, OEP_API_VERSION 21).
+typedef OepDiagramCreateNative = OepResultNative Function(
+  Pointer<Void> runtime,
+  Pointer<Utf8> name,
+  Pointer<Utf8> description,
+  Pointer<Utf8> author,
+  Pointer<OepObjectInfoNative> outDiagram,
+);
+typedef OepDiagramGetNative = OepResultNative Function(
+  Pointer<Void> runtime,
+  Pointer<Utf8> diagramId,
+  Pointer<OepObjectInfoNative> outDiagram,
+);
+typedef OepObjectCreateWithDiagramNative = OepResultNative Function(
+  Pointer<Void> runtime,
+  Int32 objectType,
+  Pointer<Utf8> name,
+  Pointer<Utf8> description,
+  Pointer<Utf8> author,
+  Pointer<Pointer<Utf8>> tags,
+  Int32 tagCount,
+  Pointer<Utf8> diagramId,
+  Pointer<OepObjectInfoNative> outObject,
+);
+typedef OepRelationshipCreateWithDiagramNative = OepResultNative Function(
+  Pointer<Void> runtime,
+  Pointer<Utf8> sourceObjectId,
+  Pointer<Utf8> targetObjectId,
+  Int32 relationshipType,
+  Pointer<Utf8> author,
+  Pointer<Utf8> description,
+  Pointer<Utf8> diagramId,
+  Pointer<OepRelationshipInfoNative> outRelationship,
+);
+typedef OepDiagramGetObjectsNative = OepResultNative Function(
+  Pointer<Void> runtime,
+  Pointer<Utf8> diagramId,
+  Pointer<OepObjectListNative> outObjects,
+);
+typedef OepDiagramGetRelationshipsNative = OepResultNative Function(
+  Pointer<Void> runtime,
+  Pointer<Utf8> diagramId,
+  Pointer<OepRelationshipListNative> outRelationships,
+);
 
 typedef OepTransactionBeginNative = OepResultNative Function(Pointer<Void> runtime);
 typedef OepTransactionCommitNative = OepResultNative Function(Pointer<Void> runtime);
@@ -2267,6 +2323,53 @@ typedef OepRelationshipUpdateDart = OepResultNative Function(
   Pointer<OepRelationshipInfoNative> outRelationship,
 );
 typedef OepRelationshipDeleteDart = OepResultNative Function(Pointer<Void> runtime, Pointer<Utf8> relationshipId);
+
+// Diagram/Graph Identity and Membership
+// (AP-OEP-FOUNDATION-GRAPH-IDENTITY-001, OEP_API_VERSION 21): Dart-side
+// counterparts of the Native typedefs added above.
+typedef OepDiagramCreateDart = OepResultNative Function(
+  Pointer<Void> runtime,
+  Pointer<Utf8> name,
+  Pointer<Utf8> description,
+  Pointer<Utf8> author,
+  Pointer<OepObjectInfoNative> outDiagram,
+);
+typedef OepDiagramGetDart = OepResultNative Function(
+  Pointer<Void> runtime,
+  Pointer<Utf8> diagramId,
+  Pointer<OepObjectInfoNative> outDiagram,
+);
+typedef OepObjectCreateWithDiagramDart = OepResultNative Function(
+  Pointer<Void> runtime,
+  int objectType,
+  Pointer<Utf8> name,
+  Pointer<Utf8> description,
+  Pointer<Utf8> author,
+  Pointer<Pointer<Utf8>> tags,
+  int tagCount,
+  Pointer<Utf8> diagramId,
+  Pointer<OepObjectInfoNative> outObject,
+);
+typedef OepRelationshipCreateWithDiagramDart = OepResultNative Function(
+  Pointer<Void> runtime,
+  Pointer<Utf8> sourceObjectId,
+  Pointer<Utf8> targetObjectId,
+  int relationshipType,
+  Pointer<Utf8> author,
+  Pointer<Utf8> description,
+  Pointer<Utf8> diagramId,
+  Pointer<OepRelationshipInfoNative> outRelationship,
+);
+typedef OepDiagramGetObjectsDart = OepResultNative Function(
+  Pointer<Void> runtime,
+  Pointer<Utf8> diagramId,
+  Pointer<OepObjectListNative> outObjects,
+);
+typedef OepDiagramGetRelationshipsDart = OepResultNative Function(
+  Pointer<Void> runtime,
+  Pointer<Utf8> diagramId,
+  Pointer<OepRelationshipListNative> outRelationships,
+);
 
 typedef OepTransactionBeginDart = OepResultNative Function(Pointer<Void> runtime);
 typedef OepTransactionCommitDart = OepResultNative Function(Pointer<Void> runtime);

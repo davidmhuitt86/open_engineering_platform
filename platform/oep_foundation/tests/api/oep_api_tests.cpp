@@ -1597,6 +1597,311 @@ void test_relationship_create_update_delete(const std::filesystem::path& scratch
     oep_runtime_destroy(runtime);
 }
 
+// AP-OEP-FOUNDATION-GRAPH-IDENTITY-001 — a diagram/graph identity is an
+// ordinary OEP_OBJECT_TYPE_DIAGRAM Engineering Object; membership is the
+// diagram_id field on oep_object_info_t/oep_relationship_info_t. Covers:
+// graph creation, identity persistence, object membership, relationship
+// membership, multiple graphs in one repository, loading one graph
+// without returning another's members, deterministic enumeration, empty
+// graph, invalid graph ID, and duplicate graph ID (never occurs via the
+// public API, since ids are always server-generated — verified below).
+void test_diagram_identity_and_membership(const std::filesystem::path& scratch_dir) {
+    const std::filesystem::path root = build_repository(scratch_dir / "diagram-identity");
+
+    OEP_Runtime runtime = oep_runtime_create("0.1.0");
+    oep_runtime_initialize(runtime);
+    oep_runtime_open_repository(runtime, root.string().c_str());
+
+    // --- Graph creation + identity persistence -------------------------
+    oep_object_info_t diagram_a;
+    const oep_result_t create_a = oep_diagram_create(runtime, "Harness A", "Engine bay harness", "Jane", &diagram_a);
+    check(create_a.success, "oep_diagram_create succeeds");
+    check(std::strlen(diagram_a.object_id) == 36, "the created diagram has a generated object_id (its graph identity)");
+    check(diagram_a.object_type == OEP_OBJECT_TYPE_DIAGRAM, "the created diagram reports OEP_OBJECT_TYPE_DIAGRAM");
+    check(std::string(diagram_a.name) == "Harness A", "the created diagram reports the given name");
+
+    oep_object_info_t fetched_a;
+    const oep_result_t get_a = oep_diagram_get(runtime, diagram_a.object_id, &fetched_a);
+    check(get_a.success && std::string(fetched_a.name) == "Harness A", "oep_diagram_get resolves a diagram by its identity");
+
+    // --- Duplicate graph ID: impossible via the public API, since ids
+    // are always server-generated, never caller-supplied — verified as
+    // a regression, not a rejection path. -------------------------------
+    oep_object_info_t diagram_a2;
+    oep_diagram_create(runtime, "Harness A (again)", "", "Jane", &diagram_a2);
+    check(std::string(diagram_a2.object_id) != std::string(diagram_a.object_id),
+          "two diagrams created in sequence never collide on object_id");
+
+    // --- Invalid graph ID ------------------------------------------------
+    oep_object_info_t missing_diagram;
+    const oep_result_t get_missing = oep_diagram_get(runtime, "00000000-0000-4000-8000-000000000000", &missing_diagram);
+    check(!get_missing.success && get_missing.error_code == OEP_ERROR_NOT_FOUND,
+          "oep_diagram_get fails with OEP_ERROR_NOT_FOUND for a nonexistent id");
+
+    oep_object_info_t non_diagram;
+    oep_object_create(runtime, OEP_OBJECT_TYPE_COMPONENT, "Not A Diagram", "", "", nullptr, 0, &non_diagram);
+    const oep_result_t get_wrong_type = oep_diagram_get(runtime, non_diagram.object_id, &missing_diagram);
+    check(!get_wrong_type.success && get_wrong_type.error_code == OEP_ERROR_NOT_FOUND,
+          "oep_diagram_get fails for an object_id that exists but is not OEP_OBJECT_TYPE_DIAGRAM");
+
+    oep_object_info_t rejected_member;
+    const oep_result_t create_with_bad_diagram = oep_object_create_with_diagram(
+        runtime, OEP_OBJECT_TYPE_COMPONENT, "Orphan", "", "", nullptr, 0, "not-a-real-id", &rejected_member);
+    check(!create_with_bad_diagram.success && create_with_bad_diagram.error_code == OEP_ERROR_INVALID_ARGUMENT,
+          "oep_object_create_with_diagram rejects an invalid diagram_id and persists nothing");
+    check(std::strlen(rejected_member.object_id) == 0, "the rejected member's output struct is zeroed, not fabricated");
+
+    int count_before = -1;
+    oep_object_store_get_count(runtime, &count_before);
+
+    oep_relationship_info_t rejected_relationship;
+    const oep_result_t rel_with_bad_diagram = oep_relationship_create_with_diagram(
+        runtime, diagram_a.object_id, non_diagram.object_id, OEP_RELATIONSHIP_TYPE_CONTAINS, "", "", "not-a-real-id",
+        &rejected_relationship);
+    check(!rel_with_bad_diagram.success && rel_with_bad_diagram.error_code == OEP_ERROR_INVALID_ARGUMENT,
+          "oep_relationship_create_with_diagram rejects an invalid diagram_id and persists nothing");
+
+    // --- Object membership ----------------------------------------------
+    oep_object_info_t battery;
+    const oep_result_t create_battery = oep_object_create_with_diagram(
+        runtime, OEP_OBJECT_TYPE_COMPONENT, "Battery", "", "Jane", nullptr, 0, diagram_a.object_id, &battery);
+    check(create_battery.success, "oep_object_create_with_diagram succeeds for a valid diagram_id");
+    check(std::string(battery.diagram_id) == std::string(diagram_a.object_id),
+          "the created member's diagram_id matches the diagram it was created in");
+
+    oep_object_info_t ground;
+    oep_object_create_with_diagram(runtime, OEP_OBJECT_TYPE_COMPONENT, "Ground", "", "Jane", nullptr, 0,
+                                    diagram_a.object_id, &ground);
+
+    // --- Relationship membership -----------------------------------------
+    oep_relationship_info_t wire;
+    const oep_result_t create_wire = oep_relationship_create_with_diagram(
+        runtime, battery.object_id, ground.object_id, OEP_RELATIONSHIP_TYPE_CONNECTED_TO, "Jane", "", diagram_a.object_id,
+        &wire);
+    check(create_wire.success, "oep_relationship_create_with_diagram succeeds for a valid diagram_id");
+    check(std::string(wire.diagram_id) == std::string(diagram_a.object_id),
+          "the created relationship's diagram_id matches the diagram it was created in");
+
+    // Members outside any diagram remain unaffected (diagram_id empty,
+    // matching every pre-existing object/relationship).
+    check(std::string(non_diagram.diagram_id).empty(),
+          "an object created via plain oep_object_create has an empty diagram_id");
+
+    // --- Multiple graphs in one repository + isolation between them -----
+    oep_object_info_t diagram_b;
+    oep_diagram_create(runtime, "Harness B", "Tail light harness", "Jane", &diagram_b);
+
+    oep_object_info_t fuse;
+    oep_object_create_with_diagram(runtime, OEP_OBJECT_TYPE_COMPONENT, "Fuse", "", "Jane", nullptr, 0,
+                                    diagram_b.object_id, &fuse);
+    oep_object_info_t lamp;
+    oep_object_create_with_diagram(runtime, OEP_OBJECT_TYPE_COMPONENT, "Lamp", "", "Jane", nullptr, 0,
+                                    diagram_b.object_id, &lamp);
+    oep_relationship_info_t fuse_wire;
+    oep_relationship_create_with_diagram(runtime, fuse.object_id, lamp.object_id, OEP_RELATIONSHIP_TYPE_CONNECTED_TO,
+                                          "Jane", "", diagram_b.object_id, &fuse_wire);
+
+    oep_object_list_t objects_a;
+    const oep_result_t get_objects_a = oep_diagram_get_objects(runtime, diagram_a.object_id, &objects_a);
+    check(get_objects_a.success, "oep_diagram_get_objects succeeds for diagram A");
+    check(objects_a.count == 2, "diagram A reports exactly its own 2 members (Battery, Ground)");
+    for (int i = 0; i < objects_a.count; ++i) {
+        const std::string name(objects_a.items[i].name);
+        check(name == "Battery" || name == "Ground", "diagram A's enumeration never includes diagram B's members");
+    }
+
+    oep_object_list_t objects_b;
+    const oep_result_t get_objects_b = oep_diagram_get_objects(runtime, diagram_b.object_id, &objects_b);
+    check(get_objects_b.success && objects_b.count == 2,
+          "loading diagram B returns only diagram B's 2 members (Fuse, Lamp), not diagram A's");
+    for (int i = 0; i < objects_b.count; ++i) {
+        const std::string name(objects_b.items[i].name);
+        check(name == "Fuse" || name == "Lamp", "diagram B's enumeration never includes diagram A's members");
+    }
+
+    oep_relationship_list_t relationships_a;
+    oep_diagram_get_relationships(runtime, diagram_a.object_id, &relationships_a);
+    check(relationships_a.count == 1, "diagram A reports exactly its own 1 relationship");
+    check(std::string(relationships_a.items[0].relationship_id) == std::string(wire.relationship_id),
+          "diagram A's relationship enumeration is the wire created in diagram A, not diagram B's");
+
+    oep_relationship_list_t relationships_b;
+    oep_diagram_get_relationships(runtime, diagram_b.object_id, &relationships_b);
+    check(relationships_b.count == 1 &&
+              std::string(relationships_b.items[0].relationship_id) == std::string(fuse_wire.relationship_id),
+          "diagram B's relationship enumeration is the wire created in diagram B, not diagram A's");
+
+    // --- Deterministic enumeration ----------------------------------------
+    oep_object_list_t objects_a_again;
+    oep_diagram_get_objects(runtime, diagram_a.object_id, &objects_a_again);
+    check(objects_a_again.count == objects_a.count &&
+              std::string(objects_a_again.items[0].object_id) == std::string(objects_a.items[0].object_id) &&
+              std::string(objects_a_again.items[1].object_id) == std::string(objects_a.items[1].object_id),
+          "repeated enumeration of the same diagram returns members in the same (object_id-sorted) order");
+    check(std::string(objects_a.items[0].object_id) < std::string(objects_a.items[1].object_id),
+          "diagram members are sorted byte-wise ascending by object_id, matching oep_object_store_list's own guarantee");
+
+    // --- Empty graph -------------------------------------------------------
+    oep_object_info_t empty_diagram;
+    oep_diagram_create(runtime, "Empty Diagram", "", "Jane", &empty_diagram);
+    oep_object_list_t empty_objects;
+    const oep_result_t get_empty_objects = oep_diagram_get_objects(runtime, empty_diagram.object_id, &empty_objects);
+    check(get_empty_objects.success && empty_objects.count == 0,
+          "a freshly created, empty diagram reports success with zero members, not an error");
+    oep_relationship_list_t empty_relationships;
+    const oep_result_t get_empty_relationships =
+        oep_diagram_get_relationships(runtime, empty_diagram.object_id, &empty_relationships);
+    check(get_empty_relationships.success && empty_relationships.count == 0,
+          "an empty diagram reports success with zero relationships, not an error");
+
+    // --- Invalid graph ID for enumeration -----------------------------------
+    oep_object_list_t invalid_objects;
+    const oep_result_t get_invalid_objects =
+        oep_diagram_get_objects(runtime, "00000000-0000-4000-8000-000000000000", &invalid_objects);
+    check(!get_invalid_objects.success && get_invalid_objects.error_code == OEP_ERROR_INVALID_ARGUMENT,
+          "oep_diagram_get_objects fails for a nonexistent diagram_id — distinguishable from a valid, empty diagram");
+
+    // --- Existing object/relationship behavior remains unchanged ----------
+    oep_object_info_t plain_object;
+    const oep_result_t plain_create =
+        oep_object_create(runtime, OEP_OBJECT_TYPE_COMPONENT, "Plain Object", "", "Jane", nullptr, 0, &plain_object);
+    check(plain_create.success && std::string(plain_object.diagram_id).empty(),
+          "plain oep_object_create still works and produces an empty diagram_id, unaffected by this feature");
+    oep_relationship_info_t plain_relationship;
+    const oep_result_t plain_rel_create = oep_relationship_create(
+        runtime, plain_object.object_id, non_diagram.object_id, OEP_RELATIONSHIP_TYPE_REFERENCES, "", "",
+        &plain_relationship);
+    check(plain_rel_create.success && std::string(plain_relationship.diagram_id).empty(),
+          "plain oep_relationship_create still works and produces an empty diagram_id, unaffected by this feature");
+
+    oep_object_list_release(&objects_a);
+    oep_object_list_release(&objects_b);
+    oep_object_list_release(&objects_a_again);
+    oep_object_list_release(&empty_objects);
+    oep_relationship_list_release(&relationships_a);
+    oep_relationship_list_release(&relationships_b);
+    oep_relationship_list_release(&empty_relationships);
+
+    oep_runtime_destroy(runtime);
+}
+
+// Transaction rollback for the diagram-scoped create functions: the same
+// automatic-rollback-on-failure guarantee oep_object_create/
+// oep_relationship_create already have (TASK-000029), exercised here via
+// oep_object_create_with_diagram/oep_relationship_create_with_diagram
+// specifically, including that the diagram identity object itself is
+// rolled back along with its members when they're all created inside one
+// explicit transaction.
+void test_diagram_create_participates_in_transaction_rollback(const std::filesystem::path& scratch_dir) {
+    const std::filesystem::path root = build_repository(scratch_dir / "diagram-transaction-rollback");
+
+    OEP_Runtime runtime = oep_runtime_create("0.1.0");
+    oep_runtime_initialize(runtime);
+    oep_runtime_open_repository(runtime, root.string().c_str());
+
+    oep_transaction_begin(runtime);
+
+    oep_object_info_t diagram;
+    const oep_result_t create_diagram_result = oep_diagram_create(runtime, "Doomed Diagram", "", "Jane", &diagram);
+    check(create_diagram_result.success, "oep_diagram_create succeeds inside a transaction");
+
+    oep_object_info_t member;
+    oep_object_create_with_diagram(runtime, OEP_OBJECT_TYPE_COMPONENT, "Doomed Member", "", "Jane", nullptr, 0,
+                                    diagram.object_id, &member);
+
+    // A failing mutation (invalid empty name) inside the same active
+    // transaction triggers Foundation's existing automatic rollback.
+    oep_object_info_t failed;
+    const oep_result_t failing_create = oep_object_create(runtime, OEP_OBJECT_TYPE_DOCUMENT, "", "", "", nullptr, 0, &failed);
+    check(!failing_create.success, "the deliberately-invalid create fails");
+    check(!oep_transaction_is_active(runtime), "the transaction is automatically deactivated after the failure");
+
+    oep_object_info_t missing_diagram;
+    const oep_result_t diagram_lookup = oep_object_store_get_by_id(runtime, diagram.object_id, &missing_diagram);
+    check(!diagram_lookup.success && diagram_lookup.error_code == OEP_ERROR_NOT_FOUND,
+          "the diagram identity object created inside the rolled-back transaction no longer exists");
+
+    oep_object_info_t missing_member;
+    const oep_result_t member_lookup = oep_object_store_get_by_id(runtime, member.object_id, &missing_member);
+    check(!member_lookup.success && member_lookup.error_code == OEP_ERROR_NOT_FOUND,
+          "the member object created inside the rolled-back transaction no longer exists either");
+
+    int count = -1;
+    oep_object_store_get_count(runtime, &count);
+    check(count == 0, "the repository has zero objects after the automatic rollback — the diagram and its member are both gone");
+
+    oep_runtime_destroy(runtime);
+}
+
+// Repository reopen/round-trip: a diagram's identity and its members'
+// diagram_id survive being persisted to disk and read back by a fresh
+// OEP_Runtime handle, exactly like every other object/relationship field.
+void test_diagram_identity_survives_repository_reopen(const std::filesystem::path& scratch_dir) {
+    const std::filesystem::path root = build_repository(scratch_dir / "diagram-reopen");
+
+    std::string diagram_id;
+    std::string member_id;
+    std::string relationship_id;
+    {
+        OEP_Runtime runtime = oep_runtime_create("0.1.0");
+        oep_runtime_initialize(runtime);
+        oep_runtime_open_repository(runtime, root.string().c_str());
+
+        oep_object_info_t diagram;
+        oep_diagram_create(runtime, "Persisted Diagram", "", "Jane", &diagram);
+        diagram_id = diagram.object_id;
+
+        oep_object_info_t member_a;
+        oep_object_create_with_diagram(runtime, OEP_OBJECT_TYPE_COMPONENT, "Persisted Member", "", "Jane", nullptr, 0,
+                                        diagram.object_id, &member_a);
+        member_id = member_a.object_id;
+
+        oep_object_info_t member_b;
+        oep_object_create_with_diagram(runtime, OEP_OBJECT_TYPE_COMPONENT, "Persisted Member B", "", "Jane", nullptr,
+                                        0, diagram.object_id, &member_b);
+
+        oep_relationship_info_t relationship;
+        oep_relationship_create_with_diagram(runtime, member_a.object_id, member_b.object_id,
+                                              OEP_RELATIONSHIP_TYPE_CONNECTED_TO, "Jane", "", diagram.object_id,
+                                              &relationship);
+        relationship_id = relationship.relationship_id;
+
+        oep_runtime_destroy(runtime);
+    }
+
+    // A genuinely fresh Runtime handle, opening the same on-disk
+    // repository — not the same handle kept alive.
+    OEP_Runtime reopened = oep_runtime_create("0.1.0");
+    oep_runtime_initialize(reopened);
+    const oep_result_t reopen_result = oep_runtime_open_repository(reopened, root.string().c_str());
+    check(reopen_result.success, "the repository reopens successfully after being closed and the handle destroyed");
+
+    oep_object_info_t reloaded_diagram;
+    const oep_result_t reload_diagram = oep_diagram_get(reopened, diagram_id.c_str(), &reloaded_diagram);
+    check(reload_diagram.success && std::string(reloaded_diagram.name) == "Persisted Diagram",
+          "the diagram identity survives a repository reopen");
+
+    oep_object_info_t reloaded_member;
+    oep_object_store_get_by_id(reopened, member_id.c_str(), &reloaded_member);
+    check(std::string(reloaded_member.diagram_id) == diagram_id,
+          "a member object's diagram_id survives a repository reopen");
+
+    oep_object_list_t reloaded_objects;
+    const oep_result_t reload_objects = oep_diagram_get_objects(reopened, diagram_id.c_str(), &reloaded_objects);
+    check(reload_objects.success && reloaded_objects.count == 2,
+          "enumerating the diagram's members after reopen returns both members");
+    oep_object_list_release(&reloaded_objects);
+
+    oep_relationship_list_t reloaded_relationships;
+    oep_diagram_get_relationships(reopened, diagram_id.c_str(), &reloaded_relationships);
+    check(reloaded_relationships.count == 1 &&
+              std::string(reloaded_relationships.items[0].relationship_id) == relationship_id,
+          "the diagram's relationship membership survives a repository reopen");
+    oep_relationship_list_release(&reloaded_relationships);
+
+    oep_runtime_destroy(reopened);
+}
+
 void test_transaction_commit(const std::filesystem::path& scratch_dir) {
     const std::filesystem::path root = build_repository(scratch_dir / "transaction-commit");
 
@@ -4035,6 +4340,9 @@ int main() {
     test_object_content_update_and_get(scratch_dir);
     test_object_mutation_requires_open_repository();
     test_relationship_create_update_delete(scratch_dir);
+    test_diagram_identity_and_membership(scratch_dir);
+    test_diagram_create_participates_in_transaction_rollback(scratch_dir);
+    test_diagram_identity_survives_repository_reopen(scratch_dir);
     test_transaction_commit(scratch_dir);
     test_transaction_rollback(scratch_dir);
     test_transaction_automatic_rollback_on_failure(scratch_dir);

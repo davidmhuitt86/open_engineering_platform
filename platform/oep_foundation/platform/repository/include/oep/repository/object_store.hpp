@@ -62,6 +62,14 @@ public:
     // excluded from `objects` and reported in `invalid_entries`.
     ListObjectsResult list_all() const;
 
+    // AP-OEP-FOUNDATION-GRAPH-IDENTITY-001 — same enumeration as
+    // list_all(), filtered to objects whose diagram_id equals
+    // [diagram_id]. Does not validate that [diagram_id] itself names a
+    // real ObjectType::Diagram object — that referential check belongs
+    // to the API layer (`oep_diagram_get_objects`), which already has
+    // the diagram object in hand by the time it calls this.
+    ListObjectsResult list_by_diagram(const std::string& diagram_id) const;
+
     // Writes `object` exactly as given — unlike create(), no field is
     // regenerated or overwritten (object_id, timestamps, etc. are all
     // taken from `object` verbatim) — and does not record an audit

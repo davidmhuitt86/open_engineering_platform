@@ -140,6 +140,24 @@ class OepApiBindings {
           .lookupFunction<OepRelationshipUpdateNative, OepRelationshipUpdateDart>('oep_relationship_update'),
       relationshipDelete = _library
           .lookupFunction<OepRelationshipDeleteNative, OepRelationshipDeleteDart>('oep_relationship_delete'),
+      // AP-OEP-FOUNDATION-BRIDGE-002.
+      diagramCreate = _library.lookupFunction<OepDiagramCreateNative, OepDiagramCreateDart>('oep_diagram_create'),
+      diagramGet = _library.lookupFunction<OepDiagramGetNative, OepDiagramGetDart>('oep_diagram_get'),
+      objectCreateWithDiagram = _library
+          .lookupFunction<OepObjectCreateWithDiagramNative, OepObjectCreateWithDiagramDart>(
+            'oep_object_create_with_diagram',
+          ),
+      relationshipCreateWithDiagram = _library
+          .lookupFunction<OepRelationshipCreateWithDiagramNative, OepRelationshipCreateWithDiagramDart>(
+            'oep_relationship_create_with_diagram',
+          ),
+      diagramGetObjects = _library.lookupFunction<OepDiagramGetObjectsNative, OepDiagramGetObjectsDart>(
+        'oep_diagram_get_objects',
+      ),
+      diagramGetRelationships = _library
+          .lookupFunction<OepDiagramGetRelationshipsNative, OepDiagramGetRelationshipsDart>(
+            'oep_diagram_get_relationships',
+          ),
       transactionBegin = _library.lookupFunction<OepTransactionBeginNative, OepTransactionBeginDart>(
         'oep_transaction_begin',
       ),
@@ -566,6 +584,13 @@ class OepApiBindings {
   final OepObjectGetContentDart objectGetContent;
   final OepRelationshipUpdateDart relationshipUpdate;
   final OepRelationshipDeleteDart relationshipDelete;
+  // AP-OEP-FOUNDATION-BRIDGE-002.
+  final OepDiagramCreateDart diagramCreate;
+  final OepDiagramGetDart diagramGet;
+  final OepObjectCreateWithDiagramDart objectCreateWithDiagram;
+  final OepRelationshipCreateWithDiagramDart relationshipCreateWithDiagram;
+  final OepDiagramGetObjectsDart diagramGetObjects;
+  final OepDiagramGetRelationshipsDart diagramGetRelationships;
   final OepTransactionBeginDart transactionBegin;
   final OepTransactionCommitDart transactionCommit;
   final OepTransactionRollbackDart transactionRollback;

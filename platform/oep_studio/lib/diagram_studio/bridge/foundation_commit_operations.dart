@@ -38,6 +38,17 @@ abstract class FoundationCommitOperations {
 
   List<RelationshipSummary> listRelationships({required Map<String, String> objectNamesById});
 
+  /// AP-OEP-FOUNDATION-BRIDGE-002 — exactly the Engineering Objects
+  /// belonging to diagram [diagramId] (`oep_diagram_get_objects`), never
+  /// the whole repository. Backs `loadCommittedGraph`'s diagram-scoped
+  /// load.
+  List<EngineeringObjectSummary> listObjectsForDiagram(String diagramId);
+
+  /// AP-OEP-FOUNDATION-BRIDGE-002 — exactly the Relationships belonging
+  /// to diagram [diagramId] (`oep_diagram_get_relationships`), never the
+  /// whole repository.
+  List<RelationshipSummary> listRelationshipsForDiagram(String diagramId, {required Map<String, String> objectNamesById});
+
   void beginTransaction();
 
   void commitTransaction();
@@ -92,6 +103,13 @@ class RealFoundationCommitOperations implements FoundationCommitOperations {
   @override
   List<RelationshipSummary> listRelationships({required Map<String, String> objectNamesById}) =>
       _bridge.listRelationships(objectNamesById: objectNamesById);
+
+  @override
+  List<EngineeringObjectSummary> listObjectsForDiagram(String diagramId) => _bridge.getDiagramObjects(diagramId);
+
+  @override
+  List<RelationshipSummary> listRelationshipsForDiagram(String diagramId, {required Map<String, String> objectNamesById}) =>
+      _bridge.getDiagramRelationships(diagramId, objectNamesById: objectNamesById);
 
   @override
   void beginTransaction() => _bridge.beginTransaction();

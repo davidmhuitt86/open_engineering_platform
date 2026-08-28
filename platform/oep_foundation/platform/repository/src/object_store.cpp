@@ -38,6 +38,7 @@ json::Value to_json(const EngineeringObject& object) {
     fields.emplace_back("author", json::Value::string(object.author));
     fields.emplace_back("tags", json::Value::array(std::move(tags)));
     fields.emplace_back("content", json::Value::string(object.content));
+    fields.emplace_back("diagramId", json::Value::string(object.diagram_id));
     return json::Value::object(std::move(fields));
 }
 
@@ -105,6 +106,9 @@ ParsedObject read_object_file(const std::filesystem::path& path) {
     // returns "" when the key is missing, matching a pre-existing object's
     // correct, empty content.
     object.content = read_string_field(parsed.value, "content");
+    // Absent in files written before AP-OEP-FOUNDATION-GRAPH-IDENTITY-001 —
+    // same "missing key means empty/no diagram" default as content above.
+    object.diagram_id = read_string_field(parsed.value, "diagramId");
 
     return {true, "", object};
 }
@@ -288,6 +292,38 @@ ListObjectsResult ObjectStore::list_all() const {
         const ParsedObject parsed = read_object_file(entry.path());
         if (!parsed.success) {
             invalid_entries.push_back(entry.path().string() + ": " + parsed.error);
+            continue;
+        }
+        objects.push_back(parsed.object);
+    }
+
+    if (error_code) {
+        return {false, "could not enumerate '" + root_.string() + "': " + error_code.message(), {}, {}};
+    }
+
+    return {true, "", objects, invalid_entries};
+}
+
+ListObjectsResult ObjectStore::list_by_diagram(const std::string& diagram_id) const {
+    std::vector<EngineeringObject> objects;
+    std::vector<std::string> invalid_entries;
+
+    std::error_code error_code;
+    if (!std::filesystem::exists(root_, error_code)) {
+        return {true, "", objects, invalid_entries};
+    }
+
+    for (const std::filesystem::directory_entry& entry :
+         std::filesystem::directory_iterator(root_, error_code)) {
+        if (!entry.is_regular_file() || entry.path().extension() != ".json") {
+            continue;
+        }
+        const ParsedObject parsed = read_object_file(entry.path());
+        if (!parsed.success) {
+            invalid_entries.push_back(entry.path().string() + ": " + parsed.error);
+            continue;
+        }
+        if (parsed.object.diagram_id != diagram_id) {
             continue;
         }
         objects.push_back(parsed.object);

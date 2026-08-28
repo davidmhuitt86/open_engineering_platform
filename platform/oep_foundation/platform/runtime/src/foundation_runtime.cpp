@@ -1528,6 +1528,101 @@ RuntimeObjectMutationResult FoundationRuntime::create_object(oep::repository::Ob
     return {true, "", result.object};
 }
 
+RuntimeObjectMutationResult FoundationRuntime::create_diagram(const std::string& name, const std::string& description,
+                                                                const std::string& author) {
+    // A diagram/graph identity is nothing more than an ObjectType::Diagram
+    // Engineering Object — delegating to create_object keeps this a thin
+    // wrapper, not a second creation path (no new primitive, no
+    // duplicated transaction/journal logic).
+    return create_object(oep::repository::ObjectType::Diagram, name, description, author, {});
+}
+
+RuntimeObjectMutationResult FoundationRuntime::get_diagram(const std::string& diagram_id) {
+    if (state_ != RuntimeState::RepositoryOpen) {
+        return {false, "no repository is currently open", {}};
+    }
+
+    const oep::repository::LoadObjectResult loaded = objects_->load(diagram_id);
+    if (!loaded.success) {
+        return {false, "no diagram with id '" + diagram_id + "'", {}};
+    }
+    if (loaded.object.object_type != oep::repository::ObjectType::Diagram) {
+        // Exists, but isn't a diagram — never silently treated as a
+        // valid graph scope (AP-OEP-FOUNDATION-GRAPH-IDENTITY-001).
+        return {false, "object '" + diagram_id + "' exists but is not a Diagram", {}};
+    }
+    return {true, "", loaded.object};
+}
+
+RuntimeObjectMutationResult FoundationRuntime::create_object_in_diagram(oep::repository::ObjectType object_type,
+                                                                          const std::string& name,
+                                                                          const std::string& description,
+                                                                          const std::string& author,
+                                                                          const std::vector<std::string>& tags,
+                                                                          const std::string& diagram_id) {
+    if (state_ != RuntimeState::RepositoryOpen) {
+        return {false, "no repository is currently open", {}};
+    }
+
+    // Referential integrity, checked before anything is persisted: a
+    // diagram_id must name a real, existing ObjectType::Diagram object.
+    // Never fabricated, never silently accepted (per this task's own
+    // "do not fabricate graph membership" requirement).
+    const RuntimeObjectMutationResult diagram = get_diagram(diagram_id);
+    if (!diagram.success) {
+        return {false, "invalid diagram_id: " + diagram.error, {}};
+    }
+
+    oep::repository::EngineeringObject object;
+    object.object_type = object_type;
+    object.name = name;
+    object.description = description;
+    object.author = author;
+    object.tags = tags;
+    object.diagram_id = diagram_id;
+
+    const bool implicit_transaction = !transaction_active_;
+    if (implicit_transaction) {
+        open_transaction_internal("object create (diagram-scoped)");
+    }
+
+    const oep::repository::LoadObjectResult result = objects_->create(object);
+    if (!result.success) {
+        rollback_transaction_internal();
+        return {false, result.error, {}};
+    }
+
+    TransactionLogEntry entry;
+    entry.kind = TransactionLogEntry::Kind::ObjectCreated;
+    entry.object_snapshot = result.object;
+    transaction_log_.push_back(std::move(entry));
+    journal_operation("ObjectCreated", result.object.object_id, "absent",
+                       "present:" + result.object.name + " (diagram:" + diagram_id + ")");
+
+    if (implicit_transaction) {
+        commit_transaction_internal();
+    }
+
+    return {true, "", result.object};
+}
+
+RuntimeDiagramObjectsResult FoundationRuntime::get_diagram_objects(const std::string& diagram_id) {
+    if (state_ != RuntimeState::RepositoryOpen) {
+        return {false, "no repository is currently open", {}};
+    }
+
+    const RuntimeObjectMutationResult diagram = get_diagram(diagram_id);
+    if (!diagram.success) {
+        return {false, "invalid diagram_id: " + diagram.error, {}};
+    }
+
+    const oep::repository::ListObjectsResult listed = objects_->list_by_diagram(diagram_id);
+    if (!listed.success) {
+        return {false, listed.error, {}};
+    }
+    return {true, "", listed.objects};
+}
+
 RuntimeObjectMutationResult FoundationRuntime::update_object(const std::string& object_id, const std::string& name,
                                                                const std::string& description,
                                                                const std::string& author,
@@ -1686,6 +1781,70 @@ RuntimeRelationshipMutationResult FoundationRuntime::create_relationship(
     }
 
     return {true, "", result.relationship};
+}
+
+RuntimeRelationshipMutationResult FoundationRuntime::create_relationship_in_diagram(
+    const std::string& source_object_id, const std::string& target_object_id,
+    oep::repository::RelationshipType relationship_type, const std::string& author, const std::string& description,
+    const std::string& diagram_id) {
+    if (state_ != RuntimeState::RepositoryOpen) {
+        return {false, "no repository is currently open", {}};
+    }
+
+    const RuntimeObjectMutationResult diagram = get_diagram(diagram_id);
+    if (!diagram.success) {
+        return {false, "invalid diagram_id: " + diagram.error, {}};
+    }
+
+    oep::repository::Relationship relationship;
+    relationship.source_object_id = source_object_id;
+    relationship.target_object_id = target_object_id;
+    relationship.relationship_type = relationship_type;
+    relationship.author = author;
+    relationship.description = description;
+    relationship.diagram_id = diagram_id;
+
+    const bool implicit_transaction = !transaction_active_;
+    if (implicit_transaction) {
+        open_transaction_internal("relationship create (diagram-scoped)");
+    }
+
+    const oep::repository::LoadRelationshipResult result = relationships_->create(relationship);
+    if (!result.success) {
+        rollback_transaction_internal();
+        return {false, result.error, {}};
+    }
+
+    TransactionLogEntry entry;
+    entry.kind = TransactionLogEntry::Kind::RelationshipCreated;
+    entry.relationship_snapshot = result.relationship;
+    transaction_log_.push_back(std::move(entry));
+    journal_operation("RelationshipCreated", result.relationship.relationship_id, "absent",
+                       "present:" + oep::repository::to_string(result.relationship.relationship_type) +
+                           " (diagram:" + diagram_id + ")");
+
+    if (implicit_transaction) {
+        commit_transaction_internal();
+    }
+
+    return {true, "", result.relationship};
+}
+
+RuntimeDiagramRelationshipsResult FoundationRuntime::get_diagram_relationships(const std::string& diagram_id) {
+    if (state_ != RuntimeState::RepositoryOpen) {
+        return {false, "no repository is currently open", {}};
+    }
+
+    const RuntimeObjectMutationResult diagram = get_diagram(diagram_id);
+    if (!diagram.success) {
+        return {false, "invalid diagram_id: " + diagram.error, {}};
+    }
+
+    const oep::repository::ListRelationshipsResult listed = relationships_->list_by_diagram(diagram_id);
+    if (!listed.success) {
+        return {false, listed.error, {}};
+    }
+    return {true, "", listed.relationships};
 }
 
 RuntimeRelationshipMutationResult FoundationRuntime::update_relationship(const std::string& relationship_id,

@@ -133,6 +133,24 @@ struct RuntimeRelationshipMutationResult {
     oep::repository::Relationship relationship;
 };
 
+// AP-OEP-FOUNDATION-GRAPH-IDENTITY-001 — results for diagram/graph
+// member enumeration. Distinct from RuntimeObjectMutationResult/
+// RuntimeRelationshipMutationResult (which each carry exactly one
+// record) since these carry a list, mirroring
+// oep::repository::ListObjectsResult/ListRelationshipsResult's own
+// shape one layer up.
+struct RuntimeDiagramObjectsResult {
+    bool success = false;
+    std::string error;
+    std::vector<oep::repository::EngineeringObject> objects;
+};
+
+struct RuntimeDiagramRelationshipsResult {
+    bool success = false;
+    std::string error;
+    std::vector<oep::repository::Relationship> relationships;
+};
+
 // Input to batch_create_objects, per OEP-SPEC (Work Package 014,
 // TASK-000030). Mirrors the fields create_object accepts individually.
 struct ObjectCreateSpec {
@@ -525,6 +543,42 @@ public:
                                                const std::string& description, const std::string& author,
                                                const std::vector<std::string>& tags);
 
+    // AP-OEP-FOUNDATION-GRAPH-IDENTITY-001 — creates an
+    // ObjectType::Diagram Engineering Object: the graph/diagram identity
+    // itself. A thin, dedicated wrapper over create_object rather than
+    // requiring every caller to remember "pass ObjectType::Diagram" —
+    // no new primitive, no new store, no duplicated persistence logic.
+    RuntimeObjectMutationResult create_diagram(const std::string& name, const std::string& description,
+                                                const std::string& author);
+
+    // Loads the ObjectType::Diagram object identified by [diagram_id].
+    // Fails with a not-found-shaped error if no such object exists, or
+    // if an object with that id exists but is not ObjectType::Diagram
+    // (never silently treats a non-diagram object as a valid graph
+    // scope).
+    RuntimeObjectMutationResult get_diagram(const std::string& diagram_id);
+
+    // Same contract as create_object, plus: [diagram_id] must name an
+    // existing ObjectType::Diagram object (validated before the object
+    // is created — an invalid diagram_id fails the whole call, nothing
+    // is persisted). The created object's diagram_id is set to
+    // [diagram_id]. Participates in the same transaction/journal/
+    // rollback machinery as create_object — this is not a second commit
+    // mechanism, just create_object with one more field populated.
+    RuntimeObjectMutationResult create_object_in_diagram(oep::repository::ObjectType object_type,
+                                                          const std::string& name, const std::string& description,
+                                                          const std::string& author,
+                                                          const std::vector<std::string>& tags,
+                                                          const std::string& diagram_id);
+
+    // Enumerates the Engineering Objects belonging to [diagram_id]
+    // (unsorted here — sorting is the API layer's job, matching
+    // list_all's own division of responsibility). Fails if [diagram_id]
+    // does not name an existing ObjectType::Diagram object — an empty
+    // result and a "not found" result are distinguishable, per the
+    // "invalid graph ID" acceptance requirement.
+    RuntimeDiagramObjectsResult get_diagram_objects(const std::string& diagram_id);
+
     // Replaces name/description/author/tags on the object identified
     // by `object_id`; object_id, object_type, and created_utc are
     // preserved, matching ObjectStore::update's own contract exactly
@@ -550,6 +604,21 @@ public:
                                                             const std::string& target_object_id,
                                                             oep::repository::RelationshipType relationship_type,
                                                             const std::string& author, const std::string& description);
+
+    // AP-OEP-FOUNDATION-GRAPH-IDENTITY-001 — same contract as
+    // create_relationship, plus: [diagram_id] must name an existing
+    // ObjectType::Diagram object (validated first; an invalid diagram_id
+    // fails the whole call). Same transaction/journal/rollback
+    // machinery as create_relationship.
+    RuntimeRelationshipMutationResult create_relationship_in_diagram(
+        const std::string& source_object_id, const std::string& target_object_id,
+        oep::repository::RelationshipType relationship_type, const std::string& author,
+        const std::string& description, const std::string& diagram_id);
+
+    // Enumerates the Relationships belonging to [diagram_id] — same
+    // "fails if diagram_id is invalid, unsorted result" contract as
+    // get_diagram_objects.
+    RuntimeDiagramRelationshipsResult get_diagram_relationships(const std::string& diagram_id);
 
     // Replaces author/description on the relationship identified by
     // `relationship_id`; relationship_id, source/target object IDs,

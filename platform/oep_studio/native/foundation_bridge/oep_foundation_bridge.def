@@ -38,6 +38,10 @@ EXPORTS
     oep_component_membership_list_release
     oep_dependency_entry_list_release
     oep_dependency_state_to_string
+    oep_diagram_create
+    oep_diagram_get
+    oep_diagram_get_objects
+    oep_diagram_get_relationships
     oep_eip_analyze
     oep_eip_cleanup
     oep_eip_clone_session
@@ -90,6 +94,7 @@ EXPORTS
     oep_merge_conflict_kind_to_string
     oep_merge_conflict_list_release
     oep_object_create
+    oep_object_create_with_diagram
     oep_object_delete
     oep_object_get_content
     oep_object_list_release
@@ -124,6 +129,7 @@ EXPORTS
     oep_reasoning_report
     oep_recommendation_kind_to_string
     oep_relationship_create
+    oep_relationship_create_with_diagram
     oep_relationship_delete
     oep_relationship_list_release
     oep_relationship_search_result_list_release

@@ -192,6 +192,7 @@ void populate_object_info(const oep::repository::EngineeringObject& object, oep_
     for (int i = tag_count; i < OEP_MAX_OBJECT_TAGS; ++i) {
         out_object->tags[i][0] = '\0';
     }
+    copy_truncated(object.diagram_id, out_object->diagram_id, sizeof(out_object->diagram_id));
 }
 
 oep_relationship_type_t to_capi_relationship_type(oep::repository::RelationshipType type) {
@@ -218,6 +219,7 @@ void populate_relationship_info(const oep::repository::Relationship& relationshi
     copy_truncated(relationship.author, out_relationship->author, sizeof(out_relationship->author));
     copy_truncated(relationship.description, out_relationship->description, sizeof(out_relationship->description));
     copy_truncated(relationship.created_utc, out_relationship->created_utc, sizeof(out_relationship->created_utc));
+    copy_truncated(relationship.diagram_id, out_relationship->diagram_id, sizeof(out_relationship->diagram_id));
 }
 
 oep_match_location_t to_capi_match_location(oep::search::MatchLocation location) {
@@ -289,9 +291,27 @@ oep_error_code_t classify_mutation_error(const std::string& message) {
     return OEP_ERROR_OPERATION_FAILED;
 }
 
+// AP-OEP-FOUNDATION-GRAPH-IDENTITY-001 — classify_mutation_error's
+// existing patterns don't recognize "invalid diagram_id: ..." (a message
+// this task's own Runtime methods construct, not one of the pre-existing
+// store-level messages that function's patterns were written against),
+// so it would otherwise fall through to the generic OEP_ERROR_OPERATION_FAILED
+// default rather than the OEP_ERROR_INVALID_ARGUMENT this API's own doc
+// comment promises for an invalid diagram_id. A small, explicit prefix
+// check here — rather than trying to make one shared string-classifier
+// recognize every caller's message shape — keeps classify_mutation_error
+// itself unchanged for the mutation paths that already worked.
+oep_error_code_t classify_diagram_mutation_error(const std::string& message) {
+    if (message.rfind("invalid diagram_id:", 0) == 0) {
+        return OEP_ERROR_INVALID_ARGUMENT;
+    }
+    return classify_mutation_error(message);
+}
+
 } // namespace oep::api::detail
 
 using oep::api::detail::category_for_code;
+using oep::api::detail::classify_diagram_mutation_error;
 using oep::api::detail::classify_mutation_error;
 using oep::api::detail::from_capi_object_type;
 using oep::api::detail::from_capi_relationship_type;
@@ -1741,6 +1761,294 @@ oep_result_t oep_relationship_delete(OEP_Runtime runtime, const char* relationsh
             const oep_error_code_t code = classify_mutation_error(result.error);
             return make_error_result(code, category_for_code(code), result.error);
         }
+        return make_success_result();
+    } catch (const std::exception& ex) {
+        return make_error_result(OEP_ERROR_INTERNAL, category_for_code(OEP_ERROR_INTERNAL), ex.what());
+    } catch (...) {
+        return make_error_result(OEP_ERROR_INTERNAL, category_for_code(OEP_ERROR_INTERNAL), "unknown internal error");
+    }
+}
+
+// --------------------------------------------------------------------
+// Diagram/Graph Identity and Membership (AP-OEP-FOUNDATION-GRAPH-IDENTITY-001)
+// --------------------------------------------------------------------
+
+oep_result_t oep_diagram_create(OEP_Runtime runtime, const char* name, const char* description, const char* author,
+                                 oep_object_info_t* out_diagram) {
+    if (out_diagram != nullptr) {
+        zero_object_info(out_diagram);
+    }
+    if (runtime == nullptr) {
+        return make_error_result(OEP_ERROR_INVALID_ARGUMENT, category_for_code(OEP_ERROR_INVALID_ARGUMENT),
+                                  "runtime handle is null");
+    }
+    if (name == nullptr) {
+        return make_error_result(OEP_ERROR_INVALID_ARGUMENT, category_for_code(OEP_ERROR_INVALID_ARGUMENT),
+                                  "name is null");
+    }
+    try {
+        if (runtime->runtime.state() != oep::runtime::RuntimeState::RepositoryOpen) {
+            return make_error_result(OEP_ERROR_INVALID_STATE, category_for_code(OEP_ERROR_INVALID_STATE),
+                                      "no repository is currently open");
+        }
+        const oep::runtime::RuntimeService::ObjectMutationResponse result =
+            runtime->service.create_diagram(oep::runtime::RuntimeService::CreateDiagramRequest(
+                name, description != nullptr ? description : "", author != nullptr ? author : ""));
+        if (!result.success) {
+            const oep_error_code_t code = classify_mutation_error(result.error);
+            return make_error_result(code, category_for_code(code), result.error);
+        }
+        if (out_diagram != nullptr) {
+            populate_object_info(result.object, out_diagram);
+        }
+        return make_success_result();
+    } catch (const std::exception& ex) {
+        if (out_diagram != nullptr) zero_object_info(out_diagram);
+        return make_error_result(OEP_ERROR_INTERNAL, category_for_code(OEP_ERROR_INTERNAL), ex.what());
+    } catch (...) {
+        if (out_diagram != nullptr) zero_object_info(out_diagram);
+        return make_error_result(OEP_ERROR_INTERNAL, category_for_code(OEP_ERROR_INTERNAL), "unknown internal error");
+    }
+}
+
+oep_result_t oep_diagram_get(OEP_Runtime runtime, const char* diagram_id, oep_object_info_t* out_diagram) {
+    if (out_diagram != nullptr) {
+        zero_object_info(out_diagram);
+    }
+    if (runtime == nullptr) {
+        return make_error_result(OEP_ERROR_INVALID_ARGUMENT, category_for_code(OEP_ERROR_INVALID_ARGUMENT),
+                                  "runtime handle is null");
+    }
+    if (diagram_id == nullptr) {
+        return make_error_result(OEP_ERROR_INVALID_ARGUMENT, category_for_code(OEP_ERROR_INVALID_ARGUMENT),
+                                  "diagram_id is null");
+    }
+    try {
+        if (runtime->runtime.state() != oep::runtime::RuntimeState::RepositoryOpen) {
+            return make_error_result(OEP_ERROR_INVALID_STATE, category_for_code(OEP_ERROR_INVALID_STATE),
+                                      "no repository is currently open");
+        }
+        const oep::runtime::RuntimeObjectMutationResult result = runtime->runtime.get_diagram(diagram_id);
+        if (!result.success) {
+            return make_error_result(OEP_ERROR_NOT_FOUND, category_for_code(OEP_ERROR_NOT_FOUND), result.error);
+        }
+        if (out_diagram != nullptr) {
+            populate_object_info(result.object, out_diagram);
+        }
+        return make_success_result();
+    } catch (const std::exception& ex) {
+        return make_error_result(OEP_ERROR_INTERNAL, category_for_code(OEP_ERROR_INTERNAL), ex.what());
+    } catch (...) {
+        return make_error_result(OEP_ERROR_INTERNAL, category_for_code(OEP_ERROR_INTERNAL), "unknown internal error");
+    }
+}
+
+oep_result_t oep_object_create_with_diagram(OEP_Runtime runtime, oep_object_type_t object_type, const char* name,
+                                             const char* description, const char* author, const char* const* tags,
+                                             int tag_count, const char* diagram_id, oep_object_info_t* out_object) {
+    if (out_object != nullptr) {
+        zero_object_info(out_object);
+    }
+    if (runtime == nullptr) {
+        return make_error_result(OEP_ERROR_INVALID_ARGUMENT, category_for_code(OEP_ERROR_INVALID_ARGUMENT),
+                                  "runtime handle is null");
+    }
+    if (name == nullptr) {
+        return make_error_result(OEP_ERROR_INVALID_ARGUMENT, category_for_code(OEP_ERROR_INVALID_ARGUMENT),
+                                  "name is null");
+    }
+    if (diagram_id == nullptr) {
+        return make_error_result(OEP_ERROR_INVALID_ARGUMENT, category_for_code(OEP_ERROR_INVALID_ARGUMENT),
+                                  "diagram_id is null");
+    }
+    if (tag_count < 0) {
+        return make_error_result(OEP_ERROR_INVALID_ARGUMENT, category_for_code(OEP_ERROR_INVALID_ARGUMENT),
+                                  "tag_count is negative");
+    }
+    if (tag_count > 0 && tags == nullptr) {
+        return make_error_result(OEP_ERROR_INVALID_ARGUMENT, category_for_code(OEP_ERROR_INVALID_ARGUMENT),
+                                  "tags is null but tag_count is nonzero");
+    }
+    const std::optional<oep::repository::ObjectType> internal_type = from_capi_object_type(object_type);
+    if (!internal_type.has_value()) {
+        return make_error_result(OEP_ERROR_INVALID_ARGUMENT, category_for_code(OEP_ERROR_INVALID_ARGUMENT),
+                                  "unrecognized object_type");
+    }
+    try {
+        if (runtime->runtime.state() != oep::runtime::RuntimeState::RepositoryOpen) {
+            return make_error_result(OEP_ERROR_INVALID_STATE, category_for_code(OEP_ERROR_INVALID_STATE),
+                                      "no repository is currently open");
+        }
+        const oep::runtime::RuntimeService::ObjectMutationResponse result =
+            runtime->service.create_object_in_diagram(oep::runtime::RuntimeService::CreateObjectInDiagramRequest(
+                *internal_type, name, description != nullptr ? description : "",
+                author != nullptr ? author : "", tags_from_capi(tags, tag_count), diagram_id));
+        if (!result.success) {
+            const oep_error_code_t code = classify_diagram_mutation_error(result.error);
+            return make_error_result(code, category_for_code(code), result.error);
+        }
+        if (out_object != nullptr) {
+            populate_object_info(result.object, out_object);
+        }
+        return make_success_result();
+    } catch (const std::exception& ex) {
+        if (out_object != nullptr) zero_object_info(out_object);
+        return make_error_result(OEP_ERROR_INTERNAL, category_for_code(OEP_ERROR_INTERNAL), ex.what());
+    } catch (...) {
+        if (out_object != nullptr) zero_object_info(out_object);
+        return make_error_result(OEP_ERROR_INTERNAL, category_for_code(OEP_ERROR_INTERNAL), "unknown internal error");
+    }
+}
+
+oep_result_t oep_relationship_create_with_diagram(OEP_Runtime runtime, const char* source_object_id,
+                                                   const char* target_object_id,
+                                                   oep_relationship_type_t relationship_type, const char* author,
+                                                   const char* description, const char* diagram_id,
+                                                   oep_relationship_info_t* out_relationship) {
+    if (out_relationship != nullptr) {
+        zero_relationship_info(out_relationship);
+    }
+    if (runtime == nullptr) {
+        return make_error_result(OEP_ERROR_INVALID_ARGUMENT, category_for_code(OEP_ERROR_INVALID_ARGUMENT),
+                                  "runtime handle is null");
+    }
+    if (source_object_id == nullptr) {
+        return make_error_result(OEP_ERROR_INVALID_ARGUMENT, category_for_code(OEP_ERROR_INVALID_ARGUMENT),
+                                  "source_object_id is null");
+    }
+    if (target_object_id == nullptr) {
+        return make_error_result(OEP_ERROR_INVALID_ARGUMENT, category_for_code(OEP_ERROR_INVALID_ARGUMENT),
+                                  "target_object_id is null");
+    }
+    if (diagram_id == nullptr) {
+        return make_error_result(OEP_ERROR_INVALID_ARGUMENT, category_for_code(OEP_ERROR_INVALID_ARGUMENT),
+                                  "diagram_id is null");
+    }
+    const std::optional<oep::repository::RelationshipType> internal_type =
+        from_capi_relationship_type(relationship_type);
+    if (!internal_type.has_value()) {
+        return make_error_result(OEP_ERROR_INVALID_ARGUMENT, category_for_code(OEP_ERROR_INVALID_ARGUMENT),
+                                  "unrecognized relationship_type");
+    }
+    try {
+        if (runtime->runtime.state() != oep::runtime::RuntimeState::RepositoryOpen) {
+            return make_error_result(OEP_ERROR_INVALID_STATE, category_for_code(OEP_ERROR_INVALID_STATE),
+                                      "no repository is currently open");
+        }
+        const oep::runtime::RuntimeService::RelationshipMutationResponse result = runtime->service
+            .create_relationship_in_diagram(oep::runtime::RuntimeService::CreateRelationshipInDiagramRequest(
+                source_object_id, target_object_id, *internal_type, author != nullptr ? author : "",
+                description != nullptr ? description : "", diagram_id));
+        if (!result.success) {
+            const oep_error_code_t code = classify_diagram_mutation_error(result.error);
+            return make_error_result(code, category_for_code(code), result.error);
+        }
+        if (out_relationship != nullptr) {
+            populate_relationship_info(result.relationship, out_relationship);
+        }
+        return make_success_result();
+    } catch (const std::exception& ex) {
+        if (out_relationship != nullptr) zero_relationship_info(out_relationship);
+        return make_error_result(OEP_ERROR_INTERNAL, category_for_code(OEP_ERROR_INTERNAL), ex.what());
+    } catch (...) {
+        if (out_relationship != nullptr) zero_relationship_info(out_relationship);
+        return make_error_result(OEP_ERROR_INTERNAL, category_for_code(OEP_ERROR_INTERNAL), "unknown internal error");
+    }
+}
+
+oep_result_t oep_diagram_get_objects(OEP_Runtime runtime, const char* diagram_id, oep_object_list_t* out_objects) {
+    if (out_objects != nullptr) {
+        zero_object_list(out_objects);
+    }
+    if (runtime == nullptr) {
+        return make_error_result(OEP_ERROR_INVALID_ARGUMENT, category_for_code(OEP_ERROR_INVALID_ARGUMENT),
+                                  "runtime handle is null");
+    }
+    if (diagram_id == nullptr) {
+        return make_error_result(OEP_ERROR_INVALID_ARGUMENT, category_for_code(OEP_ERROR_INVALID_ARGUMENT),
+                                  "diagram_id is null");
+    }
+    if (out_objects == nullptr) {
+        return make_error_result(OEP_ERROR_INVALID_ARGUMENT, category_for_code(OEP_ERROR_INVALID_ARGUMENT),
+                                  "out_objects is null");
+    }
+    try {
+        if (runtime->runtime.state() != oep::runtime::RuntimeState::RepositoryOpen) {
+            return make_error_result(OEP_ERROR_INVALID_STATE, category_for_code(OEP_ERROR_INVALID_STATE),
+                                      "no repository is currently open");
+        }
+        const oep::runtime::RuntimeDiagramObjectsResult result = runtime->runtime.get_diagram_objects(diagram_id);
+        if (!result.success) {
+            return make_error_result(OEP_ERROR_INVALID_ARGUMENT, category_for_code(OEP_ERROR_INVALID_ARGUMENT),
+                                      result.error);
+        }
+
+        std::vector<oep::repository::EngineeringObject> objects = result.objects;
+        std::sort(objects.begin(), objects.end(),
+                  [](const oep::repository::EngineeringObject& a, const oep::repository::EngineeringObject& b) {
+                      return a.object_id < b.object_id;
+                  });
+
+        const int count = static_cast<int>(objects.size());
+        oep_object_info_t* items = count > 0 ? new oep_object_info_t[static_cast<std::size_t>(count)] : nullptr;
+        for (int i = 0; i < count; ++i) {
+            populate_object_info(objects[static_cast<std::size_t>(i)], &items[i]);
+        }
+
+        out_objects->items = items;
+        out_objects->count = count;
+        return make_success_result();
+    } catch (const std::exception& ex) {
+        return make_error_result(OEP_ERROR_INTERNAL, category_for_code(OEP_ERROR_INTERNAL), ex.what());
+    } catch (...) {
+        return make_error_result(OEP_ERROR_INTERNAL, category_for_code(OEP_ERROR_INTERNAL), "unknown internal error");
+    }
+}
+
+oep_result_t oep_diagram_get_relationships(OEP_Runtime runtime, const char* diagram_id,
+                                            oep_relationship_list_t* out_relationships) {
+    if (out_relationships != nullptr) {
+        zero_relationship_list(out_relationships);
+    }
+    if (runtime == nullptr) {
+        return make_error_result(OEP_ERROR_INVALID_ARGUMENT, category_for_code(OEP_ERROR_INVALID_ARGUMENT),
+                                  "runtime handle is null");
+    }
+    if (diagram_id == nullptr) {
+        return make_error_result(OEP_ERROR_INVALID_ARGUMENT, category_for_code(OEP_ERROR_INVALID_ARGUMENT),
+                                  "diagram_id is null");
+    }
+    if (out_relationships == nullptr) {
+        return make_error_result(OEP_ERROR_INVALID_ARGUMENT, category_for_code(OEP_ERROR_INVALID_ARGUMENT),
+                                  "out_relationships is null");
+    }
+    try {
+        if (runtime->runtime.state() != oep::runtime::RuntimeState::RepositoryOpen) {
+            return make_error_result(OEP_ERROR_INVALID_STATE, category_for_code(OEP_ERROR_INVALID_STATE),
+                                      "no repository is currently open");
+        }
+        const oep::runtime::RuntimeDiagramRelationshipsResult result =
+            runtime->runtime.get_diagram_relationships(diagram_id);
+        if (!result.success) {
+            return make_error_result(OEP_ERROR_INVALID_ARGUMENT, category_for_code(OEP_ERROR_INVALID_ARGUMENT),
+                                      result.error);
+        }
+
+        std::vector<oep::repository::Relationship> relationships = result.relationships;
+        std::sort(relationships.begin(), relationships.end(),
+                  [](const oep::repository::Relationship& a, const oep::repository::Relationship& b) {
+                      return a.relationship_id < b.relationship_id;
+                  });
+
+        const int count = static_cast<int>(relationships.size());
+        oep_relationship_info_t* items =
+            count > 0 ? new oep_relationship_info_t[static_cast<std::size_t>(count)] : nullptr;
+        for (int i = 0; i < count; ++i) {
+            populate_relationship_info(relationships[static_cast<std::size_t>(i)], &items[i]);
+        }
+
+        out_relationships->items = items;
+        out_relationships->count = count;
         return make_success_result();
     } catch (const std::exception& ex) {
         return make_error_result(OEP_ERROR_INTERNAL, category_for_code(OEP_ERROR_INTERNAL), ex.what());

@@ -57,19 +57,23 @@ abstract class FoundationBridgePort {
   /// partially-populated [GraphCommitResult].
   Future<GraphCommitResult> commitGraph(Map<String, Object?> serializedGraph);
 
-  /// Loads Engineering Objects/Relationships currently persisted in the
-  /// open Repository, reconstructed as a serialized graph
-  /// (`EngineeringGraph.fromJson`'s shape) with `repositoryObjectId`/
-  /// `repositoryRelationshipId` populated from Foundation's own ids.
+  /// Loads Engineering Objects/Relationships belonging to the diagram
+  /// identified by [repositoryObjectId], reconstructed as a serialized
+  /// graph (`EngineeringGraph.fromJson`'s shape) with
+  /// `repositoryObjectId`/`repositoryRelationshipId` populated from
+  /// Foundation's own ids.
   ///
-  /// **Known interface mismatch (AP-OEP-FOUNDATION-BRIDGE-001):** the
-  /// [repositoryObjectId] parameter implies loading *one graph* scoped
-  /// by a single seed id — but Foundation has no "graph" aggregate to
-  /// scope by; only "every Object/Relationship currently in the open
-  /// Repository" exists. Implementations therefore ignore
-  /// [repositoryObjectId] as a scoping mechanism and return everything
-  /// in the open Repository. Flagged explicitly rather than silently
-  /// worked around; a real per-graph scoping mechanism would need a
-  /// Foundation-side concept that doesn't exist today.
+  /// **AP-OEP-FOUNDATION-BRIDGE-002 — genuinely scoped.** The prior
+  /// "known interface mismatch" noted here (AP-OEP-FOUNDATION-BRIDGE-001:
+  /// Foundation had no "graph" aggregate, so [repositoryObjectId] was
+  /// ignored and the whole open Repository was returned instead) is
+  /// resolved: `AP-OEP-FOUNDATION-GRAPH-IDENTITY-001` gave Foundation a
+  /// real diagram identity/membership mechanism
+  /// (`oep_diagram_get_objects`/`oep_diagram_get_relationships`), and
+  /// [repositoryObjectId] now names that diagram's own identity (an
+  /// `OEP_OBJECT_TYPE_DIAGRAM` object's object_id) — implementations
+  /// must load only that diagram's own members. An id that does not
+  /// name an existing diagram must fail, never silently return an empty
+  /// or unrelated graph.
   Future<Map<String, Object?>> loadCommittedGraph(String repositoryObjectId);
 }

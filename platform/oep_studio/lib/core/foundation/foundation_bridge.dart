@@ -566,6 +566,195 @@ class FoundationBridge {
     }
   }
 
+  /// Creates a new diagram/graph identity (`oep_diagram_create`,
+  /// AP-OEP-FOUNDATION-GRAPH-IDENTITY-001/AP-OEP-FOUNDATION-BRIDGE-002)
+  /// — an `OEP_OBJECT_TYPE_DIAGRAM` Engineering Object whose `objectId`
+  /// becomes the diagram's persistent identity. Throws
+  /// [FoundationBridgeException] if no repository is open.
+  EngineeringObjectSummary createDiagram({required String name, String description = '', String author = ''}) {
+    _assertNotDisposed();
+    final namePointer = name.toNativeUtf8();
+    final descriptionPointer = description.toNativeUtf8();
+    final authorPointer = author.toNativeUtf8();
+    final outDiagramPointer = malloc<OepObjectInfoNative>();
+    try {
+      _checkResult(_bindings.diagramCreate(_runtime, namePointer, descriptionPointer, authorPointer, outDiagramPointer));
+      return EngineeringObjectSummary.fromNative(outDiagramPointer.ref);
+    } finally {
+      malloc.free(namePointer);
+      malloc.free(descriptionPointer);
+      malloc.free(authorPointer);
+      malloc.free(outDiagramPointer);
+    }
+  }
+
+  /// Resolves the diagram identity [diagramId] (`oep_diagram_get`).
+  /// Throws [FoundationBridgeException] (not-found) if no such diagram
+  /// exists, or an object with that id exists but is not a diagram.
+  EngineeringObjectSummary getDiagram(String diagramId) {
+    _assertNotDisposed();
+    final idPointer = diagramId.toNativeUtf8();
+    final outDiagramPointer = malloc<OepObjectInfoNative>();
+    try {
+      _checkResult(_bindings.diagramGet(_runtime, idPointer, outDiagramPointer));
+      return EngineeringObjectSummary.fromNative(outDiagramPointer.ref);
+    } finally {
+      malloc.free(idPointer);
+      malloc.free(outDiagramPointer);
+    }
+  }
+
+  /// Creates a new Engineering Object as a member of [diagramId]
+  /// (`oep_object_create_with_diagram`) — the same contract as
+  /// [createObject], plus referential-integrity validation of
+  /// [diagramId] against [getDiagram]. Throws
+  /// [FoundationBridgeException] with
+  /// [FoundationErrorCategory.validation] if [diagramId] does not name
+  /// an existing diagram (nothing is persisted in that case).
+  EngineeringObjectSummary createObjectInDiagram({
+    required ObjectCategory category,
+    required String name,
+    required String diagramId,
+    String description = '',
+    String author = '',
+    List<String> tags = const [],
+  }) {
+    _assertNotDisposed();
+    final namePointer = name.toNativeUtf8();
+    final descriptionPointer = description.toNativeUtf8();
+    final authorPointer = author.toNativeUtf8();
+    final diagramIdPointer = diagramId.toNativeUtf8();
+    final tagsPointer = _allocateTagArray(tags);
+    final outObjectPointer = malloc<OepObjectInfoNative>();
+    try {
+      _checkResult(
+        _bindings.objectCreateWithDiagram(
+          _runtime,
+          category.nativeValue,
+          namePointer,
+          descriptionPointer,
+          authorPointer,
+          tagsPointer,
+          tags.length,
+          diagramIdPointer,
+          outObjectPointer,
+        ),
+      );
+      return EngineeringObjectSummary.fromNative(outObjectPointer.ref);
+    } finally {
+      malloc.free(namePointer);
+      malloc.free(descriptionPointer);
+      malloc.free(authorPointer);
+      malloc.free(diagramIdPointer);
+      _freeTagArray(tagsPointer, tags.length);
+      malloc.free(outObjectPointer);
+    }
+  }
+
+  /// Creates a new Relationship as a member of [diagramId]
+  /// (`oep_relationship_create_with_diagram`) — the same contract as
+  /// [createRelationship], plus the same [diagramId] validation
+  /// [createObjectInDiagram] performs. Throws [FoundationBridgeException]
+  /// with [FoundationErrorCategory.validation] if [diagramId] does not
+  /// name an existing diagram.
+  RelationshipSummary createRelationshipInDiagram({
+    required String sourceObjectId,
+    required String targetObjectId,
+    required RelationshipType type,
+    required String diagramId,
+    String author = '',
+    String description = '',
+    required Map<String, String> objectNamesById,
+  }) {
+    _assertNotDisposed();
+    final sourcePointer = sourceObjectId.toNativeUtf8();
+    final targetPointer = targetObjectId.toNativeUtf8();
+    final authorPointer = author.toNativeUtf8();
+    final descriptionPointer = description.toNativeUtf8();
+    final diagramIdPointer = diagramId.toNativeUtf8();
+    final outRelationshipPointer = malloc<OepRelationshipInfoNative>();
+    try {
+      _checkResult(
+        _bindings.relationshipCreateWithDiagram(
+          _runtime,
+          sourcePointer,
+          targetPointer,
+          type.nativeValue,
+          authorPointer,
+          descriptionPointer,
+          diagramIdPointer,
+          outRelationshipPointer,
+        ),
+      );
+      return RelationshipSummary.fromNative(outRelationshipPointer.ref, objectNamesById: objectNamesById);
+    } finally {
+      malloc.free(sourcePointer);
+      malloc.free(targetPointer);
+      malloc.free(authorPointer);
+      malloc.free(descriptionPointer);
+      malloc.free(diagramIdPointer);
+      malloc.free(outRelationshipPointer);
+    }
+  }
+
+  /// Enumerates exactly the Engineering Objects belonging to [diagramId]
+  /// (`oep_diagram_get_objects`) — never the whole repository. Sorted
+  /// deterministically by object ID, the same ordering guarantee
+  /// [listObjects] provides. An empty diagram returns an empty list
+  /// successfully. Throws [FoundationBridgeException] with
+  /// [FoundationErrorCategory.validation] if [diagramId] does not name
+  /// an existing diagram — distinct from a valid, empty diagram.
+  List<EngineeringObjectSummary> getDiagramObjects(String diagramId) {
+    _assertNotDisposed();
+    final idPointer = diagramId.toNativeUtf8();
+    final listPointer = malloc<OepObjectListNative>();
+    try {
+      _checkResult(_bindings.diagramGetObjects(_runtime, idPointer, listPointer));
+      final list = listPointer.ref;
+      try {
+        return [for (var i = 0; i < list.count; i++) EngineeringObjectSummary.fromNative(list.items[i])];
+      } finally {
+        // Foundation-owned heap array: release through Foundation's own
+        // function, never malloc.free/free directly.
+        _bindings.objectListRelease(listPointer);
+      }
+    } finally {
+      malloc.free(idPointer);
+      malloc.free(listPointer);
+    }
+  }
+
+  /// Enumerates exactly the Relationships belonging to [diagramId]
+  /// (`oep_diagram_get_relationships`) — never the whole repository.
+  /// Same determinism/ownership/error contract as [getDiagramObjects].
+  /// [objectNamesById] resolves source/target display names, exactly as
+  /// [listRelationships] does.
+  List<RelationshipSummary> getDiagramRelationships(
+    String diagramId, {
+    required Map<String, String> objectNamesById,
+  }) {
+    _assertNotDisposed();
+    final idPointer = diagramId.toNativeUtf8();
+    final listPointer = malloc<OepRelationshipListNative>();
+    try {
+      _checkResult(_bindings.diagramGetRelationships(_runtime, idPointer, listPointer));
+      final list = listPointer.ref;
+      try {
+        return [
+          for (var i = 0; i < list.count; i++)
+            RelationshipSummary.fromNative(list.items[i], objectNamesById: objectNamesById),
+        ];
+      } finally {
+        // Foundation-owned heap array: release through Foundation's own
+        // function, never malloc.free/free directly.
+        _bindings.relationshipListRelease(listPointer);
+      }
+    } finally {
+      malloc.free(idPointer);
+      malloc.free(listPointer);
+    }
+  }
+
   /// Begins a transaction (Foundation Work Package 014's
   /// `oep_transaction_begin`) — "Repository Commit shall execute as one
   /// logical transaction" (Work Package 012). Only one transaction may

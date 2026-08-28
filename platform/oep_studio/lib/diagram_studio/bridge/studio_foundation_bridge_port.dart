@@ -165,17 +165,25 @@ class StudioFoundationBridgePort implements FoundationBridgePort {
 
   @override
   Future<Map<String, Object?>> loadCommittedGraph(String repositoryObjectId) async {
-    // See `FoundationBridgePort.loadCommittedGraph`'s own doc comment —
-    // known interface mismatch: Foundation has no "graph" aggregate to
-    // scope by, so `repositoryObjectId` is not used as a scope here.
-    // Everything currently in the open Repository is returned.
+    // AP-OEP-FOUNDATION-BRIDGE-002: the previous, repository-wide
+    // enumeration behavior (see git history / ADR-004's
+    // AP-OEP-FOUNDATION-BRIDGE-001 addendum for the prior "known
+    // interface mismatch" note) is removed. `repositoryObjectId` is now
+    // genuinely used as a membership scope: it names the diagram
+    // identity `AP-OEP-FOUNDATION-GRAPH-IDENTITY-001` established
+    // (an `OEP_OBJECT_TYPE_DIAGRAM` object's own object_id) whose
+    // members alone are loaded via `oep_diagram_get_objects`/
+    // `oep_diagram_get_relationships`. An invalid/nonexistent diagram id
+    // fails the call (propagated from Foundation, never silently
+    // downgraded to an empty graph); a valid, empty diagram succeeds and
+    // returns an empty graph.
     final operations = operationsResolver();
     if (operations == null) {
       throw StateError('No Foundation repository is open — cannot load.');
     }
-    final objects = operations.listObjects();
+    final objects = operations.listObjectsForDiagram(repositoryObjectId);
     final objectNameById = {for (final o in objects) o.objectId: o.name};
-    final relationships = operations.listRelationships(objectNamesById: objectNameById);
+    final relationships = operations.listRelationshipsForDiagram(repositoryObjectId, objectNamesById: objectNameById);
 
     final graph = EngineeringGraph(
       id: repositoryObjectId,

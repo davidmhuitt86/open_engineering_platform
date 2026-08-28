@@ -32,7 +32,13 @@ extern "C" {
 
 /* The Public C API's own version. Incremented whenever a function or
    structure is added, changed, or removed. */
-#define OEP_API_VERSION 20
+/* 21: AP-OEP-FOUNDATION-GRAPH-IDENTITY-001 — appended diagram_id to
+   oep_object_info_t/oep_relationship_info_t, added
+   oep_diagram_create/oep_diagram_get/oep_object_create_with_diagram/
+   oep_relationship_create_with_diagram/oep_diagram_get_objects/
+   oep_diagram_get_relationships. Additive only — OEP_ABI_VERSION is
+   unchanged. */
+#define OEP_API_VERSION 21
 
 /* The ABI version. Incremented only when a change would break binary
    compatibility with a previously compiled caller (e.g. a struct
@@ -239,6 +245,16 @@ typedef struct oep_object_info_t {
     char description[OEP_MAX_OBJECT_DESCRIPTION];
     int tag_count;
     char tags[OEP_MAX_OBJECT_TAGS][OEP_MAX_TAG_LENGTH];
+    /* AP-OEP-FOUNDATION-GRAPH-IDENTITY-001, OEP_API_VERSION 21 — the
+       object_id of the OEP_OBJECT_TYPE_DIAGRAM object this object
+       belongs to, or empty if it belongs to no diagram/graph. Appended
+       at the end, per this header's own struct-extension convention
+       (see oep_package_details_t's doc comment for the alternative,
+       "new superset struct," convention used when appending isn't
+       viable). A caller built against OEP_API_VERSION < 21 that already
+       has its own copy of this struct is unaffected as long as it does
+       not read past its own compiled struct size. */
+    char diagram_id[OEP_MAX_OBJECT_ID];
 } oep_object_info_t;
 
 /* Returns the number of Engineering Objects in the currently open
@@ -350,6 +366,10 @@ typedef struct oep_relationship_info_t {
     char author[OEP_MAX_OBJECT_AUTHOR];
     char description[OEP_MAX_OBJECT_DESCRIPTION];
     char created_utc[OEP_MAX_TIMESTAMP];
+    /* AP-OEP-FOUNDATION-GRAPH-IDENTITY-001, OEP_API_VERSION 21 — same
+       meaning as oep_object_info_t::diagram_id. See that field's own
+       comment. */
+    char diagram_id[OEP_MAX_OBJECT_ID];
 } oep_relationship_info_t;
 
 /* Returns the number of Relationships in the currently open
@@ -618,6 +638,94 @@ oep_result_t oep_relationship_update(OEP_Runtime runtime, const char* relationsh
 /* Deletes the Relationship identified by `relationship_id`. Fails
    with OEP_ERROR_NOT_FOUND if no such relationship exists. */
 oep_result_t oep_relationship_delete(OEP_Runtime runtime, const char* relationship_id);
+
+/* ------------------------------------------------------------------ */
+/* Diagram/Graph Identity and Membership                               */
+/* (AP-OEP-FOUNDATION-GRAPH-IDENTITY-001, OEP_API_VERSION 21)          */
+/* ------------------------------------------------------------------ */
+/*
+ * A "diagram" (a persisted, named subset of Engineering Objects/
+ * Relationships an application such as OEP Studio's Diagram Studio
+ * committed together) is an ordinary Engineering Object of type
+ * OEP_OBJECT_TYPE_DIAGRAM — not a new primitive, not a new store, not a
+ * new identity system. Its object_id (created like any other object's)
+ * IS its diagram/graph identity. Membership is recorded via the
+ * `diagram_id` field now present on oep_object_info_t/
+ * oep_relationship_info_t: empty for an object/relationship that
+ * belongs to no diagram (every object/relationship that predates this
+ * version, and every one created by the pre-existing oep_object_create/
+ * oep_relationship_create, which never populates it).
+ *
+ * Deliberately named "diagram," not "graph": this repository already
+ * has an unrelated, whole-repository, never-persisted traversal concept
+ * called a graph (see the Knowledge Graph / Graph Traversal API
+ * elsewhere in this header) — reusing that word here for a persisted,
+ * named *subset* would collide with it in name only.
+ *
+ * Referential integrity: oep_object_create_with_diagram/
+ * oep_relationship_create_with_diagram both validate that `diagram_id`
+ * names an existing OEP_OBJECT_TYPE_DIAGRAM object before persisting
+ * anything, failing the whole call with OEP_ERROR_INVALID_ARGUMENT
+ * otherwise — a diagram_id is never fabricated or silently accepted.
+ * Foundation does not currently cascade-delete or reference-count
+ * across this relationship (deleting a diagram object leaves its
+ * members' diagram_id pointing at a now-nonexistent object) — this
+ * matches the pre-existing, accepted behavior of
+ * oep_object_delete/oep_relationship_delete, which likewise do not
+ * cascade or reference-count relationship endpoints.
+ */
+
+/* Creates a new diagram/graph identity — an OEP_OBJECT_TYPE_DIAGRAM
+   Engineering Object. A thin, dedicated entry point rather than
+   requiring every caller to remember "call oep_object_create with
+   OEP_OBJECT_TYPE_DIAGRAM" — delegates to the exact same creation path
+   internally. `name` must not be NULL. `description`/`author` may be
+   NULL, treated as empty. Only valid from RepositoryOpen. On success,
+   `out_diagram` (if non-NULL) is populated with the created object,
+   including its generated object_id (the diagram's identity). */
+oep_result_t oep_diagram_create(OEP_Runtime runtime, const char* name, const char* description, const char* author,
+                                 oep_object_info_t* out_diagram);
+
+/* Loads the diagram identified by `diagram_id`. Fails with
+   OEP_ERROR_NOT_FOUND if no object with that id exists, or if an
+   object with that id exists but is not OEP_OBJECT_TYPE_DIAGRAM (never
+   silently treated as a valid graph scope). */
+oep_result_t oep_diagram_get(OEP_Runtime runtime, const char* diagram_id, oep_object_info_t* out_diagram);
+
+/* Same contract as oep_object_create, plus: `diagram_id` must name an
+   existing diagram (see this section's own referential-integrity note)
+   — fails with OEP_ERROR_INVALID_ARGUMENT if it does not, and nothing
+   is persisted. `diagram_id` must not be NULL (pass an empty string,
+   never NULL, for "no diagram" — use plain oep_object_create for that
+   case instead). On success, the created object's diagram_id equals
+   `diagram_id`. */
+oep_result_t oep_object_create_with_diagram(OEP_Runtime runtime, oep_object_type_t object_type, const char* name,
+                                             const char* description, const char* author, const char* const* tags,
+                                             int tag_count, const char* diagram_id, oep_object_info_t* out_object);
+
+/* Same contract as oep_relationship_create, plus: `diagram_id` must
+   name an existing diagram, exactly as oep_object_create_with_diagram
+   requires. */
+oep_result_t oep_relationship_create_with_diagram(OEP_Runtime runtime, const char* source_object_id,
+                                                   const char* target_object_id,
+                                                   oep_relationship_type_t relationship_type, const char* author,
+                                                   const char* description, const char* diagram_id,
+                                                   oep_relationship_info_t* out_relationship);
+
+/* Enumerates the Engineering Objects belonging to `diagram_id`,
+   deterministically sorted by object_id (ascending, byte-wise) — the
+   same ordering guarantee as oep_object_store_list. Fails with
+   OEP_ERROR_INVALID_ARGUMENT if `diagram_id` does not name an existing
+   diagram (distinguishable from a valid, empty diagram: an empty
+   `*out_objects` with a success result). Ownership: release with
+   exactly one call to oep_object_list_release. */
+oep_result_t oep_diagram_get_objects(OEP_Runtime runtime, const char* diagram_id, oep_object_list_t* out_objects);
+
+/* Enumerates the Relationships belonging to `diagram_id`, same
+   determinism/ownership contract as oep_diagram_get_objects — release
+   with oep_relationship_list_release. */
+oep_result_t oep_diagram_get_relationships(OEP_Runtime runtime, const char* diagram_id,
+                                            oep_relationship_list_t* out_relationships);
 
 /* ------------------------------------------------------------------ */
 /* Transactions (Work Package 014, TASK-000029)                        */

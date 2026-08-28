@@ -494,6 +494,61 @@ public:
     DeleteResponse delete_object(const DeleteObjectRequest& request);
 
     // ---------------------------------------------------------------
+    // Diagram/Graph Identity and Membership
+    // (AP-OEP-FOUNDATION-GRAPH-IDENTITY-001, sequenced here for the
+    // same reason every other mutation is: a diagram-scoped create is
+    // still an ordinary Object/Relationship create — it publishes the
+    // same ObjectCreated/RelationshipCreated events, not a new event
+    // type, since a "diagram" is not a new primitive (see
+    // EngineeringObject::diagram_id's own doc comment).)
+    // ---------------------------------------------------------------
+
+    struct CreateDiagramRequest {
+        CreateDiagramRequest(std::string name, std::string description, std::string author)
+            : name(std::move(name)), description(std::move(description)), author(std::move(author)) {}
+        const std::string name;
+        const std::string description;
+        const std::string author;
+    };
+
+    struct CreateObjectInDiagramRequest {
+        CreateObjectInDiagramRequest(oep::repository::ObjectType object_type, std::string name,
+                                      std::string description, std::string author, std::vector<std::string> tags,
+                                      std::string diagram_id)
+            : object_type(object_type),
+              name(std::move(name)),
+              description(std::move(description)),
+              author(std::move(author)),
+              tags(std::move(tags)),
+              diagram_id(std::move(diagram_id)) {}
+
+        const oep::repository::ObjectType object_type;
+        const std::string name;
+        const std::string description;
+        const std::string author;
+        const std::vector<std::string> tags;
+        const std::string diagram_id;
+    };
+
+    // Sequences: FoundationRuntime::create_diagram (itself a thin
+    // create_object wrapper), then publishes ObjectCreated on success —
+    // the same event an ordinary object create publishes, since a
+    // diagram *is* an ordinary Engineering Object.
+    ObjectMutationResponse create_diagram(const CreateDiagramRequest& request);
+
+    // Sequences: FoundationRuntime::create_object_in_diagram, then
+    // publishes ObjectCreated on success.
+    ObjectMutationResponse create_object_in_diagram(const CreateObjectInDiagramRequest& request);
+
+    // Note: reading a diagram (oep_diagram_get) and enumerating its
+    // members (oep_diagram_get_objects/get_diagram_relationships) are
+    // NOT sequenced through RuntimeService — matching this codebase's
+    // existing convention that read-only queries call
+    // FoundationRuntime/the Stores directly (see oep_object_store_get_by_id/
+    // oep_object_store_list's own implementation, which never goes
+    // through RuntimeService either) since a read publishes no event.
+
+    // ---------------------------------------------------------------
     // Relationship Mutation (Work Package 014, sequenced here since
     // WP-REP-006)
     // ---------------------------------------------------------------
@@ -549,6 +604,33 @@ public:
     // Sequences: FoundationRuntime::delete_relationship, then publishes
     // RelationshipDeleted on success.
     DeleteResponse delete_relationship(const DeleteRelationshipRequest& request);
+
+    // AP-OEP-FOUNDATION-GRAPH-IDENTITY-001 — see the Diagram/Graph
+    // Identity section above the Object Mutation block for the general
+    // rationale (no new event type; a diagram-scoped relationship is
+    // still an ordinary relationship).
+    struct CreateRelationshipInDiagramRequest {
+        CreateRelationshipInDiagramRequest(std::string source_object_id, std::string target_object_id,
+                                            oep::repository::RelationshipType relationship_type, std::string author,
+                                            std::string description, std::string diagram_id)
+            : source_object_id(std::move(source_object_id)),
+              target_object_id(std::move(target_object_id)),
+              relationship_type(relationship_type),
+              author(std::move(author)),
+              description(std::move(description)),
+              diagram_id(std::move(diagram_id)) {}
+
+        const std::string source_object_id;
+        const std::string target_object_id;
+        const oep::repository::RelationshipType relationship_type;
+        const std::string author;
+        const std::string description;
+        const std::string diagram_id;
+    };
+
+    // Sequences: FoundationRuntime::create_relationship_in_diagram, then
+    // publishes RelationshipCreated on success.
+    RelationshipMutationResponse create_relationship_in_diagram(const CreateRelationshipInDiagramRequest& request);
 
     // ---------------------------------------------------------------
     // Transactions (Work Package 014 / WP-REP-003, sequenced here since

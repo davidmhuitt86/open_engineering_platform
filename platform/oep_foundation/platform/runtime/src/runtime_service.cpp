@@ -145,6 +145,25 @@ RuntimeService::DeleteResponse RuntimeService::delete_object(const DeleteObjectR
     return DeleteResponse(result.success, result.error);
 }
 
+RuntimeService::ObjectMutationResponse RuntimeService::create_diagram(const CreateDiagramRequest& request) {
+    const RuntimeObjectMutationResult result =
+        context_.runtime().create_diagram(request.name, request.description, request.author);
+    if (result.success) {
+        context_.events().publish(EventType::ObjectCreated, result.object.object_id, result.object.name);
+    }
+    return ObjectMutationResponse(result.success, result.error, result.object);
+}
+
+RuntimeService::ObjectMutationResponse RuntimeService::create_object_in_diagram(
+    const CreateObjectInDiagramRequest& request) {
+    const RuntimeObjectMutationResult result = context_.runtime().create_object_in_diagram(
+        request.object_type, request.name, request.description, request.author, request.tags, request.diagram_id);
+    if (result.success) {
+        context_.events().publish(EventType::ObjectCreated, result.object.object_id, result.object.name);
+    }
+    return ObjectMutationResponse(result.success, result.error, result.object);
+}
+
 RuntimeService::RelationshipMutationResponse RuntimeService::create_relationship(const CreateRelationshipRequest& request) {
     const RuntimeRelationshipMutationResult result = context_.runtime().create_relationship(
         request.source_object_id, request.target_object_id, request.relationship_type, request.author, request.description);
@@ -171,6 +190,19 @@ RuntimeService::DeleteResponse RuntimeService::delete_relationship(const DeleteR
     }
     return DeleteResponse(result.success, result.error);
 }
+
+RuntimeService::RelationshipMutationResponse RuntimeService::create_relationship_in_diagram(
+    const CreateRelationshipInDiagramRequest& request) {
+    const RuntimeRelationshipMutationResult result = context_.runtime().create_relationship_in_diagram(
+        request.source_object_id, request.target_object_id, request.relationship_type, request.author,
+        request.description, request.diagram_id);
+    if (result.success) {
+        context_.events().publish(EventType::RelationshipCreated, result.relationship.relationship_id,
+                                   result.relationship.source_object_id + " -> " + result.relationship.target_object_id);
+    }
+    return RelationshipMutationResponse(result.success, result.error, result.relationship);
+}
+
 
 RuntimeService::TransactionResponse RuntimeService::begin_transaction() {
     const RuntimeResult result = context_.runtime().begin_transaction();

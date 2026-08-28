@@ -67,6 +67,12 @@ public:
     // from `relationships` and reported in `invalid_entries`.
     ListRelationshipsResult list_all() const;
 
+    // AP-OEP-FOUNDATION-GRAPH-IDENTITY-001 — same enumeration as
+    // list_all(), filtered to relationships whose diagram_id equals
+    // [diagram_id]. See ObjectStore::list_by_diagram's own doc comment
+    // for the referential-integrity note (unchanged here).
+    ListRelationshipsResult list_by_diagram(const std::string& diagram_id) const;
+
     // Writes `relationship` exactly as given — no field is regenerated,
     // and no audit event is recorded — after verifying both endpoint
     // objects exist. For reconstructing a repository from an export

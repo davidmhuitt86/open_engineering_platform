@@ -29,6 +29,13 @@ struct Relationship {
     std::string created_utc;
     std::string author;
     std::string description;
+
+    // AP-OEP-FOUNDATION-GRAPH-IDENTITY-001 — same field, same meaning,
+    // same referential-integrity story as EngineeringObject::diagram_id
+    // (see that field's own doc comment for the full rationale). Empty
+    // for every relationship that predates this field or belongs to no
+    // diagram/graph.
+    std::string diagram_id;
 };
 
 // Validates required fields, UUIDv4 format for all identifiers, and that
