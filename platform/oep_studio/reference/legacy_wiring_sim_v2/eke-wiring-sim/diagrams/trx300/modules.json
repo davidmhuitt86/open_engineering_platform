@@ -1,0 +1,487 @@
+[
+  {
+    "id": "indicator-lights",
+    "label": "Indicator Lights",
+    "sublabel": "Oil/Rev/Neutral",
+    "category": "indicator",
+    "exit": "down",
+    "terminals": [
+      {
+        "name": "OIL",
+        "color": "Br/R"
+      },
+      {
+        "name": "REV",
+        "color": "Gr"
+      },
+      {
+        "name": "NEU",
+        "color": "Lg/R"
+      }
+    ]
+  },
+  {
+    "id": "cdi-unit",
+    "label": "CDI Unit",
+    "sublabel": "DC-CDI Igniter",
+    "category": "ignition",
+    "exit": "down",
+    "terminals": [
+      {
+        "name": "P1",
+        "color": "Bl/Y"
+      },
+      {
+        "name": "P2",
+        "color": "G"
+      },
+      {
+        "name": "P3",
+        "color": "Blu/Y"
+      },
+      {
+        "name": "P4",
+        "color": "Y/W"
+      },
+      {
+        "name": "P5",
+        "color": "Bl/W"
+      },
+      {
+        "name": "P6",
+        "color": "Gr"
+      }
+    ]
+  },
+  {
+    "id": "alarm-unit",
+    "label": "Alarm Unit",
+    "sublabel": "Rev/Oil Buzzer",
+    "category": "control",
+    "exit": "down",
+    "terminals": [
+      {
+        "name": "A1",
+        "color": "Br/R"
+      },
+      {
+        "name": "A2",
+        "color": "Bl"
+      },
+      {
+        "name": "A3",
+        "color": "G"
+      },
+      {
+        "name": "A5",
+        "color": "P"
+      },
+      {
+        "name": "A6",
+        "color": "Blu/R"
+      }
+    ]
+  },
+  {
+    "id": "ignition-switch",
+    "label": "Ignition Switch",
+    "sublabel": "Key Cylinder",
+    "category": "control",
+    "exit": "down",
+    "terminals": [
+      {
+        "name": "BAT1",
+        "color": "R"
+      },
+      {
+        "name": "BAT2",
+        "color": "Bl"
+      },
+      {
+        "name": "IG1",
+        "color": "P"
+      },
+      {
+        "name": "BAT3",
+        "color": "P/W"
+      }
+    ]
+  },
+  {
+    "id": "dc-consent-jack",
+    "label": "DC Consent",
+    "sublabel": "Accessory Jack",
+    "category": "accessory",
+    "exit": "down",
+    "terminals": [
+      {
+        "name": "+12V",
+        "color": "P"
+      },
+      {
+        "name": "GND",
+        "color": "G"
+      }
+    ]
+  },
+  {
+    "id": "rectifier-diode",
+    "label": "Rectifier",
+    "sublabel": "Diode",
+    "category": "charging",
+    "exit": "down",
+    "terminals": [
+      {
+        "name": "A",
+        "color": "Lg/R"
+      },
+      {
+        "name": "K",
+        "color": "G/R"
+      }
+    ]
+  },
+  {
+    "id": "regulator-rectifier",
+    "label": "Reg/Rect",
+    "sublabel": "Charge Regulator",
+    "category": "charging",
+    "exit": "down",
+    "terminals": [
+      {
+        "name": "GND",
+        "color": "Bl"
+      },
+      {
+        "name": "B+",
+        "color": "R"
+      },
+      {
+        "name": "REG",
+        "color": "G"
+      },
+      {
+        "name": "AC1",
+        "color": "Y"
+      },
+      {
+        "name": "AC2",
+        "color": "Y"
+      },
+      {
+        "name": "AC3",
+        "color": "Y"
+      }
+    ]
+  },
+  {
+    "id": "left-handlebar-switch",
+    "label": "LH Handlebar Sw",
+    "sublabel": "Light/Stop/Start",
+    "category": "control",
+    "exit": "up",
+    "terminals": [
+      {
+        "name": "BAT2",
+        "color": "Bl"
+      },
+      {
+        "name": "IG1",
+        "color": "Bl"
+      },
+      {
+        "name": "TL",
+        "color": "Br"
+      },
+      {
+        "name": "ST",
+        "color": "Y/R"
+      },
+      {
+        "name": "IG2",
+        "color": "Bl/W"
+      },
+      {
+        "name": "LO",
+        "color": "W"
+      },
+      {
+        "name": "HI",
+        "color": "Blu"
+      }
+    ]
+  },
+  {
+    "id": "chassis-ground",
+    "label": "Chassis GND",
+    "sublabel": "Engine Bolt",
+    "category": "ground",
+    "exit": "up",
+    "terminals": [
+      {
+        "name": "A",
+        "color": "G"
+      },
+      {
+        "name": "B",
+        "color": "G"
+      }
+    ]
+  },
+  {
+    "id": "ignition-coil",
+    "label": "Ignition Coil",
+    "sublabel": "Primary",
+    "category": "ignition",
+    "exit": "up",
+    "terminals": [
+      {
+        "name": "PRI+",
+        "color": "Bl/Y"
+      },
+      {
+        "name": "GND",
+        "color": "G"
+      }
+    ]
+  },
+  {
+    "id": "spark-plug",
+    "label": "Spark Plug",
+    "sublabel": "HT Lead",
+    "category": "ignition",
+    "exit": "up",
+    "terminals": [
+      {
+        "name": "HT",
+        "color": "\u2014"
+      }
+    ]
+  },
+  {
+    "id": "reverse-switch",
+    "label": "Reverse Switch",
+    "sublabel": "Gear Position",
+    "category": "switch",
+    "exit": "up",
+    "terminals": [
+      {
+        "name": "OUT",
+        "color": "Gr"
+      },
+      {
+        "name": "BODY",
+        "color": "G"
+      }
+    ]
+  },
+  {
+    "id": "neutral-switch",
+    "label": "Neutral Switch",
+    "sublabel": "Gear Position",
+    "category": "switch",
+    "exit": "up",
+    "terminals": [
+      {
+        "name": "OUT",
+        "color": "Lg"
+      },
+      {
+        "name": "BODY",
+        "color": "G"
+      }
+    ]
+  },
+  {
+    "id": "oil-temp-switch",
+    "label": "Oil Temp Switch",
+    "sublabel": "Thermo Switch",
+    "category": "switch",
+    "exit": "up",
+    "terminals": [
+      {
+        "name": "OUT",
+        "color": "Bl"
+      },
+      {
+        "name": "BODY",
+        "color": "G"
+      }
+    ]
+  },
+  {
+    "id": "pulser-coil",
+    "label": "Pulser Coil",
+    "sublabel": "Timing Pickup",
+    "category": "ignition",
+    "exit": "up",
+    "terminals": [
+      {
+        "name": "OUT",
+        "color": "Blu/Y"
+      },
+      {
+        "name": "BODY",
+        "color": "G"
+      }
+    ]
+  },
+  {
+    "id": "alternator-stator",
+    "label": "Stator/Alt",
+    "sublabel": "Charging",
+    "category": "charging",
+    "exit": "up",
+    "terminals": [
+      {
+        "name": "GND",
+        "color": "G"
+      },
+      {
+        "name": "LIT",
+        "color": "Y/W"
+      },
+      {
+        "name": "AC1",
+        "color": "Y"
+      },
+      {
+        "name": "AC2",
+        "color": "Y"
+      },
+      {
+        "name": "AC3",
+        "color": "Y"
+      }
+    ]
+  },
+  {
+    "id": "starter-motor",
+    "label": "Starter Motor",
+    "sublabel": "DC Motor",
+    "category": "starter",
+    "exit": "up",
+    "terminals": [
+      {
+        "name": "B+",
+        "color": "Bl"
+      },
+      {
+        "name": "BODY",
+        "color": "G"
+      }
+    ]
+  },
+  {
+    "id": "starter-relay",
+    "label": "Starter Relay",
+    "sublabel": "Solenoid",
+    "category": "starter",
+    "exit": "up",
+    "terminals": [
+      {
+        "name": "C+",
+        "color": "Y/R"
+      },
+      {
+        "name": "C-",
+        "color": "Lg/R"
+      },
+      {
+        "name": "MB+",
+        "color": "Bl"
+      },
+      {
+        "name": "MO",
+        "color": "Bl"
+      }
+    ]
+  },
+  {
+    "id": "battery-fuses",
+    "label": "Battery + Fuses",
+    "sublabel": "12V",
+    "category": "power",
+    "exit": "up",
+    "terminals": [
+      {
+        "name": "B+(R)",
+        "color": "R"
+      },
+      {
+        "name": "B+(PW)",
+        "color": "P/W"
+      },
+      {
+        "name": "MB+",
+        "color": "Bl"
+      },
+      {
+        "name": "B-",
+        "color": "Bl"
+      }
+    ]
+  },
+  {
+    "id": "rh-headlight",
+    "label": "RH Headlight",
+    "sublabel": "12V 25/25W",
+    "category": "lighting",
+    "exit": "right",
+    "bulb": true,
+    "terminals": [
+      {
+        "name": "HI",
+        "color": "Bu"
+      },
+      {
+        "name": "LO",
+        "color": "W"
+      },
+      {
+        "name": "GND",
+        "color": "G"
+      }
+    ]
+  },
+  {
+    "id": "lh-headlight",
+    "label": "LH Headlight",
+    "sublabel": "12V 25/25W",
+    "category": "lighting",
+    "exit": "right",
+    "bulb": true,
+    "terminals": [
+      {
+        "name": "HI",
+        "color": "Bu"
+      },
+      {
+        "name": "LO",
+        "color": "W"
+      },
+      {
+        "name": "GND",
+        "color": "G"
+      }
+    ]
+  },
+  {
+    "id": "tail-light",
+    "label": "Tail Light",
+    "sublabel": "12V 5W",
+    "category": "lighting",
+    "exit": "left",
+    "bulb": true,
+    "terminals": [
+      {
+        "name": "P/W",
+        "color": "P/W"
+      },
+      {
+        "name": "R",
+        "color": "R"
+      }
+    ]
+  }
+]

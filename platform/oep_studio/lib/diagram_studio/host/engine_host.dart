@@ -41,9 +41,20 @@ class EngineHost {
   /// itself stays Flutter-independent (SDD-025/026), so this is the one
   /// place a Studio-specific loading mechanism (`rootBundle`, as opposed
   /// to `dart:io` directory scanning) is needed.
-  static Future<EngineHost> create() async {
+  ///
+  /// AP-OEP-FOUNDATION-BRIDGE-001 — [foundationBridge], when supplied,
+  /// is registered into [EngineeringEngine.registry] right here, the
+  /// same "provider wiring" spot every other provider goes through
+  /// (`EngineeringEngine.create()` itself). `null` is the normal case
+  /// when no Foundation runtime is available yet — `EngineRegistry.
+  /// foundationBridge` is nullable for exactly this reason (SDD-025:
+  /// the Engine must operate fine with no bridge registered at all).
+  static Future<EngineHost> create({FoundationBridgePort? foundationBridge}) async {
     final engine = EngineeringEngine.create();
     await engine.initialize();
+    if (foundationBridge != null) {
+      engine.registry.register<FoundationBridgePort>(foundationBridge);
+    }
     final symbols = engine.registry.symbols;
     if (symbols is SymbolLibrary) {
       for (final identifier in _seedSymbolIdentifiers) {

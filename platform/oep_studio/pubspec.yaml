@@ -110,6 +110,18 @@ dependencies:
   # `docs/DIAGRAM_STUDIO_V2_WEBVIEW_POC.md` for the full account.
   webview_flutter_windows: ^1.1.1
 
+  # AP-OEP-DIAGRAM-ANDROID-001: the federated `webview_flutter` pair
+  # (interface + Android implementation), used only on Android to embed
+  # the same, unmodified `reference/legacy_wiring_sim_v2/eke-wiring-sim/`
+  # legacy V2 app the Windows host above embeds — see
+  # `lib/diagram_studio/webview/legacy_v2_android_bridge_transport.dart`'s
+  # own doc comment. `webview_flutter_android` is depended on directly
+  # (not just transitively via `webview_flutter`) for
+  # `AndroidWebViewController.enableDebugging`, used only in debug
+  # builds.
+  webview_flutter: ^4.14.1
+  webview_flutter_android: ^4.14.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -122,3 +134,14 @@ flutter:
   #   - assets/icons/
   #   - assets/images/
   #   - assets/themes/
+
+  # AP-OEP-DIAGRAM-ANDROID-001: the legacy V2 wiring app's static files
+  # are NOT declared here — Flutter's asset bundler silently drops any
+  # entry that resolves outside this package's own directory (confirmed:
+  # `../../reference/...` entries produced zero files under
+  # `build/flutter_assets/`), so `reference/legacy_wiring_sim_v2/` can
+  # never be reached this way. Bundled instead as a native Android asset
+  # via an extra Gradle source set — see
+  # `android/app/build.gradle.kts`'s own comment, and
+  # `lib/diagram_studio/webview/legacy_v2_android_webview.dart`, which
+  # loads it via `file:///android_asset/...`.

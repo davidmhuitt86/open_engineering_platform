@@ -105,6 +105,22 @@ changing.
 **Status.** Accepted; **flagged as an open dependency for architectural
 review** before any real Foundation integration is attempted.
 
+**Superseded (partial), AP-OEP-FOUNDATION-BRIDGE-001.** The "no
+implementation ships" decision above no longer holds for
+`FoundationBridgePort` specifically: `oep_studio`'s Repository Commit
+feature (Work Package 012) subsequently built and proved, end-to-end,
+the exact FFI path `FoundationBridgePort` needed (`FoundationBridge`'s
+`createObject`/`createRelationship`/transaction methods,
+`docs/REPOSITORY_COMMIT.md`) — this package (`oep_studio`'s
+`StudioFoundationBridgePort`) wraps that already-proven mechanism rather
+than building a new one, so the "would mean modifying `oep_foundation`
+and/or `oep_studio`" cost this ADR originally flagged turned out not to
+apply once that unrelated work package had already paid it for a
+different feature. The original decision was correct at the time it was
+made — nothing here was an oversight. `EngineRegistry.foundationBridge`
+is nullable, preserving this ADR's SDD-025 point that the Engine must
+still operate with no bridge registered at all.
+
 ---
 
 ## ADR-005 — `lib/core/` vs. Top-Level Public Folders

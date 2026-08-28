@@ -2,6 +2,7 @@ import 'dart:async';
 
 import '../events/engine_event.dart';
 import '../events/engine_event_bus.dart';
+import '../graph/models/engineering_graph.dart';
 import 'command_history.dart';
 import 'editing_command.dart';
 import 'editing_session.dart';
@@ -68,6 +69,22 @@ class EditingService {
     _session = session;
     _history.clear();
     _notify('reset');
+  }
+
+  /// AP-OEP-DIAGRAM-REPOSITORY-001 — replaces the live session's graph
+  /// directly, outside the command system and without touching undo
+  /// history, mirroring [toggleGroupExpanded]/[setGroupVisible]'s own
+  /// "system patch, not a user edit" pattern (unlike [resetSession],
+  /// which also clears history — appropriate for loading a different
+  /// document, not for this). Introduced for writing Foundation-assigned
+  /// `repositoryObjectId`/`repositoryRelationshipId` back onto the live
+  /// graph after `EngineGraphCommitService.commit()` succeeds: a
+  /// completed Foundation Repository transaction isn't undoable at
+  /// Foundation's own level, so it must not enter this session's undo
+  /// stack either.
+  void applyExternalGraphUpdate(EngineeringGraph graph) {
+    _session = _session.copyWith(graph: graph);
+    _notify('applyExternalGraphUpdate');
   }
 
   /// Toggles a group's transient collapse/expand state

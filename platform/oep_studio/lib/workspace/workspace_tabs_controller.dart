@@ -190,7 +190,9 @@ class WorkspaceTabsController extends ChangeNotifier {
   }
 
   bool _isKnownSurfaceId(String surfaceId) =>
-      surfaceId == WorkspaceTab.diagramSurfaceId || SurfaceRegistry.forId(surfaceId) != null;
+      surfaceId == WorkspaceTab.diagramSurfaceId ||
+      surfaceId == WorkspaceTab.diagram2SurfaceId ||
+      SurfaceRegistry.forId(surfaceId) != null;
 
   void _rememberLastPersisted(List<String> surfaces, String? activeSurfaceId) {
     _lastPersistedSurfaces = List.of(surfaces);

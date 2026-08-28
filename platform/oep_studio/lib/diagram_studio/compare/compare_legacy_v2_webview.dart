@@ -11,11 +11,28 @@ import '../webview/legacy_v2_bridge_transport.dart';
 import '../webview/legacy_v2_state_adapter.dart';
 import '../webview/legacy_v2_trust_boundary.dart';
 import 'compare_diagram_controller.dart';
+import 'compare_legacy_v2_android_webview.dart';
 import 'compare_project_provider.dart';
 
-/// AP-OEP-DIAGRAM-COMPARE-001 — the Compare pane's own Legacy V2 WebView
-/// host. A structural copy of `diagram_studio/webview/legacy_v2_webview.dart`
-/// (`LegacyV2WebViewPage`), not a parameterization of it — kept as a
+/// AP-OEP-DIAGRAM-COMPARE-001/AP-OEP-DIAGRAM-ANDROID-001 — the Compare
+/// pane's own Legacy V2 WebView host, and the stable public entry point
+/// every call site embeds. Picks [_WindowsCompareLegacyV2WebViewPage]
+/// (this file's own original implementation, unchanged) on Windows,
+/// [CompareLegacyV2AndroidWebViewPage] everywhere else — same platform
+/// branch [LegacyV2WebViewPage] (`diagram_studio/webview/legacy_v2_webview.dart`)
+/// uses, for the same reasons.
+class CompareLegacyV2WebViewPage extends StatelessWidget {
+  const CompareLegacyV2WebViewPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    if (Platform.isWindows) return const _WindowsCompareLegacyV2WebViewPage();
+    return const CompareLegacyV2AndroidWebViewPage();
+  }
+}
+
+/// A structural copy of `diagram_studio/webview/legacy_v2_webview.dart`'s
+/// Windows implementation, not a parameterization of it — kept as a
 /// separate file so the Primary pane's widget (and its own test suite)
 /// carry zero risk from this addition.
 ///
@@ -29,14 +46,14 @@ import 'compare_project_provider.dart';
 /// [compareEngineeringProjectServiceProvider] instead of the Primary
 /// document's providers — this is the only substantive difference from
 /// the Primary widget.
-class CompareLegacyV2WebViewPage extends ConsumerStatefulWidget {
-  const CompareLegacyV2WebViewPage({super.key});
+class _WindowsCompareLegacyV2WebViewPage extends ConsumerStatefulWidget {
+  const _WindowsCompareLegacyV2WebViewPage();
 
   @override
-  ConsumerState<CompareLegacyV2WebViewPage> createState() => _CompareLegacyV2WebViewPageState();
+  ConsumerState<_WindowsCompareLegacyV2WebViewPage> createState() => _WindowsCompareLegacyV2WebViewPageState();
 }
 
-class _CompareLegacyV2WebViewPageState extends ConsumerState<CompareLegacyV2WebViewPage> {
+class _WindowsCompareLegacyV2WebViewPageState extends ConsumerState<_WindowsCompareLegacyV2WebViewPage> {
   final WebviewController _controller = WebviewController();
   late final LegacyV2BridgeTransport _transport = LegacyV2BridgeTransport(_controller);
   LegacyV2StateAdapter? _adapter;

@@ -10,9 +10,31 @@ import '../../core/theme/studio_colors.dart';
 import '../controller/diagram_studio_controller.dart';
 import '../controller/diagram_studio_controller_provider.dart';
 import '../simulation/diagram_simulation_service.dart';
+import 'legacy_v2_android_webview.dart';
 import 'legacy_v2_bridge_transport.dart';
 import 'legacy_v2_state_adapter.dart';
 import 'legacy_v2_trust_boundary.dart';
+
+/// AP-OEP-DIAGRAM-ANDROID-001 — the stable public entry point every call
+/// site (`WebSurfacesHostPage`, `EngineeringWorkspacePage`,
+/// `DiagramWithComparePane`) already embeds. Picks the platform-specific
+/// implementation at build time: [_WindowsLegacyV2WebViewPage] (this
+/// file's own original implementation, byte-for-byte unchanged — see its
+/// doc comment) on Windows, [LegacyV2AndroidWebViewPage] everywhere else
+/// this app currently runs. Existing tests that look up
+/// `find.byType(LegacyV2WebViewPage)` are unaffected — this stays the
+/// widget type in the tree either way, and every test in this repo runs
+/// on Windows, so the branch always resolves to the original
+/// implementation during `flutter test`.
+class LegacyV2WebViewPage extends StatelessWidget {
+  const LegacyV2WebViewPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    if (Platform.isWindows) return const _WindowsLegacyV2WebViewPage();
+    return const LegacyV2AndroidWebViewPage();
+  }
+}
 
 /// AP-DIAGRAM-V2-WEBVIEW-001 — a minimal Windows WebView host that loads
 /// the **existing, unmodified** legacy V2 reference application
@@ -21,7 +43,7 @@ import 'legacy_v2_trust_boundary.dart';
 /// three-layer bridge established by this task:
 ///
 /// ```
-/// LegacyV2WebViewPage (this class)
+/// _WindowsLegacyV2WebViewPage (this class)
 ///         |  owns WebviewController + Webview widget only
 ///         v
 /// LegacyV2BridgeTransport  — WebView<->Dart messages, no OEP knowledge
@@ -53,15 +75,16 @@ import 'legacy_v2_trust_boundary.dart';
 /// copy into the Studio source tree, no bundling step, no local HTTP
 /// server.
 ///
-/// **Platform:** Windows only, dev-only entry point.
-class LegacyV2WebViewPage extends ConsumerStatefulWidget {
-  const LegacyV2WebViewPage({super.key});
+/// **Platform:** Windows only — see [LegacyV2WebViewPage] (the public
+/// entry point above) for how Android reaches a different implementation.
+class _WindowsLegacyV2WebViewPage extends ConsumerStatefulWidget {
+  const _WindowsLegacyV2WebViewPage();
 
   @override
-  ConsumerState<LegacyV2WebViewPage> createState() => _LegacyV2WebViewPageState();
+  ConsumerState<_WindowsLegacyV2WebViewPage> createState() => _WindowsLegacyV2WebViewPageState();
 }
 
-class _LegacyV2WebViewPageState extends ConsumerState<LegacyV2WebViewPage> {
+class _WindowsLegacyV2WebViewPageState extends ConsumerState<_WindowsLegacyV2WebViewPage> {
   final WebviewController _controller = WebviewController();
   late final LegacyV2BridgeTransport _transport = LegacyV2BridgeTransport(_controller);
   LegacyV2StateAdapter? _adapter;

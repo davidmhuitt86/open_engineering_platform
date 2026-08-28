@@ -32,6 +32,24 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
+
+    // AP-OEP-DIAGRAM-ANDROID-001: the legacy V2 wiring app
+    // (reference/legacy_wiring_sim_v2/eke-wiring-sim/) is loaded on
+    // Android as a native Android asset (file:///android_asset/...),
+    // NOT as a Flutter asset — Flutter's own asset bundler silently
+    // drops any `pubspec.yaml` asset entry that resolves outside the
+    // Flutter package directory (confirmed: `../../reference/...`
+    // entries produced zero files under `build/flutter_assets/`), so
+    // `loadFlutterAsset` cannot reach this directory. Android's Gradle
+    // asset source sets have no such restriction, so this extra
+    // `srcDirs` entry lets the app load the exact same, unmodified
+    // repository files the Windows host loads via `file://` — no copy
+    // into the Studio source tree, matching that host's own principle.
+    sourceSets {
+        getByName("main") {
+            assets.srcDirs("../../../../reference/legacy_wiring_sim_v2/eke-wiring-sim")
+        }
+    }
 }
 
 kotlin {

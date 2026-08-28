@@ -1,0 +1,17 @@
+{
+  "type": "switch",
+  "label": "Generic Switch",
+  "variants": ["SPST", "SPDT", "DPDT", "momentary"],
+  "terminals": {
+    "SPST": ["C", "NO"],
+    "SPDT": ["C", "NO", "NC"],
+    "DPDT": ["C1", "NO1", "NC1", "C2", "NO2", "NC2"]
+  },
+  "properties": {
+    "closedResistance": 0.1,
+    "openResistance": "Infinity"
+  },
+  "states": ["open", "closed"],
+  "category": "control",
+  "notes": "State determines continuity between terminals. Open = OL resistance. Closed = ~0.1Ω."
+}

@@ -1,0 +1,21 @@
+{
+  "type": "relay",
+  "label": "12V Automotive Relay",
+  "variants": ["SPDT", "SPST"],
+  "terminals": {
+    "coil":     ["85", "86"],
+    "contacts": ["30", "87", "87A"]
+  },
+  "properties": {
+    "coilVoltage":        12,
+    "coilResistance":     70,
+    "contactResistance":  0.1,
+    "pickupVoltage":      9.0,
+    "dropoutVoltage":     1.5,
+    "activateDelay":      10,
+    "releaseDelay":       5
+  },
+  "behavior": "CoilEnergized → ContactsClose(30→87). CoilDe-energized → ContactsOpen(30→87), Close(30→87A)",
+  "category": "control",
+  "notes": "Contacts close when coil voltage ≥ pickupVoltage. 30 is common. 87 is normally-open. 87A is normally-closed."
+}

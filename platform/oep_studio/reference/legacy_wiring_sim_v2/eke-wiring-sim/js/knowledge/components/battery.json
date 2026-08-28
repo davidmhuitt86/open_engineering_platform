@@ -1,0 +1,13 @@
+{
+  "type": "battery",
+  "label": "12V Lead-Acid Battery",
+  "terminals": ["B+", "B-"],
+  "properties": {
+    "nominalVoltage":  12.6,
+    "crankingVoltage": 11.8,
+    "chargingVoltage": 14.2,
+    "internalResistance": 0.02
+  },
+  "category": "power",
+  "notes": "Voltage varies by state: key-off 12.6V, cranking 11.8V, running/charging 14.2V"
+}

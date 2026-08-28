@@ -30,18 +30,33 @@ class WorkspaceTab {
   /// stable sentinel this shell's own content-builder switches on.
   static const String diagramSurfaceId = 'diagram';
 
+  /// AP-OEP-DIAGRAM-COMPARE-002 — reserved [surfaceId] for a second,
+  /// fully independent diagram tab, backed by the same
+  /// `compareDiagramControllerProvider`/`CompareDiagramController`
+  /// engine the split-pane "Compare Diagrams" pane already uses (§
+  /// `CompareLegacyV2WebViewPage`'s own doc comment) — this just gives
+  /// that same second engine its own full-width tab, in addition to the
+  /// split view, rather than a third independent document. Reuses
+  /// [WorkspaceTabsController.openSurface]'s existing generic
+  /// one-tab-per-surfaceId dedup/persistence, exactly like
+  /// [diagramSurfaceId] — no controller changes needed.
+  static const String diagram2SurfaceId = 'diagram-2';
+
   final String id;
   final String surfaceId;
 
   bool get isDiagram => surfaceId == diagramSurfaceId;
 
+  bool get isDiagram2 => surfaceId == diagram2SurfaceId;
+
   /// `null` only if [surfaceId] refers to a Surface that has since been
   /// removed from the registry — not expected in practice (Surfaces are
   /// a static, compile-time list today), but callers should not assume
   /// non-null blindly.
-  SurfaceDefinition? get _surface => isDiagram ? null : SurfaceRegistry.forId(surfaceId);
+  SurfaceDefinition? get _surface => (isDiagram || isDiagram2) ? null : SurfaceRegistry.forId(surfaceId);
 
-  String get title => isDiagram ? StudioDestination.diagram.label : (_surface?.title ?? surfaceId);
+  String get title =>
+      isDiagram ? StudioDestination.diagram.label : isDiagram2 ? 'Diagram Studio (2)' : (_surface?.title ?? surfaceId);
 
-  IconData get icon => isDiagram ? StudioDestination.diagram.icon : (_surface?.icon ?? Icons.help_outline);
+  IconData get icon => (isDiagram || isDiagram2) ? StudioDestination.diagram.icon : (_surface?.icon ?? Icons.help_outline);
 }

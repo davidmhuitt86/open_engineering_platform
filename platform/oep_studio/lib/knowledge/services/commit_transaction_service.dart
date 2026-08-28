@@ -14,9 +14,14 @@ import 'knowledge_session_service.dart';
 /// unchanged." Unlike `CommitPlanService`/`CommitConversionService`,
 /// this service is not pure — executing a commit *is* Foundation I/O —
 /// but it is still a service, not the Connection Manager: only
-/// `FoundationRuntimeNotifier` calls it, and it is the only place in
-/// Studio (besides `FoundationBridge` itself) that calls
-/// `oep_transaction_*`/`oep_object_create`/`oep_relationship_create`.
+/// `FoundationRuntimeNotifier` calls it. As of AP-OEP-FOUNDATION-BRIDGE-001,
+/// no longer the *only* Studio caller of `oep_transaction_*`/
+/// `oep_object_create`/`oep_relationship_create` — Diagram Studio's own
+/// Engineering Graph commit path (`StudioFoundationBridgePort`,
+/// `diagram_studio/bridge/`) calls the exact same `FoundationBridge`
+/// methods for a genuinely different source model (`EngineeringGraph`
+/// nodes/relationships, not `KnowledgeCandidate`s) — still the same
+/// underlying transaction primitives, not a second commit mechanism.
 abstract final class CommitTransactionService {
   /// Executes [plan] against [bridge] inside one Foundation transaction
   /// and returns the resulting [CommitReport]. [allCandidates] is the

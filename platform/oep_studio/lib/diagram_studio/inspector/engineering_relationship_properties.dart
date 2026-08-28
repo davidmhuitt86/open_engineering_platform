@@ -6,9 +6,11 @@ import '../../core/models/engineering_inspectable.dart';
 import '../../core/services/engineering_project_service.dart';
 import '../../core/services/foundation_runtime_service.dart';
 import '../../core/theme/studio_colors.dart';
+import '../../shared/navigation/explorer_navigation.dart';
 import '../../shared/navigation/unified_navigation.dart';
 import '../../shared/widgets/property_field.dart';
 import '../../shared/widgets/validation_findings_list.dart';
+import '../bridge/diagram_repository_commit_action.dart';
 
 /// Property Inspector mode for a selected Engineering Graph relationship
 /// (WORK_PACKAGE_024, ENGINE-TASK-000110). As of WORK_PACKAGE_025
@@ -45,6 +47,28 @@ class EngineeringRelationshipProperties extends ConsumerWidget {
         PropertyField(
           label: 'Repository Relationship',
           value: relationship.repositoryRelationshipId ?? '(unsaved to Repository)',
+        ),
+        // AP-OEP-DIAGRAM-REPOSITORY-001 — see `EngineeringNodeProperties`'s
+        // own doc comment on this same action: commits the whole current
+        // diagram, not just this relationship.
+        Padding(
+          padding: const EdgeInsets.only(bottom: 16),
+          child: relationship.repositoryRelationshipId == null
+              ? OutlinedButton(
+                  onPressed: () => commitDiagramToRepository(context, ref),
+                  child: const Text('Commit Diagram to Repository', style: TextStyle(fontSize: 12)),
+                )
+              : InkWell(
+                  onTap: () => goToRelationship(context, ref, relationship.repositoryRelationshipId!),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.open_in_new, size: 13, color: StudioColors.selection),
+                      SizedBox(width: 4),
+                      Text('Go to Repository Relationship', style: TextStyle(color: StudioColors.selection, fontSize: 12)),
+                    ],
+                  ),
+                ),
         ),
         if (findings.isNotEmpty) ...[
           const Padding(

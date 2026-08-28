@@ -3,11 +3,13 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:engineering_engine/engineering_engine.dart';
 
+import '../../diagram_studio/bridge/studio_foundation_bridge_port.dart';
 import '../../diagram_studio/host/diagram_document.dart';
 import '../../diagram_studio/host/engine_host.dart';
 import '../../diagram_studio/settings/diagram_studio_settings_provider.dart';
 import '../models/engineering_project.dart';
 import '../models/recent_history_entry.dart';
+import 'foundation_runtime_service.dart';
 
 const int _maxRecentHistory = 50;
 
@@ -109,7 +111,17 @@ class EngineeringProjectNotifier extends Notifier<EngineeringProjectState> {
     final existing = state.engineHost;
     if (existing != null) return existing;
 
-    final host = await EngineHost.create();
+    // AP-OEP-FOUNDATION-BRIDGE-001 — resolved via a closure, not read
+    // once here, so the registered bridge always reaches whichever
+    // `FoundationBridge` is live *at commit time* (e.g. a repository
+    // opened after this engine already started), matching
+    // `LegacyV2StateAdapter.simulationServiceResolver`'s own established
+    // "resolve fresh per call" reasoning in this codebase.
+    final host = await EngineHost.create(
+      foundationBridge: StudioFoundationBridgePort.fromBridgeResolver(
+        () => ref.read(foundationRuntimeServiceProvider.notifier).bridge,
+      ),
+    );
     _sessionSub = host.engine.editing.sessionChanges.listen((s) {
       state = state.copyWith(session: s, validationReport: host.engine.validate(s.graph));
     });

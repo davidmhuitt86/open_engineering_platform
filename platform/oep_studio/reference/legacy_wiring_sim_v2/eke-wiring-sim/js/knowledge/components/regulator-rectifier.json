@@ -1,0 +1,14 @@
+{
+  "type": "regulator-rectifier",
+  "label": "Regulator / Rectifier",
+  "terminals": ["AC1", "AC2", "AC3", "B+", "GND", "REG"],
+  "properties": {
+    "acInput":         "14-30V AC (3-phase stator)",
+    "dcOutput":        "13.5-14.5V DC",
+    "regulationPoint": 14.2,
+    "groundRequired":  true
+  },
+  "behavior": "Rectifies 3-phase AC from stator to DC. Regulates output to ~14.2V. Requires chassis ground.",
+  "category": "charging",
+  "notes": "If ground connection fails, output voltage rises uncontrolled. AC side is diode bridge."
+}

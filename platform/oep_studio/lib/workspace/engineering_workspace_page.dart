@@ -1,22 +1,14 @@
-import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/surfaces/surface_definition.dart';
 import '../core/surfaces/surface_registry.dart';
 import '../core/theme/studio_colors.dart';
-import '../diagram_studio/compare/compare_diagram_controller.dart';
 import '../diagram_studio/compare/compare_legacy_v2_webview.dart';
+import '../diagram_studio/compare/diagram_with_compare_pane.dart';
 import '../diagram_studio/controller/diagram_studio_controller_provider.dart';
-import '../diagram_studio/webview/legacy_v2_webview.dart';
 import 'workspace_tab.dart';
 import 'workspace_tabs_controller.dart';
-
-/// AP-OEP-DIAGRAM-COMPARE-001 — whether the Diagram Workspace tab is
-/// currently showing the Compare pane split alongside the Primary
-/// diagram. Page-scoped UI toggle only — not a context/selection
-/// authority, and not persisted (Compare always starts closed).
-final compareModeEnabledProvider = StateProvider<bool>((ref) => false);
 
 /// AP-OEP-WORKSPACE-SHELL-001 — the first OEP-wide tabbed workspace
 /// shell, generalizing the proven `WebSurfacesHostPage` tab pattern
@@ -79,6 +71,7 @@ class EngineeringWorkspacePage extends ConsumerWidget {
             onActivate: tabsController.activate,
             onClose: tabsController.close,
             onOpenDiagram: () => tabsController.openSurface(WorkspaceTab.diagramSurfaceId),
+            onOpenDiagram2: () => tabsController.openSurface(WorkspaceTab.diagram2SurfaceId),
             onOpenSurface: (surface) => tabsController.openSurface(surface.id),
             diagramTitleOverride: documentTitle,
           ),
@@ -112,13 +105,25 @@ class EngineeringWorkspacePage extends ConsumerWidget {
       // strip) — embedding `LegacyV2WebViewPage` directly keeps exactly
       // one tab strip, this shell's own, with zero V2/bridge changes.
       //
-      // AP-OEP-DIAGRAM-COMPARE-001 — wrapped in `_DiagramPane`, which
-      // optionally splits this content area to also show the Compare
-      // pane. `WorkspaceTab`/`WorkspaceTabsController`/`SurfaceRegistry`
-      // are untouched by this — it remains exactly one Workspace tab;
-      // the split is purely a rendering decision inside this tab's own
-      // content area.
-      return const KeyedSubtree(key: ValueKey('workspace-tab-diagram'), child: _DiagramPane());
+      // AP-OEP-DIAGRAM-COMPARE-001 — wrapped in the shared
+      // `DiagramWithComparePane`, which optionally splits this content
+      // area to also show the Compare pane (the same widget
+      // `WebSurfacesHostPage`'s own Diagram Studio tab uses, so Compare
+      // works regardless of which route reaches Diagram Studio's real
+      // content). `WorkspaceTab`/`WorkspaceTabsController`/
+      // `SurfaceRegistry` are untouched by this — it remains exactly one
+      // Workspace tab; the split is purely a rendering decision inside
+      // this tab's own content area.
+      return const KeyedSubtree(key: ValueKey('workspace-tab-diagram'), child: DiagramWithComparePane());
+    }
+    if (tab.isDiagram2) {
+      // AP-OEP-DIAGRAM-COMPARE-002 — the same second, independent
+      // engine the Primary's split-pane "Compare Diagrams" pane already
+      // drives (`compareDiagramControllerProvider`), given its own
+      // full-width tab so it can be opened and edited side by side with
+      // the Primary diagram as two ordinary Workspace tabs, not just as
+      // a split within one tab.
+      return const KeyedSubtree(key: ValueKey('workspace-tab-diagram-2'), child: CompareLegacyV2WebViewPage());
     }
     final surface = SurfaceRegistry.forId(tab.surfaceId);
     if (surface == null) {
@@ -130,70 +135,6 @@ class EngineeringWorkspacePage extends ConsumerWidget {
   }
 }
 
-/// AP-OEP-DIAGRAM-COMPARE-001 — the Diagram Workspace tab's own content:
-/// the existing Primary `LegacyV2WebViewPage`, plus a small toggle for
-/// splitting the same content area to also show an independent Compare
-/// diagram side by side. Turning Compare on prompts for a second
-/// document (via the native file picker, the same `openFile()` pattern
-/// already used for Source Material import — `web_surface_view.dart`)
-/// and opens it in the Compare pane's own, fully independent
-/// `compareDiagramControllerProvider`/`compareEngineeringProjectServiceProvider`.
-/// Turning it off hides the pane again — its engine/session stay alive
-/// underneath (not disposed), matching the same "don't destroy on merely
-/// hiding" principle already established for Workspace tabs.
-class _DiagramPane extends ConsumerWidget {
-  const _DiagramPane();
-
-  Future<void> _toggleCompare(BuildContext context, WidgetRef ref) async {
-    final enabled = ref.read(compareModeEnabledProvider);
-    if (enabled) {
-      ref.read(compareModeEnabledProvider.notifier).state = false;
-      return;
-    }
-    final picked = await openFile();
-    if (picked == null) return;
-    if (!context.mounted) return;
-    await ref.read(compareDiagramControllerProvider.future).then((c) => c.openDocument(picked.path));
-    ref.read(compareModeEnabledProvider.notifier).state = true;
-  }
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final compareEnabled = ref.watch(compareModeEnabledProvider);
-    return Column(
-      children: [
-        Container(
-          height: 28,
-          alignment: Alignment.centerRight,
-          decoration: const BoxDecoration(
-            color: StudioColors.surfaceSunken,
-            border: Border(bottom: BorderSide(color: StudioColors.border)),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: TextButton.icon(
-              onPressed: () => _toggleCompare(context, ref),
-              icon: Icon(compareEnabled ? Icons.vertical_split : Icons.compare_arrows, size: 15),
-              label: Text(compareEnabled ? 'Close Compare' : 'Compare Diagrams', style: const TextStyle(fontSize: 12)),
-            ),
-          ),
-        ),
-        Expanded(
-          child: compareEnabled
-              ? Row(
-                  children: const [
-                    Expanded(child: LegacyV2WebViewPage()),
-                    VerticalDivider(width: 1, color: StudioColors.border),
-                    Expanded(child: CompareLegacyV2WebViewPage()),
-                  ],
-                )
-              : const LegacyV2WebViewPage(),
-        ),
-      ],
-    );
-  }
-}
-
 class _WorkspaceTabStrip extends StatelessWidget {
   const _WorkspaceTabStrip({
     required this.tabs,
@@ -201,6 +142,7 @@ class _WorkspaceTabStrip extends StatelessWidget {
     required this.onActivate,
     required this.onClose,
     required this.onOpenDiagram,
+    required this.onOpenDiagram2,
     required this.onOpenSurface,
     this.diagramTitleOverride,
   });
@@ -210,6 +152,7 @@ class _WorkspaceTabStrip extends StatelessWidget {
   final void Function(String id) onActivate;
   final void Function(String id) onClose;
   final VoidCallback onOpenDiagram;
+  final VoidCallback onOpenDiagram2;
   final void Function(SurfaceDefinition) onOpenSurface;
   final String? diagramTitleOverride;
 
@@ -255,6 +198,10 @@ class _WorkspaceTabStrip extends StatelessWidget {
               PopupMenuItem<void>(
                 onTap: onOpenDiagram,
                 child: const _MenuRow(icon: Icons.polyline, label: 'Diagram Studio'),
+              ),
+              PopupMenuItem<void>(
+                onTap: onOpenDiagram2,
+                child: const _MenuRow(icon: Icons.polyline, label: 'Diagram Studio (2)'),
               ),
               const PopupMenuDivider(),
               // AP-OEP-SURFACE-ARCHITECTURE-002/003 — the canonical

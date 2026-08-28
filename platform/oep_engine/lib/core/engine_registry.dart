@@ -1,3 +1,4 @@
+import 'bridge/foundation_bridge_port.dart';
 import 'interfaces/clipboard_provider.dart';
 import 'interfaces/export_provider.dart';
 import 'interfaces/graph_provider.dart';
@@ -88,6 +89,14 @@ class EngineRegistry {
   RoutingProvider get routing => require<RoutingProvider>();
   ViewStateProvider get viewState => require<ViewStateProvider>();
   SearchProvider get search => require<SearchProvider>();
+
+  /// AP-OEP-FOUNDATION-BRIDGE-001 — nullable, unlike every other getter
+  /// above: SDD-025 is explicit that "Engineering Engine shall operate
+  /// without an open Repository where practical," so no
+  /// `EngineRegistry` construction site should be forced to register a
+  /// bridge (or crash) just because it never calls `commitGraph`.
+  /// Callers that need commit capability check for `null` themselves.
+  FoundationBridgePort? get foundationBridge => resolve<FoundationBridgePort>();
 
   List<Type> get registeredTypes => _providers.keys.toList(growable: false);
 }

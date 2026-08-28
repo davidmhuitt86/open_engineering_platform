@@ -6,9 +6,11 @@ import '../../core/models/engineering_inspectable.dart';
 import '../../core/services/engineering_project_service.dart';
 import '../../core/services/foundation_runtime_service.dart';
 import '../../core/theme/studio_colors.dart';
+import '../../shared/navigation/explorer_navigation.dart';
 import '../../shared/navigation/unified_navigation.dart';
 import '../../shared/widgets/property_field.dart';
 import '../../shared/widgets/validation_findings_list.dart';
+import '../bridge/diagram_repository_commit_action.dart';
 
 /// Property Inspector mode for a selected Engineering Graph node
 /// (WORK_PACKAGE_024, ENGINE-TASK-000110). Display only, exactly like
@@ -53,6 +55,33 @@ class EngineeringNodeProperties extends ConsumerWidget {
         PropertyField(
           label: 'Repository Object',
           value: node.repositoryObjectId ?? '(unsaved to Repository)',
+        ),
+        // AP-OEP-DIAGRAM-REPOSITORY-001 — the Repository action lives
+        // right next to the field that already shows whether this node
+        // is in the Repository, the same discoverability reasoning the
+        // Evidence Links section below already uses for its own tappable
+        // rows. Committing here commits the *whole* current diagram (the
+        // underlying service has no per-node commit — see
+        // `EngineGraphCommitService`'s own doc comment), so the action
+        // label says "Diagram," not "Node," to avoid implying otherwise.
+        Padding(
+          padding: const EdgeInsets.only(bottom: 16),
+          child: node.repositoryObjectId == null
+              ? OutlinedButton(
+                  onPressed: () => commitDiagramToRepository(context, ref),
+                  child: const Text('Commit Diagram to Repository', style: TextStyle(fontSize: 12)),
+                )
+              : InkWell(
+                  onTap: () => goToObject(context, ref, node.repositoryObjectId!),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.open_in_new, size: 13, color: StudioColors.selection),
+                      SizedBox(width: 4),
+                      Text('Go to Repository Object', style: TextStyle(color: StudioColors.selection, fontSize: 12)),
+                    ],
+                  ),
+                ),
         ),
         PropertyField(label: 'Ports', value: node.ports.isEmpty ? '—' : node.ports.map((p) => p.name).join(', ')),
         if (findings.isNotEmpty) ...[

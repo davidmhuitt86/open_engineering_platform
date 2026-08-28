@@ -8,8 +8,9 @@ import '../core/services/engineering_project_service.dart';
 import '../core/surfaces/surface_definition.dart';
 import '../core/surfaces/surface_registry.dart';
 import '../core/theme/studio_colors.dart';
+import '../diagram_studio/compare/compare_legacy_v2_webview.dart';
+import '../diagram_studio/compare/diagram_with_compare_pane.dart';
 import '../diagram_studio/controller/diagram_studio_controller_provider.dart';
-import '../diagram_studio/webview/legacy_v2_webview.dart';
 import 'web_browser_settings_provider.dart';
 import 'web_surface.dart';
 import 'web_surface_tabs_controller.dart';
@@ -91,6 +92,17 @@ class WebSurfacesHostPage extends ConsumerStatefulWidget {
   static const String nativeTabId = 'native-oep';
   static const String legacyV2TabId = 'legacy-v2';
 
+  /// AP-OEP-DIAGRAM-COMPARE-002 — a second, fully independent diagram
+  /// tab, given its own full-width tab here alongside the Diagram Studio
+  /// tab. Backed by the same `compareDiagramControllerProvider` engine
+  /// the split-pane "Compare Diagrams" pane already uses (§
+  /// `CompareLegacyV2WebViewPage`'s own doc comment) — not a third
+  /// document, just a second place to view/edit the same second engine.
+  /// Session-only (not persisted across restarts), matching [_NativeTab]'s
+  /// own accepted scope gap — an ordinary `WebSurface` model change would
+  /// be needed to persist it, out of scope here.
+  static const String compareTabId = 'diagram-2';
+
   @override
   ConsumerState<WebSurfacesHostPage> createState() => _WebSurfacesHostPageState();
 }
@@ -108,6 +120,7 @@ class _WebSurfacesHostPageState extends ConsumerState<WebSurfacesHostPage> {
   final WebSurfaceTabsController _tabs = WebSurfaceTabsController();
   final List<_NativeTab> _nativeTabs = [];
   bool _restored = false;
+  bool _compareTabOpen = false;
 
   /// Unified across [WebSurface] tabs and [_NativeTab]s — `activeId` is
   /// no longer sourced from `_tabs.activeId` alone, since a native tab
@@ -198,6 +211,20 @@ class _WebSurfacesHostPageState extends ConsumerState<WebSurfacesHostPage> {
     });
   }
 
+  /// "+" menu — opens (or focuses, if already open) the second,
+  /// independent diagram tab (§ [WebSurfacesHostPage.compareTabId]'s own
+  /// doc comment).
+  void _openCompareDiagram() {
+    if (_compareTabOpen) {
+      setState(() => _activeTabId = WebSurfacesHostPage.compareTabId);
+      return;
+    }
+    setState(() {
+      _compareTabOpen = true;
+      _activeTabId = WebSurfacesHostPage.compareTabId;
+    });
+  }
+
   /// Globe button — opens a new, blank Web Surface tab immediately (no
   /// upfront URL prompt), with its own address bar
   /// ([WebSurfaceView]'s existing `showChrome` row) — a browser's own
@@ -218,6 +245,15 @@ class _WebSurfacesHostPageState extends ConsumerState<WebSurfacesHostPage> {
   }
 
   void _close(String id) {
+    if (id == WebSurfacesHostPage.compareTabId) {
+      setState(() {
+        _compareTabOpen = false;
+        if (_activeTabId == id) {
+          _activeTabId = _nativeTabs.lastOrNull?.id ?? _tabs.activeId;
+        }
+      });
+      return;
+    }
     final isNative = _nativeTabs.any((t) => t.id == id);
     setState(() {
       if (isNative) {
@@ -250,10 +286,12 @@ class _WebSurfacesHostPageState extends ConsumerState<WebSurfacesHostPage> {
           _TabStrip(
             surfaces: surfaces,
             nativeTabs: _nativeTabs,
+            compareTabOpen: _compareTabOpen,
             activeId: _activeTabId,
             onActivate: _activate,
             onClose: _close,
             onNewDiagram: _newDiagram,
+            onOpenCompareDiagram: _openCompareDiagram,
             onOpenNativeTab: _openNativeTab,
             onOpenWebUrl: _openBlankWebTab,
             onBackToOep: () => context.go('/'),
@@ -264,7 +302,7 @@ class _WebSurfacesHostPageState extends ConsumerState<WebSurfacesHostPage> {
           Expanded(
             child: !_restored
                 ? const SizedBox.shrink()
-                : (surfaces.isEmpty && _nativeTabs.isEmpty)
+                : (surfaces.isEmpty && _nativeTabs.isEmpty && !_compareTabOpen)
                     ? const Center(
                         child: Text('No Web Surfaces open', style: TextStyle(color: StudioColors.textDisabled)),
                       )
@@ -273,6 +311,11 @@ class _WebSurfacesHostPageState extends ConsumerState<WebSurfacesHostPage> {
                         children: [
                           for (final surface in surfaces) _buildSurfaceContent(surface),
                           for (final tab in _nativeTabs) _buildNativeContent(tab),
+                          if (_compareTabOpen)
+                            const KeyedSubtree(
+                              key: ValueKey(WebSurfacesHostPage.compareTabId),
+                              child: CompareLegacyV2WebViewPage(),
+                            ),
                         ],
                       ),
           ),
@@ -282,7 +325,11 @@ class _WebSurfacesHostPageState extends ConsumerState<WebSurfacesHostPage> {
   }
 
   int _stackIndex(List<WebSurface> surfaces) {
-    final combinedIds = [...surfaces.map((s) => s.id), ..._nativeTabs.map((t) => t.id)];
+    final combinedIds = [
+      ...surfaces.map((s) => s.id),
+      ..._nativeTabs.map((t) => t.id),
+      if (_compareTabOpen) WebSurfacesHostPage.compareTabId,
+    ];
     if (combinedIds.isEmpty) return 0;
     final index = combinedIds.indexOf(_activeTabId ?? '');
     return index.clamp(0, combinedIds.length - 1);
@@ -292,7 +339,15 @@ class _WebSurfacesHostPageState extends ConsumerState<WebSurfacesHostPage> {
     if (surface.application == WebSurfaceApplication.legacyV2) {
       // The existing, unmodified bridged widget — embedded directly, not
       // reconstructed through the generic WebSurface model.
-      return const LegacyV2WebViewPage();
+      //
+      // AP-OEP-DIAGRAM-COMPARE-001 — wrapped in the shared
+      // `DiagramWithComparePane` (the same widget the Workspace's own
+      // Diagram tab uses) so the "Compare Diagrams" capability is
+      // reachable here too — this is the page the sidebar's "Diagram
+      // Studio" row actually opens (`/diagram`), the default way most
+      // users reach Diagram Studio at all, so Compare being wired into
+      // only the Workspace tab and not here was a real gap.
+      return const DiagramWithComparePane();
     }
     if (surface.id == WebSurfacesHostPage.nativeTabId) {
       return _NativeOepPanel(key: ValueKey(surface.id));
@@ -325,10 +380,12 @@ class _TabStrip extends StatelessWidget {
   const _TabStrip({
     required this.surfaces,
     required this.nativeTabs,
+    required this.compareTabOpen,
     required this.activeId,
     required this.onActivate,
     required this.onClose,
     required this.onNewDiagram,
+    required this.onOpenCompareDiagram,
     required this.onOpenNativeTab,
     required this.onOpenWebUrl,
     required this.onBackToOep,
@@ -337,10 +394,12 @@ class _TabStrip extends StatelessWidget {
 
   final List<WebSurface> surfaces;
   final List<_NativeTab> nativeTabs;
+  final bool compareTabOpen;
   final String? activeId;
   final void Function(String id) onActivate;
   final void Function(String id) onClose;
   final VoidCallback onNewDiagram;
+  final VoidCallback onOpenCompareDiagram;
   final void Function(SurfaceDefinition) onOpenNativeTab;
   final VoidCallback onOpenWebUrl;
   final VoidCallback onBackToOep;
@@ -407,6 +466,16 @@ class _TabStrip extends StatelessWidget {
                       onTap: () => onActivate(tab.id),
                       onClose: () => onClose(tab.id),
                     ),
+                  if (compareTabOpen)
+                    _TabChip(
+                      id: WebSurfacesHostPage.compareTabId,
+                      displayTitle: 'Diagram Studio (2)',
+                      icon: Icons.polyline,
+                      iconColor: StudioColors.success,
+                      active: WebSurfacesHostPage.compareTabId == activeId,
+                      onTap: () => onActivate(WebSurfacesHostPage.compareTabId),
+                      onClose: () => onClose(WebSurfacesHostPage.compareTabId),
+                    ),
                 ],
               ),
             ),
@@ -421,6 +490,10 @@ class _TabStrip extends StatelessWidget {
               PopupMenuItem<void>(
                 onTap: onNewDiagram,
                 child: const _MenuRow(icon: Icons.polyline, label: 'New Diagram'),
+              ),
+              PopupMenuItem<void>(
+                onTap: onOpenCompareDiagram,
+                child: const _MenuRow(icon: Icons.polyline, label: 'Diagram Studio (2)'),
               ),
               const PopupMenuDivider(),
               // AP-OEP-SURFACE-ARCHITECTURE-002 — sourced from the

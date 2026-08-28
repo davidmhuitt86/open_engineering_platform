@@ -122,7 +122,21 @@ function minimapClick(e){const mm=$("minimap");const cx=e.offsetX/mm.offsetWidth
 
 // ── WIRE ROUTING ─────────────────────────────────────────────────
 function getPos(modId,termName){const dot=document.getElementById("d_"+sid(`${modId}::${termName}`));if(!dot)return null;const cr=canvas.getBoundingClientRect(),dr=dot.getBoundingClientRect();return{x:(dr.left-cr.left+dr.width/2)/scale,y:(dr.top-cr.top+dr.height/2)/scale};}
-function exitDir(modId){const m=MODULES.find(x=>x.id===modId);return m?m.exit:"down";}
+function exitDir(modId,termName){
+  const m=MODULES.find(x=>x.id===modId);if(!m)return"down";
+  // Connector cards (buildConnCard) always stack each terminal's IN dot
+  // above its OUT dot in the DOM, regardless of the module's own `exit`
+  // property (every catalog connector hardcodes exit:'down') — using that
+  // single module-wide direction for the IN dot sent its stub straight
+  // down through the card toward the OUT dot before routing away, making
+  // wires off the IN pin look like they started at an arbitrary point on
+  // the card instead of the actual pin. Route each dot from its own edge.
+  if(m.connector&&termName){
+    if(termName.endsWith("_IN"))return"up";
+    if(termName.endsWith("_OUT"))return"down";
+  }
+  return m.exit;
+}
 function exitPt(p,dir){return dir==="down"?{x:p.x,y:p.y+STUB}:dir==="up"?{x:p.x,y:p.y-STUB}:dir==="right"?{x:p.x+STUB,y:p.y}:{x:p.x-STUB,y:p.y};}
 let usedY=new Set(),usedX=new Set();const LG=6;
 function allocY(pref,lo,hi){for(let off=0;off<600;off+=LG){for(const s of[0,1,-1]){const y=Math.round((pref+s*off)/LG)*LG;if(lo!=null&&y<lo)continue;if(hi!=null&&y>hi)continue;if(!usedY.has(y)){usedY.add(y);return y;}}}return pref;}
@@ -139,7 +153,7 @@ function getMovableSegs(pts){
 }
 function route(w){
   const a=getPos(w.from.m,w.from.t),b=getPos(w.to.m,w.to.t);if(!a||!b)return null;
-  const dA=exitDir(w.from.m),dB=exitDir(w.to.m);const ea=exitPt(a,dA),eb=exitPt(b,dB);const sD=(dA===dB);
+  const dA=exitDir(w.from.m,w.from.t),dB=exitDir(w.to.m,w.to.t);const ea=exitPt(a,dA),eb=exitPt(b,dB);const sD=(dA===dB);
   let pts;
   if(dA==="right"||dA==="left"||dB==="right"||dB==="left"){const lx=allocX((ea.x+eb.x)/2);pts=[a,ea,{x:lx,y:ea.y},{x:lx,y:eb.y},eb,b];}
   else if(sD&&dA==="down"){const ly=allocY(Math.min(ea.y,eb.y)-8,null,Math.min(ea.y,eb.y));pts=[a,ea,{x:ea.x,y:ly},{x:eb.x,y:ly},eb,b];}
@@ -217,12 +231,73 @@ function drawWires(){
         sh.setAttribute("fill","none");sh.setAttribute("stroke-linecap","round");
         sh.style.pointerEvents="auto"; // only segment hits, not the whole svg
         sh.style.cursor=seg.axis==="y"?"ns-resize":"ew-resize";
-        sh.addEventListener("click",e=>{
-          e.stopPropagation();
+        sh.addEventListener("mousedown",e=>{
+          e.stopPropagation();e.preventDefault();
           selSeg={wid:w.id,segIdx:i,axis:seg.axis};
           drawWires();
-          $("wep-status").textContent=`Seg ${i+1} selected (${seg.axis==="y"?"horiz → ↑↓":"vert → ←→"}) · arrows nudge · R reset`;
+          $("wep-status").textContent=`Seg ${i+1} selected (${seg.axis==="y"?"horiz → drag/↑↓":"vert → drag/←→"}) · R reset`;
+          // Drag the segment directly (mousedown→mousemove→mouseup), on top
+          // of the existing arrow-key nudge — both write into the same
+          // `wireRoutes[w.id][segIdx]` override map, so either input method
+          // works interchangeably on the same segment.
+          const startClientX=e.clientX,startClientY=e.clientY;
+          if(!wireRoutes[w.id])wireRoutes[w.id]={};
+          const startOff=wireRoutes[w.id][i]||0;
+          let dragged=false;
+          const onMove=ev=>{
+            const dx=(ev.clientX-startClientX)/scale,dy=(ev.clientY-startClientY)/scale;
+            const delta=seg.axis==="y"?dy:dx;
+            if(Math.abs(delta)>0.5)dragged=true;
+            wireRoutes[w.id][i]=startOff+delta;
+            drawWires();
+          };
+          const onUp=()=>{
+            window.removeEventListener("mousemove",onMove);
+            window.removeEventListener("mouseup",onUp);
+            if(dragged)$("wep-status").textContent=`Seg ${i+1} moved · drag again, arrows nudge, or R reset`;
+          };
+          window.addEventListener("mousemove",onMove);
+          window.addEventListener("mouseup",onUp);
         });
+        // AP-OEP-DIAGRAM-ANDROID-001 — touch equivalent of the drag above.
+        // Mobile browsers/WebViews do not synthesize continuous `mousemove`
+        // during a touch drag (unlike `click`, which tap already
+        // synthesizes fine), so segment dragging needs its own
+        // touchstart/touchmove/touchend path — same
+        // `wireRoutes[w.id][segIdx]` override target as the mouse-drag and
+        // arrow-key paths above. `stopPropagation` keeps this from also
+        // triggering the canvas's own single-finger-pan touch handler
+        // (`vp`'s own `touchstart` listener, which does not check
+        // `routeEditMode`).
+        sh.addEventListener("touchstart",e=>{
+          e.stopPropagation();e.preventDefault();
+          const touch=e.touches[0];if(!touch)return;
+          selSeg={wid:w.id,segIdx:i,axis:seg.axis};
+          drawWires();
+          $("wep-status").textContent=`Seg ${i+1} selected (${seg.axis==="y"?"horiz → drag/↑↓":"vert → drag/←→"}) · R reset`;
+          const startClientX=touch.clientX,startClientY=touch.clientY;
+          if(!wireRoutes[w.id])wireRoutes[w.id]={};
+          const startOff=wireRoutes[w.id][i]||0;
+          let dragged=false;
+          const onMove=ev=>{
+            const t=ev.touches[0];if(!t)return;
+            ev.preventDefault();
+            const dx=(t.clientX-startClientX)/scale,dy=(t.clientY-startClientY)/scale;
+            const delta=seg.axis==="y"?dy:dx;
+            if(Math.abs(delta)>0.5)dragged=true;
+            wireRoutes[w.id][i]=startOff+delta;
+            drawWires();
+          };
+          const onEnd=()=>{
+            window.removeEventListener("touchmove",onMove);
+            window.removeEventListener("touchend",onEnd);
+            window.removeEventListener("touchcancel",onEnd);
+            if(dragged)$("wep-status").textContent=`Seg ${i+1} moved · drag again, arrows nudge, or R reset`;
+          };
+          window.addEventListener("touchmove",onMove,{passive:false});
+          window.addEventListener("touchend",onEnd);
+          window.addEventListener("touchcancel",onEnd);
+        },{passive:false});
         g.appendChild(sh);
         // Visible highlight overlay
         const sv=document.createElementNS("http://www.w3.org/2000/svg","line");
@@ -248,7 +323,7 @@ function drawWires(){
       hit.addEventListener("click",e=>{e.stopPropagation();selWire(w,e);});
       hit.addEventListener("contextmenu",e=>{
         e.preventDefault();e.stopPropagation();
-        ctxTarget=w;$("ctx-edit").style.display="";$("ctx-trace").style.display="";$("ctx-del").textContent="✕ Delete Wire";
+        ctxTarget=w;$("ctx-edit").style.display="";$("ctx-trace").style.display="";$("ctx-route").style.display="";$("ctx-del").textContent="✕ Delete Wire";
         selWire(w,e);$("ctx").style.left=e.clientX+"px";$("ctx").style.top=e.clientY+"px";$("ctx").classList.add("open");
       });
       g.appendChild(hit);
