@@ -7,6 +7,7 @@ import '../../core/services/unified_ai_context_service.dart';
 import '../../core/theme/studio_colors.dart';
 import '../../diagram_studio/ai/diagram_ai_service.dart';
 import '../../shared/navigation/unified_navigation.dart';
+import '../../shared/widgets/studio_panel_header.dart';
 import '../../shared/widgets/validation_findings_list.dart';
 
 /// The global Validation Workspace (WORK_PACKAGE_025, ENGINE-TASK-000125)
@@ -55,17 +56,13 @@ class ValidationPage extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
-          child: Row(
+        StudioPanelHeader(
+          title: 'Validation',
+          icon: Icons.fact_check_outlined,
+          iconColor: StudioColors.selection,
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.fact_check_outlined, size: 18, color: StudioColors.selection),
-              const SizedBox(width: 10),
-              const Text(
-                'Validation',
-                style: TextStyle(color: StudioColors.textPrimary, fontSize: 15, fontWeight: FontWeight.w700),
-              ),
-              const Spacer(),
               Text(
                 findings.isEmpty ? 'Clean — no findings' : '${findings.length} finding(s)',
                 style: const TextStyle(color: StudioColors.textSecondary, fontSize: 12),

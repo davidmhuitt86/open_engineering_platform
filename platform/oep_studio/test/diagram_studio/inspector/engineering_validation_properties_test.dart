@@ -9,6 +9,7 @@ import 'package:oep_studio/core/services/engineering_project_service.dart';
 import 'package:oep_studio/diagram_studio/host/diagram_document.dart';
 import 'package:oep_studio/diagram_studio/inspector/engineering_node_properties.dart';
 import 'package:oep_studio/diagram_studio/inspector/engineering_relationship_properties.dart';
+import 'package:oep_studio/shared/widgets/studio_type_swatch.dart';
 import 'package:oep_studio/workspace/workspace_tabs_controller.dart';
 
 /// AP-OEP-DIAGRAM-VALIDATION-001 — the Diagram Property Inspector's own
@@ -31,7 +32,7 @@ void main() {
   ProviderScope harness({required Widget child, ValidationReport? report}) {
     return ProviderScope(
       overrides: [
-        engineeringProjectServiceProvider.overrideWith(
+        engineeringProjectServiceFamily.overrideWith(
           () => _FakeEngineeringProjectNotifier(EngineeringProjectState(document: DiagramDocument(), validationReport: report)),
         ),
       ],
@@ -171,7 +172,7 @@ void main() {
       ]),
     ));
 
-    expect(find.byIcon(Icons.circle), findsWidgets, reason: 'the shared severity dot from ValidationFindingTile');
+    expect(find.byType(StudioTypeSwatch), findsWidgets, reason: 'the shared severity dot from ValidationFindingTile');
     expect(find.text('no rating set'), findsOneWidget);
   });
 
@@ -187,7 +188,7 @@ void main() {
     // real function, not a bespoke navigation path.
     final container = ProviderContainer(
       overrides: [
-        engineeringProjectServiceProvider.overrideWith(
+        engineeringProjectServiceFamily.overrideWith(
           () => _FakeEngineeringProjectNotifier(
             EngineeringProjectState(
               document: DiagramDocument(),
@@ -233,5 +234,5 @@ class _FakeEngineeringProjectNotifier extends EngineeringProjectNotifier {
   final EngineeringProjectState _state;
 
   @override
-  EngineeringProjectState build() => _state;
+  EngineeringProjectState build(String arg) => _state;
 }

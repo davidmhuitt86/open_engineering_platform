@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/studio_colors.dart';
+import '../../../shared/widgets/studio_section_panel.dart';
 
 /// The "Getting Started" section of the Dashboard, per
 /// 001-OEP-STUDIO-DASHBOARD-v1.0.png.
@@ -17,57 +18,37 @@ class GettingStartedStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Row(
-              children: [
-                Icon(Icons.rocket_launch_outlined, size: 18, color: StudioColors.selection),
-                SizedBox(width: 10),
-                Text(
-                  'Getting Started',
-                  style: TextStyle(
-                    color: StudioColors.textPrimary,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final isNarrow = constraints.maxWidth < 700;
-                return isNarrow
-                    ? Column(
-                        children: [
-                          for (var i = 0; i < _steps.length; i++)
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 12),
-                              child: _StepTile(index: i + 1, step: _steps[i]),
-                            ),
-                        ],
-                      )
-                    : Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          for (var i = 0; i < _steps.length; i++) ...[
-                            if (i > 0)
-                              const Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 4),
-                                child: Icon(Icons.chevron_right, size: 16, color: StudioColors.textDisabled),
-                              ),
-                            Expanded(child: _StepTile(index: i + 1, step: _steps[i])),
-                          ],
-                        ],
-                      );
-              },
-            ),
-          ],
-        ),
+    return StudioSectionPanel(
+      title: 'Getting Started',
+      icon: Icons.rocket_launch_outlined,
+      iconColor: StudioColors.selection,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isNarrow = constraints.maxWidth < 700;
+          return isNarrow
+              ? Column(
+                  children: [
+                    for (var i = 0; i < _steps.length; i++)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: _StepTile(index: i + 1, step: _steps[i]),
+                      ),
+                  ],
+                )
+              : Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (var i = 0; i < _steps.length; i++) ...[
+                      if (i > 0)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 4),
+                          child: Icon(Icons.chevron_right, size: 16, color: StudioColors.textDisabled),
+                        ),
+                      Expanded(child: _StepTile(index: i + 1, step: _steps[i])),
+                    ],
+                  ],
+                );
+        },
       ),
     );
   }

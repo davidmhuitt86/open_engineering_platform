@@ -35,6 +35,7 @@ function updatePanel(w) {
     ? `background:linear-gradient(180deg,${sc} 50%,${tc} 50%)`
     : `background:${sc}`;
   $('fp-info').innerHTML = `
+    <div class="fpr"><span class="fpk">Property Type</span><span class="fpv">Wire</span></div>
     <div class="fpr"><span class="fpk">Wire</span><span class="fpv"><span class="fpsw" style="${sw}"></span>${w.c} — ${cn(w.c)}</span></div>
     <div class="fpr"><span class="fpk">Label</span><span class="fpv">${w.lbl}</span></div>
     <div class="fpr"><span class="fpk">From</span><span class="fpv">${fM?.label || w.from.m} · ${w.from.t}</span></div>
@@ -86,6 +87,7 @@ function renderModInfo(m) {
   $('mip-title').textContent       = m.label;
   $('mip-stripe').style.background = catColor;
   let html = `
+    <div class="fpr"><span class="fpk">Property Type</span><span class="fpv">${capitalizeCat(m.cat)}</span></div>
     <div class="fpr"><span class="fpk">Label</span><span class="fpv">${m.label}</span></div>
     <div class="fpr"><span class="fpk">Sub</span><span class="fpv">${m.sub || '—'}</span></div>
     <div class="fpr"><span class="fpk">Category</span><span class="fpv"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${catColor};margin-right:4px;vertical-align:middle"></span>${m.cat}</span></div>

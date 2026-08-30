@@ -26,6 +26,7 @@ class SurfaceDefinition {
     required this.icon,
     required this.presentationTechnology,
     required this.build,
+    this.allowsMultipleInstances = false,
   });
 
   /// Stable identity. For a native Surface, this is the underlying
@@ -41,6 +42,19 @@ class SurfaceDefinition {
   /// class doc comment for why that's a hard requirement, not a
   /// simplification of convenience.
   final Widget Function(BuildContext context) build;
+
+  /// AP-OEP-WORKSPACE-MULTI-INSTANCE-001 — declares whether more than one
+  /// [WorkspaceTab] may exist for this Surface at once. Defaults to
+  /// `false`, preserving every existing Surface's current singleton
+  /// behavior (`WorkspaceTabsController.openSurface`'s one-tab-per-
+  /// surfaceId rule) unless a future Surface explicitly opts in. Purely
+  /// declarative here — this package only introduces the field and the
+  /// generic tab-instance mechanism it describes; no Surface sets this to
+  /// `true` yet (Diagram/Browser multi-instance are later packages), and
+  /// [WorkspaceTabsController] does not read this field itself (a future
+  /// caller — e.g. a "+"/globe menu — is what decides whether to call
+  /// `openSurface` or `openNewInstance` based on it).
+  final bool allowsMultipleInstances;
 }
 
 /// `docs/OEP_SURFACE_ARCHITECTURE.md` §12 — generalizes the existing,

@@ -6,8 +6,10 @@ import '../../core/foundation/foundation_bridge_exception.dart';
 import '../../core/services/foundation_runtime_service.dart';
 import '../../core/services/foundation_runtime_state.dart';
 import '../../core/theme/studio_colors.dart';
+import '../../core/theme/studio_typography.dart';
 import '../../shared/widgets/dashboard_card.dart';
 import '../../shared/widgets/responsive_card_grid.dart';
+import '../../shared/widgets/studio_detail_row.dart';
 import 'widgets/getting_started_strip.dart';
 
 /// The Dashboard (SDD-007), the engineer's landing page.
@@ -27,14 +29,7 @@ class DashboardPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Dashboard',
-            style: TextStyle(
-              color: StudioColors.textPrimary,
-              fontSize: 24,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
+          const Text('Dashboard', style: StudioTypography.pageTitle),
           const SizedBox(height: 4),
           const Text(
             'Welcome to OEP Studio',
@@ -192,34 +187,28 @@ class _RepositoryStatusCard extends ConsumerWidget {
       iconBackground: const Color(0xFFB794F6).withValues(alpha: 0.14),
       child: Column(
         children: [
-          _StatusRow(
-            icon: Icons.check_circle_outline,
-            label: 'Repository Name',
-            value: repositoryName ?? 'None',
-          ),
-          _StatusRow(
-            icon: Icons.dns_outlined,
-            label: 'Runtime State',
+          StudioDetailRow(label: 'Name', value: repositoryName ?? 'None'),
+          const Divider(height: 1),
+          StudioDetailRow(
+            label: 'Runtime',
             value: _runtimeStateLabel(foundation),
-            valueColor: connected ? StudioColors.success : StudioColors.warning,
+            swatchColor: connected ? StudioColors.success : StudioColors.warning,
           ),
-          _StatusRow(icon: Icons.new_releases_outlined, label: 'Repository Version', value: repositoryVersion ?? '—'),
-          _StatusRow(icon: Icons.fingerprint, label: 'Repository ID', value: repositoryId ?? '—'),
-          _StatusRow(
-            icon: Icons.category_outlined,
-            label: 'Total Objects',
-            value: statistics != null ? '${statistics.totalObjectCount}' : '—',
-          ),
-          _StatusRow(
-            icon: Icons.hub_outlined,
-            label: 'Relationship Count',
+          const Divider(height: 1),
+          StudioDetailRow(label: 'Version', value: repositoryVersion ?? '—'),
+          const Divider(height: 1),
+          StudioDetailRow(label: 'ID', value: repositoryId ?? '—', monospace: true),
+          const Divider(height: 1),
+          StudioDetailRow(label: 'Objects', value: statistics != null ? '${statistics.totalObjectCount}' : '—'),
+          const Divider(height: 1),
+          StudioDetailRow(
+            label: 'Relations',
             value: statistics != null ? '${statistics.relationshipCount}' : '—',
           ),
-          _StatusRow(
-            icon: Icons.inventory_2_outlined,
-            label: 'Package Count',
+          const Divider(height: 1),
+          StudioDetailRow(
+            label: 'Packages',
             value: statistics != null ? '${statistics.packageCount}' : '—',
-            showDivider: false,
           ),
         ],
       ),
@@ -230,54 +219,6 @@ class _RepositoryStatusCard extends ConsumerWidget {
     if (foundation.phase == FoundationConnectionPhase.error) return 'Error';
     if (foundation.phase == FoundationConnectionPhase.connecting) return 'Connecting…';
     return foundation.runtimeState.displayLabel;
-  }
-}
-
-class _StatusRow extends StatelessWidget {
-  const _StatusRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-    this.valueColor,
-    this.showDivider = true,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-  final Color? valueColor;
-  final bool showDivider;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Row(
-            children: [
-              Icon(icon, size: 14, color: StudioColors.textSecondary),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  label,
-                  style: const TextStyle(color: StudioColors.textSecondary, fontSize: 12),
-                ),
-              ),
-              Text(
-                value,
-                style: TextStyle(
-                  color: valueColor ?? StudioColors.textPrimary,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-        if (showDivider) const Divider(height: 1),
-      ],
-    );
   }
 }
 
@@ -373,9 +314,9 @@ class _LabeledValue extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(color: StudioColors.textSecondary, fontSize: 11)),
+        Text(label.toUpperCase(), style: StudioTypography.fieldLabel),
         const SizedBox(height: 4),
-        Text(value, style: const TextStyle(color: StudioColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
+        Text(value, style: StudioTypography.fieldValue),
       ],
     );
   }
@@ -446,10 +387,7 @@ class _EmptyState extends StatelessWidget {
         children: [
           Icon(icon, size: 32, color: StudioColors.textDisabled),
           const SizedBox(height: 12),
-          Text(
-            title,
-            style: const TextStyle(color: StudioColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600),
-          ),
+          Text(title, style: StudioTypography.fieldValue),
           const SizedBox(height: 4),
           Text(
             description,

@@ -9,8 +9,7 @@ would need, and whether the architecture is ready for it.
 > package — DOCS-SYNC-001 reconciliation note, not a rewrite of the audit
 > below).** The §7 schema this audit proposed-but-did-not-implement **has
 > since been implemented**, essentially verbatim: `WorkspaceTabsController`
-> now persists `{surfaces: [...], activeId}` via
-> `lib/workspace/workspace_tabs_storage.dart` to
+> persists via `lib/workspace/workspace_tabs_storage.dart` to
 > `%APPDATA%/oep_studio/workspace_tabs.json`, restored once per app
 > session. `activeProjectId`/`activeDocumentId` were correctly excluded,
 > exactly as §7 concluded. Everything else this audit flagged as
@@ -21,6 +20,22 @@ would need, and whether the architecture is ready for it.
 > historical record that justified this scope; only §7/§10's "not yet
 > built" framing is now out of date, corrected here rather than rewritten
 > in place.
+>
+> **Further update (AP-OEP-WORKSPACE-MULTI-INSTANCE-001).** Row 2 of §1's
+> table below ("`id` (deterministic: `'workspace-tab-$surfaceId'`)...
+> DERIVED STATE — id is a pure function of surfaceId — never needs
+> storing itself") is now stale: `WorkspaceTab.id` and `surfaceId` are
+> independent identities (a Surface that declares
+> `SurfaceDefinition.allowsMultipleInstances` may have more than one tab
+> sharing one `surfaceId`, distinguished only by `id`), so `id` is real
+> SESSION STATE that must be persisted, not derived state. The persisted
+> shape correspondingly changed from `{surfaces: [...], activeId}` to
+> `{tabs: [{id, surfaceId}, ...], activeId: "<tabId>"}` — `load()` still
+> transparently reads the original shape for backward compatibility, so
+> this is additive, not a breaking migration. No Surface sets
+> `allowsMultipleInstances: true` yet; §1's row is corrected for
+> accuracy, not because any behavior described elsewhere in this
+> document has changed.
 
 ## 1. Complete Workspace state inventory
 

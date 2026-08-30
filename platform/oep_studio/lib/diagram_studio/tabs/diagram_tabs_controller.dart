@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/context/engineering_interaction_context.dart';
+import '../../core/services/engineering_project_service.dart';
 import 'diagram_tab.dart';
 import 'diagram_tabs_storage.dart';
 
@@ -37,11 +38,23 @@ class DiagramTabsState {
       );
 }
 
-class DiagramTabsNotifier extends Notifier<DiagramTabsState> {
+/// AP-OEP-DIAGRAM-CONTROLLER-INSTANCING-IMPLEMENTATION-001 — a
+/// [FamilyNotifier] keyed by the same `WorkspaceTab.id` string as
+/// [engineeringProjectServiceFamily]/[diagramStudioControllerFamily], so
+/// each Diagram Workspace instance's own reference-tab history
+/// (Part 7/8 of the approved design) is independent — no instance can
+/// see another's `tabs`/`activeTabId`/`recentlyClosed`.
+class DiagramTabsNotifier extends FamilyNotifier<DiagramTabsState, String> {
   Future<void>? _restoreFuture;
 
+  /// The primary instance keeps the exact original, unsuffixed
+  /// persistence file (`diagram_studio_tabs.json`) — backward
+  /// compatible with every file written before this package. Any other
+  /// instance gets its own file, suffixed with its `WorkspaceTab.id`.
+  String get _fileSuffix => arg == primaryDiagramInstanceId ? '' : '_$arg';
+
   @override
-  DiagramTabsState build() {
+  DiagramTabsState build(String arg) {
     _restoreFuture = _restore();
     return const DiagramTabsState();
   }
@@ -53,7 +66,7 @@ class DiagramTabsNotifier extends Notifier<DiagramTabsState> {
   Future<void> ensureRestored() => _restoreFuture ?? Future.value();
 
   Future<void> _restore() async {
-    final loaded = await DiagramTabsStorage.load();
+    final loaded = await DiagramTabsStorage.load(fileSuffix: _fileSuffix);
     if (loaded.tabs.isEmpty) return;
     state = DiagramTabsState(
       tabs: loaded.tabs,
@@ -66,6 +79,7 @@ class DiagramTabsNotifier extends Notifier<DiagramTabsState> {
         tabs: state.tabs,
         activeTabId: state.activeTabId,
         recentlyClosed: state.recentlyClosed,
+        fileSuffix: _fileSuffix,
       );
 
   /// Creates a real tab entry and makes it the active one. Does not
@@ -161,4 +175,11 @@ class DiagramTabsNotifier extends Notifier<DiagramTabsState> {
   }
 }
 
-final diagramTabsProvider = NotifierProvider<DiagramTabsNotifier, DiagramTabsState>(DiagramTabsNotifier.new);
+/// Keyed by `WorkspaceTab.id` — mirrors [engineeringProjectServiceFamily]
+/// exactly (same key, same reasoning).
+final diagramTabsFamily = NotifierProvider.family<DiagramTabsNotifier, DiagramTabsState, String>(DiagramTabsNotifier.new);
+
+/// Backward-compatible alias bound to the primary instance — see
+/// [engineeringProjectServiceProvider]'s own doc comment for the full
+/// reasoning; identical here.
+final diagramTabsProvider = diagramTabsFamily(primaryDiagramInstanceId);

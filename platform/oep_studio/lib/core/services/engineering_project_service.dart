@@ -87,18 +87,46 @@ class EngineeringProjectState {
 /// This class is Studio-side orchestration only — it never implements
 /// engineering behavior itself, only relays the Engine's own streams
 /// into Riverpod state (`docs/ENGINEERING_PROJECT.md`).
-class EngineeringProjectNotifier extends Notifier<EngineeringProjectState> {
+///
+/// AP-OEP-DIAGRAM-CONTROLLER-INSTANCING-IMPLEMENTATION-001 — a
+/// [FamilyNotifier] keyed by a `WorkspaceTab.id` string (never a
+/// `surfaceId`, never an index — see [engineeringProjectServiceFamily]'s
+/// own doc comment), so a genuinely independent instance of this exact,
+/// unmodified class/state shape exists per open Diagram Workspace tab.
+/// [activeProject]/[recentHistory] are the two fields the approved
+/// design (`AP-OEP-DIAGRAM-CONTROLLER-INSTANCING-001`, Part 2) classified
+/// as legitimately global rather than per-instance — they are not split
+/// out into a separate class here (the design explicitly rejected
+/// splitting `EngineeringProjectState`); every consumer of them today
+/// only ever reads the primary-alias instance
+/// ([engineeringProjectServiceProvider]), so they remain correct exactly
+/// as long as that remains true (a known, documented, transitional
+/// limitation — not silently papered over).
+class EngineeringProjectNotifier extends FamilyNotifier<EngineeringProjectState, String> {
   StreamSubscription<EditingSession>? _sessionSub;
   StreamSubscription<GraphSelection>? _selectionSub;
   StreamSubscription<ViewState>? _viewStateSub;
 
+  // Tracked separately from `state.engineHost` deliberately: reading the
+  // `state` getter from inside a `ref.onDispose` callback (i.e. after the
+  // element has already been marked unmounted by the framework) makes
+  // Riverpod 2.6.1 re-enter this same element's dispose bookkeeping and
+  // throws `ConcurrentModificationError` iterating its own onDispose-
+  // listener list — reproducible in isolation with nothing but
+  // `ensureEngineStarted()` followed immediately by `ref.invalidate(...)`
+  // (or `ProviderContainer.invalidate(...)`), independent of the rest of
+  // this class or of any DiagramStudioController involvement. A plain
+  // field, set alongside `state.copyWith(engineHost: host)` below, gives
+  // the dispose callback the same value without ever touching `state`.
+  EngineHost? _host;
+
   @override
-  EngineeringProjectState build() {
+  EngineeringProjectState build(String arg) {
     ref.onDispose(() {
       _sessionSub?.cancel();
       _selectionSub?.cancel();
       _viewStateSub?.cancel();
-      final host = state.engineHost;
+      final host = _host;
       if (host != null) unawaited(host.dispose());
     });
     return EngineeringProjectState(document: DiagramDocument());
@@ -131,6 +159,7 @@ class EngineeringProjectNotifier extends Notifier<EngineeringProjectState> {
     _viewStateSub = host.engine.registry.viewState.changes.listen((v) {
       state = state.copyWith(viewState: v);
     });
+    _host = host;
 
     host.engine.beginEditingSession(EngineeringGraph.empty(host.engine.graph.generateId('graph')));
     _applyNewDocumentViewStateDefaults(host);
@@ -287,7 +316,36 @@ class EngineeringProjectNotifier extends Notifier<EngineeringProjectState> {
   }
 }
 
-final engineeringProjectServiceProvider =
-    NotifierProvider<EngineeringProjectNotifier, EngineeringProjectState>(
+/// AP-OEP-DIAGRAM-CONTROLLER-INSTANCING-IMPLEMENTATION-001 — the sole
+/// instance identity is a `WorkspaceTab.id` string (never `surfaceId`,
+/// `diagram-2`, an index, or a timestamp — per the approved design).
+/// Every Diagram Workspace tab reads its own state via
+/// `engineeringProjectServiceFamily(tab.id)`.
+final engineeringProjectServiceFamily =
+    NotifierProvider.family<EngineeringProjectNotifier, EngineeringProjectState, String>(
   EngineeringProjectNotifier.new,
 );
+
+/// The existing deterministic id `WorkspaceTabsController.openSurface`
+/// always produces for `WorkspaceTab.diagramSurfaceId` ('diagram') —
+/// `'workspace-tab-$surfaceId'` — duplicated here as a literal (rather
+/// than importing `lib/workspace/workspace_tab.dart` into this
+/// lower-level service file) because it is a stable, long-standing
+/// format this file does not own; must stay in sync with
+/// `WorkspaceTabsController`'s own id-generation if that ever changes.
+const primaryDiagramInstanceId = 'workspace-tab-diagram';
+
+/// **Backward-compatible alias, per the approved design
+/// (AP-OEP-DIAGRAM-CONTROLLER-INSTANCING-001, Part 8).** Every one of
+/// this provider's ~24 existing consumers (Validation, Search,
+/// StudioShell, Command Registry, Property Inspector, Repository
+/// commit, AI context, Instruments/Simulation, ...) keeps reading this
+/// exact top-level constant, completely unchanged — it resolves to the
+/// same, always-alive "primary" Diagram instance those consumers have
+/// always implicitly meant. It deliberately does **not** track
+/// `WorkspaceTabsController.activeId` (no dynamic "active Diagram"
+/// concept is introduced — see the design's own Part 9/12) and is never
+/// invalidated on tab-close (§ `engineeringProjectServiceFamily`'s own
+/// disposal contract lives at the call site that explicitly
+/// invalidates a *non-primary* instance, never this one).
+final engineeringProjectServiceProvider = engineeringProjectServiceFamily(primaryDiagramInstanceId);

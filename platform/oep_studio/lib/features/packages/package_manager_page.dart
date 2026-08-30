@@ -5,6 +5,11 @@ import '../../core/foundation/foundation_bridge_exception.dart';
 import '../../core/foundation/oep_api_types.dart';
 import '../../core/services/foundation_runtime_service.dart';
 import '../../core/theme/studio_colors.dart';
+import '../../core/theme/studio_typography.dart';
+import '../../shared/widgets/studio_detail_row.dart';
+import '../../shared/widgets/studio_panel_header.dart';
+import '../../shared/widgets/studio_search_field.dart';
+import '../../shared/widgets/studio_utility_button.dart';
 import 'builder/package_builder_page.dart';
 import 'package_validation_dialog.dart';
 
@@ -135,48 +140,33 @@ class _PackageManagerPageState extends ConsumerState<PackageManagerPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
-          child: Row(
+        StudioPanelHeader(
+          title: 'Packages',
+          icon: Icons.inventory_2_outlined,
+          iconColor: StudioColors.selection,
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.inventory_2_outlined, size: 18, color: StudioColors.selection),
-              const SizedBox(width: 10),
-              const Expanded(
-                child: Text(
-                  'Packages',
-                  style: TextStyle(color: StudioColors.textPrimary, fontSize: 15, fontWeight: FontWeight.w700),
-                ),
-              ),
-              OutlinedButton.icon(
+              StudioUtilityButton(
+                label: 'Build Package',
+                icon: Icons.construction_outlined,
                 onPressed: () => Navigator.of(context).push(PackageBuilderPage.route()),
-                icon: const Icon(Icons.construction_outlined, size: 16),
-                label: const Text('Build Package'),
               ),
               const SizedBox(width: 8),
-              OutlinedButton.icon(
+              StudioUtilityButton(
+                label: 'Install Package',
+                icon: Icons.download_outlined,
                 onPressed: _busy ? null : _promptInstall,
-                icon: const Icon(Icons.download_outlined, size: 16),
-                label: const Text('Install Package'),
               ),
             ],
           ),
         ),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: SizedBox(
-            height: 34,
-            child: TextField(
-              controller: _searchController,
-              onChanged: (_) => _refresh(),
-              style: const TextStyle(fontSize: 12, color: StudioColors.textPrimary),
-              decoration: InputDecoration(
-                isDense: true,
-                prefixIcon: const Icon(Icons.search, size: 16),
-                hintText: 'Search installed packages…',
-                contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(4)),
-              ),
-            ),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+          child: StudioSearchField(
+            controller: _searchController,
+            onChanged: (_) => _refresh(),
+            hintText: 'Search installed packages…',
           ),
         ),
         if (_error != null)
@@ -214,7 +204,7 @@ class _PackageTile extends ConsumerWidget {
       child: InkWell(
         onTap: () => _showMetadata(context, ref),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 9),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
           child: Row(
             children: [
               const Icon(Icons.inventory_2_outlined, size: 16, color: StudioColors.textSecondary),
@@ -287,7 +277,8 @@ class _PackageTile extends ConsumerWidget {
                     _metaRow('Source', details.source),
                     _metaRow('State', details.runtimeState),
                     const SizedBox(height: 8),
-                    const Text('Publisher', style: TextStyle(color: StudioColors.textSecondary, fontSize: 11.5, fontWeight: FontWeight.w600)),
+                    const Text('PUBLISHER', style: StudioTypography.sectionLabel),
+                    const SizedBox(height: 4),
                     _metaRow('Name', details.publisherName),
                     _metaRow('Publisher ID', details.publisherId),
                     _metaRow(
@@ -303,23 +294,6 @@ class _PackageTile extends ConsumerWidget {
   }
 
   Widget _metaRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 140,
-            child: Text(label, style: const TextStyle(color: StudioColors.textDisabled, fontSize: 11.5)),
-          ),
-          Expanded(
-            child: Text(
-              value.isEmpty ? '—' : value,
-              style: const TextStyle(color: StudioColors.textPrimary, fontSize: 12),
-            ),
-          ),
-        ],
-      ),
-    );
+    return StudioDetailRow(label: label, value: value.isEmpty ? '—' : value, labelWidth: 150);
   }
 }

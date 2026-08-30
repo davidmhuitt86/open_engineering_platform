@@ -3,6 +3,7 @@ import 'package:engineering_engine/engineering_engine.dart';
 
 import '../../core/theme/studio_colors.dart';
 import '../../features/validation/suggested_fixes.dart';
+import 'studio_type_swatch.dart';
 
 /// The findings list itself — extracted (WORK_PACKAGE_025,
 /// ENGINE-TASK-000125) so both the global Validation page and Diagram
@@ -62,7 +63,7 @@ class ValidationFindingTile extends StatelessWidget {
       color: Colors.transparent,
       child: ListTile(
         dense: true,
-        leading: Icon(Icons.circle, size: 8, color: color),
+        leading: StudioTypeSwatch(color: color, size: 8),
         title: Text(
           finding.message,
           style: const TextStyle(color: StudioColors.textPrimary, fontSize: 12),

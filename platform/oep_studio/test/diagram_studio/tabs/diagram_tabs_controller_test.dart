@@ -215,4 +215,61 @@ void main() {
       expect(a, isNotEmpty);
     });
   });
+
+  group('AP-OEP-DIAGRAM-CONTROLLER-INSTANCING-IMPLEMENTATION-001 -- per-instance reference-tab history', () {
+    const secondInstanceId = 'workspace-tab-diagram-instance-0';
+    File secondInstanceFile() =>
+        File('${SettingsStorage.root().path}${Platform.pathSeparator}diagram_studio_tabs_$secondInstanceId.json');
+
+    setUp(() {
+      final file = secondInstanceFile();
+      if (file.existsSync()) file.deleteSync();
+    });
+
+    tearDown(() async {
+      await Future.delayed(const Duration(milliseconds: 50));
+      final file = secondInstanceFile();
+      if (file.existsSync()) file.deleteSync();
+    });
+
+    test('12/13. a non-primary instance has its own independent tabs/recentlyClosed, never the primary\'s', () async {
+      final container_ = container();
+      final primaryNotifier = container_.read(diagramTabsProvider.notifier);
+      final secondNotifier = container_.read(diagramTabsFamily(secondInstanceId).notifier);
+      await primaryNotifier.ensureRestored();
+      await secondNotifier.ensureRestored();
+
+      final primaryTabId = primaryNotifier.openTab(path: '/tmp/primary.json', title: 'primary.json');
+      final secondTabId = secondNotifier.openTab(path: '/tmp/second.json', title: 'second.json');
+
+      expect(container_.read(diagramTabsProvider).tabs.map((t) => t.id), [primaryTabId]);
+      expect(container_.read(diagramTabsFamily(secondInstanceId)).tabs.map((t) => t.id), [secondTabId]);
+
+      secondNotifier.closeTab(secondTabId);
+      expect(container_.read(diagramTabsFamily(secondInstanceId)).recentlyClosed, hasLength(1));
+      expect(container_.read(diagramTabsProvider).recentlyClosed, isEmpty,
+          reason: 'closing a tab in the second instance must never populate the primary\'s recently-closed list');
+    });
+
+    test('M/23. the primary instance keeps the exact original, unsuffixed persistence file', () async {
+      final container_ = container();
+      final notifier = container_.read(diagramTabsProvider.notifier);
+      await notifier.ensureRestored();
+      notifier.openTab(path: '/tmp/a.json', title: 'a.json');
+      await Future.delayed(const Duration(milliseconds: 50));
+
+      expect(tabsFile().existsSync(), isTrue, reason: 'the primary instance must not migrate to a suffixed filename');
+    });
+
+    test('a non-primary instance persists to its own suffixed file, leaving the primary\'s file untouched', () async {
+      final container_ = container();
+      final secondNotifier = container_.read(diagramTabsFamily(secondInstanceId).notifier);
+      await secondNotifier.ensureRestored();
+      secondNotifier.openTab(path: '/tmp/second.json', title: 'second.json');
+      await Future.delayed(const Duration(milliseconds: 50));
+
+      expect(secondInstanceFile().existsSync(), isTrue);
+      expect(tabsFile().existsSync(), isFalse, reason: 'a non-primary instance must never write into the primary\'s file');
+    });
+  });
 }

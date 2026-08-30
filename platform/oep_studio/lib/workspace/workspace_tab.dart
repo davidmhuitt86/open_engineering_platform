@@ -15,6 +15,17 @@ import '../core/surfaces/surface_registry.dart';
 /// `EngineeringProjectService`, exactly as it already does for every
 /// existing tab system (`WebSurface`, `_NativeTab`, `DiagramTab`).
 ///
+/// AP-OEP-WORKSPACE-MULTI-INSTANCE-001 — [id] and [surfaceId] are two
+/// genuinely independent identities, not a 1:1 pair: [surfaceId] names
+/// the Surface *type* (`SurfaceDefinition`/reserved sentinel), while
+/// [id] names *this specific tab instance*. Two [WorkspaceTab]s may
+/// legitimately share one [surfaceId] (e.g. two Diagram tabs, in a
+/// later package) as long as their [id]s differ — nothing in this class
+/// assumes or requires [id] to be derived from [surfaceId]; that was
+/// only ever an implementation detail of how
+/// `WorkspaceTabsController` happened to generate ids for the
+/// (previously always-singleton) case, not a rule this class enforces.
+///
 /// [surfaceId] is a `StudioDestination.name` for every current native
 /// Surface, or the reserved value [WorkspaceTab.diagramSurfaceId] for
 /// the one special case `SurfaceRegistry` deliberately excludes

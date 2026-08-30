@@ -175,6 +175,116 @@ void main() {
     });
   });
 
+  group('WorkspaceTabsController.openNewInstance (AP-OEP-WORKSPACE-MULTI-INSTANCE-001)', () {
+    // A harmless, unregistered surfaceId — this controller never
+    // consults SurfaceRegistry/allowsMultipleInstances to decide whether
+    // `openNewInstance` is allowed (that policy belongs to a future
+    // caller, § the controller's own class doc comment), so no real
+    // multi-instance Surface needs to exist yet to prove the mechanism.
+    const multiInstanceSurfaceId = 'test-multi-instance-surface';
+
+    test('two calls create two distinct tabs with the same surfaceId', () {
+      final controller = WorkspaceTabsController();
+      final aId = controller.openNewInstance(multiInstanceSurfaceId);
+      final bId = controller.openNewInstance(multiInstanceSurfaceId);
+
+      expect(controller.tabs, hasLength(2));
+      expect(aId, isNot(bId));
+      expect(controller.tabs[0].id, aId);
+      expect(controller.tabs[1].id, bId);
+      expect(controller.tabs[0].surfaceId, multiInstanceSurfaceId);
+      expect(controller.tabs[1].surfaceId, multiInstanceSurfaceId);
+    });
+
+    test('each call activates the newly-created instance', () {
+      final controller = WorkspaceTabsController();
+      final aId = controller.openNewInstance(multiInstanceSurfaceId);
+      expect(controller.activeId, aId);
+
+      final bId = controller.openNewInstance(multiInstanceSurfaceId);
+      expect(controller.activeId, bId);
+    });
+
+    test('activating instance A does not affect instance B', () {
+      final controller = WorkspaceTabsController();
+      final aId = controller.openNewInstance(multiInstanceSurfaceId);
+      final bId = controller.openNewInstance(multiInstanceSurfaceId);
+
+      controller.activate(aId);
+
+      expect(controller.activeId, aId);
+      expect(controller.tabs.map((t) => t.id), containsAll([aId, bId]));
+      expect(controller.tabs, hasLength(2), reason: 'activating one instance never closes the other');
+    });
+
+    test('closing instance A leaves instance B intact and active if it was active', () {
+      final controller = WorkspaceTabsController();
+      final aId = controller.openNewInstance(multiInstanceSurfaceId);
+      final bId = controller.openNewInstance(multiInstanceSurfaceId);
+
+      controller.close(aId);
+
+      expect(controller.tabs, hasLength(1));
+      expect(controller.tabs.single.id, bId);
+      expect(controller.activeId, bId);
+    });
+
+    test('closing instance B leaves instance A intact', () {
+      final controller = WorkspaceTabsController();
+      final aId = controller.openNewInstance(multiInstanceSurfaceId);
+      final bId = controller.openNewInstance(multiInstanceSurfaceId);
+
+      controller.close(bId);
+
+      expect(controller.tabs, hasLength(1));
+      expect(controller.tabs.single.id, aId);
+      expect(controller.activeId, aId);
+    });
+
+    test('append-order is preserved across mixed openSurface/openNewInstance calls, and activation never reorders', () {
+      final controller = WorkspaceTabsController();
+      final a = SurfaceRegistry.all[0];
+      final c = SurfaceRegistry.all[1];
+      final aId = controller.openSurface(a.id);
+      final instance1Id = controller.openNewInstance(multiInstanceSurfaceId);
+      final instance2Id = controller.openNewInstance(multiInstanceSurfaceId);
+      final cId = controller.openSurface(c.id);
+
+      expect(controller.tabs.map((t) => t.id).toList(), [aId, instance1Id, instance2Id, cId]);
+
+      controller.activate(aId);
+
+      expect(controller.tabs.map((t) => t.id).toList(), [aId, instance1Id, instance2Id, cId],
+          reason: 'activation must never reorder tabs');
+    });
+
+    test('openNewInstance never reuses an existing tab, unlike openSurface', () {
+      final controller = WorkspaceTabsController();
+      final surface = SurfaceRegistry.all.first;
+      controller.openSurface(surface.id);
+      controller.openSurface(surface.id); // still just one tab, per existing contract
+
+      expect(controller.tabs, hasLength(1));
+
+      controller.openNewInstance(surface.id);
+
+      expect(controller.tabs, hasLength(2), reason: 'openNewInstance always creates a new instance, even for a normally-singleton surfaceId');
+    });
+
+    test('openSurface still deduplicates singleton Surfaces even after multi-instance tabs exist elsewhere', () {
+      final controller = WorkspaceTabsController();
+      controller.openNewInstance(multiInstanceSurfaceId);
+      controller.openNewInstance(multiInstanceSurfaceId);
+      final surface = SurfaceRegistry.all.first;
+
+      final firstId = controller.openSurface(surface.id);
+      final secondId = controller.openSurface(surface.id);
+
+      expect(firstId, secondId);
+      expect(controller.tabs.where((t) => t.surfaceId == surface.id), hasLength(1));
+    });
+  });
+
   test('SurfaceRegistry has no duplicate ids (a shared invariant this shell also depends on)', () {
     final ids = SurfaceRegistry.all.map((s) => s.id).toList();
     expect(ids.toSet().length, ids.length);

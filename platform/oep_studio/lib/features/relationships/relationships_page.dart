@@ -7,7 +7,11 @@ import '../../core/routing/studio_destination.dart';
 import '../../core/services/foundation_runtime_service.dart';
 import '../../core/theme/studio_colors.dart';
 import '../../core/theme/studio_theme.dart';
+import '../../core/theme/studio_typography.dart';
 import '../../shared/navigation/explorer_navigation.dart';
+import '../../shared/widgets/studio_panel_header.dart';
+import '../../shared/widgets/studio_search_field.dart';
+import '../../shared/widgets/studio_utility_button.dart';
 import 'relationship_list_query.dart';
 
 /// The Relationship Explorer (STUDIO-TASK-000009/000011): visibility
@@ -67,31 +71,27 @@ class _RelationshipsPageState extends ConsumerState<RelationshipsPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
-          child: Row(
+        StudioPanelHeader(
+          title: 'Relationships',
+          icon: Icons.hub_outlined,
+          iconColor: StudioColors.selection,
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.hub_outlined, size: 18, color: StudioColors.selection),
-              const SizedBox(width: 10),
-              const Text(
-                'Relationships',
-                style: TextStyle(color: StudioColors.textPrimary, fontSize: 15, fontWeight: FontWeight.w700),
-              ),
-              const Spacer(),
-              OutlinedButton.icon(
+              StudioUtilityButton(
+                label: 'Go To Source',
+                icon: Icons.north_east,
                 onPressed: selectedRelationship == null
                     ? null
                     : () => goToObject(context, ref, selectedRelationship.sourceObjectId),
-                icon: const Icon(Icons.north_east, size: 14),
-                label: const Text('Go To Source'),
               ),
               const SizedBox(width: 8),
-              OutlinedButton.icon(
+              StudioUtilityButton(
+                label: 'Go To Target',
+                icon: Icons.south_east,
                 onPressed: selectedRelationship == null
                     ? null
                     : () => goToObject(context, ref, selectedRelationship.targetObjectId),
-                icon: const Icon(Icons.south_east, size: 14),
-                label: const Text('Go To Target'),
               ),
             ],
           ),
@@ -101,62 +101,35 @@ class _RelationshipsPageState extends ConsumerState<RelationshipsPage> {
           child: Row(
             children: [
               Expanded(
-                child: SizedBox(
-                  height: 34,
-                  child: TextField(
-                    onChanged: (value) => setState(
-                      () => _query = value.isEmpty
-                          ? _query.copyWith(clearSourceFilter: true)
-                          : _query.copyWith(sourceFilter: value),
-                    ),
-                    style: const TextStyle(fontSize: 12, color: StudioColors.textPrimary),
-                    decoration: InputDecoration(
-                      isDense: true,
-                      hintText: 'Filter by source…',
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(4)),
-                    ),
+                child: StudioSearchField(
+                  onChanged: (value) => setState(
+                    () => _query = value.isEmpty
+                        ? _query.copyWith(clearSourceFilter: true)
+                        : _query.copyWith(sourceFilter: value),
                   ),
+                  hintText: 'Filter by source…',
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: SizedBox(
-                  height: 34,
-                  child: TextField(
-                    onChanged: (value) => setState(
-                      () => _query = value.isEmpty
-                          ? _query.copyWith(clearTargetFilter: true)
-                          : _query.copyWith(targetFilter: value),
-                    ),
-                    style: const TextStyle(fontSize: 12, color: StudioColors.textPrimary),
-                    decoration: InputDecoration(
-                      isDense: true,
-                      hintText: 'Filter by target…',
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(4)),
-                    ),
+                child: StudioSearchField(
+                  onChanged: (value) => setState(
+                    () => _query = value.isEmpty
+                        ? _query.copyWith(clearTargetFilter: true)
+                        : _query.copyWith(targetFilter: value),
                   ),
+                  hintText: 'Filter by target…',
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: SizedBox(
-                  height: 34,
-                  child: TextField(
-                    onChanged: (value) => setState(
-                      () => _query = value.isEmpty
-                          ? _query.copyWith(clearAuthorFilter: true)
-                          : _query.copyWith(authorFilter: value),
-                    ),
-                    style: const TextStyle(fontSize: 12, color: StudioColors.textPrimary),
-                    decoration: InputDecoration(
-                      isDense: true,
-                      hintText: 'Filter by author…',
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(4)),
-                    ),
+                child: StudioSearchField(
+                  onChanged: (value) => setState(
+                    () => _query = value.isEmpty
+                        ? _query.copyWith(clearAuthorFilter: true)
+                        : _query.copyWith(authorFilter: value),
                   ),
+                  hintText: 'Filter by author…',
                 ),
               ),
               const SizedBox(width: 12),
@@ -259,16 +232,16 @@ class _RelationshipListHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const style = TextStyle(color: StudioColors.textSecondary, fontSize: 11, fontWeight: FontWeight.w600);
+    const style = StudioTypography.fieldLabel;
     return const Padding(
       padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       child: Row(
         children: [
           SizedBox(width: 24),
-          Expanded(flex: 2, child: Text('Type', style: style)),
-          Expanded(flex: 3, child: Text('Source', style: style)),
-          Expanded(flex: 3, child: Text('Target', style: style)),
-          Expanded(flex: 2, child: Text('Author', style: style)),
+          Expanded(flex: 2, child: Text('TYPE', style: style)),
+          Expanded(flex: 3, child: Text('SOURCE', style: style)),
+          Expanded(flex: 3, child: Text('TARGET', style: style)),
+          Expanded(flex: 2, child: Text('AUTHOR', style: style)),
         ],
       ),
     );

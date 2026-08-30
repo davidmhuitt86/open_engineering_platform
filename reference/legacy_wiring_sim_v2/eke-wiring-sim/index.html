@@ -83,7 +83,7 @@
     <!-- INSPECTOR TAB -->
     <div id="sidebar-inspector" class="sidebar-pane active">
       <div class="sidebar-pane-hd">
-        <span>Wire Inspector</span>
+        <span>Property Inspector</span>
         <button class="sidebar-pop-btn" onclick="popOut('inspector')" title="Pop out">⊞</button>
       </div>
       <div id="sidebar-fp-content">
@@ -525,7 +525,7 @@ document.getElementById('mpm-is-conn').addEventListener('change',function(){
 <!-- POPOUT CONTAINERS (hidden by default, shown when popped from sidebar) -->
 <div id="fp" style="display:none;position:fixed;z-index:500;width:300px;min-height:200px;background:var(--surf-1);border:1.5px solid var(--border-1);border-radius:6px;box-shadow:var(--shadow-panel);flex-direction:column;overflow:hidden">
   <div id="fp-drag" style="cursor:move;background:var(--surf-0);padding:7px 10px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border-0)">
-    <span id="fp-title" style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--amber);font-weight:800">Wire Inspector</span>
+    <span id="fp-title" style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--amber);font-weight:800">Property Inspector</span>
     <div style="display:flex;gap:4px">
       <button onclick="dockIn('inspector')" style="background:none;border:none;color:var(--text-lo);cursor:pointer;font-size:11px" title="Dock back">⊟</button>
       <button id="fp-close" onclick="closePanel()" style="background:none;border:none;color:var(--text-lo);font-size:16px;cursor:pointer;line-height:1">✕</button>

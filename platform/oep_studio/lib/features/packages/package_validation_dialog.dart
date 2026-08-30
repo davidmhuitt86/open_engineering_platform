@@ -5,6 +5,8 @@ import '../../core/foundation/foundation_bridge_exception.dart';
 import '../../core/foundation/oep_api_types.dart';
 import '../../core/services/foundation_runtime_service.dart';
 import '../../core/theme/studio_colors.dart';
+import '../../shared/widgets/studio_detail_row.dart';
+import '../../shared/widgets/studio_type_swatch.dart';
 
 /// Package Validation (AP-DS-002, "Package Integration"): presents
 /// `FoundationBridge.verifyPackage`'s result for one installed package.
@@ -147,7 +149,7 @@ class _ResultBody extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.circle, size: 5, color: StudioColors.warning),
+                  const StudioTypeSwatch(color: StudioColors.warning, size: 5),
                   const SizedBox(width: 8),
                   Expanded(child: Text(finding, style: const TextStyle(color: StudioColors.textSecondary, fontSize: 12))),
                 ],
@@ -159,14 +161,6 @@ class _ResultBody extends StatelessWidget {
   }
 
   Widget _row(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        children: [
-          SizedBox(width: 140, child: Text(label, style: const TextStyle(color: StudioColors.textDisabled, fontSize: 11.5))),
-          Expanded(child: Text(value, style: const TextStyle(color: StudioColors.textPrimary, fontSize: 12))),
-        ],
-      ),
-    );
+    return StudioDetailRow(label: label, value: value, labelWidth: 140);
   }
 }

@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/services/engineering_project_service.dart';
 import '../core/surfaces/surface_definition.dart';
 import '../core/surfaces/surface_registry.dart';
 import '../core/theme/studio_colors.dart';
 import '../diagram_studio/compare/compare_legacy_v2_webview.dart';
 import '../diagram_studio/compare/diagram_with_compare_pane.dart';
 import '../diagram_studio/controller/diagram_studio_controller_provider.dart';
+import '../diagram_studio/tabs/diagram_tabs_controller.dart';
+import '../diagram_studio/webview/legacy_v2_webview.dart';
 import 'workspace_tab.dart';
 import 'workspace_tabs_controller.dart';
 
@@ -56,10 +59,6 @@ class EngineeringWorkspacePage extends ConsumerWidget {
     final tabsController = ref.watch(workspaceTabsControllerProvider);
     final tabs = tabsController.tabs;
     final activeId = tabsController.activeId;
-    // Same reasoning as `WebSurfacesHostPage`'s own `documentTitle`
-    // override: the Diagram tab's label tracks the live open document,
-    // not a fixed string.
-    final documentTitle = ref.watch(diagramStudioControllerProvider).valueOrNull?.document.metadata.title;
 
     return Container(
       color: StudioColors.background,
@@ -73,7 +72,6 @@ class EngineeringWorkspacePage extends ConsumerWidget {
             onOpenDiagram: () => tabsController.openSurface(WorkspaceTab.diagramSurfaceId),
             onOpenDiagram2: () => tabsController.openSurface(WorkspaceTab.diagram2SurfaceId),
             onOpenSurface: (surface) => tabsController.openSurface(surface.id),
-            diagramTitleOverride: documentTitle,
           ),
           Expanded(
             child: tabs.isEmpty
@@ -98,23 +96,40 @@ class EngineeringWorkspacePage extends ConsumerWidget {
   /// away-from tab's `State` survives until the tab is actually closed).
   Widget _buildTabContent(BuildContext context, WorkspaceTab tab) {
     if (tab.isDiagram) {
-      // The existing, unmodified bridged widget — the same one
-      // `WebSurfacesHostPage` embeds for its own Diagram tab. Embedding
-      // the whole `WebSurfacesHostPage` here instead would nest one tab
-      // strip inside another (it has its own Web-Surface/native-tab
-      // strip) — embedding `LegacyV2WebViewPage` directly keeps exactly
-      // one tab strip, this shell's own, with zero V2/bridge changes.
-      //
-      // AP-OEP-DIAGRAM-COMPARE-001 — wrapped in the shared
-      // `DiagramWithComparePane`, which optionally splits this content
-      // area to also show the Compare pane (the same widget
-      // `WebSurfacesHostPage`'s own Diagram Studio tab uses, so Compare
-      // works regardless of which route reaches Diagram Studio's real
-      // content). `WorkspaceTab`/`WorkspaceTabsController`/
-      // `SurfaceRegistry` are untouched by this — it remains exactly one
-      // Workspace tab; the split is purely a rendering decision inside
-      // this tab's own content area.
-      return const KeyedSubtree(key: ValueKey('workspace-tab-diagram'), child: DiagramWithComparePane());
+      // AP-OEP-DIAGRAM-CONTROLLER-INSTANCING-IMPLEMENTATION-001 — `tab.id`
+      // (not merely `tab.isDiagram`/`surfaceId`) decides which Diagram
+      // instance this tab renders, per the approved design's Part 6/9:
+      // the *primary* instance (this Workspace's original, single
+      // Diagram tab, id == `primaryDiagramInstanceId`) keeps its exact
+      // existing widget tree (`DiagramWithComparePane`, Compare toggle
+      // included) — zero behavior change. Any other `tab.id` (created
+      // via `WorkspaceTabsController.openNewInstance`, not yet exposed
+      // by any UI in this package) is a genuinely new, independent
+      // Diagram instance and must never resolve to the primary alias —
+      // it renders the same real `LegacyV2WebViewPage`, parameterized
+      // with its own `instanceId`, with no Compare pane (Compare is
+      // explicitly primary-only stopgap infrastructure per the design's
+      // Part 14/21, out of scope to generalize here).
+      if (tab.id == primaryDiagramInstanceId) {
+        // The existing, unmodified bridged widget — the same one
+        // `WebSurfacesHostPage` embeds for its own Diagram tab. Embedding
+        // the whole `WebSurfacesHostPage` here instead would nest one tab
+        // strip inside another (it has its own Web-Surface/native-tab
+        // strip) — embedding `LegacyV2WebViewPage` directly keeps exactly
+        // one tab strip, this shell's own, with zero V2/bridge changes.
+        //
+        // AP-OEP-DIAGRAM-COMPARE-001 — wrapped in the shared
+        // `DiagramWithComparePane`, which optionally splits this content
+        // area to also show the Compare pane (the same widget
+        // `WebSurfacesHostPage`'s own Diagram Studio tab uses, so Compare
+        // works regardless of which route reaches Diagram Studio's real
+        // content). `WorkspaceTab`/`WorkspaceTabsController`/
+        // `SurfaceRegistry` are untouched by this — it remains exactly one
+        // Workspace tab; the split is purely a rendering decision inside
+        // this tab's own content area.
+        return const KeyedSubtree(key: ValueKey('workspace-tab-diagram'), child: DiagramWithComparePane());
+      }
+      return _DiagramInstanceTab(key: ValueKey(tab.id), instanceId: tab.id);
     }
     if (tab.isDiagram2) {
       // AP-OEP-DIAGRAM-COMPARE-002 — the same second, independent
@@ -135,6 +150,46 @@ class EngineeringWorkspacePage extends ConsumerWidget {
   }
 }
 
+/// AP-OEP-DIAGRAM-CONTROLLER-INSTANCING-IMPLEMENTATION-001 — the one
+/// place a non-primary Diagram instance's three family-provider entries
+/// (`engineeringProjectServiceFamily`/`diagramStudioControllerFamily`/
+/// `diagramTabsFamily`, all keyed by [instanceId]) are explicitly
+/// invalidated, per the approved design's Part 10 "critical disposal
+/// rule" — **not** `autoDispose`, and not tied to this widget merely
+/// scrolling offstage inside the `IndexedStack` (which keeps every open
+/// tab's widget mounted regardless of which is visually active, exactly
+/// as `WebSurfacesHostPage`'s own tab host already established). This
+/// `State.dispose()` only runs when Flutter actually removes this
+/// `Element` from the tree, which only happens because
+/// `EngineeringWorkspacePage.build()` stops including it in
+/// `IndexedStack.children` — which only happens because
+/// `WorkspaceTabsController.close(tab.id)` removed the tab from
+/// `tabs`. Never constructed for the primary instance (§
+/// `_buildTabContent`'s own branch) — the primary alias is deliberately
+/// never invalidated here, preserving its existing "outlives any single
+/// route/tab" lifetime untouched.
+class _DiagramInstanceTab extends ConsumerStatefulWidget {
+  const _DiagramInstanceTab({super.key, required this.instanceId});
+
+  final String instanceId;
+
+  @override
+  ConsumerState<_DiagramInstanceTab> createState() => _DiagramInstanceTabState();
+}
+
+class _DiagramInstanceTabState extends ConsumerState<_DiagramInstanceTab> {
+  @override
+  void dispose() {
+    ref.invalidate(engineeringProjectServiceFamily(widget.instanceId));
+    ref.invalidate(diagramStudioControllerFamily(widget.instanceId));
+    ref.invalidate(diagramTabsFamily(widget.instanceId));
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => LegacyV2WebViewPage(instanceId: widget.instanceId);
+}
+
 class _WorkspaceTabStrip extends StatelessWidget {
   const _WorkspaceTabStrip({
     required this.tabs,
@@ -144,7 +199,6 @@ class _WorkspaceTabStrip extends StatelessWidget {
     required this.onOpenDiagram,
     required this.onOpenDiagram2,
     required this.onOpenSurface,
-    this.diagramTitleOverride,
   });
 
   final List<WorkspaceTab> tabs;
@@ -154,7 +208,6 @@ class _WorkspaceTabStrip extends StatelessWidget {
   final VoidCallback onOpenDiagram;
   final VoidCallback onOpenDiagram2;
   final void Function(SurfaceDefinition) onOpenSurface;
-  final String? diagramTitleOverride;
 
   @override
   Widget build(BuildContext context) {
@@ -179,7 +232,6 @@ class _WorkspaceTabStrip extends StatelessWidget {
                   for (final tab in tabs)
                     _WorkspaceTabChip(
                       tab: tab,
-                      displayTitle: tab.isDiagram ? (diagramTitleOverride ?? tab.title) : tab.title,
                       active: tab.id == activeId,
                       onTap: () => onActivate(tab.id),
                       onClose: () => onClose(tab.id),
@@ -244,23 +296,31 @@ class _MenuRow extends StatelessWidget {
   }
 }
 
-class _WorkspaceTabChip extends StatelessWidget {
+class _WorkspaceTabChip extends ConsumerWidget {
   const _WorkspaceTabChip({
     required this.tab,
-    required this.displayTitle,
     required this.active,
     required this.onTap,
     required this.onClose,
   });
 
   final WorkspaceTab tab;
-  final String displayTitle;
   final bool active;
   final VoidCallback onTap;
   final VoidCallback onClose;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // AP-OEP-DIAGRAM-CONTROLLER-INSTANCING-IMPLEMENTATION-001 — each
+    // Diagram tab's own live document title, resolved from *this tab's*
+    // own instance (`tab.id`), never the primary alias — the previous
+    // single, page-level `diagramTitleOverride` was correct only while
+    // exactly one Diagram tab could ever exist; it would have shown
+    // instance A's title on instance B's chip once a second instance
+    // exists.
+    final displayTitle = tab.isDiagram
+        ? (ref.watch(diagramStudioControllerFamily(tab.id)).valueOrNull?.document.metadata.title ?? tab.title)
+        : tab.title;
     return InkWell(
       onTap: onTap,
       child: Container(

@@ -10,8 +10,20 @@ abstract final class StudioColors {
   static const surface = Color(0xFF11161D);
   static const surfaceRaised = Color(0xFF161C25);
   static const surfaceSunken = Color(0xFF0A0E13);
+
+  /// Button/row hover background — one step up from [surfaceRaised].
+  /// AP-OEP-STUDIO-DESIGN-UNIFY-001, matching Diagram Studio's Property
+  /// Inspector's own `surf-3-hover` role.
+  static const surfaceHover = Color(0xFF1E2530);
+
   static const border = Color(0xFF232B36);
   static const borderSubtle = Color(0xFF1B222C);
+
+  /// An outer panel's own border — one step stronger than [border].
+  /// AP-OEP-STUDIO-DESIGN-UNIFY-001, matching Diagram Studio's Property
+  /// Inspector's own `border-2` role ([border]/[borderSubtle] already
+  /// covered its `border-0`/`border-1`).
+  static const borderStrong = Color(0xFF2E3947);
 
   static const textPrimary = Color(0xFFE6E9EE);
   static const textSecondary = Color(0xFF9AA5B1);

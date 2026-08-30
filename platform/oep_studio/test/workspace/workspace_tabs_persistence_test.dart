@@ -10,16 +10,17 @@ import 'package:oep_studio/workspace/workspace_tabs_storage.dart';
 
 import '../support/isolated_settings_storage.dart';
 
-/// AP-OEP-WORKSPACE-PERSISTENCE-001 — focused tests for
-/// [WorkspaceTabsController]'s persistence behavior, per
-/// `docs/OEP_WORKSPACE_STATE_ARCHITECTURE.md`'s own minimal schema
-/// (surfaceIds + activeId, nothing else) and
-/// `docs/OEP_WORKSPACE_ROUTING_ARCHITECTURE.md`'s already-persistent
-/// Workspace host. Uses an in-memory fake [WorkspaceTabsStorage]
-/// subclass throughout (no real filesystem coupling) except for the one
-/// end-to-end provider test, which uses `useIsolatedSettingsStorage()`
-/// — the same real-storage isolation seam every other persistence test
-/// in this repo already uses.
+/// AP-OEP-WORKSPACE-PERSISTENCE-001/AP-OEP-WORKSPACE-MULTI-INSTANCE-001
+/// — focused tests for [WorkspaceTabsController]'s persistence behavior.
+/// The schema now stores `{id, surfaceId}` tab records (not bare
+/// surfaceId strings) so two tabs can legitimately share a `surfaceId`
+/// — see [WorkspaceTabsStorage]'s own doc comment for the
+/// backward-compatible migration from the original
+/// `{surfaces: [...], activeId}` shape. Uses an in-memory fake
+/// [WorkspaceTabsStorage] subclass throughout (no real filesystem
+/// coupling) except for the one end-to-end provider test, which uses
+/// `useIsolatedSettingsStorage()` — the same real-storage isolation seam
+/// every other persistence test in this repo already uses.
 void main() {
   final a = SurfaceRegistry.all[0];
   final b = SurfaceRegistry.all[1];
@@ -62,7 +63,7 @@ void main() {
       controller.close(aId);
       await pumpEventQueue();
 
-      expect(storage.surfaces, [b.id]);
+      expect(storage.tabs.map((t) => t.surfaceId).toList(), [b.id]);
     });
 
     test('5. activating a Surface persists the active id', () async {
@@ -74,11 +75,12 @@ void main() {
       controller.activate(aId);
       await pumpEventQueue();
 
-      expect(storage.activeId, a.id);
+      expect(storage.activeId, aId);
     });
 
-    test('6. duplicate Surface IDs in the persisted file are not restored as duplicate tabs', () async {
-      final storage = _FakeWorkspaceTabsStorage()..surfaces = [a.id, a.id, b.id];
+    test('6. duplicate tab ids in the persisted file are not restored as duplicate tabs', () async {
+      final storage = _FakeWorkspaceTabsStorage()
+        ..tabs = [(id: 'workspace-tab-${a.id}', surfaceId: a.id), (id: 'workspace-tab-${a.id}', surfaceId: a.id), (id: 'workspace-tab-${b.id}', surfaceId: b.id)];
       final controller = WorkspaceTabsController(storage: storage);
 
       await controller.restore();
@@ -87,7 +89,8 @@ void main() {
     });
 
     test('7. invalid/stale Surface IDs are ignored, never fabricated into a tab', () async {
-      final storage = _FakeWorkspaceTabsStorage()..surfaces = ['no-such-surface', a.id];
+      final storage = _FakeWorkspaceTabsStorage()
+        ..tabs = [(id: 'workspace-tab-no-such-surface', surfaceId: 'no-such-surface'), (id: 'workspace-tab-${a.id}', surfaceId: a.id)];
       final controller = WorkspaceTabsController(storage: storage);
 
       await controller.restore();
@@ -98,8 +101,8 @@ void main() {
 
     test('8. an invalid active id falls back deterministically to the first restored tab', () async {
       final storage = _FakeWorkspaceTabsStorage()
-        ..surfaces = [a.id, b.id]
-        ..activeId = 'no-such-surface';
+        ..tabs = [(id: 'workspace-tab-${a.id}', surfaceId: a.id), (id: 'workspace-tab-${b.id}', surfaceId: b.id)]
+        ..activeId = 'no-such-tab-id';
       final controller = WorkspaceTabsController(storage: storage);
 
       await controller.restore();
@@ -109,8 +112,8 @@ void main() {
 
     test('9. a persisted Diagram Surface restores correctly using the reserved diagram surfaceId', () async {
       final storage = _FakeWorkspaceTabsStorage()
-        ..surfaces = [WorkspaceTab.diagramSurfaceId]
-        ..activeId = WorkspaceTab.diagramSurfaceId;
+        ..tabs = [(id: 'workspace-tab-${WorkspaceTab.diagramSurfaceId}', surfaceId: WorkspaceTab.diagramSurfaceId)]
+        ..activeId = 'workspace-tab-${WorkspaceTab.diagramSurfaceId}';
       final controller = WorkspaceTabsController(storage: storage);
 
       await controller.restore();
@@ -122,8 +125,8 @@ void main() {
 
     test('10. all-invalid persisted state produces a valid empty/default Workspace, and the stale file self-heals', () async {
       final storage = _FakeWorkspaceTabsStorage()
-        ..surfaces = ['bogus-1', 'bogus-2']
-        ..activeId = 'bogus-1';
+        ..tabs = [(id: 'workspace-tab-bogus-1', surfaceId: 'bogus-1'), (id: 'workspace-tab-bogus-2', surfaceId: 'bogus-2')]
+        ..activeId = 'workspace-tab-bogus-1';
       final controller = WorkspaceTabsController(storage: storage);
 
       await controller.restore();
@@ -134,12 +137,12 @@ void main() {
       // restoration re-persists the cleaned (now-empty) state, per this
       // package's own "restoring state if restoration changes the
       // effective state" persistence trigger.
-      expect(storage.surfaces, isEmpty);
+      expect(storage.tabs, isEmpty);
       expect(storage.saveCount, greaterThan(0));
     });
 
     test('11. restoration occurs only once per controller initialization', () async {
-      final storage = _FakeWorkspaceTabsStorage()..surfaces = [a.id];
+      final storage = _FakeWorkspaceTabsStorage()..tabs = [(id: 'workspace-tab-${a.id}', surfaceId: a.id)];
 
       final controller = WorkspaceTabsController(storage: storage);
       await controller.restore();
@@ -183,18 +186,104 @@ void main() {
       storage.completeFirstSave();
       await pumpEventQueue();
 
-      expect(storage.surfaces, [a.id, b.id], reason: 'the later call must win on disk, regardless of per-write latency');
+      expect(storage.tabs.map((t) => t.surfaceId).toList(), [a.id, b.id],
+          reason: 'the later call must win on disk, regardless of per-write latency');
     });
 
     test('13. persistence never mutates SurfaceRegistry', () async {
       final before = SurfaceRegistry.all.map((s) => s.id).toList();
-      final storage = _FakeWorkspaceTabsStorage()..surfaces = [a.id, b.id];
+      final storage = _FakeWorkspaceTabsStorage()
+        ..tabs = [(id: 'workspace-tab-${a.id}', surfaceId: a.id), (id: 'workspace-tab-${b.id}', surfaceId: b.id)];
       final controller = WorkspaceTabsController(storage: storage);
       await controller.restore();
       controller.openSurface(a.id);
       controller.close(controller.tabs.first.id);
 
       expect(SurfaceRegistry.all.map((s) => s.id).toList(), before);
+    });
+
+    group('AP-OEP-WORKSPACE-MULTI-INSTANCE-001', () {
+      // `restore()` validates each persisted surfaceId against
+      // SurfaceRegistry/the reserved sentinels (existing, preserved
+      // behavior — § tests 7/10 above), so these persistence-focused
+      // tests use a real registered surfaceId rather than the harmless
+      // unregistered one the pure-controller tests use — `openNewInstance`
+      // itself still never consults SurfaceRegistry/allowsMultipleInstances
+      // (§ that method's own doc comment); this is purely to survive the
+      // restore-time validation step being exercised here.
+      final multiInstanceSurfaceId = a.id;
+
+      test('L. persistence restores multiple instances of the same surfaceId, distinguished by id', () async {
+        final storage = _FakeWorkspaceTabsStorage();
+        final writer = WorkspaceTabsController(storage: storage);
+        final instance1Id = writer.openNewInstance(multiInstanceSurfaceId);
+        final instance2Id = writer.openNewInstance(multiInstanceSurfaceId);
+        await pumpEventQueue();
+
+        final reader = WorkspaceTabsController(storage: storage);
+        await reader.restore();
+
+        expect(reader.tabs.map((t) => t.id).toList(), [instance1Id, instance2Id]);
+        expect(reader.tabs.map((t) => t.surfaceId).toList(), [multiInstanceSurfaceId, multiInstanceSurfaceId]);
+        expect(reader.active!.id, instance2Id, reason: 'instance 2 was opened last and therefore active at persist time');
+      });
+
+      test('a freshly restored session never mints a colliding instance id', () async {
+        final storage = _FakeWorkspaceTabsStorage();
+        final writer = WorkspaceTabsController(storage: storage);
+        writer.openNewInstance(multiInstanceSurfaceId);
+        writer.openNewInstance(multiInstanceSurfaceId);
+        await pumpEventQueue();
+        final persistedIds = storage.tabs.map((t) => t.id).toSet();
+
+        final reader = WorkspaceTabsController(storage: storage);
+        await reader.restore();
+        final newId = reader.openNewInstance(multiInstanceSurfaceId);
+
+        expect(persistedIds.contains(newId), isFalse);
+        expect(reader.tabs.map((t) => t.id).toSet().length, reader.tabs.length, reason: 'no id collision among any restored+new tab');
+      });
+
+      test('M. legacy {surfaces, activeId} persistence format still restores correctly', () async {
+        final storage = _LegacyFormatStorage()
+          ..surfaces = [a.id, b.id]
+          ..legacyActiveId = b.id;
+        final controller = WorkspaceTabsController(storage: storage);
+
+        await controller.restore();
+
+        expect(controller.tabs.map((t) => t.surfaceId).toList(), [a.id, b.id]);
+        expect(controller.active!.surfaceId, b.id);
+      });
+
+      test('N. invalid persisted tab ids/surfaceIds are dropped, never fabricated', () async {
+        final storage = _FakeWorkspaceTabsStorage()
+          ..tabs = [
+            (id: 'workspace-tab-${a.id}', surfaceId: a.id),
+            (id: 'workspace-tab-${a.id}', surfaceId: a.id), // corrupt duplicate id
+            (id: 'workspace-tab-bogus', surfaceId: 'bogus-surface'), // unknown surfaceId
+          ]
+          ..activeId = 'workspace-tab-bogus';
+        final controller = WorkspaceTabsController(storage: storage);
+
+        await controller.restore();
+
+        expect(controller.tabs, hasLength(1));
+        expect(controller.tabs.single.surfaceId, a.id);
+        expect(controller.active!.surfaceId, a.id, reason: 'invalid active id falls back to the first surviving tab');
+      });
+
+      test('O. no-op activation still produces no unnecessary notification with multi-instance tabs present', () async {
+        final storage = _FakeWorkspaceTabsStorage();
+        final controller = WorkspaceTabsController(storage: storage);
+        final instanceId = controller.openNewInstance(multiInstanceSurfaceId);
+        var notifications = 0;
+        controller.addListener(() => notifications++);
+
+        controller.activate(instanceId); // already active
+
+        expect(notifications, 0);
+      });
     });
   });
 
@@ -235,22 +324,43 @@ void main() {
 }
 
 class _FakeWorkspaceTabsStorage extends WorkspaceTabsStorage {
-  List<String> surfaces = [];
+  List<PersistedWorkspaceTab> tabs = [];
   String? activeId;
   int saveCount = 0;
   int loadCount = 0;
 
   @override
-  Future<({List<String> surfaces, String? activeId})> load() async {
+  Future<({List<PersistedWorkspaceTab> tabs, String? activeId})> load() async {
     loadCount++;
-    return (surfaces: List.of(surfaces), activeId: activeId);
+    return (tabs: List.of(tabs), activeId: activeId);
   }
 
   @override
-  Future<void> save({required List<String> surfaces, required String? activeId}) async {
+  Future<void> save({required List<PersistedWorkspaceTab> tabs, required String? activeId}) async {
     saveCount++;
-    this.surfaces = List.of(surfaces);
+    this.tabs = List.of(tabs);
     this.activeId = activeId;
+  }
+}
+
+/// A storage fake that only ever produces the pre-AP-OEP-WORKSPACE-
+/// MULTI-INSTANCE-001 `{surfaces, activeId}` shape from [load] — proving
+/// [WorkspaceTabsController] restores correctly against a file it never
+/// itself wrote in the new shape (a genuinely pre-existing user file).
+class _LegacyFormatStorage extends WorkspaceTabsStorage {
+  List<String> surfaces = [];
+  String? legacyActiveId;
+
+  @override
+  Future<({List<PersistedWorkspaceTab> tabs, String? activeId})> load() async {
+    final tabs = [for (final surfaceId in surfaces) (id: 'workspace-tab-$surfaceId', surfaceId: surfaceId)];
+    final activeId = legacyActiveId == null ? null : 'workspace-tab-$legacyActiveId';
+    return (tabs: tabs, activeId: activeId);
+  }
+
+  @override
+  Future<void> save({required List<PersistedWorkspaceTab> tabs, required String? activeId}) async {
+    // Not exercised by the one test using this fake (restore-only).
   }
 }
 
@@ -261,7 +371,7 @@ class _FakeWorkspaceTabsStorage extends WorkspaceTabsStorage {
 /// serializes saves in call order rather than in whichever-finishes-first
 /// order.
 class _SlowFirstWriteStorage extends WorkspaceTabsStorage {
-  List<String> surfaces = [];
+  List<PersistedWorkspaceTab> tabs = [];
   String? activeId;
 
   final Completer<void> _firstSaveGate = Completer<void>();
@@ -273,13 +383,13 @@ class _SlowFirstWriteStorage extends WorkspaceTabsStorage {
   void completeFirstSave() => _firstSaveGate.complete();
 
   @override
-  Future<void> save({required List<String> surfaces, required String? activeId}) async {
+  Future<void> save({required List<PersistedWorkspaceTab> tabs, required String? activeId}) async {
     if (!_sawFirstCall) {
       _sawFirstCall = true;
       _firstSaveStarted.complete();
       await _firstSaveGate.future;
     }
-    this.surfaces = List.of(surfaces);
+    this.tabs = List.of(tabs);
     this.activeId = activeId;
   }
 }

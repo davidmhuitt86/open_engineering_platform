@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import '../../core/routing/studio_destination.dart';
 import '../../core/services/foundation_runtime_service.dart';
 import '../../core/theme/studio_colors.dart';
+import '../../shared/widgets/studio_panel_header.dart';
+import '../../shared/widgets/studio_search_field.dart';
 import 'engineering_graph_view.dart';
 
 /// The Knowledge Graph (Phase 5): a real visualization of Engineering
@@ -103,35 +105,24 @@ class _GraphPageState extends ConsumerState<GraphPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
-          child: Row(
+        StudioPanelHeader(
+          title: 'Knowledge Graph',
+          icon: Icons.hub_outlined,
+          iconColor: StudioColors.selection,
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.hub_outlined, size: 18, color: StudioColors.selection),
-              const SizedBox(width: 10),
-              const Text(
-                'Knowledge Graph',
-                style: TextStyle(color: StudioColors.textPrimary, fontSize: 15, fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(width: 16),
               Text(
                 '${objects.length} object(s) · ${relationships.length} relationship(s)',
                 style: const TextStyle(color: StudioColors.textSecondary, fontSize: 12),
               ),
-              const Spacer(),
+              const SizedBox(width: 16),
               SizedBox(
-                width: 240,
-                height: 32,
-                child: TextField(
+                width: 220,
+                child: StudioSearchField(
                   controller: _filterController,
                   onChanged: (value) => setState(() => _filter = value),
-                  style: const TextStyle(color: StudioColors.textPrimary, fontSize: 12.5),
-                  decoration: const InputDecoration(
-                    isDense: true,
-                    prefixIcon: Icon(Icons.search, size: 16),
-                    hintText: 'Filter by name…',
-                    contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                  ),
+                  hintText: 'Filter by name…',
                 ),
               ),
             ],

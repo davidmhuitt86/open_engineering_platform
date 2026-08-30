@@ -8,6 +8,9 @@ import '../../core/models/object_category.dart';
 import '../../core/routing/studio_destination.dart';
 import '../../core/services/foundation_runtime_service.dart';
 import '../../core/theme/studio_colors.dart';
+import '../../shared/widgets/studio_panel_header.dart';
+import '../../shared/widgets/studio_search_field.dart';
+import '../../shared/widgets/studio_utility_button.dart';
 import '../packages/builder/package_builder_page.dart';
 
 /// The Repository Explorer (STUDIO-TASK-000005/007): structural
@@ -90,39 +93,29 @@ class _RepositoryPageState extends ConsumerState<RepositoryPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
-          child: Row(
+        StudioPanelHeader(
+          title: foundation.repositoryStatus?.repositoryName ?? '',
+          icon: Icons.folder_outlined,
+          iconColor: StudioColors.selection,
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.folder_outlined, size: 18, color: StudioColors.selection),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  foundation.repositoryStatus?.repositoryName ?? '',
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: StudioColors.textPrimary,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-              OutlinedButton.icon(
+              StudioUtilityButton(
+                label: _packages == null ? 'Packages' : 'Packages (${_packages!.length})',
+                icon: Icons.inventory_2_outlined,
                 onPressed: () => context.go(StudioDestination.packages.path),
-                icon: const Icon(Icons.inventory_2_outlined, size: 16),
-                label: Text(_packages == null ? 'Packages' : 'Packages (${_packages!.length})'),
               ),
               const SizedBox(width: 8),
-              OutlinedButton.icon(
+              StudioUtilityButton(
+                label: 'Build Package',
+                icon: Icons.construction_outlined,
                 onPressed: () => Navigator.of(context).push(PackageBuilderPage.route()),
-                icon: const Icon(Icons.construction_outlined, size: 16),
-                label: const Text('Build Package'),
               ),
               const SizedBox(width: 8),
-              OutlinedButton.icon(
+              StudioUtilityButton(
+                label: 'Knowledge Graph',
+                icon: Icons.hub_outlined,
                 onPressed: () => context.go(StudioDestination.graph.path),
-                icon: const Icon(Icons.hub_outlined, size: 16),
-                label: const Text('Knowledge Graph'),
               ),
             ],
           ),
@@ -135,20 +128,10 @@ class _RepositoryPageState extends ConsumerState<RepositoryPage> {
           ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: SizedBox(
-            height: 34,
-            child: TextField(
-              controller: _filterController,
-              onChanged: (value) => setState(() => _filterText = value),
-              style: const TextStyle(fontSize: 12, color: StudioColors.textPrimary),
-              decoration: InputDecoration(
-                isDense: true,
-                prefixIcon: const Icon(Icons.search, size: 16),
-                hintText: 'Filter repository…',
-                contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(4)),
-              ),
-            ),
+          child: StudioSearchField(
+            controller: _filterController,
+            onChanged: (value) => setState(() => _filterText = value),
+            hintText: 'Filter repository…',
           ),
         ),
         const SizedBox(height: 12),
@@ -213,7 +196,7 @@ class _VersionHistoryTile extends StatelessWidget {
           child: InkWell(
             onTap: onToggleExpanded,
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 9),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
               child: Row(
                 children: [
                   Icon(expanded ? Icons.expand_more : Icons.chevron_right, size: 18, color: StudioColors.textSecondary),
@@ -346,7 +329,7 @@ class _CategoryTile extends StatelessWidget {
           child: InkWell(
             onTap: onSelect,
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 9),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
               child: Row(
                 children: [
                   InkWell(

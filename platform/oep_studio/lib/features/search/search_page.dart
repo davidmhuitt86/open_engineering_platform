@@ -10,7 +10,10 @@ import '../../core/services/engineering_project_service.dart';
 import '../../core/services/foundation_runtime_service.dart';
 import '../../core/theme/studio_colors.dart';
 import '../../core/theme/studio_theme.dart';
+import '../../core/theme/studio_typography.dart';
 import '../../shared/navigation/unified_navigation.dart';
+import '../../shared/widgets/studio_panel_header.dart';
+import '../../shared/widgets/studio_utility_button.dart';
 import '../dashboard/dashboard_page.dart' show showFoundationErrorDialog;
 import 'unified_search_service.dart';
 
@@ -87,21 +90,9 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Padding(
-          padding: EdgeInsets.fromLTRB(20, 20, 20, 12),
-          child: Row(
-            children: [
-              Icon(Icons.search_outlined, size: 18, color: StudioColors.selection),
-              SizedBox(width: 10),
-              Text(
-                'Search',
-                style: TextStyle(color: StudioColors.textPrimary, fontSize: 15, fontWeight: FontWeight.w700),
-              ),
-            ],
-          ),
-        ),
+        const StudioPanelHeader(title: 'Search', icon: Icons.search_outlined, iconColor: StudioColors.selection),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
           child: Row(
             children: [
               Expanded(
@@ -155,12 +146,9 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                 ),
               ),
               const SizedBox(width: 8),
-              SizedBox(
-                height: 36,
-                child: OutlinedButton(
-                  onPressed: hasSearched || _controller.text.isNotEmpty ? _clear : null,
-                  child: const Text('Clear'),
-                ),
+              StudioUtilityButton(
+                label: 'Clear',
+                onPressed: hasSearched || _controller.text.isNotEmpty ? _clear : null,
               ),
             ],
           ),
@@ -291,16 +279,16 @@ class _SearchResultsHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const style = TextStyle(color: StudioColors.textSecondary, fontSize: 11, fontWeight: FontWeight.w600);
+    const style = StudioTypography.fieldLabel;
     return const Padding(
       padding: EdgeInsets.symmetric(vertical: 8),
       child: Row(
         children: [
           SizedBox(width: 24),
-          Expanded(flex: 3, child: Text('Name', style: style)),
-          Expanded(flex: 2, child: Text('Object Type', style: style)),
-          Expanded(flex: 2, child: Text('Owning Workspace', style: style)),
-          Expanded(flex: 2, child: Text('Repository Location', style: style)),
+          Expanded(flex: 3, child: Text('NAME', style: style)),
+          Expanded(flex: 2, child: Text('OBJECT TYPE', style: style)),
+          Expanded(flex: 2, child: Text('OWNING WORKSPACE', style: style)),
+          Expanded(flex: 2, child: Text('REPOSITORY LOCATION', style: style)),
         ],
       ),
     );
@@ -379,10 +367,7 @@ class _SearchHistoryPanel extends StatelessWidget {
         children: [
           const Padding(
             padding: EdgeInsets.fromLTRB(12, 10, 8, 10),
-            child: Text(
-              'Recent Searches',
-              style: TextStyle(color: StudioColors.textPrimary, fontSize: 12, fontWeight: FontWeight.w600),
-            ),
+            child: Text('RECENT SEARCHES', style: StudioTypography.sectionLabel),
           ),
           const Divider(height: 1),
           Expanded(

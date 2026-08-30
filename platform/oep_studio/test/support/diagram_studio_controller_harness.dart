@@ -49,3 +49,34 @@ Future<(DiagramStudioController, ProviderContainer)> bootstrapDiagramStudioContr
   await tester.pumpAndSettle();
   return (controller, container);
 }
+
+/// AP-OEP-DIAGRAM-CONTROLLER-INSTANCING-IMPLEMENTATION-001 — same real
+/// bootstrap as [bootstrapDiagramStudioController], but against an
+/// explicit, caller-chosen `WorkspaceTab.id` via
+/// `diagramStudioControllerFamily(instanceId)` rather than the primary
+/// alias — for tests proving two Diagram instances are genuinely
+/// independent. Pass the SAME [container] for a second call to prove two
+/// instances coexist within one `ProviderContainer` (the real, single
+/// app-wide container shape); omit it to get a fresh one.
+Future<(DiagramStudioController, ProviderContainer)> bootstrapDiagramStudioControllerInstance(
+  WidgetTester tester,
+  String instanceId, {
+  ProviderContainer? container,
+}) async {
+  ProviderContainer resolvedContainer;
+  if (container != null) {
+    resolvedContainer = container;
+  } else {
+    await tester.pumpWidget(diagramStudioTestHarness());
+    resolvedContainer = ProviderScope.containerOf(
+      tester.element(find.byType(Scaffold)),
+      listen: false,
+    );
+  }
+  late DiagramStudioController controller;
+  await tester.runAsync(() async {
+    controller = await resolvedContainer.read(diagramStudioControllerFamily(instanceId).future);
+  });
+  await tester.pumpAndSettle();
+  return (controller, resolvedContainer);
+}

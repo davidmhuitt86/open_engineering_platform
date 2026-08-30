@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/services/engineering_project_service.dart';
 import 'diagram_studio_controller.dart';
 
 /// The provider-hosted lifetime for [DiagramStudioController] (WAVE 2
@@ -44,14 +45,24 @@ import 'diagram_studio_controller.dart';
 /// this causes on the very first mount (once inside `bootstrap`, once by
 /// the page) is a deliberate, low-cost trade-off against a larger change
 /// to `bootstrap`'s signature.
-class DiagramStudioControllerNotifier extends AsyncNotifier<DiagramStudioController> {
+class DiagramStudioControllerNotifier extends FamilyAsyncNotifier<DiagramStudioController, String> {
   @override
-  Future<DiagramStudioController> build() async {
-    final (controller, _) = await DiagramStudioController.bootstrap(ref: ref);
+  Future<DiagramStudioController> build(String arg) async {
+    final (controller, _) = await DiagramStudioController.bootstrap(ref: ref, instanceId: arg);
     return controller;
   }
 }
 
-final diagramStudioControllerProvider = AsyncNotifierProvider<DiagramStudioControllerNotifier, DiagramStudioController>(
+/// AP-OEP-DIAGRAM-CONTROLLER-INSTANCING-IMPLEMENTATION-001 — keyed by
+/// `WorkspaceTab.id`, mirroring [engineeringProjectServiceFamily] exactly
+/// (same key, same reasoning). One [DiagramStudioController] instance
+/// per open Diagram Workspace tab.
+final diagramStudioControllerFamily =
+    AsyncNotifierProvider.family<DiagramStudioControllerNotifier, DiagramStudioController, String>(
   DiagramStudioControllerNotifier.new,
 );
+
+/// Backward-compatible alias bound to the primary instance — see
+/// [engineeringProjectServiceProvider]'s own doc comment for the full
+/// reasoning; identical here.
+final diagramStudioControllerProvider = diagramStudioControllerFamily(primaryDiagramInstanceId);

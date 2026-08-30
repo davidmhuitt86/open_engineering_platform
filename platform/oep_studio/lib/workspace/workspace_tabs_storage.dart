@@ -3,21 +3,35 @@ import 'dart:io';
 
 import '../settings/services/settings_storage.dart';
 
-/// AP-OEP-WORKSPACE-PERSISTENCE-001 — persists the Engineering
-/// Workspace's open Surface identity: an ordered list of surfaceIds and
-/// the active surfaceId. This is deliberately the exact same shape and
-/// convention `WebSurfaceTabsStorage` (`lib/web_surface/
-/// web_surface_tabs_storage.dart`) already established and ships today
-/// for Diagram Studio's own, separate Web Surface tab host — one small
-/// JSON file under `SettingsStorage.root()`, identity only, never page
-/// state. This is a distinct file/class (not a generalization of
-/// `WebSurfaceTabsStorage`) because the two persist different, smaller
-/// shapes: `WebSurface` tabs carry `id`/`title`/`initialUrl`/
-/// `application`, whereas a Workspace tab carries nothing but a
-/// surfaceId (`WorkspaceTab`'s own doc comment: title/icon are always
-/// resolved live through `SurfaceRegistry`, never stored) — generalizing
-/// the two into one shared type would either lose that simplicity or
-/// force `WebSurface`'s richer shape onto the Workspace for no reason.
+/// A persisted tab record: instance identity plus Surface type identity
+/// — the smallest shape [WorkspaceTabsStorage] needs to reconstruct
+/// [WorkspaceTab] instances, including more than one tab sharing the
+/// same [surfaceId] (AP-OEP-WORKSPACE-MULTI-INSTANCE-001). No title/icon
+/// (always resolved live through `SurfaceRegistry`) and no document/URL
+/// content (a later package's concern, per that package's own scope
+/// boundary).
+typedef PersistedWorkspaceTab = ({String id, String surfaceId});
+
+/// AP-OEP-WORKSPACE-PERSISTENCE-001/AP-OEP-WORKSPACE-MULTI-INSTANCE-001
+/// — persists the Engineering Workspace's open tab identity: an ordered
+/// list of `{id, surfaceId}` records and the active tab's `id`. One
+/// small JSON file under `SettingsStorage.root()`, identity only, never
+/// page/document state — unchanged in spirit from the original
+/// AP-OEP-WORKSPACE-PERSISTENCE-001 shape, just now storing tab
+/// *instances* rather than a bare list of surfaceId strings, so two
+/// tabs sharing one `surfaceId` can be told apart on restore.
+///
+/// **Backward compatibility**: [load] also reads the original
+/// `{"surfaces": [...], "activeId": "<surfaceId>"}` shape (every file
+/// written before this package) — synthesizing one tab record per
+/// surfaceId with the same deterministic id
+/// (`'workspace-tab-<surfaceId>'`) [WorkspaceTabsController] always used
+/// for singleton Surfaces, and resolving the legacy `activeId` (a
+/// surfaceId) to that same synthesized tab id. This is sound because no
+/// file written before this package could ever contain two tabs sharing
+/// a surfaceId (multi-instance tabs did not exist yet). [save] always
+/// writes the new `{"tabs": [...], "activeId": "<tabId>"}` shape going
+/// forward; a legacy file is transparently upgraded on first write.
 ///
 /// Not to be confused with `WorkspaceStateStorage`
 /// (`lib/diagram_studio/persistence/workspace_state_storage.dart`) — an
@@ -34,24 +48,42 @@ class WorkspaceTabsStorage {
 
   File _file() => File('${SettingsStorage.root().path}${Platform.pathSeparator}workspace_tabs.json');
 
-  Future<({List<String> surfaces, String? activeId})> load() async {
+  Future<({List<PersistedWorkspaceTab> tabs, String? activeId})> load() async {
     final file = _file();
-    if (!file.existsSync()) return (surfaces: <String>[], activeId: null);
+    if (!file.existsSync()) return (tabs: <PersistedWorkspaceTab>[], activeId: null);
     try {
       final decoded = jsonDecode(await file.readAsString());
-      if (decoded is! Map<String, Object?>) return (surfaces: <String>[], activeId: null);
+      if (decoded is! Map<String, Object?>) return (tabs: <PersistedWorkspaceTab>[], activeId: null);
+
+      final rawTabs = decoded['tabs'];
+      if (rawTabs is List) {
+        final tabs = <PersistedWorkspaceTab>[
+          for (final entry in rawTabs)
+            if (entry is Map<String, Object?> && entry['id'] is String && entry['surfaceId'] is String)
+              (id: entry['id']! as String, surfaceId: entry['surfaceId']! as String),
+        ];
+        return (tabs: tabs, activeId: decoded['activeId'] as String?);
+      }
+
+      // Legacy shape (pre-AP-OEP-WORKSPACE-MULTI-INSTANCE-001): a bare
+      // surfaceId list, always one tab per surfaceId.
       final surfaces = (decoded['surfaces'] as List? ?? const []).whereType<String>().toList();
-      return (surfaces: surfaces, activeId: decoded['activeId'] as String?);
+      final tabs = <PersistedWorkspaceTab>[
+        for (final surfaceId in surfaces) (id: 'workspace-tab-$surfaceId', surfaceId: surfaceId),
+      ];
+      final legacyActiveSurfaceId = decoded['activeId'] as String?;
+      final activeId = legacyActiveSurfaceId == null ? null : 'workspace-tab-$legacyActiveSurfaceId';
+      return (tabs: tabs, activeId: activeId);
     } on FormatException {
-      return (surfaces: <String>[], activeId: null);
+      return (tabs: <PersistedWorkspaceTab>[], activeId: null);
     }
   }
 
-  Future<void> save({required List<String> surfaces, required String? activeId}) async {
+  Future<void> save({required List<PersistedWorkspaceTab> tabs, required String? activeId}) async {
     await SettingsStorage.root().create(recursive: true);
     const encoder = JsonEncoder.withIndent('  ');
     await _file().writeAsString(encoder.convert({
-      'surfaces': surfaces,
+      'tabs': [for (final tab in tabs) {'id': tab.id, 'surfaceId': tab.surfaceId}],
       'activeId': activeId,
     }));
   }

@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/services/foundation_runtime_service.dart';
 import '../../../core/theme/studio_colors.dart';
+import '../../../core/theme/studio_typography.dart';
+import '../../../shared/widgets/studio_panel_header.dart';
 import 'package_builder_controller.dart';
 
 const _stepTitles = ['Select Objects', 'Dependencies', 'Validation', 'Metadata & Version', 'Build & Publish'];
@@ -92,22 +94,14 @@ class _WizardHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 52,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      color: StudioColors.surfaceRaised,
-      child: Row(
-        children: [
-          const Icon(Icons.inventory_2_outlined, size: 18, color: StudioColors.selection),
-          const SizedBox(width: 10),
-          const Text('Package Builder', style: TextStyle(color: StudioColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w700)),
-          const Spacer(),
-          IconButton(
-            tooltip: 'Close',
-            icon: const Icon(Icons.close, size: 18),
-            onPressed: () => Navigator.of(context).maybePop(),
-          ),
-        ],
+    return StudioPanelHeader(
+      title: 'Package Builder',
+      icon: Icons.inventory_2_outlined,
+      iconColor: StudioColors.selection,
+      trailing: IconButton(
+        tooltip: 'Close',
+        icon: const Icon(Icons.close, size: 18),
+        onPressed: () => Navigator.of(context).maybePop(),
       ),
     );
   }
@@ -219,7 +213,7 @@ class _StepSelectObjects extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Select Objects', style: TextStyle(color: StudioColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w700)),
+          const Text('Select Objects', style: StudioTypography.pageTitle),
           const SizedBox(height: 4),
           Text(
             'Real Engineering Objects from the open repository (${objects.length} available). '
@@ -268,7 +262,7 @@ class _StepMetadata extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Metadata & Version', style: TextStyle(color: StudioColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w700)),
+          const Text('Metadata & Version', style: StudioTypography.pageTitle),
           const SizedBox(height: 4),
           const Text(
             'Held locally for this session only -- there is no `createPackage` API yet to submit it to.',
@@ -324,7 +318,7 @@ class _StepUnavailable extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(color: StudioColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w700)),
+          Text(title, style: StudioTypography.pageTitle),
           const SizedBox(height: 16),
           Container(
             padding: const EdgeInsets.all(16),

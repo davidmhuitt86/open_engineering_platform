@@ -8,16 +8,18 @@ import 'workspace_tab.dart';
 import 'workspace_tabs_storage.dart';
 
 /// AP-OEP-WORKSPACE-SHELL-001/AP-OEP-WORKSPACE-UX-001/
-/// AP-OEP-WORKSPACE-PERSISTENCE-001 — the smallest controller for the
-/// new OEP-wide workspace shell: open/activate/close, plus (this
-/// package) persistence of exactly the open-Surface identity — nothing
-/// else. No pin, no duplicate, no recently-closed, no reorder — none of
-/// those exist in the current infrastructure this generalizes from
-/// without real additional architectural work, so none are added here.
+/// AP-OEP-WORKSPACE-PERSISTENCE-001/AP-OEP-WORKSPACE-MULTI-INSTANCE-001
+/// — the smallest controller for the OEP-wide workspace shell: open/
+/// activate/close, persistence of tab identity, and (this package) a
+/// second, explicit way to open a tab that always creates a new
+/// instance rather than reusing one — nothing else. No pin, no
+/// recently-closed, no reorder — none of those exist in the current
+/// infrastructure this generalizes from without real additional
+/// architectural work, so none are added here.
 ///
 /// **Now a `ChangeNotifier`, provided via [workspaceTabsControllerProvider]**
 /// — AP-OEP-WORKSPACE-UX-001's own Phase 3 requires the sidebar (a
-/// sibling of [EngineeringWorkspacePage] in the widget tree, not an
+/// sibling of `EngineeringWorkspacePage` in the widget tree, not an
 /// ancestor/descendant of it) to read and mutate the *same* tab state
 /// the workspace page renders, so a page-local field (this class's
 /// previous AP-OEP-WORKSPACE-SHELL-001 shape) can no longer be the sole
@@ -25,14 +27,27 @@ import 'workspace_tabs_storage.dart';
 /// workspace tab-state authority" (unchanged): there is exactly one
 /// provider, one instance, no second controller anywhere.
 ///
-/// **Persistence** (AP-OEP-WORKSPACE-PERSISTENCE-001): plain Dart, no
-/// Engine/Foundation knowledge, exactly as before — [WorkspaceTabsStorage]
-/// is the only thing this class talks to, and it only ever exchanges
-/// surfaceId strings with it, per `docs/OEP_WORKSPACE_STATE_ARCHITECTURE.md`'s
-/// own minimal-schema conclusion. Restoration is validated against
-/// [SurfaceRegistry] (plus the one reserved Diagram sentinel,
-/// [WorkspaceTab.diagramSurfaceId]) — the existing, sole canonical
-/// Surface source; no second Surface list is introduced.
+/// **Multi-instance (AP-OEP-WORKSPACE-MULTI-INSTANCE-001)**: [openSurface]
+/// keeps its original, unchanged contract — exactly one tab per
+/// `surfaceId`, open-or-focus — for every Surface, singleton or not.
+/// [openNewInstance] is the one new, additive operation: it always
+/// creates a fresh [WorkspaceTab] with a freshly-generated, independent
+/// `id`, never deduping by `surfaceId`. Nothing here hardcodes which
+/// Surfaces are multi-instance (no `if (surfaceId == 'diagram')`
+/// anywhere) — that policy lives on `SurfaceDefinition.allowsMultipleInstances`
+/// and is a *caller's* decision (which method to call), not this
+/// controller's.
+///
+/// **Persistence** (AP-OEP-WORKSPACE-PERSISTENCE-001, extended by
+/// AP-OEP-WORKSPACE-MULTI-INSTANCE-001): plain Dart, no Engine/
+/// Foundation knowledge — [WorkspaceTabsStorage] is the only thing this
+/// class talks to, and it only ever exchanges `{id, surfaceId}` tab
+/// records with it (previously bare surfaceId strings; see
+/// [WorkspaceTabsStorage]'s own doc comment for the backward-compatible
+/// schema migration). Restoration is validated against [SurfaceRegistry]
+/// (plus the one reserved Diagram sentinel, [WorkspaceTab.diagramSurfaceId])
+/// — the existing, sole canonical Surface source; no second Surface list
+/// is introduced.
 class WorkspaceTabsController extends ChangeNotifier {
   WorkspaceTabsController({WorkspaceTabsStorage storage = const WorkspaceTabsStorage()}) : _storage = storage;
 
@@ -41,9 +56,16 @@ class WorkspaceTabsController extends ChangeNotifier {
   String? _activeId;
 
   bool _restored = false;
-  List<String>? _lastPersistedSurfaces;
-  String? _lastPersistedActiveSurfaceId;
+  List<String>? _lastPersistedTabKeys;
+  String? _lastPersistedActiveId;
   bool _lastPersistedSentinel = false;
+
+  /// Monotonic, in-process counter backing [openNewInstance]'s id
+  /// generation — see that method's own doc comment for why a counter
+  /// was chosen over a timestamp.
+  int _instanceSeq = 0;
+
+  static final RegExp _instanceIdSuffix = RegExp(r'-instance-(\d+)$');
 
   /// AP-OEP-WORKSPACE-RESTORATION-001 — every write chains onto this
   /// Future instead of firing independently. `_persistIfChanged`'s
@@ -68,8 +90,12 @@ class WorkspaceTabsController extends ChangeNotifier {
   /// the same reuse-if-open semantics `WebSurfacesHostPage._openLegacyV2`
   /// / `_openNativeTab` already use, not a new policy invented here.
   /// This is also AP-OEP-WORKSPACE-UX-001's Phase 4 duplicate-tab
-  /// policy in full: exactly one tab per Surface id, always. Returns
-  /// the id of the (possibly pre-existing) tab.
+  /// policy in full: exactly one tab per Surface id, always — unchanged
+  /// by AP-OEP-WORKSPACE-MULTI-INSTANCE-001, including for Surfaces that
+  /// declare `allowsMultipleInstances: true` (a caller wanting a
+  /// *second* instance of one of those must call [openNewInstance]
+  /// instead; this method's contract does not change). Returns the id
+  /// of the (possibly pre-existing) tab.
   String openSurface(String surfaceId) {
     final existing = _tabs.where((t) => t.surfaceId == surfaceId).firstOrNull;
     if (existing != null) {
@@ -85,13 +111,13 @@ class WorkspaceTabsController extends ChangeNotifier {
       return existing.id;
     }
     // A deterministic id (`surfaceId` itself, prefixed), not a
-    // timestamp: reuse-if-open already means at most one tab per
-    // `surfaceId` can ever exist, so this is not a loss of uniqueness —
-    // and it avoids a real, observed bug a timestamp-based id had
-    // (`DateTime.now().microsecondsSinceEpoch` is not guaranteed unique
-    // across two calls issued in the same microsecond, which a fast
-    // test — or a fast double-click — can genuinely trigger, silently
-    // merging two different Surfaces' tabs under one colliding id).
+    // generated one: reuse-if-open already means at most one
+    // `openSurface`-created tab per `surfaceId` can ever exist, so this
+    // remains a stable, predictable id (also what a legacy-format
+    // restore synthesizes, § `WorkspaceTabsStorage`'s own doc comment)
+    // — [openNewInstance] below is the one path that needs a genuinely
+    // generated id, since it deliberately does not have this
+    // one-per-surfaceId guarantee to lean on.
     final tab = WorkspaceTab(id: 'workspace-tab-$surfaceId', surfaceId: surfaceId);
     _tabs.add(tab);
     _activeId = tab.id;
@@ -99,6 +125,38 @@ class WorkspaceTabsController extends ChangeNotifier {
     _persistIfChanged();
     return tab.id;
   }
+
+  /// AP-OEP-WORKSPACE-MULTI-INSTANCE-001 — always creates a genuinely
+  /// new [WorkspaceTab] for [surfaceId], never reusing an existing one,
+  /// for Surfaces that declare `SurfaceDefinition.allowsMultipleInstances`.
+  /// This controller does not itself check that flag (see class doc
+  /// comment) — it trusts the caller, exactly the way [openSurface] has
+  /// always trusted callers to pass a real `surfaceId`. The new tab is
+  /// appended (preserving append-order, § existing `openSurface`
+  /// behavior) and activated. Returns the new tab's id.
+  String openNewInstance(String surfaceId) {
+    final tab = WorkspaceTab(id: _nextInstanceId(surfaceId), surfaceId: surfaceId);
+    _tabs.add(tab);
+    _activeId = tab.id;
+    notifyListeners();
+    _persistIfChanged();
+    return tab.id;
+  }
+
+  /// The identity decision for multi-instance tabs: `surfaceId` plus a
+  /// monotonic, in-process sequence number, e.g.
+  /// `'workspace-tab-diagram-instance-0'`, `'...-instance-1'`. A plain
+  /// timestamp (`DateTime.now().microsecondsSinceEpoch`) was considered
+  /// and rejected — this exact pattern already caused a real,
+  /// documented bug elsewhere in this codebase (two calls issued in the
+  /// same microsecond can collide) — and no id-generator package is a
+  /// dependency of this project, so a counter is the smallest
+  /// dependency-free mechanism that is unconditionally collision-free
+  /// within one controller's lifetime. [restore] seeds [_instanceSeq]
+  /// past the highest suffix found among restored ids so a freshly
+  /// launched session never re-mints an id a previous session already
+  /// persisted (see [_seedInstanceSeqFromRestoredTabs]).
+  String _nextInstanceId(String surfaceId) => 'workspace-tab-$surfaceId-instance-${_instanceSeq++}';
 
   void activate(String id) {
     // AP-OEP-WORKSPACE-UX-002 — same no-op guard as [openSurface]'s
@@ -115,7 +173,10 @@ class WorkspaceTabsController extends ChangeNotifier {
   /// Removes [id]. If it was active, activates the tab immediately
   /// before it in the list (or the new last tab, or none) — the same
   /// "activate a neighbor" behavior `WebSurfaceTabsController.close`/
-  /// `DiagramTabsNotifier.closeTab` already use.
+  /// `DiagramTabsNotifier.closeTab` already use. Operates purely on
+  /// `id`, exactly as before — closing one instance of a multi-instance
+  /// Surface never affects any other tab, including another instance of
+  /// the same `surfaceId`, since nothing here ever matches by `surfaceId`.
   void close(String id) {
     final index = _tabs.indexWhere((t) => t.id == id);
     if (index == -1) return;
@@ -135,58 +196,83 @@ class WorkspaceTabsController extends ChangeNotifier {
   /// per Riverpod's own lifecycle guarantee; [_restored] is a defensive
   /// second guard against any accidental re-entrant call).
   ///
-  /// Every stored surfaceId is validated against [SurfaceRegistry] (or
-  /// the reserved [WorkspaceTab.diagramSurfaceId] sentinel) before being
-  /// restored — a stale/unknown id (e.g. from an older build whose
-  /// Surface list has since changed) is silently dropped, never
-  /// fabricated into a placeholder tab. Order is preserved among the
-  /// surviving ids. The stored active id is restored only if it's one
-  /// of the surviving ids; otherwise the first surviving tab becomes
-  /// active (a deterministic fallback), or none if nothing survived.
+  /// Every stored tab's `surfaceId` is validated against
+  /// [SurfaceRegistry] (or the reserved [WorkspaceTab.diagramSurfaceId]/
+  /// [WorkspaceTab.diagram2SurfaceId] sentinels) before being restored —
+  /// a stale/unknown id (e.g. from an older build whose Surface list has
+  /// since changed) is silently dropped, never fabricated into a
+  /// placeholder tab. Order is preserved among the surviving tabs.
+  /// Duplicate tab *ids* in the persisted file are dropped (a
+  /// corruption case, not a legitimate multi-instance one — two
+  /// legitimate instances always have different ids by construction);
+  /// duplicate `surfaceId`s across different tab ids are perfectly
+  /// legitimate now and are never deduped. The stored active id is
+  /// restored only if it names one of the surviving tabs; otherwise the
+  /// first surviving tab becomes active (a deterministic fallback), or
+  /// none if nothing survived.
   Future<void> restore() async {
     if (_restored) return;
     _restored = true;
 
     final loaded = await _storage.load();
-    final validSurfaceIds = <String>[];
-    for (final surfaceId in loaded.surfaces) {
-      if (validSurfaceIds.contains(surfaceId)) continue; // no duplicate tabs
-      if (_isKnownSurfaceId(surfaceId)) validSurfaceIds.add(surfaceId);
+    final validTabs = <PersistedWorkspaceTab>[];
+    final seenIds = <String>{};
+    for (final record in loaded.tabs) {
+      if (!seenIds.add(record.id)) continue; // corrupt duplicate id, never legitimate
+      if (_isKnownSurfaceId(record.surfaceId)) validTabs.add(record);
     }
 
     // Defensive against the (unlikely) race of a real `openSurface`/
-    // sidebar click landing between provider creation and this async
-    // load resolving: never add a surfaceId that's already open by the
-    // time restoration actually runs — the one-tab-per-surfaceId rule
-    // must hold no matter which path opened it first.
-    for (final surfaceId in validSurfaceIds) {
-      if (_tabs.any((t) => t.surfaceId == surfaceId)) continue;
-      _tabs.add(WorkspaceTab(id: 'workspace-tab-$surfaceId', surfaceId: surfaceId));
+    // `openNewInstance`/sidebar click landing between provider creation
+    // and this async load resolving: never add a tab id that's already
+    // open by the time restoration actually runs.
+    for (final record in validTabs) {
+      if (_tabs.any((t) => t.id == record.id)) continue;
+      _tabs.add(WorkspaceTab(id: record.id, surfaceId: record.surfaceId));
     }
+    _seedInstanceSeqFromRestoredTabs();
 
     // Same race guard as above: if something already activated a tab
     // for real before this load resolved, that real choice wins — this
     // only ever sets the active tab from a clean slate.
     if (_activeId == null) {
-      final restoredActiveId = (loaded.activeId != null && validSurfaceIds.contains(loaded.activeId))
-          ? 'workspace-tab-${loaded.activeId}'
+      final restoredActiveId = (loaded.activeId != null && validTabs.any((r) => r.id == loaded.activeId))
+          ? loaded.activeId
           : (_tabs.isEmpty ? null : _tabs.first.id);
       _activeId = restoredActiveId;
     }
 
     // Only re-persist if restoration actually changed the effective
-    // state (dropped stale ids, deduped, or fell back to a different
+    // state (dropped stale/corrupt entries, or fell back to a different
     // active id) — an already-clean file is left untouched, per this
     // package's own "avoid unnecessary writes" requirement.
-    final effectiveActiveSurfaceId = active?.surfaceId;
-    final changed = !listEquals(loaded.surfaces, validSurfaceIds) || loaded.activeId != effectiveActiveSurfaceId;
+    final effectiveTabs = [for (final tab in _tabs) (id: tab.id, surfaceId: tab.surfaceId)];
+    final changed = !listEquals(_tabKeys(loaded.tabs), _tabKeys(effectiveTabs)) || loaded.activeId != active?.id;
 
     notifyListeners();
     if (changed) {
       await _persist();
     } else {
-      _rememberLastPersisted(validSurfaceIds, effectiveActiveSurfaceId);
+      _rememberLastPersisted(_tabKeys(effectiveTabs), active?.id);
     }
+  }
+
+  /// Advances [_instanceSeq] past the highest `-instance-<n>` suffix
+  /// found among the tabs just restored, regardless of which
+  /// `surfaceId` it belongs to (one shared counter is simpler than a
+  /// per-surfaceId one and is just as collision-free, since the
+  /// `surfaceId` is already part of the generated id string) — so a
+  /// freshly restored session's first [openNewInstance] call can never
+  /// mint an id that collides with one this file already persisted.
+  void _seedInstanceSeqFromRestoredTabs() {
+    var highest = -1;
+    for (final tab in _tabs) {
+      final match = _instanceIdSuffix.firstMatch(tab.id);
+      if (match == null) continue;
+      final n = int.tryParse(match.group(1)!);
+      if (n != null && n > highest) highest = n;
+    }
+    if (highest + 1 > _instanceSeq) _instanceSeq = highest + 1;
   }
 
   bool _isKnownSurfaceId(String surfaceId) =>
@@ -194,33 +280,32 @@ class WorkspaceTabsController extends ChangeNotifier {
       surfaceId == WorkspaceTab.diagram2SurfaceId ||
       SurfaceRegistry.forId(surfaceId) != null;
 
-  void _rememberLastPersisted(List<String> surfaces, String? activeSurfaceId) {
-    _lastPersistedSurfaces = List.of(surfaces);
-    _lastPersistedActiveSurfaceId = activeSurfaceId;
+  List<String> _tabKeys(List<PersistedWorkspaceTab> tabs) => [for (final t in tabs) '${t.id} ${t.surfaceId}'];
+
+  void _rememberLastPersisted(List<String> tabKeys, String? activeId) {
+    _lastPersistedTabKeys = List.of(tabKeys);
+    _lastPersistedActiveId = activeId;
     _lastPersistedSentinel = true;
   }
 
   void _persistIfChanged() {
-    final surfaces = [for (final tab in _tabs) tab.surfaceId];
-    final activeSurfaceId = active?.surfaceId;
-    if (_lastPersistedSentinel &&
-        listEquals(_lastPersistedSurfaces, surfaces) &&
-        _lastPersistedActiveSurfaceId == activeSurfaceId) {
+    final tabs = [for (final tab in _tabs) (id: tab.id, surfaceId: tab.surfaceId)];
+    final tabKeys = _tabKeys(tabs);
+    if (_lastPersistedSentinel && listEquals(_lastPersistedTabKeys, tabKeys) && _lastPersistedActiveId == _activeId) {
       return;
     }
-    _rememberLastPersisted(surfaces, activeSurfaceId);
-    _enqueueSave(surfaces, activeSurfaceId);
+    _rememberLastPersisted(tabKeys, _activeId);
+    _enqueueSave(tabs, _activeId);
   }
 
   Future<void> _persist() async {
-    final surfaces = [for (final tab in _tabs) tab.surfaceId];
-    final activeSurfaceId = active?.surfaceId;
-    _rememberLastPersisted(surfaces, activeSurfaceId);
-    await _enqueueSave(surfaces, activeSurfaceId);
+    final tabs = [for (final tab in _tabs) (id: tab.id, surfaceId: tab.surfaceId)];
+    _rememberLastPersisted(_tabKeys(tabs), _activeId);
+    await _enqueueSave(tabs, _activeId);
   }
 
-  Future<void> _enqueueSave(List<String> surfaces, String? activeSurfaceId) {
-    final next = _writeChain.then((_) => _storage.save(surfaces: surfaces, activeId: activeSurfaceId));
+  Future<void> _enqueueSave(List<PersistedWorkspaceTab> tabs, String? activeId) {
+    final next = _writeChain.then((_) => _storage.save(tabs: tabs, activeId: activeId));
     _writeChain = next;
     return next;
   }

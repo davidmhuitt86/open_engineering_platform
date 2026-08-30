@@ -7,6 +7,9 @@ import '../../core/routing/studio_destination.dart';
 import '../../core/services/foundation_runtime_service.dart';
 import '../../core/theme/studio_colors.dart';
 import '../../core/theme/studio_theme.dart';
+import '../../core/theme/studio_typography.dart';
+import '../../shared/widgets/studio_panel_header.dart';
+import '../../shared/widgets/studio_search_field.dart';
 import 'object_list_query.dart';
 
 /// The Object Explorer (STUDIO-TASK-000006/008): displays Engineering
@@ -65,38 +68,16 @@ class _ObjectsPageState extends ConsumerState<ObjectsPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        StudioPanelHeader(title: category.label, icon: category.icon, iconColor: StudioColors.selection),
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
-          child: Row(
-            children: [
-              Icon(category.icon, size: 18, color: StudioColors.selection),
-              const SizedBox(width: 10),
-              Text(
-                category.label,
-                style: const TextStyle(color: StudioColors.textPrimary, fontSize: 15, fontWeight: FontWeight.w700),
-              ),
-            ],
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
           child: Row(
             children: [
               Expanded(
                 flex: 2,
-                child: SizedBox(
-                  height: 34,
-                  child: TextField(
-                    onChanged: (value) => setState(() => _query = _query.copyWith(searchText: value)),
-                    style: const TextStyle(fontSize: 12, color: StudioColors.textPrimary),
-                    decoration: InputDecoration(
-                      isDense: true,
-                      prefixIcon: const Icon(Icons.search, size: 16),
-                      hintText: 'Filter objects…',
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(4)),
-                    ),
-                  ),
+                child: StudioSearchField(
+                  onChanged: (value) => setState(() => _query = _query.copyWith(searchText: value)),
+                  hintText: 'Filter objects…',
                 ),
               ),
               const SizedBox(width: 12),
@@ -180,16 +161,16 @@ class _ObjectListHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const style = TextStyle(color: StudioColors.textSecondary, fontSize: 11, fontWeight: FontWeight.w600);
+    const style = StudioTypography.fieldLabel;
     return const Padding(
       padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       child: Row(
         children: [
           SizedBox(width: 24),
-          Expanded(flex: 3, child: Text('Name', style: style)),
-          Expanded(flex: 2, child: Text('Type', style: style)),
-          Expanded(flex: 2, child: Text('Author', style: style)),
-          Expanded(flex: 1, child: Text('Version', style: style)),
+          Expanded(flex: 3, child: Text('NAME', style: style)),
+          Expanded(flex: 2, child: Text('TYPE', style: style)),
+          Expanded(flex: 2, child: Text('AUTHOR', style: style)),
+          Expanded(flex: 1, child: Text('VERSION', style: style)),
         ],
       ),
     );

@@ -27,12 +27,21 @@ import 'legacy_v2_trust_boundary.dart';
 /// on Windows, so the branch always resolves to the original
 /// implementation during `flutter test`.
 class LegacyV2WebViewPage extends StatelessWidget {
-  const LegacyV2WebViewPage({super.key});
+  const LegacyV2WebViewPage({this.instanceId, super.key});
+
+  /// AP-OEP-DIAGRAM-CONTROLLER-INSTANCING-IMPLEMENTATION-001 — the
+  /// `WorkspaceTab.id` this host's Diagram state belongs to. `null`
+  /// (every existing call site — `WebSurfacesHostPage`,
+  /// `DiagramWithComparePane`) means the primary instance
+  /// (`primaryDiagramInstanceId`), preserving every existing caller's
+  /// behavior byte-for-byte. Only a genuinely new, non-primary Diagram
+  /// Workspace tab passes a real id here.
+  final String? instanceId;
 
   @override
   Widget build(BuildContext context) {
-    if (Platform.isWindows) return const _WindowsLegacyV2WebViewPage();
-    return const LegacyV2AndroidWebViewPage();
+    if (Platform.isWindows) return _WindowsLegacyV2WebViewPage(instanceId: instanceId);
+    return LegacyV2AndroidWebViewPage(instanceId: instanceId);
   }
 }
 
@@ -78,13 +87,21 @@ class LegacyV2WebViewPage extends StatelessWidget {
 /// **Platform:** Windows only — see [LegacyV2WebViewPage] (the public
 /// entry point above) for how Android reaches a different implementation.
 class _WindowsLegacyV2WebViewPage extends ConsumerStatefulWidget {
-  const _WindowsLegacyV2WebViewPage();
+  const _WindowsLegacyV2WebViewPage({this.instanceId});
+
+  final String? instanceId;
 
   @override
   ConsumerState<_WindowsLegacyV2WebViewPage> createState() => _WindowsLegacyV2WebViewPageState();
 }
 
 class _WindowsLegacyV2WebViewPageState extends ConsumerState<_WindowsLegacyV2WebViewPage> {
+  /// Resolves once per `State` lifetime — this `State` instance is
+  /// itself already scoped to one `WorkspaceTab` (a fresh widget/State
+  /// per Diagram tab, per `EngineeringWorkspacePage._buildTabContent`),
+  /// so the instance id never changes mid-lifetime.
+  String get _instanceId => widget.instanceId ?? primaryDiagramInstanceId;
+
   final WebviewController _controller = WebviewController();
   late final LegacyV2BridgeTransport _transport = LegacyV2BridgeTransport(_controller);
   LegacyV2StateAdapter? _adapter;
@@ -323,7 +340,7 @@ class _WindowsLegacyV2WebViewPageState extends ConsumerState<_WindowsLegacyV2Web
     // AP-DIAGRAM-V2-BRIDGE-003, Phase 2 — `document.id` (not `.path`),
     // since two different never-saved documents both have `path == null`
     // but distinct `id`s (see `DiagramDocument.id`'s own doc comment).
-    ref.listen(engineeringProjectServiceProvider.select((s) => s.document.id), (previous, next) {
+    ref.listen(engineeringProjectServiceFamily(_instanceId).select((s) => s.document.id), (previous, next) {
       final adapter = _adapter;
       if (adapter != null) _onDocumentChanged(adapter);
     });
@@ -337,7 +354,7 @@ class _WindowsLegacyV2WebViewPageState extends ConsumerState<_WindowsLegacyV2Web
     // (`.document.id` alone, watched above, doesn't change on Save As —
     // confirmed by `DiagramDocument.id`'s own doc comment, which is
     // exactly why that listener alone was never enough here).
-    ref.listen(engineeringProjectServiceProvider.select((s) => s.documentPath), (previous, next) {
+    ref.listen(engineeringProjectServiceFamily(_instanceId).select((s) => s.documentPath), (previous, next) {
       if (previous == null && next != null) {
         final adapter = _adapter;
         if (adapter == null) return;
@@ -347,7 +364,7 @@ class _WindowsLegacyV2WebViewPageState extends ConsumerState<_WindowsLegacyV2Web
       }
     });
 
-    final controllerAsync = ref.watch(diagramStudioControllerProvider);
+    final controllerAsync = ref.watch(diagramStudioControllerFamily(_instanceId));
     final oepStatus = controllerAsync.when(
       data: (controller) {
         final adapter = _ensureAdapter(controller);

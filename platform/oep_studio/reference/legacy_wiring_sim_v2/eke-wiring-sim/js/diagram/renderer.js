@@ -20,6 +20,10 @@ const CNAMES={Bl:"Black",Br:"Brown",R:"Red",G:"Green",Gr:"Gray",Lg:"Lt Green",Y:
 const h=c=>{if(!c)return"#888";const k=c.trim();if(HEX[k])return HEX[k];return HEX[k.split("/")[0].trim()]||"#666";};
 const trH=c=>{if(!c)return null;const i=c.indexOf("/");if(i<0)return null;return HEX[c.slice(i+1).trim()]||null;};
 const cn=c=>CNAMES[c]||c||"—";
+// Property Inspector's "Property Type" field — a module's own cat (switch,
+// connector, ignition, …) is already the most specific kind we know, so we
+// just title-case it rather than collapsing everything to a generic "Module".
+const capitalizeCat=cat=>cat?cat.charAt(0).toUpperCase()+cat.slice(1):"Module";
 const sid=s=>s.replace(/[^a-z0-9]/gi,"_");
 const $=id=>document.getElementById(id);
 const canvas=$("canvas"),scene=$("scene"),vp=$("viewport"),wsvg=$("wire-layer");

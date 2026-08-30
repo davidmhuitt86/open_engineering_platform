@@ -41,7 +41,11 @@ import 'legacy_v2_trust_boundary.dart';
 /// for being its own file rather than a generic wrapper: keeps every
 /// existing Windows test/behavior at zero risk from this addition.
 class LegacyV2AndroidWebViewPage extends ConsumerStatefulWidget {
-  const LegacyV2AndroidWebViewPage({super.key});
+  const LegacyV2AndroidWebViewPage({this.instanceId, super.key});
+
+  /// See [LegacyV2WebViewPage.instanceId]'s own doc comment — identical
+  /// meaning/default here.
+  final String? instanceId;
 
   /// The native Android asset URL — `eke-wiring-sim/index.html`'s own
   /// directory contents were declared as the *root* of an extra Gradle
@@ -54,6 +58,8 @@ class LegacyV2AndroidWebViewPage extends ConsumerStatefulWidget {
 }
 
 class _LegacyV2AndroidWebViewPageState extends ConsumerState<LegacyV2AndroidWebViewPage> {
+  String get _instanceId => widget.instanceId ?? primaryDiagramInstanceId;
+
   late final WebViewController _controller;
   late final LegacyV2AndroidBridgeTransport _transport;
   LegacyV2StateAdapter? _adapter;
@@ -224,11 +230,11 @@ class _LegacyV2AndroidWebViewPageState extends ConsumerState<LegacyV2AndroidWebV
 
   @override
   Widget build(BuildContext context) {
-    ref.listen(engineeringProjectServiceProvider.select((s) => s.document.id), (previous, next) {
+    ref.listen(engineeringProjectServiceFamily(_instanceId).select((s) => s.document.id), (previous, next) {
       final adapter = _adapter;
       if (adapter != null) _onDocumentChanged(adapter);
     });
-    ref.listen(engineeringProjectServiceProvider.select((s) => s.documentPath), (previous, next) {
+    ref.listen(engineeringProjectServiceFamily(_instanceId).select((s) => s.documentPath), (previous, next) {
       if (previous == null && next != null) {
         final adapter = _adapter;
         if (adapter == null) return;
@@ -238,7 +244,7 @@ class _LegacyV2AndroidWebViewPageState extends ConsumerState<LegacyV2AndroidWebV
       }
     });
 
-    final controllerAsync = ref.watch(diagramStudioControllerProvider);
+    final controllerAsync = ref.watch(diagramStudioControllerFamily(_instanceId));
     final oepStatus = controllerAsync.when(
       data: (controller) {
         final adapter = _ensureAdapter(controller);

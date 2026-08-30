@@ -48,7 +48,7 @@ class _FakeEngineeringProjectNotifier extends EngineeringProjectNotifier {
   final EngineeringProjectState _state;
 
   @override
-  EngineeringProjectState build() => _state;
+  EngineeringProjectState build(String arg) => _state;
 }
 
 void main() {
@@ -89,7 +89,7 @@ void main() {
 
       host = await EngineHost.create(foundationBridge: bridge);
       container = ProviderContainer(overrides: [
-        engineeringProjectServiceProvider.overrideWith(
+        engineeringProjectServiceFamily.overrideWith(
           () => _FakeEngineeringProjectNotifier(
             EngineeringProjectState(document: DiagramDocument(), engineHost: host, session: host.engine.editing.session),
           ),
