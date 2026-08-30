@@ -277,11 +277,28 @@ function saveModProps() {
   const m   = MODULES.find(x => x.id === mid);
   if (!m) return;
   const isConn   = $('mpm-is-conn').checked;
+  const wasConn  = !!m.connector; // connector-ness at the time oldTerms' wires were created — see the _IN/_OUT expansion below
+  const oldTerms = m.terminals; // captured before m.terminals is overwritten below, so WIRES can be reconciled against it
   const rows     = Array.from($('mpm-terms').querySelectorAll('.mpm-term-row'));
   const newTerms = [];
+  // Each surviving row's `data-ti` is the index it had in `oldTerms` at
+  // `editModProps()` time (a row added since via addMpmTerm()/addMpmPin()
+  // carries a Date.now() `data-ti` instead, which never matches an
+  // `oldTerms` index). Track which old indices survived — and under what
+  // new name — so wires can be renamed/removed to match, below.
+  const survivedOldIdx = new Set();
+  const renameMap = {}; // old terminal name -> new terminal name
   rows.forEach(row => {
-    const n = row.querySelector("[data-tf='n']")?.value.trim();
+    const nField = row.querySelector("[data-tf='n']");
+    const n = nField?.value.trim();
     if (!n) return;
+    // `data-ti` lives on the name input itself, not the row div (see the
+    // template strings in editModProps()/addMpmTerm()/addMpmPin() below).
+    const ti = Number(nField.dataset.ti);
+    if (Number.isInteger(ti) && ti >= 0 && ti < oldTerms.length) {
+      survivedOldIdx.add(ti);
+      if (oldTerms[ti].n !== n) renameMap[oldTerms[ti].n] = n;
+    }
     if (isConn) {
       const cIn  = row.querySelector("[data-tf='cin']")?.value.trim()  || 'W';
       const cOut = row.querySelector("[data-tf='cout']")?.value.trim() || cIn;
@@ -292,6 +309,58 @@ function saveModProps() {
     }
   });
   if (!newTerms.length) { showToast('Need at least one terminal', 'warn'); return; }
+
+  // Reconcile WIRES attached to this module's renamed/removed terminals.
+  // Without this, a wire whose terminal was renamed or deleted here keeps
+  // pointing at a name that no longer resolves to any terminal dot —
+  // route()/getPos() (renderer.js) then silently fail for it, and
+  // drawWires() drops it from the SVG layer entirely (no path, no hit
+  // zone, no context menu), which is exactly why "Edit Route" appears to
+  // stop showing up after a module edit or terminal deletion. A renamed
+  // terminal's wires follow the rename; a genuinely removed terminal's
+  // wires are deleted, mirroring delModule()'s own wire cleanup for a
+  // deleted module.
+  const removedNames = new Set(
+    oldTerms.filter((t, i) => !survivedOldIdx.has(i)).map(t => t.n),
+  );
+  // Connector modules attach wires to `${pinName}_IN`/`${pinName}_OUT`, not
+  // the bare pin name (see renderer.js's terminal-dot ids and exitDir's own
+  // "_IN"/"_OUT" checks) — a wire's `.t` field is literally "A_IN", never
+  // "A". Expand the plain rename/removal sets built above to cover both
+  // suffixed forms for a connector, using `wasConn` (this module's
+  // connector-ness *before* this save) since that's what the existing
+  // wires were actually created under.
+  const wireRenameMap = {};
+  Object.entries(renameMap).forEach(([oldName, newName]) => {
+    if (wasConn) { wireRenameMap[`${oldName}_IN`] = `${newName}_IN`; wireRenameMap[`${oldName}_OUT`] = `${newName}_OUT`; }
+    else wireRenameMap[oldName] = newName;
+  });
+  const wireRemovedNames = new Set();
+  removedNames.forEach(name => {
+    if (wasConn) { wireRemovedNames.add(`${name}_IN`); wireRemovedNames.add(`${name}_OUT`); }
+    else wireRemovedNames.add(name);
+  });
+  let removedWireCount = 0;
+  if (Object.keys(wireRenameMap).length || wireRemovedNames.size) {
+    WIRES = WIRES.filter(w => {
+      let drop = false;
+      if (w.from.m === mid) {
+        if (wireRenameMap[w.from.t] !== undefined) w.from.t = wireRenameMap[w.from.t];
+        else if (wireRemovedNames.has(w.from.t)) drop = true;
+      }
+      if (w.to.m === mid) {
+        if (wireRenameMap[w.to.t] !== undefined) w.to.t = wireRenameMap[w.to.t];
+        else if (wireRemovedNames.has(w.to.t)) drop = true;
+      }
+      if (drop) {
+        removedWireCount++;
+        delete wireRoutes[w.id];
+        if (selW && selW.id === w.id) { selW = null; if (routeEditMode) exitRouteEditMode(); }
+      }
+      return !drop;
+    });
+  }
+
   m.label     = $('mpm-label').value.trim() || m.label;
   m.sub       = $('mpm-sub').value.trim();
   m.cat       = $('mpm-cat').value;
@@ -303,7 +372,9 @@ function saveModProps() {
   closeMpm();
   if (selM === mid) renderModInfo(m);
   drawWires();
-  showToast(`${m.label} updated`);
+  showToast(removedWireCount
+    ? `${m.label} updated — ${removedWireCount} wire${removedWireCount === 1 ? '' : 's'} removed (terminal deleted)`
+    : `${m.label} updated`);
 }
 
 function rebuildCard(m) {

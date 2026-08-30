@@ -26,6 +26,22 @@ class EngineeringGraph {
 
   factory EngineeringGraph.empty(String id) => EngineeringGraph(id: id);
 
+  /// AP-OEP-FOUNDATION-BRIDGE-003 — the [metadata] key under which the
+  /// Foundation `ObjectType::Diagram` identity a successful
+  /// `FoundationBridgePort.commitGraph` established for this graph is
+  /// retained, so a later `loadCommittedGraph(graph.diagramRepositoryId)`
+  /// reloads exactly this graph's own committed members. Stored in the
+  /// existing, already-serialized [metadata] bag rather than as a new
+  /// constructor field — the smallest existing persistence path this
+  /// class offers, per its own already-established `toJson`/`fromJson`
+  /// round-trip of [metadata].
+  static const String diagramRepositoryIdMetadataKey = 'diagramRepositoryId';
+
+  /// The Foundation diagram object id this graph was last committed
+  /// under, or null if it has never been committed (or was committed
+  /// before AP-OEP-FOUNDATION-BRIDGE-003 introduced this metadata key).
+  String? get diagramRepositoryId => metadata[diagramRepositoryIdMetadataKey] as String?;
+
   EngineeringGraph copyWith({
     Map<String, EngineeringNode>? nodes,
     Map<String, EngineeringRelationship>? relationships,

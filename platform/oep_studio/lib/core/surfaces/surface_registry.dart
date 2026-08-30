@@ -15,6 +15,8 @@ import '../../features/search/search_page.dart';
 import '../../features/validation/validation_page.dart';
 import '../../knowledge/workspaces/knowledge_studio_page.dart';
 import '../../settings/workspace/settings_workspace_page.dart';
+import '../../workbench/perspectives/engineering_perspective.dart';
+import '../../workbench/perspectives/instruments_perspective.dart';
 import '../routing/studio_destination.dart';
 import '../routing/studio_registry.dart';
 import 'surface_definition.dart';
@@ -34,16 +36,16 @@ import 'surface_definition.dart';
 /// (`SurfaceDefinition.build`'s own doc comment explains why that
 /// requirement is real, not a convenience).
 ///
-/// **Diagram Studio and `/diagram-classic` are deliberately excluded**
-/// (§ Phase 5 of this task, and §2/§5 of the architecture audit):
-/// Diagram Studio has its own dedicated "New Diagram" menu entry and
-/// the existing, unmodified Legacy V2 embedding
-/// (`WebSurfacesHostPage._openLegacyV2`/`_diagramStudioSurface`) — its
-/// reference-style `DiagramTab` semantics are explicitly *not*
-/// generalized into this model (the audit's own finding: they are a
-/// different, legitimate kind of tab, not a gap to unify away).
-/// `/diagram-classic` is a documented temporary compatibility route
-/// (`studio_destination.dart`'s own comment), not a Surface.
+/// **Diagram Studio is deliberately excluded** (§ Phase 5 of this task,
+/// and §2/§5 of the architecture audit): Diagram Studio has its own
+/// dedicated "New Diagram" menu entry and the existing, unmodified
+/// Legacy V2 embedding (`WebSurfacesHostPage._openLegacyV2`/
+/// `_diagramStudioSurface`) — its reference-style `DiagramTab` semantics
+/// are explicitly *not* generalized into this model (the audit's own
+/// finding: they are a different, legitimate kind of tab, not a gap to
+/// unify away). `/diagram-classic` (the former temporary compatibility
+/// route this comment used to also mention) was retired entirely by
+/// AP-OEP-WORKBENCH-RETIREMENT-001 and no longer exists.
 ///
 /// **Why a per-destination widget-builder map still exists, rather than
 /// this being fully derived from `StudioRegistry` alone**: every
@@ -84,9 +86,7 @@ abstract final class SurfaceRegistry {
       // the very shell that renders that tab strip would be
       // self-referential, not a real Surface a user needs to reach this
       // way (it's already the page they're on).
-      if (destination == StudioDestination.diagram ||
-          destination == StudioDestination.diagramClassic ||
-          destination == StudioDestination.workspace) {
+      if (destination == StudioDestination.diagram || destination == StudioDestination.workspace) {
         continue;
       }
       final builder = _nativeWidgetBuilders[destination];
@@ -122,6 +122,11 @@ abstract final class SurfaceRegistry {
     StudioDestination.engineeringIntelligence: (context) => const EngineeringIntelligencePage(),
     StudioDestination.exchange: (context) => const ExchangeStudioPage(),
     StudioDestination.copilot: (context) => const CopilotPage(),
+    // AP-OEP-WORKBENCH-PERSPECTIVE-MIGRATION-001 — the exact same
+    // widgets `StudioRegistry`'s `_engineeringWorkbenchBuilder`/
+    // `_instrumentsWorkbenchBuilder` construct.
+    StudioDestination.engineeringWorkbench: (context) => const EngineeringSurfacePage(),
+    StudioDestination.instrumentsWorkbench: (context) => const InstrumentsSurfacePage(),
     StudioDestination.settings: (context) => const SettingsWorkspacePage(initialPageId: null),
   };
 }

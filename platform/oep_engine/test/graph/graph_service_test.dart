@@ -68,6 +68,17 @@ void main() {
       expect(graph.relationships.containsKey('r1'), isFalse);
     });
 
+    test('updateMetadata merges into existing metadata and persists (AP-OEP-FOUNDATION-BRIDGE-003)', () async {
+      var graph = await service.create(id: 'demo');
+      graph = await service.updateMetadata(graph, {'a': 1});
+      expect(graph.metadata, {'a': 1});
+
+      graph = await service.updateMetadata(graph, {'diagramRepositoryId': 'foundation-diagram-1'});
+      // Existing key is preserved, not clobbered by the merge.
+      expect(graph.metadata, {'a': 1, 'diagramRepositoryId': 'foundation-diagram-1'});
+      expect(graph.diagramRepositoryId, 'foundation-diagram-1');
+    });
+
     test('validate delegates to the ValidationProvider', () async {
       var graph = await service.create(id: 'demo');
       graph = await service.addNode(

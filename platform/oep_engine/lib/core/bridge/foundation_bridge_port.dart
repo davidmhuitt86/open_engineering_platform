@@ -39,18 +39,24 @@ abstract class FoundationBridgePort {
   /// mirroring "Repository Commit shall execute as one logical
   /// transaction" (Work Package 012, `docs/REPOSITORY_COMMIT.md`).
   ///
-  /// Returns a [GraphCommitResult] rather than a single id: Foundation
-  /// has no "one identity for a whole graph" concept, only individual
-  /// Engineering Object/Relationship identities, so a per-node/
-  /// per-relationship result is the only shape an implementation can
-  /// honestly return. A node/relationship whose category/type has no
-  /// Foundation mapping is excluded (`unmappedNodeIds`/
-  /// `unmappedRelationshipIds`), never committed under a guessed
-  /// mapping. A node/relationship that already carries a
-  /// `repositoryObjectId`/`repositoryRelationshipId` is treated as
-  /// already committed and is not resubmitted (safe to call again after
-  /// a partial edit — see the implementation's own doc comment for
-  /// exact duplicate/retry semantics).
+  /// Returns a [GraphCommitResult] with per-node/per-relationship
+  /// mappings, since Foundation's Object/Relationship identities remain
+  /// individual. **AP-OEP-FOUNDATION-BRIDGE-003:** implementations must
+  /// additionally establish (or reuse) a Foundation diagram identity for
+  /// the graph being committed, assign every newly-created node/
+  /// relationship to it, and report it via
+  /// [GraphCommitResult.diagramRepositoryId] — this is what makes
+  /// [loadCommittedGraph] a genuine round-trip rather than a scoped read
+  /// over data nothing ever wrote scoped in the first place. A node/
+  /// relationship whose category/type has no Foundation mapping is
+  /// excluded (`unmappedNodeIds`/`unmappedRelationshipIds`), never
+  /// committed under a guessed mapping. A node/relationship that already
+  /// carries a `repositoryObjectId`/`repositoryRelationshipId` is
+  /// treated as already committed and is not resubmitted (safe to call
+  /// again after a partial edit — see the implementation's own doc
+  /// comment for exact duplicate/retry semantics, including how an
+  /// already-established diagram identity is reused rather than
+  /// duplicated).
   ///
   /// The commit is atomic: on any failure, nothing is written back and
   /// the returned Future fails — implementations must never return a

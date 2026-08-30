@@ -53,6 +53,21 @@ void main() {
       // Runtime metadata is never persisted (SDD-027) — always resets to initial.
       expect(restored.nodes['a']!.runtime.selected, isFalse);
     });
+
+    test('diagramRepositoryId reads from metadata and survives toJson/fromJson (AP-OEP-FOUNDATION-BRIDGE-003)', () {
+      const graph = EngineeringGraph(
+        id: 'g5',
+        metadata: {EngineeringGraph.diagramRepositoryIdMetadataKey: 'foundation-diagram-1'},
+      );
+
+      expect(graph.diagramRepositoryId, 'foundation-diagram-1');
+      expect(EngineeringGraph.fromJson(graph.toJson()).diagramRepositoryId, 'foundation-diagram-1');
+    });
+
+    test('diagramRepositoryId is null when never committed, not fabricated', () {
+      const graph = EngineeringGraph(id: 'g6');
+      expect(graph.diagramRepositoryId, isNull);
+    });
   });
 
   group('GraphTraversal / GraphQuery', () {

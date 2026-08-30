@@ -16,17 +16,23 @@ import 'package:oep_studio/diagram_studio/bridge/studio_foundation_bridge_port.d
 class _FakeFoundationCommitOperations implements FoundationCommitOperations {
   int _nextObjectId = 1;
   int _nextRelationshipId = 1;
+  int _nextDiagramId = 1;
   bool _transactionActive = false;
 
   final List<String> callLog = [];
   final List<String> createdObjectNamesInOrder = [];
+  final List<String> createdDiagramNamesInOrder = [];
 
-  /// Set to make the Nth `createObject` call (1-indexed) throw.
+  /// Set to make the Nth `createDiagram` call (1-indexed) throw.
+  int? failCreateDiagramAtCall;
+
+  /// Set to make the Nth `createObjectInDiagram` call (1-indexed) throw.
   int? failCreateObjectAtCall;
 
-  /// Set to make the Nth `createRelationship` call (1-indexed) throw.
+  /// Set to make the Nth `createRelationshipInDiagram` call (1-indexed) throw.
   int? failCreateRelationshipAtCall;
 
+  int _createDiagramCalls = 0;
   int _createObjectCalls = 0;
   int _createRelationshipCalls = 0;
 
@@ -51,10 +57,41 @@ class _FakeFoundationCommitOperations implements FoundationCommitOperations {
   @override
   bool get isTransactionActive => _transactionActive;
 
+  // AP-OEP-FOUNDATION-BRIDGE-002 — per-diagram fixtures for
+  // `loadCommittedGraph`'s diagram-scoped load. `knownDiagramIds` models
+  // `oep_diagram_get_objects`/`_get_relationships`'s own "invalid
+  // diagram_id fails, valid-but-empty succeeds" distinction.
+  //
+  // AP-OEP-FOUNDATION-BRIDGE-003 — `createDiagram`/`createObjectInDiagram`/
+  // `createRelationshipInDiagram` below register directly into these same
+  // maps, mirroring real Foundation's own "a created member is
+  // immediately visible to a scoped enumeration of its diagram" behavior
+  // — this is what makes a commit-then-load round trip test meaningful
+  // against this fake, not just against separately-seeded fixtures.
+  final Set<String> knownDiagramIds = {};
+  final Map<String, List<EngineeringObjectSummary>> objectsByDiagram = {};
+  final Map<String, List<RelationshipSummary>> relationshipsByDiagram = {};
+
   @override
-  EngineeringObjectSummary createObject({
+  EngineeringObjectSummary createDiagram({required String name, String description = '', String author = ''}) {
+    _createDiagramCalls++;
+    if (failCreateDiagramAtCall == _createDiagramCalls) {
+      throw StateError('simulated diagram-create failure');
+    }
+    createdDiagramNamesInOrder.add(name);
+    final id = 'foundation-diagram-${_nextDiagramId++}';
+    callLog.add('createDiagram($name)->$id');
+    knownDiagramIds.add(id);
+    objectsByDiagram.putIfAbsent(id, () => []);
+    relationshipsByDiagram.putIfAbsent(id, () => []);
+    return EngineeringObjectSummary(objectId: id, category: ObjectCategory.diagram, name: name, author: author, version: '1');
+  }
+
+  @override
+  EngineeringObjectSummary createObjectInDiagram({
     required ObjectCategory category,
     required String name,
+    required String diagramId,
     String description = '',
     String author = '',
     List<String> tags = const [],
@@ -63,17 +100,23 @@ class _FakeFoundationCommitOperations implements FoundationCommitOperations {
     if (failCreateObjectAtCall == _createObjectCalls) {
       throw StateError('simulated object-create failure');
     }
+    if (!knownDiagramIds.contains(diagramId)) {
+      throw StateError("invalid diagram_id: no diagram with id '$diagramId'");
+    }
     createdObjectNamesInOrder.add(name);
     final id = 'foundation-object-${_nextObjectId++}';
-    callLog.add('createObject($name)->$id');
-    return EngineeringObjectSummary(objectId: id, category: category, name: name, author: author, version: '1');
+    callLog.add('createObjectInDiagram($name,$diagramId)->$id');
+    final summary = EngineeringObjectSummary(objectId: id, category: category, name: name, author: author, version: '1');
+    objectsByDiagram.putIfAbsent(diagramId, () => []).add(summary);
+    return summary;
   }
 
   @override
-  RelationshipSummary createRelationship({
+  RelationshipSummary createRelationshipInDiagram({
     required String sourceObjectId,
     required String targetObjectId,
     required foundation.RelationshipType type,
+    required String diagramId,
     String author = '',
     String description = '',
     required Map<String, String> objectNamesById,
@@ -82,9 +125,12 @@ class _FakeFoundationCommitOperations implements FoundationCommitOperations {
     if (failCreateRelationshipAtCall == _createRelationshipCalls) {
       throw StateError('simulated relationship-create failure');
     }
+    if (!knownDiagramIds.contains(diagramId)) {
+      throw StateError("invalid diagram_id: no diagram with id '$diagramId'");
+    }
     final id = 'foundation-rel-${_nextRelationshipId++}';
-    callLog.add('createRelationship($sourceObjectId->$targetObjectId)->$id');
-    return RelationshipSummary(
+    callLog.add('createRelationshipInDiagram($sourceObjectId->$targetObjectId,$diagramId)->$id');
+    final summary = RelationshipSummary(
       relationshipId: id,
       sourceObjectId: sourceObjectId,
       targetObjectId: targetObjectId,
@@ -93,6 +139,8 @@ class _FakeFoundationCommitOperations implements FoundationCommitOperations {
       type: type,
       author: author,
     );
+    relationshipsByDiagram.putIfAbsent(diagramId, () => []).add(summary);
+    return summary;
   }
 
   @override
@@ -100,14 +148,6 @@ class _FakeFoundationCommitOperations implements FoundationCommitOperations {
 
   @override
   List<RelationshipSummary> listRelationships({required Map<String, String> objectNamesById}) => const [];
-
-  // AP-OEP-FOUNDATION-BRIDGE-002 — per-diagram fixtures for
-  // `loadCommittedGraph`'s diagram-scoped load. `knownDiagramIds` models
-  // `oep_diagram_get_objects`/`_get_relationships`'s own "invalid
-  // diagram_id fails, valid-but-empty succeeds" distinction.
-  final Set<String> knownDiagramIds = {};
-  final Map<String, List<EngineeringObjectSummary>> objectsByDiagram = {};
-  final Map<String, List<RelationshipSummary>> relationshipsByDiagram = {};
 
   @override
   List<EngineeringObjectSummary> listObjectsForDiagram(String diagramId) {
@@ -260,6 +300,156 @@ void main() {
       final graph = EngineeringGraph(id: 'g1', nodes: {'n1': _node('n1')});
 
       await expectLater(port.commitGraph(graph.toJson()), throwsStateError);
+    });
+  });
+
+  group('StudioFoundationBridgePort.commitGraph diagram identity (AP-OEP-FOUNDATION-BRIDGE-003)', () {
+    test('first commit creates exactly one diagram identity', () async {
+      final ops = _FakeFoundationCommitOperations();
+      final port = StudioFoundationBridgePort(operationsResolver: () => ops, runtimeStateResolver: () => 'repositoryOpen');
+      final graph = EngineeringGraph(id: 'g1', nodes: {'n1': _node('n1')});
+
+      final result = await port.commitGraph(graph.toJson());
+
+      expect(ops.createdDiagramNamesInOrder.length, 1);
+      expect(result.diagramRepositoryId, 'foundation-diagram-1');
+    });
+
+    test('newly-created objects belong to the established diagram', () async {
+      final ops = _FakeFoundationCommitOperations();
+      final port = StudioFoundationBridgePort(operationsResolver: () => ops, runtimeStateResolver: () => 'repositoryOpen');
+      final graph = EngineeringGraph(id: 'g1', nodes: {'n1': _node('n1'), 'n2': _node('n2')});
+
+      final result = await port.commitGraph(graph.toJson());
+
+      expect(ops.objectsByDiagram[result.diagramRepositoryId]!.map((o) => o.objectId).toSet(),
+          {result.nodeRepositoryIds['n1'], result.nodeRepositoryIds['n2']});
+    });
+
+    test('newly-created relationships belong to the established diagram', () async {
+      final ops = _FakeFoundationCommitOperations();
+      final port = StudioFoundationBridgePort(operationsResolver: () => ops, runtimeStateResolver: () => 'repositoryOpen');
+      final graph = EngineeringGraph(
+        id: 'g1',
+        nodes: {'n1': _node('n1'), 'n2': _node('n2')},
+        relationships: {'r1': _relationship('r1', source: 'n1', target: 'n2')},
+      );
+
+      final result = await port.commitGraph(graph.toJson());
+
+      expect(ops.relationshipsByDiagram[result.diagramRepositoryId]!.map((r) => r.relationshipId).toSet(),
+          {result.relationshipRepositoryIds['r1']});
+    });
+
+    test('commit followed by scoped loadCommittedGraph round-trips correctly', () async {
+      final ops = _FakeFoundationCommitOperations();
+      final port = StudioFoundationBridgePort(operationsResolver: () => ops, runtimeStateResolver: () => 'repositoryOpen');
+      final graph = EngineeringGraph(
+        id: 'g1',
+        nodes: {'n1': _node('n1'), 'n2': _node('n2')},
+        relationships: {'r1': _relationship('r1', source: 'n1', target: 'n2')},
+      );
+
+      final commitResult = await port.commitGraph(graph.toJson());
+      final loaded = EngineeringGraph.fromJson(await port.loadCommittedGraph(commitResult.diagramRepositoryId!));
+
+      expect(loaded.nodes.keys.toSet(), commitResult.nodeRepositoryIds.values.toSet());
+      expect(loaded.relationships.keys.toSet(), commitResult.relationshipRepositoryIds.values.toSet());
+      for (final node in loaded.nodes.values) {
+        expect(node.repositoryObjectId, node.id); // real Foundation id, never fabricated
+      }
+      for (final relationship in loaded.relationships.values) {
+        expect(relationship.repositoryRelationshipId, relationship.id);
+      }
+    });
+
+    test('two separately committed graphs remain isolated under scoped load', () async {
+      final ops = _FakeFoundationCommitOperations();
+      final port = StudioFoundationBridgePort(operationsResolver: () => ops, runtimeStateResolver: () => 'repositoryOpen');
+
+      final resultA = await port.commitGraph(EngineeringGraph(id: 'gA', nodes: {'a1': _node('a1')}).toJson());
+      final resultB = await port.commitGraph(EngineeringGraph(id: 'gB', nodes: {'b1': _node('b1')}).toJson());
+
+      expect(resultA.diagramRepositoryId, isNot(resultB.diagramRepositoryId));
+      final loadedA = EngineeringGraph.fromJson(await port.loadCommittedGraph(resultA.diagramRepositoryId!));
+      final loadedB = EngineeringGraph.fromJson(await port.loadCommittedGraph(resultB.diagramRepositoryId!));
+
+      expect(loadedA.nodes.keys, [resultA.nodeRepositoryIds['a1']]);
+      expect(loadedB.nodes.keys, [resultB.nodeRepositoryIds['b1']]);
+    });
+
+    test('recommitting an unchanged, already-fully-committed graph creates no duplicate diagram or members', () async {
+      final ops = _FakeFoundationCommitOperations();
+      final port = StudioFoundationBridgePort(operationsResolver: () => ops, runtimeStateResolver: () => 'repositoryOpen');
+      final graph = EngineeringGraph(id: 'g1', nodes: {'n1': _node('n1')});
+
+      final firstResult = await port.commitGraph(graph.toJson());
+      // Simulate `EngineGraphCommitService`'s write-back: the node now
+      // carries its repositoryObjectId, and the graph carries its
+      // diagramRepositoryId, exactly as a real second call would see it.
+      final committedGraph = graph
+          .withNode(graph.nodes['n1']!.copyWith(repositoryObjectId: firstResult.nodeRepositoryIds['n1']))
+          .copyWith(metadata: {EngineeringGraph.diagramRepositoryIdMetadataKey: firstResult.diagramRepositoryId});
+
+      final secondResult = await port.commitGraph(committedGraph.toJson());
+
+      expect(ops.createdDiagramNamesInOrder.length, 1); // still just the one from the first commit
+      expect(ops.createdObjectNamesInOrder.length, 1);
+      expect(secondResult.diagramRepositoryId, firstResult.diagramRepositoryId);
+      expect(secondResult.nodeRepositoryIds, isEmpty); // nothing new to report
+    });
+
+    test('adding a new node after the first commit extends the existing diagram rather than creating another', () async {
+      final ops = _FakeFoundationCommitOperations();
+      final port = StudioFoundationBridgePort(operationsResolver: () => ops, runtimeStateResolver: () => 'repositoryOpen');
+      final graph = EngineeringGraph(id: 'g1', nodes: {'n1': _node('n1')});
+
+      final firstResult = await port.commitGraph(graph.toJson());
+      final committedGraph = graph
+          .withNode(graph.nodes['n1']!.copyWith(repositoryObjectId: firstResult.nodeRepositoryIds['n1']))
+          .copyWith(metadata: {EngineeringGraph.diagramRepositoryIdMetadataKey: firstResult.diagramRepositoryId})
+          .withNode(_node('n2'));
+
+      final secondResult = await port.commitGraph(committedGraph.toJson());
+
+      expect(ops.createdDiagramNamesInOrder.length, 1); // no second diagram
+      expect(secondResult.diagramRepositoryId, firstResult.diagramRepositoryId);
+      expect(secondResult.nodeRepositoryIds.keys, ['n2']);
+      expect(ops.objectsByDiagram[firstResult.diagramRepositoryId]!.length, 2); // n1 + n2, same diagram
+    });
+
+    test('transaction failure leaves no partially propagated identity', () async {
+      final ops = _FakeFoundationCommitOperations()..failCreateObjectAtCall = 2;
+      final port = StudioFoundationBridgePort(operationsResolver: () => ops, runtimeStateResolver: () => 'repositoryOpen');
+      final graph = EngineeringGraph(id: 'g1', nodes: {'a': _node('a'), 'b': _node('b')});
+
+      await expectLater(port.commitGraph(graph.toJson()), throwsA(isA<StateError>()));
+      // No GraphCommitResult was ever returned to propagate a diagram id
+      // or any node/relationship id onto — the caller sees only the
+      // thrown exception, matching the atomic-or-fails contract.
+      expect(ops.callLog, contains('rollback'));
+    });
+
+    test('empty graph does not create a diagram (existing no-op semantics preserved)', () async {
+      final ops = _FakeFoundationCommitOperations();
+      final port = StudioFoundationBridgePort(operationsResolver: () => ops, runtimeStateResolver: () => 'repositoryOpen');
+
+      final result = await port.commitGraph(const EngineeringGraph(id: 'g1').toJson());
+
+      expect(result.diagramRepositoryId, isNull);
+      expect(ops.createdDiagramNamesInOrder, isEmpty);
+    });
+
+    test('a graph with only unmapped categories/types does not create a diagram', () async {
+      final ops = _FakeFoundationCommitOperations();
+      final port = StudioFoundationBridgePort(operationsResolver: () => ops, runtimeStateResolver: () => 'repositoryOpen');
+      final graph = EngineeringGraph(id: 'g1', nodes: {'w': _node('w', category: NodeCategory.wire)});
+
+      final result = await port.commitGraph(graph.toJson());
+
+      expect(result.diagramRepositoryId, isNull);
+      expect(result.unmappedNodeIds, ['w']);
+      expect(ops.createdDiagramNamesInOrder, isEmpty);
     });
   });
 

@@ -101,5 +101,28 @@ class GraphService {
     return updated;
   }
 
+  /// Merges [metadata] into [graph]'s existing metadata bag and persists
+  /// the result (AP-OEP-FOUNDATION-BRIDGE-003 — the smallest existing
+  /// path for retaining a value, such as
+  /// [EngineeringGraph.diagramRepositoryIdMetadataKey], across whatever
+  /// [GraphProvider] this service is backed by). Mirrors [addNode]'s own
+  /// update-then-emit shape; existing keys not present in [metadata] are
+  /// left untouched.
+  Future<EngineeringGraph> updateMetadata(
+    EngineeringGraph graph,
+    Map<String, Object?> metadata,
+  ) async {
+    final updated = await _provider.updateGraph(
+      graph.copyWith(metadata: {...graph.metadata, ...metadata}),
+    );
+    _events.emit(EngineEvent(
+      kind: EngineEventKind.graphChanged,
+      graphId: graph.id,
+      subjectId: graph.id,
+      payload: const {'operation': 'updateMetadata'},
+    ));
+    return updated;
+  }
+
   String generateId(String prefix) => EngineIds.generate(prefix);
 }

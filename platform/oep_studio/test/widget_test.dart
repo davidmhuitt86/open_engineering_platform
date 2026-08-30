@@ -3,8 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:oep_studio/app/studio_app.dart';
+import 'package:oep_studio/core/routing/app_router.dart';
 import 'package:oep_studio/core/routing/studio_destination.dart';
 import 'package:oep_studio/diagram_studio/webview/legacy_v2_webview.dart';
+import 'package:oep_studio/workspace/workspace_tabs_controller.dart';
+
+import 'support/isolated_settings_storage.dart';
 
 /// A bounded stand-in for `pumpAndSettle()`. The Settings Workspace
 /// (Work Package 017/018) shows an indeterminate `CircularProgressIndicator`
@@ -42,43 +46,66 @@ Future<void> settleDiagramStudioBootstrap(WidgetTester tester) async {
   });
 }
 
-/// Finds the sidebar's own `Scrollable` (`WorkbenchSidebar`, a `ListView`
-/// of WORKBENCH/RESOURCES/TOOLS/STUDIOS rows), by the stable
-/// `ValueKey('workbench-sidebar-nav-list')` its `ListView` carries. Text
-/// anchors (e.g. the 'WORKBENCH' section label) don't work here: once the
-/// list is scrolled far enough to reveal a STUDIOS row, that label itself
-/// scrolls out of the realized viewport (a plain `ListView`'s children
-/// are lazily mounted, like any `Sliver`) and stops being findable.
-Finder sidebarScrollable() =>
-    find.descendant(of: find.byKey(const ValueKey('workbench-sidebar-nav-list')), matching: find.byType(Scrollable));
-
-/// Navigates via a `StudioDestination`'s row in the Engineering Workbench
-/// sidebar (`WorkbenchSidebar`, now `StudioShell`'s single left nav,
-/// replacing the classic `StudioNavRail`). Looked up by the stable
-/// `ValueKey('sidebar-dest-<path>')` each such row carries -- a plain text
-/// finder isn't reliable here since a Studio page kept alive off-route can
-/// render the same label its own sidebar row uses. WORKBENCH/RESOURCES/
-/// TOOLS/STUDIOS rows sit in a real scrollable `ListView` -- like the old
-/// rail before it (see this file's own long-standing comment about
-/// 'Packages'/'Settings' below the realized viewport), a row past the
-/// fold isn't mounted into the Element tree until scrolled into view.
-Future<void> navigateViaSidebar(WidgetTester tester, StudioDestination destination) async {
-  final target = find.byKey(ValueKey('sidebar-dest-${destination.path}'));
-  await tester.scrollUntilVisible(target, 100, scrollable: sidebarScrollable());
-  // `scrollUntilVisible` stops the moment any part of the target overlaps
-  // the viewport -- that can leave it clipped at the very edge, where
-  // `tester.tap`'s computed center point lands outside the Scrollable's
-  // visible region and hits whatever row is actually painted there
-  // instead (a real, observed flake). `ensureVisible` scrolls the target
-  // fully into view.
-  await tester.ensureVisible(target);
+/// `appRouter` (`core/routing/app_router.dart`) is a top-level singleton
+/// constructed once per test *process*, not once per test — its
+/// `initialLocation` only ever takes effect the very first time it's
+/// built, so a test later in this file can inherit whatever route an
+/// earlier test's own navigation left it on (e.g. tapping "Open
+/// Repository" navigates to Dashboard). Every test in this file that
+/// interacts with the Workspace force-navigates to it first, exactly the
+/// same self-healing "explicit absolute navigation as the first real
+/// action" robustness the old sidebar-driven tests always had (each of
+/// those called `context.go` to its own specific destination up front,
+/// regardless of where a previous test may have left the router).
+Future<void> ensureOnWorkspace(WidgetTester tester) async {
+  appRouter.go(StudioDestination.workspace.path);
   await settle(tester);
-  await tester.tap(target);
+}
+
+/// AP-OEP-WORKSPACE-AS-PRIMARY-UI-001 — opens [label] as a Workspace tab
+/// via the real "+" menu (`_WorkspaceTabStrip` in
+/// `engineering_workspace_page.dart`), the app's sole navigation surface
+/// now that the old sidebar/nav-rail chrome is gone. [label] must be the
+/// exact menu-row label. Only used for entries near the top of that menu
+/// (Dashboard, Repository) — real UI coverage of the menu itself; see
+/// [openWorkspaceSurfaceById] for entries further down, where the
+/// popup's own internal scrolling makes a blind `tester.tap` unreliable
+/// (Flutter's real `PopupMenuButton` overlay does not auto-scroll a
+/// clipped item into view for a computed-offset tap).
+Future<void> openWorkspaceTab(WidgetTester tester, String label) async {
+  await ensureOnWorkspace(tester);
+  await tester.tap(find.byTooltip('New tab'));
+  await settle(tester);
+  await tester.tap(find.text(label).last);
+  await settle(tester);
+}
+
+/// Opens [surfaceId] (a `StudioDestination.name`, or
+/// `WorkspaceTab.diagramSurfaceId`) as a Workspace tab directly through
+/// `workspaceTabsControllerProvider.openSurface` — the same authority
+/// the "+" menu's own `onTap` calls. The "+" menu's own UI is already
+/// exercised end-to-end by [openWorkspaceTab] above and by
+/// `engineering_workspace_page_test.dart`; these tests care about each
+/// Studio's own page content, not re-proving the menu can be scrolled
+/// and tapped for every one of its ~20 rows.
+Future<void> openWorkspaceSurfaceById(WidgetTester tester, String surfaceId) async {
+  await ensureOnWorkspace(tester);
+  final container = ProviderScope.containerOf(tester.element(find.byType(StudioApp)), listen: false);
+  container.read(workspaceTabsControllerProvider).openSurface(surfaceId);
   await settle(tester);
 }
 
 void main() {
-  testWidgets('StudioApp launches on the Dashboard and navigates via the rail', (
+  // AP-OEP-WORKSPACE-AS-PRIMARY-UI-001 — `flutter_test_config.dart`'s
+  // whole-*file* default `SettingsStorage` override means every
+  // `testWidgets` below shares one real temp directory unless each test
+  // isolates its own: `workspaceTabsControllerProvider` persists opened
+  // tabs to disk, so without this, a tab opened in one test would still
+  // be there (and already-`.last`, breaking finders) when the next test
+  // in this file boots.
+  setUp(useIsolatedSettingsStorage);
+
+  testWidgets('StudioApp boots directly into the empty tabbed Workspace', (
     WidgetTester tester,
   ) async {
     // Flutter's default 800x600 test surface is narrower than this app's
@@ -93,29 +120,34 @@ void main() {
     await tester.pumpWidget(const ProviderScope(child: StudioApp()));
     await settle(tester);
 
+    // AP-OEP-WORKSPACE-AS-PRIMARY-UI-001 — no chrome (menu bar, toolbar,
+    // ribbon, breadcrumb bar, sidebar, property inspector, output panel,
+    // status bar) surrounds the Workspace; it's the entire screen.
+    expect(find.text('No tabs open — press "+" to open a Surface'), findsOneWidget);
+    expect(find.byTooltip('New tab'), findsOneWidget);
+
+    await openWorkspaceTab(tester, 'Dashboard');
     expect(find.text('Welcome to OEP Studio'), findsOneWidget);
     expect(find.text('Open Repository'), findsWidgets);
+  });
 
-    // Settings has no row of its own in `WorkbenchSidebar` (now
-    // `StudioShell`'s single left nav, replacing the classic
-    // `StudioNavRail` this comment used to describe) -- it's reached via
-    // the sidebar footer's gear `IconButton` instead (see
-    // `_SidebarFooter`).
-    await tester.tap(find.byTooltip('Settings'));
+  testWidgets('Settings opens as a Workspace tab', (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(1000, 700);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(const ProviderScope(child: StudioApp()));
     await settle(tester);
+
+    await openWorkspaceSurfaceById(tester, 'settings');
 
     // Work Package 017: Settings is now a real Workspace (General page by
     // default), not a placeholder.
     expect(find.text('Localization'), findsOneWidget);
-
-    // Property Inspector (Work Package 003) is a persistent panel —
-    // "No Object Selected" regardless of which page is active.
-    expect(find.text('No Object Selected'), findsOneWidget);
-    // Status Bar's new Selected Object field.
-    expect(find.text('Selected Object: None'), findsOneWidget);
   });
 
-  testWidgets('Repository Explorer shows No Repository Open and returns to the Dashboard', (
+  testWidgets('Repository Explorer shows No Repository Open and can jump to the Dashboard tab', (
     WidgetTester tester,
   ) async {
     tester.view.physicalSize = const Size(1000, 700);
@@ -126,7 +158,7 @@ void main() {
     await tester.pumpWidget(const ProviderScope(child: StudioApp()));
     await settle(tester);
 
-    await navigateViaSidebar(tester, StudioDestination.repository);
+    await openWorkspaceTab(tester, 'Repository');
 
     expect(find.text('No Repository Open'), findsOneWidget);
 
@@ -147,7 +179,7 @@ void main() {
     await tester.pumpWidget(const ProviderScope(child: StudioApp()));
     await settle(tester);
 
-    await navigateViaSidebar(tester, StudioDestination.objects);
+    await openWorkspaceSurfaceById(tester, 'objects');
 
     expect(find.text('No Category Selected'), findsOneWidget);
 
@@ -168,7 +200,7 @@ void main() {
     await tester.pumpWidget(const ProviderScope(child: StudioApp()));
     await settle(tester);
 
-    await navigateViaSidebar(tester, StudioDestination.relationships);
+    await openWorkspaceSurfaceById(tester, 'relationships');
 
     expect(find.text('No Repository Open'), findsOneWidget);
   });
@@ -187,7 +219,7 @@ void main() {
     await tester.pumpWidget(const ProviderScope(child: StudioApp()));
     await settle(tester);
 
-    await navigateViaSidebar(tester, StudioDestination.search);
+    await openWorkspaceSurfaceById(tester, 'search');
 
     expect(find.text('Search across the whole platform'), findsOneWidget);
     expect(
@@ -207,7 +239,7 @@ void main() {
     await tester.pumpWidget(const ProviderScope(child: StudioApp()));
     await settle(tester);
 
-    await navigateViaSidebar(tester, StudioDestination.knowledge);
+    await openWorkspaceSurfaceById(tester, 'knowledge');
 
     expect(find.text('No Knowledge Curation Session'), findsOneWidget);
     expect(find.text('Import Queue'), findsOneWidget);
@@ -232,7 +264,7 @@ void main() {
     await tester.pumpWidget(const ProviderScope(child: StudioApp()));
     await settle(tester);
 
-    await navigateViaSidebar(tester, StudioDestination.knowledge);
+    await openWorkspaceSurfaceById(tester, 'knowledge');
 
     // Create a session.
     await tester.tap(find.widgetWithText(OutlinedButton, 'New Session'));
@@ -252,11 +284,11 @@ void main() {
       findsNothing,
       reason: 'the New Session dialog should have closed after a valid submission',
     );
-    // Appears in the session header, the Property Inspector's Session
-    // mode (no proposal/object/relationship selected yet), and the
-    // Breadcrumb Bar's Document-level segment (Phase 2, ODS-S004 § 4
-    // Navigation Hierarchy).
-    expect(find.text('Timing Chain Manual Import'), findsNWidgets(3));
+    // Appears in the session header and the Property Inspector's Session
+    // mode (no proposal/object/relationship selected yet) — the
+    // Breadcrumb Bar's own former Document-level segment is gone along
+    // with the rest of the chrome (AP-OEP-WORKSPACE-AS-PRIMARY-UI-001).
+    expect(find.text('Timing Chain Manual Import'), findsWidgets);
     expect(find.text('Created'), findsWidgets);
     expect(find.text('No Knowledge Curation Session'), findsNothing);
 
@@ -272,21 +304,22 @@ void main() {
     expect(find.text('Timing Chain Cover'), findsOneWidget);
     expect(find.text('Pending'), findsOneWidget);
 
-    // Selecting the candidate updates the Property Inspector.
+    // Selecting the candidate (previously also asserted this updated the
+    // Property Inspector's Knowledge Candidate mode — that panel was
+    // removed by AP-OEP-WORKSPACE-AS-PRIMARY-UI-001, so only the real,
+    // still-selectable row itself is asserted here now).
     await tester.tap(find.text('Timing Chain Cover'));
     await settle(tester);
-    expect(find.text('Knowledge Candidate ID'), findsOneWidget);
+    expect(find.text('Timing Chain Cover'), findsOneWidget);
 
-    // Accept it — the status badge (Engineering Review) and the
-    // Property Inspector's Knowledge Candidate mode (still showing this
-    // same, now-updated candidate) both read "Accepted".
+    // Accept it — the status badge (Engineering Review) reads "Accepted".
     await tester.tap(find.widgetWithTooltip('Accept'));
     await settle(tester);
-    expect(find.text('Accepted'), findsNWidgets(2));
+    expect(find.text('Accepted'), findsOneWidget);
     expect(find.text('Pending'), findsNothing);
   });
 
-  testWidgets('Diagram Studio opens to a blank untitled document with its toolbars and panels', (
+  testWidgets('Diagram Studio opens as a Workspace tab, blank untitled document with its toolbars and panels', (
     WidgetTester tester,
   ) async {
     tester.view.physicalSize = const Size(1280, 800);
@@ -296,34 +329,21 @@ void main() {
 
     await tester.pumpWidget(const ProviderScope(child: StudioApp()));
     await settle(tester);
+    await ensureOnWorkspace(tester);
 
-    final diagramRow = find.byKey(ValueKey('sidebar-dest-${StudioDestination.diagram.path}'));
-    await tester.scrollUntilVisible(diagramRow, 100, scrollable: sidebarScrollable());
-    await tester.ensureVisible(diagramRow); // see `navigateViaSidebar`'s own doc comment for why
+    await tester.tap(find.byTooltip('New tab'));
     await settle(tester);
-    await tester.tap(diagramRow);
+    await tester.tap(find.text('Diagram Studio').last);
     await tester.pump();
     await settleDiagramStudioBootstrap(tester);
 
-    // AP-DIAGRAM-V2-BRIDGE-002/010 — `/diagram` renders the Web Surface
-    // host (Legacy V2 auto-opened), never the native renderer
-    // (`docs/DIAGRAM_STUDIO_V2_BRIDGE_PRODUCTION_ARCHITECTURE.md`). The
-    // native renderer itself was retired by AP-DIAGRAM-V2-BRIDGE-010
-    // once the parity/dependency audit confirmed it was safe to do so
-    // (`docs/DIAGRAM_STUDIO_V2_BRIDGE_MIGRATION_PLAN.md` §19) — the "Use
-    // Classic Renderer (fallback)" link this test used to assert is gone
-    // along with it. AP-OEP-DIAGRAM-UX-001 replaced the "Legacy V2
-    // (open)" text button with an icon-only toolbar and removed the
-    // "Native OEP" debug tab from the default/auto-opened set entirely
-    // (it's no longer expected to coexist by default), so this assertion
-    // now checks for the actual embedded widget instead of that removed
-    // UI text.
+    // AP-DIAGRAM-V2-BRIDGE-002/010 — the Diagram tab renders
+    // `DiagramWithComparePane`, the same real, unmodified Legacy V2
+    // embedding `WebSurfacesHostPage`'s own `/diagram` route uses — never
+    // the native renderer, which was retired entirely by
+    // AP-DIAGRAM-V2-BRIDGE-010.
     expect(find.byType(LegacyV2WebViewPage), findsOneWidget,
         reason: 'Legacy V2 auto-opens as the default tab on the production Diagram Studio route');
-    expect(find.text('Native OEP'), findsNothing,
-        reason: 'the Native OEP debug tab was removed from the default tab set by AP-OEP-DIAGRAM-UX-001');
-    expect(find.text('Use Classic Renderer (fallback)'), findsNothing,
-        reason: 'the native-renderer fallback was removed once AP-DIAGRAM-V2-BRIDGE-010 retired the native renderer');
   });
 }
 

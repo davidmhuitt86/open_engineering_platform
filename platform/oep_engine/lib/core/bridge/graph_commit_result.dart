@@ -5,9 +5,18 @@ import '../graph/models/engineering_relationship.dart';
 /// [FoundationBridgePort.commitGraph]. Replaces the interface's original
 /// bare `Future<String>` return, which implied a single Foundation
 /// identity for the whole committed graph — a concept Foundation's own
-/// model doesn't have (only individual Engineering Object/Relationship
-/// identities exist). Zero callers of `commitGraph` existed before this
-/// package, so this is a free change, not a breaking one.
+/// model didn't originally have (only individual Engineering
+/// Object/Relationship identities existed). Zero callers of
+/// `commitGraph` existed before this package, so this is a free change,
+/// not a breaking one.
+///
+/// **AP-OEP-FOUNDATION-BRIDGE-003** — Foundation now does have a
+/// whole-graph identity after all: [diagramRepositoryId], a Foundation
+/// `ObjectType::Diagram` object established (or reused) for this commit.
+/// [nodeRepositoryIds]/[relationshipRepositoryIds] remain per-member
+/// mappings, unchanged in shape — [diagramRepositoryId] is additive, the
+/// identity a caller needs to later scope-load this same graph back via
+/// `FoundationBridgePort.loadCommittedGraph`.
 ///
 /// Every id in [nodeRepositoryIds]/[relationshipRepositoryIds] is a real,
 /// Foundation-assigned identity returned by a successful commit — never
@@ -21,6 +30,7 @@ class GraphCommitResult {
     required this.relationshipRepositoryIds,
     this.unmappedNodeIds = const [],
     this.unmappedRelationshipIds = const [],
+    this.diagramRepositoryId,
   });
 
   /// Engine [EngineeringNode.id] -> authoritative Foundation object id,
@@ -41,4 +51,14 @@ class GraphCommitResult {
   /// Engine relationship ids excluded from this commit for the same
   /// reason as [unmappedNodeIds].
   final List<String> unmappedRelationshipIds;
+
+  /// AP-OEP-FOUNDATION-BRIDGE-003 — the Foundation diagram identity
+  /// (`ObjectType::Diagram` object id) every newly-created node/
+  /// relationship in this commit was assigned to, or an existing
+  /// diagram id this commit reused because the graph already carried
+  /// one. Null only when this commit created (and reused) nothing —
+  /// an empty graph, or a graph whose every member was already
+  /// committed and had no prior diagram identity to report — never a
+  /// fabricated or guessed value.
+  final String? diagramRepositoryId;
 }

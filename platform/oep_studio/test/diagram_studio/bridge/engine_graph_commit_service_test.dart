@@ -92,6 +92,43 @@ void main() {
       expect(graph.nodes['n1']!.repositoryObjectId, isNull);
     });
 
+    test('successful commit retains the diagram identity on the graph (AP-OEP-FOUNDATION-BRIDGE-003)', () async {
+      final graph = EngineeringGraph(
+        id: 'g1',
+        nodes: {'n1': const EngineeringNode(id: 'n1', category: NodeCategory.component, displayName: 'n1')},
+      );
+      final bridge = _FakeFoundationBridgePort(
+        resultToReturn: const GraphCommitResult(
+          nodeRepositoryIds: {'n1': 'foundation-object-1'},
+          relationshipRepositoryIds: {},
+          diagramRepositoryId: 'foundation-diagram-1',
+        ),
+      );
+
+      final outcome = await EngineGraphCommitService.commit(bridge: bridge, graph: graph, graphService: graphService);
+
+      expect(outcome.graph.diagramRepositoryId, 'foundation-diagram-1');
+      // The graph's own repository round trip (toJson/fromJson) still
+      // carries it — this is the "smallest existing persistence path"
+      // the metadata bag provides.
+      expect(EngineeringGraph.fromJson(outcome.graph.toJson()).diagramRepositoryId, 'foundation-diagram-1');
+    });
+
+    test('a null diagramRepositoryId on the result leaves the graph\'s existing diagram identity untouched', () async {
+      final graph = EngineeringGraph(
+        id: 'g1',
+        nodes: {'n1': const EngineeringNode(id: 'n1', category: NodeCategory.component, displayName: 'n1')},
+        metadata: const {EngineeringGraph.diagramRepositoryIdMetadataKey: 'already-there'},
+      );
+      final bridge = _FakeFoundationBridgePort(
+        resultToReturn: const GraphCommitResult(nodeRepositoryIds: {}, relationshipRepositoryIds: {}),
+      );
+
+      final outcome = await EngineGraphCommitService.commit(bridge: bridge, graph: graph, graphService: graphService);
+
+      expect(outcome.graph.diagramRepositoryId, 'already-there');
+    });
+
     test('a GraphCommitResult referencing an id not in the submitted graph is ignored, not fabricated', () async {
       final graph = EngineeringGraph(
         id: 'g1',

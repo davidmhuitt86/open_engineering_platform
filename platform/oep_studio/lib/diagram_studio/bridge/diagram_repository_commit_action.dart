@@ -16,9 +16,14 @@ import 'engine_graph_commit_service.dart';
 /// tested — AP-OEP-FOUNDATION-BRIDGE-001) → `EditingService.
 /// applyExternalGraphUpdate` (writes the result onto the *live* session
 /// so the Inspector/canvas reflect it immediately, without touching undo
-/// history) → `FoundationRuntimeNotifier.refreshRepository()` (the same
-/// existing, already-public refresh Knowledge Studio's own commit flow
-/// calls after a successful commit, `foundation_runtime_service.dart`'s
+/// history) → `EngineeringProjectNotifier.persistCommittedGraph`
+/// (AP-OEP-DIAGRAM-REPOSITORY-001 — writes the updated graph, including
+/// `diagramRepositoryId`, through the existing `DiagramDocument` save
+/// path so it survives close/reopen per AP-OEP-DIAGRAM-PERSISTENCE-001;
+/// a no-op for a document that has never been saved) →
+/// `FoundationRuntimeNotifier.refreshRepository()` (the same existing,
+/// already-public refresh Knowledge Studio's own commit flow calls after
+/// a successful commit, `foundation_runtime_service.dart`'s
 /// `commitToFoundation`) — this is what makes the freshly-committed ids
 /// immediately resolvable by `goToObject`/`goToRelationship`, both of
 /// which look objects up via `EngineeringObjectRuntime`'s cache, fed
@@ -48,6 +53,14 @@ Future<void> commitDiagramToRepository(BuildContext context, WidgetRef ref) asyn
       graphService: engine.graph,
     );
     engine.editing.applyExternalGraphUpdate(outcome.graph);
+    // AP-OEP-DIAGRAM-REPOSITORY-001 — persists the newly-assigned
+    // repositoryObjectId/repositoryRelationshipId/diagramRepositoryId
+    // through the existing save path, so a committed diagram's identity
+    // (AP-OEP-DIAGRAM-PERSISTENCE-001) actually survives close/reopen
+    // rather than living only in the in-memory session until the user's
+    // next unrelated Save. A no-op for a never-saved document — see
+    // `persistCommittedGraph`'s own doc comment.
+    await ref.read(engineeringProjectServiceProvider.notifier).persistCommittedGraph(outcome.graph);
     ref.read(foundationRuntimeServiceProvider.notifier).refreshRepository();
 
     if (!context.mounted) return;

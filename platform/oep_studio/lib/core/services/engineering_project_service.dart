@@ -167,6 +167,42 @@ class EngineeringProjectNotifier extends Notifier<EngineeringProjectState> {
     final opened = await state.document.open(path);
     host.engine.editing.resetSession(EditingSession.initial(opened.graph).copyWith(layout: opened.layout));
     state = state.copyWith();
+    await _reconnectToFoundationDiagram(host, opened.graph);
+  }
+
+  /// AP-OEP-DIAGRAM-PERSISTENCE-001 — if the just-restored graph already
+  /// carries a Foundation diagram identity (`diagramRepositoryId`,
+  /// established by a prior `EngineGraphCommitService.commit()` and
+  /// round-tripped for free through `DiagramDocument`'s existing
+  /// `graph.toJson()`/`fromJson()` envelope), verify it against the
+  /// currently open Foundation Repository through the existing scoped
+  /// `StudioFoundationBridgePort.loadCommittedGraph` path — never a
+  /// whole-Repository enumeration.
+  ///
+  /// Deliberately does not use the load's *result* to replace the
+  /// restored graph: the local file already carries this diagram's own
+  /// layout, groups, and richer `NodeCategory`/`RelationshipType` detail
+  /// that Foundation's committed representation can't reconstruct (see
+  /// `loadCommittedGraph`'s own doc comment) — overwriting the just-
+  /// restored session with that would be a regression, not a reconnect.
+  /// No Foundation repository open, or an id that no longer resolves, is
+  /// treated exactly like "nothing to reconnect to": the restored graph
+  /// is left exactly as loaded — never replaced with an empty/default
+  /// graph, never re-committed, and no new Foundation diagram or new
+  /// error-reporting mechanism is created for this case (this Notifier
+  /// has no `BuildContext` to surface one through, and none of this
+  /// package's existing seams reach here).
+  Future<void> _reconnectToFoundationDiagram(EngineHost host, EngineeringGraph graph) async {
+    final diagramId = graph.diagramRepositoryId;
+    if (diagramId == null || diagramId.isEmpty) return;
+    final bridge = host.engine.registry.foundationBridge;
+    if (bridge == null) return;
+    try {
+      await bridge.loadCommittedGraph(diagramId);
+    } catch (_) {
+      // No repository open, or `diagramId` no longer resolves in it —
+      // preserve the restored graph exactly as loaded (see doc comment).
+    }
   }
 
   Future<void> saveDocument() async {
@@ -180,6 +216,33 @@ class EngineeringProjectNotifier extends Notifier<EngineeringProjectState> {
     final session = state.session;
     if (session == null) return;
     await state.document.saveAs(path, session.graph, session.layout);
+    state = state.copyWith();
+  }
+
+  /// AP-OEP-DIAGRAM-REPOSITORY-001 — persists [graph] (the graph a
+  /// Foundation Repository commit just updated with `repositoryObjectId`/
+  /// `repositoryRelationshipId`/`diagramRepositoryId`, already applied
+  /// onto the live session by the caller via `EditingService.
+  /// applyExternalGraphUpdate`) through the same existing save path
+  /// [saveDocument] uses — but only when the document already has a
+  /// path: a commit must never implicitly trigger a first-time "Save As"
+  /// the user never asked for. An unsaved document's committed
+  /// identities still live on the in-memory session and will be written
+  /// out whenever the user does save/save-as, same as any other edit.
+  ///
+  /// Takes [graph] explicitly rather than reading `state.session.graph`
+  /// (as [saveDocument] does): `applyExternalGraphUpdate` delivers onto
+  /// `EditingService.sessionChanges`, a broadcast stream whose listener
+  /// (subscribed in [ensureEngineStarted]) updates `state.session`
+  /// asynchronously — reading `state.session` here, in the same
+  /// synchronous continuation the caller applied that update in, could
+  /// still observe the pre-commit graph. `session.layout` has no such
+  /// race (`applyExternalGraphUpdate` never touches layout), so it's
+  /// still read from `state.session` as usual.
+  Future<void> persistCommittedGraph(EngineeringGraph graph) async {
+    final session = state.session;
+    if (session == null || state.document.path == null) return;
+    await state.document.save(graph, session.layout);
     state = state.copyWith();
   }
 

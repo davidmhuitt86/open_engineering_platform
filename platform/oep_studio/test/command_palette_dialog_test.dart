@@ -9,8 +9,8 @@ import 'package:oep_studio/core/input/platform_input_service.dart';
 
 /// A minimal host so the palette can be opened without booting the
 /// whole app — most of these tests exercise the dialog in isolation;
-/// only the last test confirms the real Platform entry point
-/// (`StudioToolbar`) actually opens it.
+/// the last test confirms the real Platform entry point (Ctrl+K, bound
+/// in `StudioShell`) actually opens it.
 class _PaletteHarness extends StatelessWidget {
   const _PaletteHarness({this.inputService});
 
@@ -197,29 +197,6 @@ void main() {
   });
 
   group('Platform integration (Phase 6)', () {
-    testWidgets('the toolbar\'s Commands field opens the Command Palette', (tester) async {
-      tester.view.physicalSize = const Size(1000, 700);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-
-      await tester.pumpWidget(const ProviderScope(child: StudioApp()));
-      await tester.pumpAndSettle();
-
-      final commandsField = find.byWidgetPredicate((widget) => widget is TextField && widget.decoration?.hintText == 'Commands');
-      expect(commandsField, findsOneWidget);
-
-      // warnIfMissed: false — the field is deliberately wrapped in
-      // IgnorePointer (see studio_toolbar.dart) so the InkWell beneath
-      // it receives the tap instead; that's the intended design, not a
-      // miss.
-      await tester.tap(commandsField, warnIfMissed: false);
-      await tester.pumpAndSettle();
-
-      expect(find.text('Commands'), findsWidgets); // toolbar hint + palette title
-      expect(find.text('Search commands…'), findsOneWidget);
-    });
-
     testWidgets('Ctrl+K opens the Command Palette from anywhere in the app (WP-STUDIO-027)', (tester) async {
       tester.view.physicalSize = const Size(1000, 700);
       tester.view.devicePixelRatio = 1.0;

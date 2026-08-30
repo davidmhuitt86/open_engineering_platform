@@ -6,9 +6,8 @@ import '../../acquisition/services/acquisition_runtime_service.dart';
 import '../../acquisition/settings/acquisition_settings_page.dart';
 import '../../acquisition/workspaces/acquisition_studio_page.dart';
 import '../../diagram_studio/settings/diagram_studio_settings_page.dart';
-import '../../workbench/engineering_workbench_page.dart';
-import '../../workbench/perspective/perspective_manager.dart';
-import '../../workbench/perspectives/workbench_perspectives.dart';
+import '../../workbench/perspectives/engineering_perspective.dart';
+import '../../workbench/perspectives/instruments_perspective.dart';
 import '../../engineering_intelligence/engineering_intelligence_page.dart';
 import '../../features/copilot/copilot_page.dart';
 import '../../exchange/services/exchange_runtime_service.dart';
@@ -462,20 +461,17 @@ class StudioRegistry {
       destination: StudioDestination.copilot,
       pageBuilder: _copilotBuilder,
     ),
-    // AP-DIAGRAM-V2-BRIDGE-010 — this route no longer hosts a native
-    // Diagram Studio renderer (`diagramPerspective` was removed from
-    // `workbenchPerspectives`, § that file's own comment). It is KEPT
-    // — not deleted alongside the native renderer — because it is the
-    // only route that mounts the multi-Perspective `EngineeringWorkbenchPage`
-    // shell at all, which still hosts the real, independently-used
-    // Engineering and Instruments Perspectives (`engineeringPerspective`/
-    // `instrumentsPerspective`) — deleting this route would make those
-    // unreachable, a regression outside this task's scope. Deliberately
-    // NOT in `_otherStudioDestinations` (`workbench_sidebar.dart`), so
-    // it doesn't compete with `/diagram`'s own Navigation Rail entry.
+    // AP-OEP-WORKBENCH-PERSPECTIVE-MIGRATION-001 — Engineering/
+    // Instruments Perspective content, also reachable as ordinary
+    // Studios/Surfaces now (§ `StudioDestination.engineeringWorkbench`/
+    // `instrumentsWorkbench`'s own comment).
     const StudioDescriptor(
-      destination: StudioDestination.diagramClassic,
-      pageBuilder: _diagramClassicBuilder,
+      destination: StudioDestination.engineeringWorkbench,
+      pageBuilder: _engineeringWorkbenchBuilder,
+    ),
+    const StudioDescriptor(
+      destination: StudioDestination.instrumentsWorkbench,
+      pageBuilder: _instrumentsWorkbenchBuilder,
     ),
     const StudioDescriptor(
       destination: StudioDestination.settings,
@@ -497,16 +493,11 @@ Widget _knowledgeBuilder(BuildContext context, GoRouterState state) => const Kno
 Widget _diagramBuilder(BuildContext context, GoRouterState state) =>
     const WebSurfacesHostPage(autoOpenLegacyV2: true);
 
-/// AP-DIAGRAM-V2-BRIDGE-010 — the multi-Perspective Workbench shell
-/// (Engineering/Instruments Perspectives), reachable only at
-/// `/diagram-classic` (§ the `StudioDescriptor`'s own comment for why
-/// this route was kept rather than deleted alongside the native Diagram
-/// Studio renderer).
-Widget _diagramClassicBuilder(BuildContext context, GoRouterState state) => EngineeringWorkbenchPage(
-      perspectives: workbenchPerspectives,
-      perspectiveManager: PerspectiveManager.instance,
-      showSidebar: false, // StudioShell already renders the (shared) sidebar.
-    );
+/// AP-OEP-WORKBENCH-PERSPECTIVE-MIGRATION-001 — the exact same widget
+/// `SurfaceRegistry`'s `engineeringWorkbench` builder constructs, per
+/// this file's own established invariant with `SurfaceRegistry`.
+Widget _engineeringWorkbenchBuilder(BuildContext context, GoRouterState state) => const EngineeringSurfacePage();
+Widget _instrumentsWorkbenchBuilder(BuildContext context, GoRouterState state) => const InstrumentsSurfacePage();
 Widget _acquisitionBuilder(BuildContext context, GoRouterState state) => const AcquisitionStudioPage();
 Widget _repositoryBuilder(BuildContext context, GoRouterState state) => const RepositoryPage();
 Widget _objectsBuilder(BuildContext context, GoRouterState state) => const ObjectsPage();

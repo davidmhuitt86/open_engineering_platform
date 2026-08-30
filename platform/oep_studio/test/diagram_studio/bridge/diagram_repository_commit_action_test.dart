@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -16,6 +18,8 @@ import 'package:oep_studio/diagram_studio/host/engine_host.dart';
 import 'package:oep_studio/diagram_studio/inspector/engineering_node_properties.dart';
 import 'package:oep_studio/diagram_studio/inspector/engineering_relationship_properties.dart';
 import 'package:oep_studio/workspace/workspace_tabs_controller.dart';
+
+import '../../support/isolated_settings_storage.dart';
 
 /// AP-OEP-DIAGRAM-REPOSITORY-001 — the fake used to exercise
 /// `commitDiagramToRepository` without a real Foundation DLL. Same fake-
@@ -62,12 +66,16 @@ void main() {
     return host;
   }
 
-  Widget harness({required Widget child, required EngineHost host}) {
+  Widget harness({required Widget child, required EngineHost host, DiagramDocument? document}) {
     return ProviderScope(
       overrides: [
         engineeringProjectServiceProvider.overrideWith(
           () => _FakeEngineeringProjectNotifier(
-            EngineeringProjectState(document: DiagramDocument(), engineHost: host, session: host.engine.editing.session),
+            EngineeringProjectState(
+              document: document ?? DiagramDocument(),
+              engineHost: host,
+              session: host.engine.editing.session,
+            ),
           ),
         ),
       ],
@@ -307,6 +315,127 @@ void main() {
       final tabs = container.read(workspaceTabsControllerProvider);
       expect(tabs.tabs, hasLength(1));
       expect(tabs.active!.surfaceId, StudioDestination.objects.name);
+    });
+  });
+
+  group('11/persistence. commit persists the updated DiagramDocument (AP-OEP-DIAGRAM-REPOSITORY-001)', () {
+    late Directory tempDir;
+
+    setUp(() {
+      useIsolatedSettingsStorage();
+      tempDir = Directory.systemTemp.createTempSync('diagram_repository_commit_persistence_test_');
+    });
+
+    tearDown(() {
+      if (tempDir.existsSync()) tempDir.deleteSync(recursive: true);
+    });
+
+    testWidgets('an already-saved document is re-saved with the committed identities, including diagramRepositoryId',
+        (tester) async {
+      final graph = EngineeringGraph(id: 'g1', nodes: {'n1': unsavedNode});
+      late EngineHost host;
+      late DiagramDocument document;
+      final path = '${tempDir.path}/diagram.json';
+      await tester.runAsync(() async {
+        document = DiagramDocument();
+        await document.saveAs(path, graph, DiagramLayoutState.empty);
+        host = await EngineHost.create(
+          foundationBridge: _FakeFoundationBridgePort(
+            resultToReturn: const GraphCommitResult(
+              nodeRepositoryIds: {'n1': 'foundation-object-1'},
+              relationshipRepositoryIds: {},
+              diagramRepositoryId: 'foundation-diagram-1',
+            ),
+          ),
+        );
+        host.engine.beginEditingSession(graph);
+      });
+
+      await tester.pumpWidget(harness(child: const EngineeringNodeProperties(node: unsavedNode), host: host, document: document));
+      // The commit action now performs real `dart:io` writes
+      // (`persistCommittedGraph`) — `runAsync` lets that real I/O
+      // actually complete; plain `pump(Duration)` only advances the
+      // fake clock, which real file writes never observe.
+      await tester.runAsync(() async {
+        await tester.tap(find.text('Commit Diagram to Repository'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 50));
+      });
+
+      expect(document.isDirty, isFalse, reason: 'the commit\'s own save cleared dirty state');
+
+      late Map<String, Object?> onDisk;
+      await tester.runAsync(() async {
+        final reopened = await DiagramDocument().open(path);
+        onDisk = reopened.graph.toJson();
+      });
+      final onDiskGraph = EngineeringGraph.fromJson(onDisk);
+      expect(onDiskGraph.nodes['n1']!.repositoryObjectId, 'foundation-object-1');
+      expect(onDiskGraph.diagramRepositoryId, 'foundation-diagram-1');
+    });
+
+    testWidgets('a never-saved document is not implicitly saved by a commit', (tester) async {
+      final graph = EngineeringGraph(id: 'g1', nodes: {'n1': unsavedNode});
+      final host = await hostWithGraph(
+        tester,
+        graph,
+        bridge: _FakeFoundationBridgePort(
+          resultToReturn: const GraphCommitResult(nodeRepositoryIds: {'n1': 'foundation-object-1'}, relationshipRepositoryIds: {}),
+        ),
+      );
+      final document = DiagramDocument(); // never saved — path stays null
+      await tester.pumpWidget(harness(child: const EngineeringNodeProperties(node: unsavedNode), host: host, document: document));
+
+      await tester.tap(find.text('Commit Diagram to Repository'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+
+      // The commit itself still succeeded and updated the live session —
+      // only the implicit save is skipped (no path to write a first-time
+      // Save As to; the identities live on the session until the user's
+      // own next save/save-as).
+      expect(find.textContaining('Committed 1 object'), findsOneWidget);
+      expect(document.path, isNull);
+      expect(host.engine.editing.session.graph.nodes['n1']!.repositoryObjectId, 'foundation-object-1');
+    });
+
+    testWidgets('full continuity: commit -> persisted save -> reopen recovers diagramRepositoryId, without re-enumerating',
+        (tester) async {
+      final graph = EngineeringGraph(id: 'g1', nodes: {'n1': unsavedNode});
+      late DiagramDocument document;
+      final path = '${tempDir.path}/diagram.json';
+      late EngineHost host;
+      await tester.runAsync(() async {
+        document = DiagramDocument();
+        await document.saveAs(path, graph, DiagramLayoutState.empty);
+        host = await EngineHost.create(
+          foundationBridge: _FakeFoundationBridgePort(
+            resultToReturn: const GraphCommitResult(
+              nodeRepositoryIds: {'n1': 'foundation-object-1'},
+              relationshipRepositoryIds: {},
+              diagramRepositoryId: 'foundation-diagram-1',
+            ),
+          ),
+        );
+        host.engine.beginEditingSession(graph);
+      });
+
+      await tester.pumpWidget(harness(child: const EngineeringNodeProperties(node: unsavedNode), host: host, document: document));
+      await tester.runAsync(() async {
+        await tester.tap(find.text('Commit Diagram to Repository'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 50));
+      });
+
+      // Reopen through the same real DiagramDocument.open() path
+      // AP-OEP-DIAGRAM-PERSISTENCE-001's restoration relies on.
+      late EngineeringGraph reopenedGraph;
+      await tester.runAsync(() async {
+        final reopened = await DiagramDocument().open(path);
+        reopenedGraph = reopened.graph;
+      });
+      expect(reopenedGraph.diagramRepositoryId, 'foundation-diagram-1');
+      expect(reopenedGraph.nodes['n1']!.repositoryObjectId, 'foundation-object-1');
     });
   });
 }

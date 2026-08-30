@@ -89,7 +89,6 @@ class WebSurfacesHostPage extends ConsumerStatefulWidget {
   /// authoritative and this flag no longer matters.
   final bool autoOpenLegacyV2;
 
-  static const String nativeTabId = 'native-oep';
   static const String legacyV2TabId = 'legacy-v2';
 
   /// AP-OEP-DIAGRAM-COMPARE-002 — a second, fully independent diagram
@@ -349,9 +348,6 @@ class _WebSurfacesHostPageState extends ConsumerState<WebSurfacesHostPage> {
       // only the Workspace tab and not here was a real gap.
       return const DiagramWithComparePane();
     }
-    if (surface.id == WebSurfacesHostPage.nativeTabId) {
-      return _NativeOepPanel(key: ValueKey(surface.id));
-    }
     return WebSurfaceView(key: ValueKey(surface.id), surface: surface);
   }
 
@@ -610,39 +606,3 @@ class _TabChip extends StatelessWidget {
   }
 }
 
-/// Proves native Studio content can sit alongside Web Surfaces in the
-/// same tab strip without either side knowing about the other — reads
-/// live Engine state through the existing, unmodified
-/// `diagramStudioControllerProvider`, the same provider
-/// `LegacyV2WebViewPage`'s own status bar already reads.
-///
-/// Superseded for real use by `_NativeTab` (§ class doc comment kind 3,
-/// which embeds any OEP destination, not just this one demo panel) but
-/// kept, unreachable via `WebSurcesHostPage.nativeTabId`, rather than
-/// deleted (AP-OEP-DIAGRAM-UX-001's own reasoning, unchanged).
-class _NativeOepPanel extends ConsumerWidget {
-  const _NativeOepPanel({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final controllerAsync = ref.watch(diagramStudioControllerProvider);
-    return Container(
-      color: StudioColors.background,
-      alignment: Alignment.center,
-      child: controllerAsync.when(
-        data: (controller) {
-          final graph = controller.session?.graph;
-          return Text(
-            'Native OEP Studio surface\n\n'
-            '${graph?.nodes.length ?? 0} node(s), ${graph?.relationships.length ?? 0} relationship(s)\n'
-            'Document: "${controller.document.metadata.title}"',
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: StudioColors.textSecondary, fontFamily: 'Consolas'),
-          );
-        },
-        loading: () => const CircularProgressIndicator(color: StudioColors.selection),
-        error: (_, __) => const Text('Engine unavailable', style: TextStyle(color: StudioColors.error)),
-      ),
-    );
-  }
-}

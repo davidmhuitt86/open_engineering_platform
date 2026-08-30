@@ -186,9 +186,12 @@ void main() {
       // finding, and is exactly why AP-OEP-WORKSPACE-ROUTING-001's fix
       // lives in `StudioShell` (which sits *above* every route's `child`
       // and is itself preserved by `ShellRoute` across sibling route
-      // changes) rather than in `EngineeringWorkspacePage` itself —
-      // see `studio_shell_workspace_persistence_test.dart` for the real,
-      // StudioShell-wrapped app behavior, which no longer exhibits this.
+      // changes) rather than in `EngineeringWorkspacePage` itself. That
+      // real, StudioShell-wrapped behavior is moot in production now
+      // (AP-OEP-WORKSPACE-AS-PRIMARY-UI-001 — nothing in the UI ever
+      // navigates away from `/workspace` anymore), but this bare-harness
+      // finding about `EngineeringWorkspacePage`'s own lifecycle under a
+      // plain route swap remains true and worth documenting.
       final secondElement = tester.element(find.byType(EngineeringWorkspacePage));
       expect(identical(firstElement, secondElement), isFalse);
     },

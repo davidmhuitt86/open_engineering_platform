@@ -5,7 +5,6 @@ import '../../diagram_studio/instruments/core/engineering_instrument.dart';
 import '../dock/dock_manager.dart';
 import '../dock/dock_panel_client.dart';
 import '../dock/dock_region.dart';
-import '../perspective/perspective.dart';
 import 'instrument_dock_panel_client.dart';
 
 /// WP-DS-006 Engineering Workbench — the Instruments Perspective.
@@ -44,22 +43,47 @@ import 'instrument_dock_panel_client.dart';
 ///
 /// Diagram Studio's own in-page `InstrumentDock` (`diagram_studio_page.dart`,
 /// WP-DS-005A) is completely untouched by this file and keeps working
-/// exactly as before when reached via the Diagram Perspective.
-final instrumentsPerspective = Perspective(
-  id: 'instruments',
-  title: 'Instruments',
-  icon: Icons.speed_outlined,
-  centerBuilder: (context) => const _InstrumentsPerspectiveCenter(),
-  bottomPanelProvider: (context) => const InstrumentsPerspectiveDock(instruments: []),
-  defaultLayout: const PerspectiveLayout(bottomVisible: true, bottomHeight: 220),
-);
+/// exactly as before when reached via Diagram Studio.
+///
+/// AP-OEP-WORKBENCH-RETIREMENT-001 — the Workbench `Perspective` this
+/// content used to back (`instrumentsPerspective`) was retired along with
+/// `PerspectiveManager`/`EngineeringWorkbenchPage`; [InstrumentsSurfacePage]
+/// below (`StudioDestination.instrumentsWorkbench`) is now this content's
+/// sole home.
+///
+/// AP-OEP-WORKBENCH-PERSPECTIVE-MIGRATION-001 — the Instruments
+/// Perspective's real content ([InstrumentsPerspectiveCenter] +
+/// [InstrumentsPerspectiveDock]) exposed as an ordinary Workspace
+/// Surface (`StudioDestination.instrumentsWorkbench`), arranged in a
+/// fixed column since a plain Surface page has no resizable dock-region
+/// chrome of its own to reuse (that chrome belonged to the retired
+/// Workbench shell). Still real, working `DockManager`/
+/// `DockPanelClientRegistry` plumbing underneath — populated with zero
+/// instruments today for the same reason documented on
+/// [InstrumentsPerspectiveDock] below (no live diagram session's
+/// `EngineeringEngine` reaches this Surface).
+class InstrumentsSurfacePage extends StatelessWidget {
+  const InstrumentsSurfacePage({super.key});
 
-/// The Instruments Perspective's bottom dock — a real [DockManager] +
+  @override
+  Widget build(BuildContext context) {
+    return const Column(
+      children: [
+        Expanded(child: InstrumentsPerspectiveCenter()),
+        SizedBox(
+          height: 220,
+          child: InstrumentsPerspectiveDock(instruments: []),
+        ),
+      ],
+    );
+  }
+}
+
+/// The Instruments Surface's bottom dock — a real [DockManager] +
 /// [DockPanelClientRegistry] wired through [DockRegion], populated by
 /// adapting every [EngineeringInstrument] in [instruments]. Exposed as its
-/// own widget (rather than inlined into [instrumentsPerspective]'s
-/// `bottomPanelProvider`) so a future caller with real instruments (or a
-/// test) can pass them in directly.
+/// own widget so a future caller with real instruments (or a test) can
+/// pass them in directly.
 class InstrumentsPerspectiveDock extends StatefulWidget {
   const InstrumentsPerspectiveDock({super.key, required this.instruments});
 
@@ -124,8 +148,11 @@ class _InstrumentsPerspectiveDockState extends State<InstrumentsPerspectiveDock>
   }
 }
 
-class _InstrumentsPerspectiveCenter extends StatelessWidget {
-  const _InstrumentsPerspectiveCenter();
+/// AP-OEP-WORKBENCH-PERSPECTIVE-MIGRATION-001 — made public (was
+/// `_InstrumentsPerspectiveCenter`) so [InstrumentsSurfacePage] can reuse
+/// it directly instead of forking it.
+class InstrumentsPerspectiveCenter extends StatelessWidget {
+  const InstrumentsPerspectiveCenter({super.key});
 
   @override
   Widget build(BuildContext context) {

@@ -38,11 +38,4 @@ void main() {
       // wiring is real: showing the dock renders the adapted instrument.
     });
   });
-
-  testWidgets('instrumentsPerspective is registered with a real id/title/icon and a bottom dock provider', (tester) async {
-    expect(instrumentsPerspective.id, 'instruments');
-    expect(instrumentsPerspective.title, 'Instruments');
-    expect(instrumentsPerspective.bottomPanelProvider, isNotNull);
-    expect(instrumentsPerspective.defaultLayout.bottomVisible, isTrue);
-  });
 }

@@ -52,6 +52,17 @@ void main() {
       const result = GraphCommitResult(nodeRepositoryIds: {}, relationshipRepositoryIds: {});
       expect(result.nodeRepositoryIds, isEmpty);
       expect(result.relationshipRepositoryIds, isEmpty);
+      expect(result.diagramRepositoryId, isNull);
+    });
+
+    test('AP-OEP-FOUNDATION-BRIDGE-003: carries the established/reused diagram identity independently', () {
+      const result = GraphCommitResult(
+        nodeRepositoryIds: {'engine-node-1': 'foundation-object-1'},
+        relationshipRepositoryIds: {},
+        diagramRepositoryId: 'foundation-diagram-1',
+      );
+
+      expect(result.diagramRepositoryId, 'foundation-diagram-1');
     });
   });
 }

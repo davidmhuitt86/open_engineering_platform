@@ -1,5 +1,33 @@
 # Engineering Workbench — Architecture (WP-DS-006, Phase 1)
 
+> **Status: RETIRED (AP-OEP-WORKBENCH-RETIREMENT-001).** Everything
+> below is a historical record of the Workbench/Perspective architecture
+> as it stood after WP-DS-006 Phase 1 — it no longer describes current
+> production code. `AP-OEP-WORKBENCH-PLACEHOLDER-DECISION-001` found the
+> seven non-Diagram, non-Engineering, non-Instruments Perspectives (Home,
+> Dashboard, Inspection, Simulation, Publishing, Library, Review) were
+> inert placeholders with no unique functionality, and
+> `AP-OEP-WORKBENCH-RETIREMENT-001` removed `PerspectiveManager`,
+> `EngineeringWorkbenchPage`, `WorkbenchLayoutManager`,
+> `WorkbenchCommandManager`, `WorkbenchThemeManager`,
+> `WorkbenchStatusBar`, `workbench_perspectives.dart`, the retired
+> retired Perspective objects (`engineeringPerspective`/`instrumentsPerspective`),
+> `StudioNavRail`, `/diagram-classic`, and the WORKBENCH section of
+> `WorkbenchSidebar` (which now only renders RESOURCES/TOOLS/STUDIOS
+> navigation). Two corrections to claims made below, specifically: the
+> "Diagram Perspective" this document describes was itself already
+> removed earlier by `AP-DIAGRAM-V2-BRIDGE-010` (Legacy V2, bridged via
+> `/diagram`, replaced it) — by the time of this retirement it no longer
+> existed for anything to "remain reachable... from inside" (§ the
+> Publishing/Simulation section below); and `PublishingCenterDialog`/
+> `SimulationCenterDialog`, named there as where that functionality
+> "remains reachable," do not exist anywhere in the current codebase —
+> no evidence was found that this functionality exists in any currently
+> reachable production surface. Engineering and Instruments' real content
+> survives, unchanged, as ordinary Workspace Surfaces
+> (`lib/workbench/perspectives/engineering_perspective.dart`/
+> `instruments_perspective.dart`, § `AP-OEP-WORKBENCH-PERSPECTIVE-MIGRATION-001`).
+
 ## Scope decision: nested inside `StudioShell`, not a replacement
 
 The governing spec describes the Engineering Workbench as if it were the
@@ -269,7 +297,18 @@ integration was requested) can pass real `EngineeringInstrument`s into
 Diagram Studio's own in-page `InstrumentDock`, reached via the Diagram
 Perspective, is completely unaffected and keeps working exactly as before.
 
-## The other 8 non-Diagram Perspectives — disclosed placeholder state
+## The other 8 non-Diagram Perspectives — disclosed placeholder state (historical; retired)
+
+> **Correction (AP-OEP-WORKBENCH-RETIREMENT-001):** the claim below that
+> `PublishingCenterDialog`/`SimulationCenterDialog` "remain reachable...
+> from inside the Diagram Perspective" was already stale by the time of
+> this retirement — that native "Diagram Perspective" had itself been
+> removed by `AP-DIAGRAM-V2-BRIDGE-010`, and neither dialog class exists
+> anywhere in the current codebase. No evidence was found that Publishing
+> or Simulation functionality exists in any currently reachable
+> production surface. All 9 Perspectives named below (the 7 pure
+> placeholders plus Engineering/Instruments, whose real content moved to
+> Workspace Surfaces) were removed by this retirement.
 
 Home, Dashboard, Inspection, Engineering, Simulation, Publishing, Library,
 and Review (`lib/workbench/perspectives/workbench_perspectives.dart`) are

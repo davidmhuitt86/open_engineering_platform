@@ -30,19 +30,18 @@ void main() {
   });
 
   group('SurfaceRegistry', () {
-    test('contains the expected current Studio surfaces, excluding Diagram/Classic', () {
+    test('contains the expected current Studio surfaces, excluding Diagram', () {
       final ids = SurfaceRegistry.all.map((s) => s.id).toSet();
 
-      // Every non-diagram, non-diagram-classic, non-workspace
-      // destination that is actually registered in
-      // StudioRegistry.defaultRegistry must be present — derived, not
-      // hand-duplicated. `workspace` (AP-OEP-WORKSPACE-SHELL-001) is
-      // excluded for the same self-referential reason `diagram` is —
-      // see `SurfaceRegistry`'s own doc comment.
+      // Every non-diagram, non-workspace destination that is actually
+      // registered in StudioRegistry.defaultRegistry must be present —
+      // derived, not hand-duplicated. `workspace`
+      // (AP-OEP-WORKSPACE-SHELL-001) is excluded for the same
+      // self-referential reason `diagram` is — see `SurfaceRegistry`'s
+      // own doc comment. `diagram-classic` (AP-OEP-WORKBENCH-
+      // RETIREMENT-001) no longer exists at all.
       for (final descriptor in StudioRegistry.defaultRegistry.descriptors) {
-        if (descriptor.destination == StudioDestination.diagram ||
-            descriptor.destination == StudioDestination.diagramClassic ||
-            descriptor.destination == StudioDestination.workspace) {
+        if (descriptor.destination == StudioDestination.diagram || descriptor.destination == StudioDestination.workspace) {
           continue;
         }
         expect(
@@ -53,10 +52,9 @@ void main() {
       }
     });
 
-    test('excludes Diagram and Diagram Classic (§ Phase 5: Diagram Studio has its own dedicated path)', () {
+    test('excludes Diagram (§ Phase 5: Diagram Studio has its own dedicated path)', () {
       final ids = SurfaceRegistry.all.map((s) => s.id).toSet();
       expect(ids.contains(StudioDestination.diagram.name), isFalse);
-      expect(ids.contains(StudioDestination.diagramClassic.name), isFalse);
     });
 
     test('every surface title/icon matches its StudioDestination (single source of truth, no duplication)', () {

@@ -67,6 +67,22 @@ const Sidebar = {
     empty.style.display   = 'none';
     content.style.display = '';
 
+    // `_renderModInfoInSidebar` (below) overwrites #si-acts with module-
+    // specific buttons (Edit Module / Delete Module) whenever a module was
+    // last inspected, and never restores them. Without reasserting the
+    // wire's own action buttons here, a wire selected after that still
+    // shows the previous module's stale "Edit"/"Del" buttons — so what
+    // looks like "Edit Route" for the wire is actually still wired to
+    // `editModProps()` for that old module, reopening its inspector
+    // instead of entering route-edit mode for the wire.
+    const acts = document.getElementById('si-acts');
+    if (acts) acts.innerHTML = `
+      <button class="fp-act" onclick="editWireProps()">✎ Edit</button>
+      <button class="fp-act" onclick="traceCircuit()">◎ Trace</button>
+      <button id="si-route-btn" class="fp-act" onclick="toggleRouteEditMode()">↔ Route</button>
+      <button class="fp-act del" onclick="deleteSelectedWire()">✕ Del</button>
+    `;
+
     if (info) {
       const fM = MODULES.find(m => m.id === w.from.m);
       const tM = MODULES.find(m => m.id === w.to.m);

@@ -51,8 +51,9 @@ not a new rule.
 ## 3. Studio taxonomy — as actually implemented (Phase 1)
 
 Source of truth: `platform/oep_studio/lib/core/routing/studio_destination.dart`
-+ `studio_registry.dart`. 17 `StudioDestination` values, each a
-Navigation-Rail entry:
++ `studio_registry.dart`. 18 `StudioDestination` values (AP-OEP-WORKBENCH-PERSPECTIVE-MIGRATION-001
+added `engineeringWorkbench`/`instrumentsWorkbench`; AP-OEP-WORKBENCH-RETIREMENT-001
+removed `diagramClassic`), each a Navigation-Rail entry:
 
 | Destination | Route | Label (exact) | Status | Web-Surface-backed? | Native? | Documented role? |
 |---|---|---|---|---|---|---|
@@ -71,7 +72,8 @@ Navigation-Rail entry:
 | `engineeringIntelligence` | `/engineering-intelligence` | Engineering Intelligence | Production | No | Yes | Maps to the Engine's 8-layer stack |
 | `exchange` | `/exchange` | Engineering Exchange | Production | No | Yes | Marketplace-style Studio |
 | `copilot` | `/copilot` | AI Engineering Copilot | Production | No | Yes | Core platform page |
-| `diagramClassic` | `/diagram-classic` | Engineering Workbench (Perspectives) | Production, **deliberately excluded from Nav Rail** | No | Yes | Retained only to host the Engineering and Instruments Perspectives (comment in `studio_destination.dart`) |
+| `engineeringWorkbench` | `/engineering` | Engineering | Production | Yes | Yes | AP-OEP-WORKBENCH-PERSPECTIVE-MIGRATION-001 — the Engineering Perspective's real content, now its sole home; `/diagram-classic` was retired by AP-OEP-WORKBENCH-RETIREMENT-001 and no longer exists |
+| `instrumentsWorkbench` | `/instruments` | Instruments | Production | Yes | Yes | Same package — the Instruments Perspective's real content (dock framework + honest empty state), now its sole home as an ordinary Workspace Surface |
 | `settings` | `/settings` | Settings | Production | No | Yes | Core platform page |
 
 **Explicitly NOT registered as a `StudioDestination` today**: `Web

@@ -19,29 +19,24 @@ import '../core/services/foundation_runtime_state.dart';
 import '../core/theme/studio_colors.dart';
 import '../core/workspace/workspace_manager.dart';
 import '../knowledge/models/ocr_processing_status.dart';
-import '../shared/widgets/output_panel.dart';
-import '../shared/widgets/property_inspector_panel.dart';
 import '../web_surface/web_surfaces_host_page.dart';
 import '../workspace/engineering_workspace_page.dart';
-import '../workspace/workspace_tab.dart';
-import '../workspace/workspace_tabs_controller.dart';
-import '../workbench/perspective/perspective_manager.dart';
-import '../workbench/widgets/workbench_sidebar.dart';
 import 'widgets/command_palette_dialog.dart';
-import 'widgets/studio_breadcrumb_bar.dart';
-import 'widgets/studio_menu_bar.dart';
-import 'widgets/studio_ribbon.dart';
-import 'widgets/studio_status_bar.dart';
-import 'widgets/studio_toolbar.dart';
 
-/// The application shell (STUDIO-TASK-000001, Property Inspector added
-/// in Work Package 003).
+/// The application shell (STUDIO-TASK-000001).
 ///
-/// Composes the five persistent regions defined by SDD-004 Workspace
-/// Layout: Top Toolbar, left Navigation Rail, central Primary
-/// Workspace, right Property Inspector, and bottom Status Bar. Only
-/// one Primary Workspace is visible at a time (SDD-003/SDD-004);
-/// navigation never opens a floating window.
+/// AP-OEP-WORKSPACE-AS-PRIMARY-UI-001 — this shell no longer renders any
+/// persistent chrome (the Menu Bar/Toolbar/Ribbon/Breadcrumb Bar/left
+/// Sidebar/Property Inspector/Output Panel/Status Bar that SDD-004
+/// originally specified were removed once the tabbed
+/// [EngineeringWorkspacePage] became the app's entire UI, in the same
+/// spirit `StudioDestination.diagram` already got a chrome-free
+/// full-window carve-out for — see `build()`). What remains is
+/// background wiring that has nothing to do with chrome: the app-wide
+/// Ctrl+K binding, lifecycle/progress event publishing, and the
+/// `WorkspaceManager`/`EngineeringObjectRuntime` bridges documented
+/// below, all of which must keep running regardless of what's on
+/// screen.
 ///
 /// Also the Platform's one centralized keyboard shortcut binding point
 /// (WP-STUDIO-027): wrapping the whole shell in [CallbackShortcuts]
@@ -147,69 +142,31 @@ class _StudioShellState extends ConsumerState<StudioShell> with WidgetsBindingOb
   /// AP-OEP-DIAGRAM-UX-001 — constructed exactly once, alive for this
   /// `State`'s entire lifetime (which spans every navigation, since
   /// `StudioShell` is the one persistent widget the `ShellRoute` never
-  /// tears down between destinations — confirmed by `didUpdateWidget`
-  /// already existing below to react to `selected` changes rather than
-  /// `initState` re-running). Kept permanently mounted in `build()` via
-  /// `Offstage` (never conditionally excluded from the tree) so its
-  /// `LegacyV2WebViewPage`/WebView2 control starts initializing the
-  /// moment the app boots — not the moment the user first navigates to
-  /// Diagram Studio, which previously meant a real WebView2 cold-start +
-  /// V2's own JS bootstrap on every single visit (each router rebuild
-  /// created a brand-new `WebSurfacesHostPage` from scratch). Every
-  /// other Studio is intentionally unaffected — this is a Diagram-
-  /// Studio-only carve-out, matching the existing chrome-bypass carve-out
-  /// immediately below in `build()`, not a general keep-alive routing
-  /// change.
-  ///
-  /// A `GlobalKey`, not just a stable field/object identity, is required
-  /// here: the diagram and non-diagram branches below return
-  /// structurally different `Scaffold` trees (§ the `build()` carve-out
-  /// this mirrors), so this widget moves to a genuinely different tree
-  /// position depending on `widget.selected` — plain object identity
-  /// only preserves `State` when a widget stays at the *same* tree
-  /// position across rebuilds; a `GlobalKey` is Flutter's documented
-  /// mechanism for relocating a live Element across different parents in
-  /// one build pass without disposing/recreating it.
+  /// tears down between destinations). Rendered directly as `build()`'s
+  /// `Scaffold.body` whenever `widget.selected == StudioDestination.diagram`
+  /// (AP-OEP-WORKSPACE-AS-PRIMARY-UI-001 — no longer additionally kept
+  /// alive `Offstage` while some other destination is selected, now that
+  /// `/diagram` itself is a vestigial, no-longer-UI-reachable route: the
+  /// tabbed Workspace's own Diagram tab, `DiagramWithComparePane`, is the
+  /// real, normal way users reach Diagram content today). A `GlobalKey`
+  /// is kept regardless, since `build()`'s three branches are still
+  /// structurally different `Scaffold` trees.
   final GlobalKey _diagramStudioHostKey = GlobalKey();
   late final Widget _diagramStudioHost = WebSurfacesHostPage(key: _diagramStudioHostKey, autoOpenLegacyV2: true);
 
-  /// AP-OEP-WORKSPACE-ROUTING-001 — the exact same "persistent host kept
-  /// alive underneath whichever Studio is actually visible" pattern
-  /// [_diagramStudioHost] above already established, applied to the
-  /// Engineering Workspace. Unlike Diagram Studio, the Workspace never
-  /// moves to a structurally different `Scaffold` tree (it always renders
-  /// inside the normal-chrome content `Stack` below, for every
-  /// destination that isn't Diagram) — it stays at the same tree
-  /// position across every rebuild, so plain widget identity (a `late
-  /// final` field, no `GlobalKey`) is enough for Flutter to keep its
-  /// `Element`/`State` alive; a `GlobalKey` is only needed when a widget
-  /// relocates between different parents, which this one never does.
-  ///
-  /// This is the fix for AP-OEP-WORKSPACE-LIFECYCLE-001's own documented
-  /// finding: leaving `/workspace` for another route and returning used
-  /// to rebuild `EngineeringWorkspacePage` from scratch (a brand new
-  /// `Element`), because `app_router.dart`'s plain `ShellRoute` swaps
-  /// `widget.child` out and back in on every route change. Building
-  /// `EngineeringWorkspacePage` here instead, once, and simply toggling
-  /// its `Offstage` visibility in `build()`, keeps it — and everything
-  /// mounted inside its own `IndexedStack` of open tabs, including a live
-  /// Diagram tab's WebView — alive across route changes, without
-  /// touching `app_router.dart`, `ShellRoute`, `StudioRegistry`, or
-  /// `WorkspaceTabsController` at all.
+  /// AP-OEP-WORKSPACE-ROUTING-001 — built once as a stable field so
+  /// `EngineeringWorkspacePage`'s own `Element`/`State` (and everything
+  /// mounted inside its `IndexedStack` of open tabs, including a live
+  /// Diagram tab's WebView) survives across rebuilds. Rendered directly
+  /// as `build()`'s `Scaffold.body` whenever `widget.selected ==
+  /// StudioDestination.workspace` — which, since
+  /// AP-OEP-WORKSPACE-AS-PRIMARY-UI-001, is effectively always (the app
+  /// boots straight into `/workspace` and nothing in the UI navigates
+  /// away from it anymore). Tab state itself lives in
+  /// `workspaceTabsControllerProvider`, independent of this field, so
+  /// even the rare case of this `Element` being torn down and rebuilt
+  /// loses no open-tab bookkeeping.
   late final Widget _workspaceHost = const EngineeringWorkspacePage();
-
-  /// Preloading unconditionally under `flutter test` mounts a real
-  /// WebView2-backed `LegacyV2WebViewPage` in the background of every
-  /// single widget test that pumps the full app shell — including
-  /// hundreds with nothing to do with Diagram Studio — which hung
-  /// `pumpAndSettle` broadly (confirmed by running the full suite after
-  /// adding the preload). `app_router.dart`'s own standing comment
-  /// already documents WebView2 as unreliable under the headless test
-  /// binding; this flag preserves the pre-preload behavior (only mount
-  /// the real widget once `widget.selected` actually is Diagram Studio,
-  /// exactly as `widget.child`-based navigation always did) under test,
-  /// while still eagerly preloading for real users.
-  bool get _isUnderTest => WidgetsBinding.instance.runtimeType.toString() != 'WidgetsFlutterBinding';
 
   PlatformEventBus get _eventBus => widget._eventBus ?? PlatformEventBus.instance;
   WorkspaceManager get _workspaceManager => widget._workspaceManager ?? WorkspaceManager.instance;
@@ -418,126 +375,37 @@ class _StudioShellState extends ConsumerState<StudioShell> with WidgetsBindingOb
 
   @override
   Widget build(BuildContext context) {
-    return Focus(
-      autofocus: true,
-      child: CallbackShortcuts(
-        bindings: {
-          const SingleActivator(LogicalKeyboardKey.keyK, control: true): () => showCommandPaletteDialog(context),
-        },
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.keyK, control: true): () => showCommandPaletteDialog(context),
+      },
+      child: Focus(
+        autofocus: true,
         child: Builder(
           builder: (context) {
-            // Phase 14 (UI Layout Ratification) -- "the diagram is the
-            // workspace, everything else is subordinate" (§ 2), modeled
-            // closely on the `legacy_wiring_sim_v2` reference tool per
-            // explicit user direction: Diagram Studio does not sit
-            // beneath the OEP global Menu Bar/Toolbar/Ribbon/Breadcrumb
-            // Bar/Sidebar/Property Inspector/Output Panel at all -- it
-            // owns the full window. Every other Studio keeps the full
-            // shell chrome unchanged (Section 21's "studio-by-studio"
-            // rule -- this is a Diagram-Studio-only carve-out, not a
-            // shell redesign). `DiagramStudioPage` itself is
-            // responsible for its own top strip/status surfaces now
-            // that it has the whole screen.
+            // AP-OEP-WORKSPACE-AS-PRIMARY-UI-001 — the tabbed Workspace is
+            // now the app's entire UI, the same way Diagram Studio already
+            // owned the full window (Phase 14, unchanged below): no Menu
+            // Bar/Toolbar/Ribbon/Breadcrumb Bar/Sidebar/Property Inspector/
+            // Output Panel/Status Bar chrome around either of them. Every
+            // other `StudioDestination` is no longer reachable via any UI
+            // element — the Workspace's own "+" menu
+            // (`_WorkspaceTabStrip` in `engineering_workspace_page.dart`)
+            // already lists every `SurfaceRegistry` entry plus Diagram
+            // Studio, so it is the app's sole navigation surface now (the
+            // tabbed-browser model: the "+" button *is* the navigation).
+            // The fallback branch below stays bare and chrome-free (never
+            // actually reached via the UI) purely so those other routes'
+            // `GoRoute`s keep resolving for `StudioRegistry`'s other,
+            // unrelated consumers (`settingsProviders`/`searchProviders`/
+            // `capabilitiesFor` still iterate every descriptor).
             if (widget.selected == StudioDestination.diagram) {
               return Scaffold(backgroundColor: StudioColors.background, body: _diagramStudioHost);
             }
-            final showInspector = ref.watch(propertyInspectorVisibleProvider);
-            return Scaffold(
-              backgroundColor: StudioColors.background,
-              body: Column(
-                children: [
-                  // Master Application Shell, Phase 1 (OEP Design System
-                  // `02_Main_Application_Shell.png`): Menu Bar above the
-                  // existing document/command Toolbar, above the Ribbon,
-                  // above the unchanged Sidebar/Workspace/Inspector row.
-                  // `StudioToolbar` moves out of `Scaffold.appBar` into
-                  // this Column as a plain child -- same widget, same
-                  // behavior, new position -- since the appBar slot can
-                  // only hold one bar and the Menu Bar now owns it.
-                  StudioMenuBar(selected: widget.selected),
-                  StudioToolbar(selected: widget.selected),
-                  StudioRibbon(selected: widget.selected),
-                  // Phase 2 (ODS-S004 Navigation Standard § 5): Breadcrumb
-                  // Bar + Back/Forward History, directly above the
-                  // workspace like an IDE's own breadcrumb bar.
-                  StudioBreadcrumbBar(selected: widget.selected),
-                  Expanded(
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // WP-DS-006 follow-up: the Engineering Workbench
-                        // sidebar is now the app's single left nav, replacing
-                        // the classic `StudioNavRail` (still present in
-                        // `widgets/studio_nav_rail.dart`, just no longer
-                        // mounted here). `PerspectiveManager.instance` is the
-                        // same shared instance `_diagramBuilder`
-                        // (`core/routing/studio_registry.dart`) hands to
-                        // `EngineeringWorkbenchPage`, so a Perspective selected
-                        // here is the same Perspective that page renders.
-                        WorkbenchSidebar(
-                          perspectiveManager: PerspectiveManager.instance,
-                          current: widget.selected,
-                          // Phase 14 § 10: the same real
-                          // `EngineeringProjectState.session` signal
-                          // `.select`ed here (not `.watch`ed whole, to avoid
-                          // rebuilding the sidebar on unrelated selection/
-                          // validation churn) -- never a fabricated
-                          // "diagram open" flag.
-                          diagramSessionActive: ref.watch(engineeringProjectServiceProvider.select((s) => s.session != null)),
-                          // AP-OEP-WORKSPACE-UX-001, Rule 1/Phase 3 — only
-                          // supplied while the Engineering Workspace is
-                          // the active destination (`WorkbenchSidebar`
-                          // itself owns none of this decision, per its
-                          // own doc comment): a directly-mapped row's tap
-                          // opens/activates a workspace tab instead of
-                          // navigating away from the workspace. Every
-                          // other destination keeps its existing,
-                          // unmodified `context.go` navigation.
-                          onActivateWorkspaceSurface: widget.selected == StudioDestination.workspace
-                              ? (destination) {
-                                  if (destination == StudioDestination.workspace) return;
-                                  final surfaceId =
-                                      destination == StudioDestination.diagram ? WorkspaceTab.diagramSurfaceId : destination.name;
-                                  ref.read(workspaceTabsControllerProvider).openSurface(surfaceId);
-                                }
-                              : null,
-                        ),
-                        Expanded(
-                          child: Stack(
-                            children: [
-                              // AP-OEP-DIAGRAM-UX-001 — kept mounted and
-                              // warming behind whichever Studio is
-                              // actually visible right now (see
-                              // `_diagramStudioHost`'s own doc comment).
-                              // Skipped under test (`_isUnderTest`) —
-                              // see that getter's own doc comment for
-                              // why.
-                              if (!_isUnderTest) Offstage(offstage: true, child: _diagramStudioHost),
-                              // AP-OEP-WORKSPACE-ROUTING-001 — always
-                              // present, only ever hidden/shown, never
-                              // removed from the tree while any
-                              // non-Diagram destination is active; see
-                              // `_workspaceHost`'s own doc comment.
-                              Offstage(offstage: widget.selected != StudioDestination.workspace, child: _workspaceHost),
-                              if (widget.selected != StudioDestination.workspace) widget.child,
-                            ],
-                          ),
-                        ),
-                        if (showInspector) const PropertyInspectorPanel(),
-                      ],
-                    ),
-                  ),
-                  // The dockable Output Panel sits between the workspace and
-                  // the Status Bar, Visual-Studio style -- collapsed by
-                  // default so it never steals space from a Studio that
-                  // isn't using it. See `OutputPanel`'s own doc comment for
-                  // why it observes already-published Platform events rather
-                  // than introducing a new logging API.
-                  const OutputPanel(),
-                  const StudioStatusBar(),
-                ],
-              ),
-            );
+            if (widget.selected == StudioDestination.workspace) {
+              return Scaffold(backgroundColor: StudioColors.background, body: _workspaceHost);
+            }
+            return Scaffold(backgroundColor: StudioColors.background, body: widget.child);
           },
         ),
       ),

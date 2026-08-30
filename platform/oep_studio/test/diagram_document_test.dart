@@ -154,6 +154,54 @@ void main() {
     });
   });
 
+  group('diagramRepositoryId (AP-OEP-DIAGRAM-PERSISTENCE-001)', () {
+    EngineeringGraph buildCommittedGraph() {
+      return buildGraph().copyWith(
+        metadata: const {EngineeringGraph.diagramRepositoryIdMetadataKey: 'foundation-diagram-1'},
+      );
+    }
+
+    test('saveAs then open round-trips diagramRepositoryId through the real envelope', () async {
+      final document = DiagramDocument();
+      final filePath = '${tempDir.path}/diagram.json';
+
+      await document.saveAs(filePath, buildCommittedGraph(), buildLayout());
+
+      final reopened = DiagramDocument();
+      final result = await reopened.open(filePath);
+
+      expect(result.graph.diagramRepositoryId, 'foundation-diagram-1');
+    });
+
+    test('a graph with no diagramRepositoryId remains uncommitted after a round trip', () async {
+      final document = DiagramDocument();
+      final filePath = '${tempDir.path}/diagram.json';
+
+      await document.saveAs(filePath, buildGraph(), buildLayout());
+
+      final reopened = DiagramDocument();
+      final result = await reopened.open(filePath);
+
+      expect(result.graph.diagramRepositoryId, isNull);
+    });
+
+    test('other graph metadata keys survive alongside diagramRepositoryId, not replaced by it', () async {
+      final graph = buildGraph().copyWith(metadata: const {
+        EngineeringGraph.diagramRepositoryIdMetadataKey: 'foundation-diagram-1',
+        'unrelatedKey': 'unrelatedValue',
+      });
+      final document = DiagramDocument();
+      final filePath = '${tempDir.path}/diagram.json';
+      await document.saveAs(filePath, graph, buildLayout());
+
+      final reopened = DiagramDocument();
+      final result = await reopened.open(filePath);
+
+      expect(result.graph.diagramRepositoryId, 'foundation-diagram-1');
+      expect(result.graph.metadata['unrelatedKey'], 'unrelatedValue');
+    });
+  });
+
   group('autosave and recovery', () {
     // Autosave/recovery share the real %APPDATA%/oep_studio/autosave
     // directory (there is no override hook, matching the existing

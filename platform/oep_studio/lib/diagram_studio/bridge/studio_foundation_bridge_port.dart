@@ -10,12 +10,20 @@ import 'relationship_type_foundation_mapping.dart';
 /// implementation. Wraps the exact same, already-proven
 /// `FoundationBridge` FFI calls Knowledge Studio's Repository Commit
 /// feature uses (`docs/REPOSITORY_COMMIT.md`) — `beginTransaction`,
-/// `createObject`/`createRelationship` in a loop (never the
-/// `oep_batch_create_*` convenience functions, for the same documented
-/// reason Knowledge Studio's own commit avoids them: a relationship
-/// created in the same commit as its endpoint needs that endpoint's
-/// just-assigned id, which a homogeneous batch call can't interleave),
-/// `commitTransaction`/`rollbackTransaction`.
+/// create-in-a-loop (never the `oep_batch_create_*` convenience
+/// functions, for the same documented reason Knowledge Studio's own
+/// commit avoids them: a relationship created in the same commit as its
+/// endpoint needs that endpoint's just-assigned id, which a homogeneous
+/// batch call can't interleave), `commitTransaction`/`rollbackTransaction`.
+///
+/// **AP-OEP-FOUNDATION-BRIDGE-003** — `commitGraph` now creates every
+/// node/relationship through Foundation's diagram-scoped path
+/// (`createObjectInDiagram`/`createRelationshipInDiagram`) rather than
+/// the plain, unscoped one, and establishes (or reuses) a Foundation
+/// diagram identity for the graph in the same transaction — see
+/// `commitGraph`'s own doc comment for the exact mechanism. This is what
+/// makes `loadCommittedGraph` (AP-OEP-FOUNDATION-BRIDGE-002) a genuine
+/// round-trip rather than a scoped read over unscoped writes.
 ///
 /// Talks to [FoundationCommitOperations] (an abstract seam), not
 /// `FoundationBridge` directly — see that interface's own doc comment
@@ -63,6 +71,11 @@ class StudioFoundationBridgePort implements FoundationBridgePort {
       throw StateError('No Foundation repository is open — cannot commit.');
     }
     final graph = EngineeringGraph.fromJson(serializedGraph);
+    // AP-OEP-FOUNDATION-BRIDGE-003 — a graph already committed once
+    // carries its own diagram identity in metadata (written back by
+    // `EngineGraphCommitService`); reuse it rather than creating a
+    // second diagram for the same graph.
+    final existingDiagramId = graph.diagramRepositoryId;
 
     // Already-committed nodes/relationships are skipped, not
     // resubmitted — safe to call commitGraph again after only some
@@ -105,24 +118,41 @@ class StudioFoundationBridgePort implements FoundationBridgePort {
     }
 
     if (nodesToCommit.isEmpty && relationshipsToCommit.isEmpty) {
+      // No new work: an already-fully-committed graph (retry/no-op —
+      // requirement 8) or a genuinely empty graph (requirement 7).
+      // Neither case creates or touches a diagram — `existingDiagramId`
+      // is reported as-is (null for a graph that has never committed
+      // anything), never fabricated.
       return GraphCommitResult(
         nodeRepositoryIds: const {},
         relationshipRepositoryIds: const {},
         unmappedNodeIds: unmappedNodeIds,
         unmappedRelationshipIds: unmappedRelationshipIds,
+        diagramRepositoryId: existingDiagramId,
       );
     }
 
     final nodeRepositoryIds = <String, String>{};
     final relationshipRepositoryIds = <String, String>{};
+    late final String diagramId;
 
     try {
       operations.beginTransaction();
 
+      // Establish the diagram identity once per commit, reusing
+      // `existingDiagramId` when this graph has already been committed
+      // before — a second commit (with new members added since) must
+      // extend the same diagram, never create a second one
+      // (requirement 8). Diagram creation happens inside the same
+      // transaction as the members below, so a failure anywhere rolls
+      // both back together (requirement 9).
+      diagramId = existingDiagramId ?? operations.createDiagram(name: 'Engineering Graph ${graph.id}').objectId;
+
       for (final node in nodesToCommit) {
-        final created = operations.createObject(
+        final created = operations.createObjectInDiagram(
           category: node.category.foundationCategory!,
           name: node.displayName,
+          diagramId: diagramId,
         );
         nodeRepositoryIds[node.id] = created.objectId;
         idByEngineNodeId[node.id] = created.objectId;
@@ -140,10 +170,11 @@ class StudioFoundationBridgePort implements FoundationBridgePort {
           // identical defensive check.
           throw StateError('Relationship ${relationship.id} has an unresolved endpoint.');
         }
-        final created = operations.createRelationship(
+        final created = operations.createRelationshipInDiagram(
           sourceObjectId: sourceObjectId,
           targetObjectId: targetObjectId,
           type: relationship.relationshipType.foundationType!,
+          diagramId: diagramId,
           objectNamesById: objectNameById,
         );
         relationshipRepositoryIds[relationship.id] = created.relationshipId;
@@ -151,6 +182,13 @@ class StudioFoundationBridgePort implements FoundationBridgePort {
 
       operations.commitTransaction();
     } catch (_) {
+      // Foundation's own transaction rollback (which the diagram
+      // creation above participates in exactly like any other mutation
+      // — see AP-OEP-FOUNDATION-GRAPH-IDENTITY-001's own rollback test)
+      // undoes everything created in this attempt. Nothing below this
+      // point ever runs on failure, so no partial Engine-side identity
+      // propagation occurs (requirement 9) — the caller only ever sees
+      // a fully-populated result or a thrown exception.
       _safeRollback(operations);
       rethrow;
     }
@@ -160,6 +198,7 @@ class StudioFoundationBridgePort implements FoundationBridgePort {
       relationshipRepositoryIds: relationshipRepositoryIds,
       unmappedNodeIds: unmappedNodeIds,
       unmappedRelationshipIds: unmappedRelationshipIds,
+      diagramRepositoryId: diagramId,
     );
   }
 

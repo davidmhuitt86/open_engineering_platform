@@ -13,14 +13,16 @@ import 'studio_registry.dart';
 /// owns the one thing that isn't per-destination: the [ShellRoute]
 /// wrapper every destination renders inside.
 final appRouter = GoRouter(
-  // AP-DIAGRAM-V2-BRIDGE-002 — reverted per this file's own standing
-  // instruction ("revert before any real work"): `/diagram` now
-  // auto-opens a real Legacy V2 WebView2 surface on mount, which cannot
-  // initialize under `flutter test`'s headless environment — leaving
-  // the app's default launch location pointed at it was causing broad,
-  // unrelated test failures for any test that merely launched the app
-  // generically (never explicitly navigating to Diagram Studio).
-  initialLocation: StudioDestination.dashboard.path,
+  // AP-OEP-WORKSPACE-AS-PRIMARY-UI-001 — the tabbed Workspace is now the
+  // app's entire UI (see `StudioShell`'s own doc comment), so the app
+  // boots directly into it rather than Dashboard. `/diagram` remains
+  // unsuitable as a default for the same reason noted historically here
+  // (its real Legacy V2 WebView2 surface can't initialize under
+  // `flutter test`'s headless environment) — moot now anyway, since
+  // Workspace's own Diagram tab (`DiagramWithComparePane`), not the
+  // standalone `/diagram` route, is how Diagram content is normally
+  // reached.
+  initialLocation: StudioDestination.workspace.path,
   routes: [
     ShellRoute(
       builder: (context, state, child) {

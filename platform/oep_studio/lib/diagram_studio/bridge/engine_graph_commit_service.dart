@@ -21,6 +21,13 @@ import 'package:engineering_engine/engineering_engine.dart';
 /// rows (`diagram_repository_commit_action.dart`); this service itself
 /// still has no UI knowledge — it stays the plain, callable, testable
 /// mechanism that package added.
+///
+/// AP-OEP-FOUNDATION-BRIDGE-003 — also writes back
+/// [GraphCommitResult.diagramRepositoryId] onto the graph's own
+/// [EngineeringGraph.diagramRepositoryId] (via
+/// `GraphService.updateMetadata`), so a subsequent commit of the same
+/// graph reuses its diagram rather than creating a second one, and a
+/// subsequent `loadCommittedGraph` call has a real id to scope by.
 abstract final class EngineGraphCommitService {
   /// Commits [graph] via [bridge] and returns both the graph with every
   /// successfully-committed node/relationship's `repositoryObjectId`/
@@ -50,6 +57,19 @@ abstract final class EngineGraphCommitService {
       updated = await graphService.addRelationship(
         updated,
         relationship.copyWith(repositoryRelationshipId: entry.value),
+      );
+    }
+    // AP-OEP-FOUNDATION-BRIDGE-003 — retain the diagram identity this
+    // commit established/reused so a later `loadCommittedGraph` call
+    // (and a later `commitGraph` retry/extension — see that method's
+    // own doc comment on reusing an existing diagram) can find it via
+    // `EngineeringGraph.diagramRepositoryId`. Only written when it
+    // actually changed, mirroring `addNode`/`addRelationship`'s own
+    // "nothing to do" restraint for an empty commit.
+    if (result.diagramRepositoryId != null && updated.diagramRepositoryId != result.diagramRepositoryId) {
+      updated = await graphService.updateMetadata(
+        updated,
+        {EngineeringGraph.diagramRepositoryIdMetadataKey: result.diagramRepositoryId},
       );
     }
     return (graph: updated, result: result);
