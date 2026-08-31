@@ -41,33 +41,36 @@ class WorkspaceTab {
   /// stable sentinel this shell's own content-builder switches on.
   static const String diagramSurfaceId = 'diagram';
 
-  /// AP-OEP-DIAGRAM-COMPARE-002 — reserved [surfaceId] for a second,
-  /// fully independent diagram tab, backed by the same
-  /// `compareDiagramControllerProvider`/`CompareDiagramController`
-  /// engine the split-pane "Compare Diagrams" pane already uses (§
-  /// `CompareLegacyV2WebViewPage`'s own doc comment) — this just gives
-  /// that same second engine its own full-width tab, in addition to the
-  /// split view, rather than a third independent document. Reuses
-  /// [WorkspaceTabsController.openSurface]'s existing generic
-  /// one-tab-per-surfaceId dedup/persistence, exactly like
-  /// [diagramSurfaceId] — no controller changes needed.
-  static const String diagram2SurfaceId = 'diagram-2';
+  /// AP-OEP-DIAGRAM-MULTI-INSTANCE-UI-001 — Diagram's own declarative
+  /// multi-instance policy, mirroring
+  /// [SurfaceDefinition.allowsMultipleInstances]'s exact semantics for the
+  /// one Surface excluded from `SurfaceRegistry` (§ [diagramSurfaceId]'s
+  /// own doc comment) and therefore unable to carry that field itself.
+  /// `true` since `AP-OEP-DIAGRAM-CONTROLLER-INSTANCING-IMPLEMENTATION-001`
+  /// gave every Diagram provider independent, `WorkspaceTab.id`-keyed
+  /// state — this constant is what the "+" menu now reads to decide
+  /// between [WorkspaceTabsController.openSurface] (first Diagram tab)
+  /// and [WorkspaceTabsController.openNewInstance] (every one after).
+  static const bool diagramAllowsMultipleInstances = true;
 
   final String id;
   final String surfaceId;
 
   bool get isDiagram => surfaceId == diagramSurfaceId;
 
-  bool get isDiagram2 => surfaceId == diagram2SurfaceId;
-
   /// `null` only if [surfaceId] refers to a Surface that has since been
   /// removed from the registry — not expected in practice (Surfaces are
   /// a static, compile-time list today), but callers should not assume
   /// non-null blindly.
-  SurfaceDefinition? get _surface => (isDiagram || isDiagram2) ? null : SurfaceRegistry.forId(surfaceId);
+  SurfaceDefinition? get _surface => isDiagram ? null : SurfaceRegistry.forId(surfaceId);
 
-  String get title =>
-      isDiagram ? StudioDestination.diagram.label : isDiagram2 ? 'Diagram Studio (2)' : (_surface?.title ?? surfaceId);
+  /// The bare label for any Diagram tab, primary or not — a specific
+  /// secondary instance's disambiguated ("Diagram Studio 2") or live
+  /// document title is a presentation concern resolved by the tab-strip
+  /// widget from sibling-tab order and live provider state (neither of
+  /// which this identity-only model has access to), never persisted or
+  /// computed here.
+  String get title => isDiagram ? StudioDestination.diagram.label : (_surface?.title ?? surfaceId);
 
-  IconData get icon => (isDiagram || isDiagram2) ? StudioDestination.diagram.icon : (_surface?.icon ?? Icons.help_outline);
+  IconData get icon => isDiagram ? StudioDestination.diagram.icon : (_surface?.icon ?? Icons.help_outline);
 }

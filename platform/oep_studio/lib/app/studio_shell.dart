@@ -146,11 +146,16 @@ class _StudioShellState extends ConsumerState<StudioShell> with WidgetsBindingOb
   /// `Scaffold.body` whenever `widget.selected == StudioDestination.diagram`
   /// (AP-OEP-WORKSPACE-AS-PRIMARY-UI-001 — no longer additionally kept
   /// alive `Offstage` while some other destination is selected, now that
-  /// `/diagram` itself is a vestigial, no-longer-UI-reachable route: the
-  /// tabbed Workspace's own Diagram tab, `DiagramWithComparePane`, is the
-  /// real, normal way users reach Diagram content today). A `GlobalKey`
-  /// is kept regardless, since `build()`'s three branches are still
-  /// structurally different `Scaffold` trees.
+  /// the tabbed Workspace's own Diagram tab, `DiagramWithComparePane`, is
+  /// the real, normal way users reach Diagram content today). `/diagram`
+  /// itself is no longer reachable from ordinary production navigation
+  /// (AP-OEP-WORKSPACE-NAVIGATION-CONVERGENCE-001 removed the last raw
+  /// `context.go(StudioDestination.diagram.path)` call sites, in
+  /// `ProjectExplorerPage`, in favor of the Workspace-aware
+  /// `openOrActivateDestination`) — the route and this host still exist,
+  /// deliberately not removed, but nothing in the UI navigates here
+  /// anymore. A `GlobalKey` is kept regardless, since `build()`'s three
+  /// branches are still structurally different `Scaffold` trees.
   final GlobalKey _diagramStudioHostKey = GlobalKey();
   late final Widget _diagramStudioHost = WebSurfacesHostPage(key: _diagramStudioHostKey, autoOpenLegacyV2: true);
 

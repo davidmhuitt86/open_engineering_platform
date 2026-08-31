@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../core/routing/studio_destination.dart';
 import '../core/services/foundation_runtime_service.dart';
 import '../core/theme/studio_colors.dart';
+import '../shared/navigation/workspace_aware_navigation.dart';
 import 'pages/analysis_dashboard_page.dart';
 import 'pages/engineering_explorer_page.dart';
 import 'pages/knowledge_graph_explorer_page.dart';
@@ -88,7 +88,7 @@ class _EngineeringIntelligencePageState extends ConsumerState<EngineeringIntelli
             ),
             const SizedBox(height: 20),
             ElevatedButton(
-              onPressed: () => context.go(StudioDestination.repository.path),
+              onPressed: () => openOrActivateDestination(context, ref, StudioDestination.repository),
               child: const Text('Go to Repository Explorer'),
             ),
           ],

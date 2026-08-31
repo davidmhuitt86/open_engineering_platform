@@ -1,12 +1,12 @@
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../core/notifications/platform_notification_service.dart';
 import '../../core/routing/studio_destination.dart';
 import '../../core/services/foundation_runtime_service.dart';
 import '../../core/theme/studio_colors.dart';
+import '../../shared/navigation/workspace_aware_navigation.dart';
 import '../models/exchange_package.dart';
 import '../models/installation.dart';
 import '../services/exchange_runtime_service.dart';
@@ -103,7 +103,7 @@ class ExchangePackageDetailPanel extends ConsumerWidget {
                   label: const Text('Open Installed Package'),
                 ),
                 OutlinedButton.icon(
-                  onPressed: () => context.go(StudioDestination.projectExplorer.path),
+                  onPressed: () => openOrActivateDestination(context, ref, StudioDestination.projectExplorer),
                   icon: const Icon(Icons.open_in_new, size: 16),
                   label: const Text('Open in Engineering Workspace'),
                 ),
@@ -136,7 +136,7 @@ class ExchangePackageDetailPanel extends ConsumerWidget {
 
   void _openInstalledPackage(BuildContext context, WidgetRef ref) {
     ref.read(foundationRuntimeServiceProvider.notifier).refreshRepository();
-    context.go(StudioDestination.repository.path);
+    openOrActivateDestination(context, ref, StudioDestination.repository);
   }
 }
 

@@ -63,13 +63,6 @@ class _WindowsCompareLegacyV2WebViewPageState extends ConsumerState<_WindowsComp
 
   Size? _lastFitSize;
 
-  String? _v2SelectedModuleId;
-  int? _v2ModuleCount;
-  int? _v2WireCount;
-  bool? _v2EditMode;
-  String _lastMoveStatus = 'no V2-originated move yet';
-
-  bool _bridgeTrusted = true;
   bool _didInitialSeed = false;
 
   /// Same resolution strategy as `LegacyV2WebViewPage._v2EntryPointUri` —
@@ -107,7 +100,6 @@ class _WindowsCompareLegacyV2WebViewPageState extends ConsumerState<_WindowsComp
   @override
   void initState() {
     super.initState();
-    _transport.onStatus = _onStatus;
     _init();
   }
 
@@ -129,18 +121,6 @@ class _WindowsCompareLegacyV2WebViewPageState extends ConsumerState<_WindowsComp
   void _onNavigate(String url, String trustedEntryUrl) {
     final trusted = isTrustedLegacyV2Url(url, trustedEntryUrl);
     _transport.bridgeEnabled = trusted;
-    if (!mounted) return;
-    setState(() => _bridgeTrusted = trusted);
-  }
-
-  void _onStatus(V2StatusMessage status) {
-    if (!mounted) return;
-    setState(() {
-      _v2SelectedModuleId = status.selectedModuleId;
-      _v2ModuleCount = status.moduleCount;
-      _v2WireCount = status.wireCount;
-      _v2EditMode = status.editMode;
-    });
   }
 
   LegacyV2StateAdapter _ensureAdapter(CompareDiagramController controller) {
@@ -148,13 +128,7 @@ class _WindowsCompareLegacyV2WebViewPageState extends ConsumerState<_WindowsComp
       controller: controller,
       channel: _transport,
       simulationServiceResolver: () => ref.read(diagramSimulationServiceProvider),
-    )
-      ..onAuthoritativeResult = _onAuthoritativeResult
-      ..onAuthoritativeLabel = _onAuthoritativeLabel
-      ..onModuleRemoved = _onModuleRemoved
-      ..onWireBridged = _onWireBridged
-      ..onWireUnbridgeable = _onWireUnbridgeable
-      ..onWireRemoved = _onWireRemoved;
+    );
   }
 
   void _triggerInitialSeed(LegacyV2StateAdapter adapter) {
@@ -171,49 +145,6 @@ class _WindowsCompareLegacyV2WebViewPageState extends ConsumerState<_WindowsComp
     unawaited(adapter.reinitializeForDocument().then((_) {
       if (mounted) setState(() {});
     }));
-  }
-
-  void _onAuthoritativeResult(String v2ModuleId, String oepNodeId, double x, double y) {
-    if (!mounted) return;
-    setState(() {
-      _lastMoveStatus = 'V2 "$v2ModuleId" -> OEP node $oepNodeId @ '
-          '(${x.toStringAsFixed(0)}, ${y.toStringAsFixed(0)})';
-    });
-  }
-
-  void _onAuthoritativeLabel(String v2ModuleId, String oepNodeId, String label) {
-    if (!mounted) return;
-    setState(() {
-      _lastMoveStatus = 'V2 "$v2ModuleId" -> OEP node $oepNodeId label="$label"';
-    });
-  }
-
-  void _onModuleRemoved(String v2ModuleId) {
-    if (!mounted) return;
-    setState(() {
-      _lastMoveStatus = 'V2 "$v2ModuleId" removed from OEP graph';
-    });
-  }
-
-  void _onWireBridged(String v2WireId, String oepRelationshipId) {
-    if (!mounted) return;
-    setState(() {
-      _lastMoveStatus = 'V2 wire "$v2WireId" -> OEP relationship $oepRelationshipId';
-    });
-  }
-
-  void _onWireUnbridgeable(String v2WireId) {
-    if (!mounted) return;
-    setState(() {
-      _lastMoveStatus = 'V2 wire "$v2WireId" not bridged (an endpoint module has no OEP mapping)';
-    });
-  }
-
-  void _onWireRemoved(String v2WireId) {
-    if (!mounted) return;
-    setState(() {
-      _lastMoveStatus = 'V2 wire "$v2WireId" removed from OEP graph (create undone)';
-    });
   }
 
   Future<void> _fitV2ViewFromOep() => _transport.executeRawScript(
@@ -244,23 +175,13 @@ class _WindowsCompareLegacyV2WebViewPageState extends ConsumerState<_WindowsComp
     });
 
     final controllerAsync = ref.watch(compareDiagramControllerProvider);
-    final oepStatus = controllerAsync.when(
-      data: (controller) {
-        final adapter = _ensureAdapter(controller);
-        if (_ready) _triggerInitialSeed(adapter);
-        final graph = controller.session?.graph;
-        final base = graph == null
-            ? 'no active document'
-            : '${graph.nodes.length} node(s), ${graph.relationships.length} relationship(s) — '
-                '"${controller.document.metadata.title}"'
-                '${adapter.isReady ? '' : ' — initializing V2 from document…'}';
-        return adapter.unbridgedV2ModuleIds.isEmpty
-            ? base
-            : '$base | ${adapter.unbridgedV2ModuleIds.length} V2 module(s) unbridged (no symbol mapping for their category)';
-      },
-      loading: () => 'loading…',
-      error: (_, __) => 'unavailable',
-    );
+    // The debug status bar this used to feed a display string for is
+    // gone; the adapter must still be ensured/seeded on every build,
+    // which is the actual load-bearing part of this watch.
+    controllerAsync.whenData((controller) {
+      final adapter = _ensureAdapter(controller);
+      if (_ready) _triggerInitialSeed(adapter);
+    });
 
     return Container(
       color: StudioColors.background,
@@ -280,44 +201,17 @@ class _WindowsCompareLegacyV2WebViewPageState extends ConsumerState<_WindowsComp
                   )
                 : !_ready
                     ? const Center(child: CircularProgressIndicator(color: StudioColors.selection))
-                    : Column(
-                        children: [
-                          Expanded(
-                            child: LayoutBuilder(
-                              builder: (context, constraints) {
-                                final size = constraints.biggest;
-                                if (size.isFinite && size != _lastFitSize) {
-                                  _lastFitSize = size;
-                                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                                    if (mounted) _fitV2ViewFromOep();
-                                  });
-                                }
-                                return Webview(_controller);
-                              },
-                            ),
-                          ),
-                          Container(
-                            width: double.infinity,
-                            decoration: const BoxDecoration(
-                              color: StudioColors.surfaceSunken,
-                              border: Border(top: BorderSide(color: StudioColors.border)),
-                            ),
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            child: Text(
-                              'Compare pane — Bridge: ${_bridgeTrusted ? "AUTHORIZED" : "DISABLED"}\n'
-                              'V2: ${_v2ModuleCount ?? '?'} module(s), ${_v2WireCount ?? '?'} wire(s), '
-                              'selected: ${_v2SelectedModuleId ?? 'none'}, '
-                              'mode: ${_v2EditMode == true ? 'Layout' : _v2EditMode == false ? 'Normal' : 'unknown'}\n'
-                              '$oepStatus\n'
-                              'Last move: $_lastMoveStatus',
-                              style: TextStyle(
-                                color: _bridgeTrusted ? StudioColors.success : StudioColors.warning,
-                                fontFamily: 'Consolas',
-                                fontSize: 11,
-                              ),
-                            ),
-                          ),
-                        ],
+                    : LayoutBuilder(
+                        builder: (context, constraints) {
+                          final size = constraints.biggest;
+                          if (size.isFinite && size != _lastFitSize) {
+                            _lastFitSize = size;
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              if (mounted) _fitV2ViewFromOep();
+                            });
+                          }
+                          return Webview(_controller);
+                        },
                       ),
           ),
         ],

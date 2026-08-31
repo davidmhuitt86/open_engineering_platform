@@ -127,19 +127,6 @@ class _WindowsLegacyV2WebViewPageState extends ConsumerState<_WindowsLegacyV2Web
   /// and any future timing change alike, rather than guessing a delay.
   Size? _lastFitSize;
 
-  // Display-only, populated via transport.onStatus — the same status bar
-  // POC-002 established, unchanged in meaning.
-  String? _v2SelectedModuleId;
-  int? _v2ModuleCount;
-  int? _v2WireCount;
-  bool? _v2EditMode;
-  String _lastMoveStatus = 'no V2-originated move yet';
-
-  /// AP-STUDIO-WEB-SURFACE-002, Phase 9 — the trust boundary is live
-  /// (bridge active) by default while V2 loads, and re-evaluated on
-  /// every URL change (see `_controller.url.listen` in [_init]).
-  bool _bridgeTrusted = true;
-
   /// AP-DIAGRAM-V2-BRIDGE-002, Phase 7 — set once the first
   /// `adapter.initializeFromDocument()` call has been kicked off, so
   /// [build] doesn't re-trigger it on every rebuild.
@@ -184,7 +171,6 @@ class _WindowsLegacyV2WebViewPageState extends ConsumerState<_WindowsLegacyV2Web
   @override
   void initState() {
     super.initState();
-    _transport.onStatus = _onStatus;
     _init();
   }
 
@@ -214,18 +200,6 @@ class _WindowsLegacyV2WebViewPageState extends ConsumerState<_WindowsLegacyV2Web
   void _onNavigate(String url, String trustedEntryUrl) {
     final trusted = isTrustedLegacyV2Url(url, trustedEntryUrl);
     _transport.bridgeEnabled = trusted;
-    if (!mounted) return;
-    setState(() => _bridgeTrusted = trusted);
-  }
-
-  void _onStatus(V2StatusMessage status) {
-    if (!mounted) return;
-    setState(() {
-      _v2SelectedModuleId = status.selectedModuleId;
-      _v2ModuleCount = status.moduleCount;
-      _v2WireCount = status.wireCount;
-      _v2EditMode = status.editMode;
-    });
   }
 
   /// Constructed lazily once the controller is available, and wires
@@ -238,13 +212,7 @@ class _WindowsLegacyV2WebViewPageState extends ConsumerState<_WindowsLegacyV2Web
       // AP-DIAGRAM-V2-BRIDGE-006 — resolved fresh per request rather than
       // captured once (see the adapter's own doc comment on this field).
       simulationServiceResolver: () => ref.read(diagramSimulationServiceProvider),
-    )
-      ..onAuthoritativeResult = _onAuthoritativeResult
-      ..onAuthoritativeLabel = _onAuthoritativeLabel
-      ..onModuleRemoved = _onModuleRemoved
-      ..onWireBridged = _onWireBridged
-      ..onWireUnbridgeable = _onWireUnbridgeable
-      ..onWireRemoved = _onWireRemoved;
+    );
   }
 
   /// AP-DIAGRAM-V2-BRIDGE-002, Phase 7 — the very first seeding, once
@@ -275,49 +243,6 @@ class _WindowsLegacyV2WebViewPageState extends ConsumerState<_WindowsLegacyV2Web
     unawaited(adapter.reinitializeForDocument().then((_) {
       if (mounted) setState(() {});
     }));
-  }
-
-  void _onAuthoritativeResult(String v2ModuleId, String oepNodeId, double x, double y) {
-    if (!mounted) return;
-    setState(() {
-      _lastMoveStatus = 'V2 "$v2ModuleId" -> OEP node $oepNodeId @ '
-          '(${x.toStringAsFixed(0)}, ${y.toStringAsFixed(0)})';
-    });
-  }
-
-  void _onAuthoritativeLabel(String v2ModuleId, String oepNodeId, String label) {
-    if (!mounted) return;
-    setState(() {
-      _lastMoveStatus = 'V2 "$v2ModuleId" -> OEP node $oepNodeId label="$label"';
-    });
-  }
-
-  void _onModuleRemoved(String v2ModuleId) {
-    if (!mounted) return;
-    setState(() {
-      _lastMoveStatus = 'V2 "$v2ModuleId" removed from OEP graph';
-    });
-  }
-
-  void _onWireBridged(String v2WireId, String oepRelationshipId) {
-    if (!mounted) return;
-    setState(() {
-      _lastMoveStatus = 'V2 wire "$v2WireId" -> OEP relationship $oepRelationshipId';
-    });
-  }
-
-  void _onWireUnbridgeable(String v2WireId) {
-    if (!mounted) return;
-    setState(() {
-      _lastMoveStatus = 'V2 wire "$v2WireId" not bridged (an endpoint module has no OEP mapping)';
-    });
-  }
-
-  void _onWireRemoved(String v2WireId) {
-    if (!mounted) return;
-    setState(() {
-      _lastMoveStatus = 'V2 wire "$v2WireId" removed from OEP graph (create undone)';
-    });
   }
 
   Future<void> _fitV2ViewFromOep() => _transport.executeRawScript(
@@ -365,23 +290,13 @@ class _WindowsLegacyV2WebViewPageState extends ConsumerState<_WindowsLegacyV2Web
     });
 
     final controllerAsync = ref.watch(diagramStudioControllerFamily(_instanceId));
-    final oepStatus = controllerAsync.when(
-      data: (controller) {
-        final adapter = _ensureAdapter(controller);
-        if (_ready) _triggerInitialSeed(adapter);
-        final graph = controller.session?.graph;
-        final base = graph == null
-            ? 'no active document'
-            : '${graph.nodes.length} node(s), ${graph.relationships.length} relationship(s) — '
-                '"${controller.document.metadata.title}"'
-                '${adapter.isReady ? '' : ' — initializing V2 from document…'}';
-        return adapter.unbridgedV2ModuleIds.isEmpty
-            ? base
-            : '$base | ${adapter.unbridgedV2ModuleIds.length} V2 module(s) unbridged (no symbol mapping for their category)';
-      },
-      loading: () => 'loading…',
-      error: (_, __) => 'unavailable',
-    );
+    // The debug status bar this used to feed a display string for is
+    // gone; the adapter must still be ensured/seeded on every build,
+    // which is the actual load-bearing part of this watch.
+    controllerAsync.whenData((controller) {
+      final adapter = _ensureAdapter(controller);
+      if (_ready) _triggerInitialSeed(adapter);
+    });
 
     // AP-DIAGRAM-V2-OEP-UI-001 — no own Scaffold/AppBar: this widget is
     // embedded directly inside `WebSurfacesHostPage`'s `IndexedStack`
@@ -434,44 +349,17 @@ class _WindowsLegacyV2WebViewPageState extends ConsumerState<_WindowsLegacyV2Web
                   )
                 : !_ready
                     ? const Center(child: CircularProgressIndicator(color: StudioColors.selection))
-                    : Column(
-                        children: [
-                          Expanded(
-                            child: LayoutBuilder(
-                              builder: (context, constraints) {
-                                final size = constraints.biggest;
-                                if (size.isFinite && size != _lastFitSize) {
-                                  _lastFitSize = size;
-                                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                                    if (mounted) _fitV2ViewFromOep();
-                                  });
-                                }
-                                return Webview(_controller);
-                              },
-                            ),
-                          ),
-                          Container(
-                            width: double.infinity,
-                            decoration: const BoxDecoration(
-                              color: StudioColors.surfaceSunken,
-                              border: Border(top: BorderSide(color: StudioColors.border)),
-                            ),
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            child: Text(
-                              'Bridge: ${_bridgeTrusted ? "AUTHORIZED (trusted V2 content)" : "DISABLED (navigated away from trusted V2 content)"}\n'
-                              'V2 -> Transport -> Flutter: ${_v2ModuleCount ?? '?'} module(s), '
-                              '${_v2WireCount ?? '?'} wire(s), selected: ${_v2SelectedModuleId ?? 'none'}, '
-                              'V2 mode: ${_v2EditMode == true ? 'Layout' : _v2EditMode == false ? 'Normal' : 'unknown'}\n'
-                              'Flutter -> DiagramStudioController -> Engine (read-only): $oepStatus\n'
-                              'Last move: $_lastMoveStatus',
-                              style: TextStyle(
-                                color: _bridgeTrusted ? StudioColors.success : StudioColors.warning,
-                                fontFamily: 'Consolas',
-                                fontSize: 11,
-                              ),
-                            ),
-                          ),
-                        ],
+                    : LayoutBuilder(
+                        builder: (context, constraints) {
+                          final size = constraints.biggest;
+                          if (size.isFinite && size != _lastFitSize) {
+                            _lastFitSize = size;
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              if (mounted) _fitV2ViewFromOep();
+                            });
+                          }
+                          return Webview(_controller);
+                        },
                       ),
           ),
         ],

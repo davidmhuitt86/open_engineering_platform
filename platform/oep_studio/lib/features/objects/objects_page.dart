@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../core/models/engineering_object_summary.dart';
 import '../../core/routing/studio_destination.dart';
@@ -8,6 +7,7 @@ import '../../core/services/foundation_runtime_service.dart';
 import '../../core/theme/studio_colors.dart';
 import '../../core/theme/studio_theme.dart';
 import '../../core/theme/studio_typography.dart';
+import '../../shared/navigation/workspace_aware_navigation.dart';
 import '../../shared/widgets/studio_panel_header.dart';
 import '../../shared/widgets/studio_search_field.dart';
 import 'object_list_query.dart';
@@ -54,7 +54,7 @@ class _ObjectsPageState extends ConsumerState<ObjectsPage> {
             ),
             const SizedBox(height: 20),
             ElevatedButton(
-              onPressed: () => context.go(StudioDestination.repository.path),
+              onPressed: () => openOrActivateDestination(context, ref, StudioDestination.repository),
               child: const Text('Go to Repository Explorer'),
             ),
           ],

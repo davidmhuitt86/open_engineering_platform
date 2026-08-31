@@ -5,7 +5,6 @@ import '../core/services/engineering_project_service.dart';
 import '../core/surfaces/surface_definition.dart';
 import '../core/surfaces/surface_registry.dart';
 import '../core/theme/studio_colors.dart';
-import '../diagram_studio/compare/compare_legacy_v2_webview.dart';
 import '../diagram_studio/compare/diagram_with_compare_pane.dart';
 import '../diagram_studio/controller/diagram_studio_controller_provider.dart';
 import '../diagram_studio/tabs/diagram_tabs_controller.dart';
@@ -51,14 +50,82 @@ import 'workspace_tabs_controller.dart';
 /// up in `StudioShell`, § that provider's own doc comment) can open or
 /// activate a tab here without this widget needing to exist yet or stay
 /// mounted across navigation.
+/// AP-OEP-DIAGRAM-MULTI-INSTANCE-UI-001 — the "+" menu's single
+/// "Diagram Studio" entry: opens the first (primary) Diagram tab via the
+/// existing singleton [WorkspaceTabsController.openSurface] path exactly
+/// as before (so `WorkspaceTab.diagramSurfaceId`'s deterministic id keeps
+/// landing on `primaryDiagramInstanceId`, untouched), but once any
+/// Diagram tab is already open, selecting it again opens a genuinely
+/// new, independent instance via [WorkspaceTabsController.openNewInstance]
+/// instead of merely refocusing the existing one — replacing the old,
+/// separate "Diagram Studio (2)" menu entry/`diagram2SurfaceId` sentinel
+/// (a single second identity) with the real, already-implemented per-tab
+/// instancing (§ [WorkspaceTab.diagramAllowsMultipleInstances]).
+/// [WorkspaceTabsController.openSurface]'s own generic
+/// one-tab-per-surfaceId contract is untouched — this only decides
+/// *which* of its two existing methods to call, exactly the caller-side
+/// decision `SurfaceDefinition.allowsMultipleInstances`'s own doc comment
+/// already anticipated ("a future caller ... is what decides whether to
+/// call `openSurface` or `openNewInstance`").
+///
+/// A top-level function, not a private method on
+/// [EngineeringWorkspacePage] — the exact decision a real WebView2-backed
+/// Diagram tab makes is otherwise untestable without mounting one (§
+/// `engineering_workspace_page_test.dart`'s own doc comment on why that's
+/// unreliable under `flutter test`); as a plain function over a
+/// [WorkspaceTabsController], it is exercised directly, the same way
+/// every other `openSurface`/`openNewInstance` call in this file's tests
+/// already is. Returns the opened (or newly created) tab's id.
+String openDiagramTab(WorkspaceTabsController tabsController) {
+  final alreadyOpen = tabsController.tabs.any((t) => t.isDiagram);
+  return (alreadyOpen && WorkspaceTab.diagramAllowsMultipleInstances)
+      ? tabsController.openNewInstance(WorkspaceTab.diagramSurfaceId)
+      : tabsController.openSurface(WorkspaceTab.diagramSurfaceId);
+}
+
+/// AP-OEP-DIAGRAM-MULTI-INSTANCE-UI-001 — this [tabs]`[index]`'s 1-based
+/// position among only the Diagram tabs at or before it (`0` for a
+/// non-Diagram tab), used by [_WorkspaceTabChip] to disambiguate two
+/// still-untitled Diagram tabs ("Diagram Studio 2", "Diagram Studio 3",
+/// ...) without persisting a presentation label anywhere — recomputed
+/// fresh from live tab order on every call. A top-level pure function for
+/// the same testability reason as [openDiagramTab]: a plain
+/// `List<WorkspaceTab>` in, an `int` out, no widget tree required.
+int diagramOrdinalFor(List<WorkspaceTab> tabs, int index) =>
+    tabs[index].isDiagram ? tabs.take(index + 1).where((t) => t.isDiagram).length : 0;
+
 class EngineeringWorkspacePage extends ConsumerWidget {
   const EngineeringWorkspacePage({super.key});
+
+  /// AP-OEP-WORKSPACE-SPLIT-VIEW-001 — wraps [_buildTabContent]'s output
+  /// in a [GlobalObjectKey] (equality by `tab.id`, not object identity —
+  /// a fresh instance created on every build compares equal to the one
+  /// from the previous build for the same tab), rather than the plain
+  /// [ValueKey] `_buildTabContent`'s own callers used before this
+  /// package. This is the one addition that makes split view safe:
+  /// `_DiagramInstanceTabState.dispose()` invalidates that instance's
+  /// family providers (tearing down its real `EngineHost`) whenever its
+  /// `Element` is actually removed from the tree — which, with a plain
+  /// key, is exactly what happens when a tab moves between structurally
+  /// different parents (e.g. `IndexedStack.children` in single mode vs.
+  /// a `Row` pane in split mode, or into/out of the hidden holder below):
+  /// Flutter's reconciliation only reuses an `Element` across a parent
+  /// change for a `GlobalKey`. Without this, merely opening or closing a
+  /// split would falsely dispose a still-open Diagram instance's engine
+  /// state — a real correctness bug, not a cosmetic one, discovered
+  /// while implementing this package (the approved audit's Part 4 did
+  /// not analyze Flutter element-identity mechanics at this level).
+  /// `_buildTabContent` itself is untouched, per this package's own
+  /// scope boundary.
+  Widget _keyedTabContent(BuildContext context, WorkspaceTab tab) =>
+      KeyedSubtree(key: GlobalObjectKey(tab.id), child: _buildTabContent(context, tab));
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tabsController = ref.watch(workspaceTabsControllerProvider);
     final tabs = tabsController.tabs;
     final activeId = tabsController.activeId;
+    final secondTabId = tabsController.secondTabId;
 
     return Container(
       color: StudioColors.background,
@@ -69,20 +136,21 @@ class EngineeringWorkspacePage extends ConsumerWidget {
             activeId: activeId,
             onActivate: tabsController.activate,
             onClose: tabsController.close,
-            onOpenDiagram: () => tabsController.openSurface(WorkspaceTab.diagramSurfaceId),
-            onOpenDiagram2: () => tabsController.openSurface(WorkspaceTab.diagram2SurfaceId),
+            onOpenDiagram: () => openDiagramTab(tabsController),
+            onOpenBrowser: () => tabsController.openNewInstance(SurfaceRegistry.browserSurfaceId),
             onOpenSurface: (surface) => tabsController.openSurface(surface.id),
+            onSplitWith: tabsController.splitWith,
           ),
           Expanded(
             child: tabs.isEmpty
                 ? const Center(
                     child: Text('No tabs open — press "+" to open a Surface', style: TextStyle(color: StudioColors.textDisabled)),
                   )
-                : IndexedStack(
-                    index: activeId == null ? 0 : tabs.indexWhere((t) => t.id == activeId).clamp(0, tabs.length - 1),
-                    children: [
-                      for (final tab in tabs) _buildTabContent(context, tab),
-                    ],
+                : _WorkspaceContent(
+                    tabs: tabs,
+                    activeId: activeId,
+                    secondTabId: secondTabId,
+                    buildTabContent: _keyedTabContent,
                   ),
           ),
         ],
@@ -131,15 +199,6 @@ class EngineeringWorkspacePage extends ConsumerWidget {
       }
       return _DiagramInstanceTab(key: ValueKey(tab.id), instanceId: tab.id);
     }
-    if (tab.isDiagram2) {
-      // AP-OEP-DIAGRAM-COMPARE-002 — the same second, independent
-      // engine the Primary's split-pane "Compare Diagrams" pane already
-      // drives (`compareDiagramControllerProvider`), given its own
-      // full-width tab so it can be opened and edited side by side with
-      // the Primary diagram as two ordinary Workspace tabs, not just as
-      // a split within one tab.
-      return const KeyedSubtree(key: ValueKey('workspace-tab-diagram-2'), child: CompareLegacyV2WebViewPage());
-    }
     final surface = SurfaceRegistry.forId(tab.surfaceId);
     if (surface == null) {
       // Not expected in practice (Surfaces are a static list) — an
@@ -148,6 +207,84 @@ class EngineeringWorkspacePage extends ConsumerWidget {
     }
     return KeyedSubtree(key: ValueKey(tab.id), child: surface.build(context));
   }
+}
+
+/// AP-OEP-WORKSPACE-SPLIT-VIEW-001 — the one place the audit's "single
+/// visible content area" assumption ([IndexedStack]'s single `index`) is
+/// generalized to two. Single mode is the exact, unmodified
+/// [IndexedStack] behavior that shipped before this package; split mode
+/// renders [activeId]'s and [secondTabId]'s content side by side in a
+/// [Row], while every *other* open tab (neither pane) stays mounted,
+/// unpainted, in a hidden holder — so no open tab is ever torn down
+/// merely because the Workspace switched between single and split
+/// layout (§ [EngineeringWorkspacePage._keyedTabContent]'s own doc
+/// comment on why that requires a [GlobalObjectKey], not a plain one).
+///
+/// **Falls back to single mode** if [secondTabId] doesn't name a
+/// currently open tab (stale/invalid reference — never fabricated),
+/// [activeId] doesn't either, or [secondTabId] equals [activeId]. That
+/// last case is a real contradiction the approved audit's Part 6 did not
+/// fully resolve at the Flutter-widget level: showing the *same*
+/// `WorkspaceTab.id` in two panes simultaneously would require two
+/// independent `Element`s sharing one [GlobalObjectKey], which Flutter
+/// hard-rejects (a `GlobalKey` names *one* live `Element`, not "the
+/// Nth occurrence of this key"), and manufacturing a second key for just
+/// this case would itself be the "new identity merely to distinguish the
+/// panes" this package is explicitly forbidden from introducing. The
+/// audit's own conclusion — that showing one tab in both panes should
+/// not be *prohibited* at the state level — is preserved:
+/// [WorkspaceTabsController.splitWith] still happily sets `secondTabId`
+/// to `activeId`; only *this rendering layer* deterministically falls
+/// back to showing that one tab full-width rather than attempting an
+/// unsafe duplicate mount.
+class _WorkspaceContent extends StatelessWidget {
+  const _WorkspaceContent({
+    required this.tabs,
+    required this.activeId,
+    required this.secondTabId,
+    required this.buildTabContent,
+  });
+
+  final List<WorkspaceTab> tabs;
+  final String? activeId;
+  final String? secondTabId;
+  final Widget Function(BuildContext context, WorkspaceTab tab) buildTabContent;
+
+  @override
+  Widget build(BuildContext context) {
+    final activeTab = activeId == null ? null : tabs.where((t) => t.id == activeId).firstOrNull;
+    final secondTab = (secondTabId == null || secondTabId == activeId) ? null : tabs.where((t) => t.id == secondTabId).firstOrNull;
+
+    if (activeTab != null && secondTab != null) {
+      final paneIds = {activeTab.id, secondTab.id};
+      final hiddenTabs = [for (final tab in tabs) if (!paneIds.contains(tab.id)) tab];
+      return LayoutBuilder(
+        builder: (context, constraints) => Row(
+          children: [
+            Expanded(child: buildTabContent(context, activeTab)),
+            const VerticalDivider(width: 1, color: StudioColors.border),
+            Expanded(child: buildTabContent(context, secondTab)),
+            if (hiddenTabs.isNotEmpty)
+              Offstage(
+                child: SizedBox.fromSize(
+                  size: constraints.biggest,
+                  child: IndexedStack(children: [for (final tab in hiddenTabs) buildTabContent(context, tab)]),
+                ),
+              ),
+          ],
+        ),
+      );
+    }
+
+    return IndexedStack(
+      index: activeId == null ? 0 : tabs.indexWhere((t) => t.id == activeId).clamp(0, tabs.length - 1),
+      children: [for (final tab in tabs) buildTabContent(context, tab)],
+    );
+  }
+}
+
+extension _FirstOrNullTab on Iterable<WorkspaceTab> {
+  WorkspaceTab? get firstOrNull => isEmpty ? null : first;
 }
 
 /// AP-OEP-DIAGRAM-CONTROLLER-INSTANCING-IMPLEMENTATION-001 — the one
@@ -197,8 +334,9 @@ class _WorkspaceTabStrip extends StatelessWidget {
     required this.onActivate,
     required this.onClose,
     required this.onOpenDiagram,
-    required this.onOpenDiagram2,
+    required this.onOpenBrowser,
     required this.onOpenSurface,
+    required this.onSplitWith,
   });
 
   final List<WorkspaceTab> tabs;
@@ -206,8 +344,9 @@ class _WorkspaceTabStrip extends StatelessWidget {
   final void Function(String id) onActivate;
   final void Function(String id) onClose;
   final VoidCallback onOpenDiagram;
-  final VoidCallback onOpenDiagram2;
+  final VoidCallback onOpenBrowser;
   final void Function(SurfaceDefinition) onOpenSurface;
+  final void Function(String id) onSplitWith;
 
   @override
   Widget build(BuildContext context) {
@@ -229,12 +368,14 @@ class _WorkspaceTabStrip extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  for (final tab in tabs)
+                  for (final (index, tab) in tabs.indexed)
                     _WorkspaceTabChip(
                       tab: tab,
                       active: tab.id == activeId,
+                      diagramOrdinal: diagramOrdinalFor(tabs, index),
                       onTap: () => onActivate(tab.id),
                       onClose: () => onClose(tab.id),
+                      onSplit: () => onSplitWith(tab.id),
                     ),
                 ],
               ),
@@ -251,13 +392,29 @@ class _WorkspaceTabStrip extends StatelessWidget {
                 onTap: onOpenDiagram,
                 child: const _MenuRow(icon: Icons.polyline, label: 'Diagram Studio'),
               ),
+              // AP-OEP-WORKSPACE-BROWSER-001 — a dedicated entry, not
+              // folded into the generic `SurfaceRegistry.all` loop below:
+              // every selection must call `openNewInstance` (a brand-new
+              // Browser tab, every time — there is no "focus the existing
+              // Browser tab" concept the way singleton Surfaces have),
+              // never `openSurface`'s reuse-if-open semantics. Mirrors
+              // "Diagram Studio"'s own dedicated entry immediately above,
+              // just without that one's extra "first click reuses the
+              // primary" branch — Browser has no primary/singleton
+              // instance at all (§ `SurfaceRegistry.browserSurfaceId`'s
+              // own doc comment).
               PopupMenuItem<void>(
-                onTap: onOpenDiagram2,
-                child: const _MenuRow(icon: Icons.polyline, label: 'Diagram Studio (2)'),
+                onTap: onOpenBrowser,
+                child: const _MenuRow(icon: Icons.public, label: '🌐 Browser'),
               ),
               const PopupMenuDivider(),
               // AP-OEP-SURFACE-ARCHITECTURE-002/003 — the canonical
               // Surface source, not a second hand-written list.
+              // `SurfaceRegistry.all` itself already excludes Browser (§
+              // its own doc comment) — it has its own dedicated entry
+              // above instead, since every other Surface here uses
+              // `openSurface`'s singleton reuse-if-open semantics, which
+              // Browser must never have.
               for (final surface in SurfaceRegistry.all)
                 PopupMenuItem<void>(
                   onTap: () => onOpenSurface(surface),
@@ -300,14 +457,49 @@ class _WorkspaceTabChip extends ConsumerWidget {
   const _WorkspaceTabChip({
     required this.tab,
     required this.active,
+    required this.diagramOrdinal,
     required this.onTap,
     required this.onClose,
+    required this.onSplit,
   });
 
   final WorkspaceTab tab;
   final bool active;
+
+  /// This tab's 1-based position among currently-open Diagram tabs
+  /// (`0`/unused for every non-Diagram tab) — see
+  /// [_WorkspaceTabStrip.build]'s own doc comment for how it's computed.
+  final int diagramOrdinal;
   final VoidCallback onTap;
   final VoidCallback onClose;
+
+  /// AP-OEP-WORKSPACE-SPLIT-VIEW-001 — the approved audit's Part 8
+  /// minimal split-creation mechanism: a right-click context menu on any
+  /// open tab chip, one action, "Open in Split," calling
+  /// `WorkspaceTabsController.splitWith(tab.id)` directly. No drag-and-
+  /// drop, no keyboard shortcut, no chrome-level split button — see that
+  /// method's own doc comment for why a context menu was chosen.
+  final VoidCallback onSplit;
+
+  Future<void> _showContextMenu(BuildContext context, Offset globalPosition) async {
+    await showMenu<void>(
+      context: context,
+      position: RelativeRect.fromLTRB(globalPosition.dx, globalPosition.dy, globalPosition.dx, globalPosition.dy),
+      items: [
+        PopupMenuItem<void>(
+          onTap: onSplit,
+          child: const _MenuRow(icon: Icons.vertical_split, label: 'Open in Split'),
+        ),
+      ],
+    );
+  }
+
+  /// [DiagramDocumentMetadata.newDocument]'s own default title — the one
+  /// value that means "this document has never been given a real title,"
+  /// used below to decide when an ordinal label is more useful than the
+  /// (otherwise ambiguous, identical-across-every-untitled-instance) live
+  /// document title.
+  static const _untitledDiagramTitle = 'Untitled Diagram';
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -318,39 +510,55 @@ class _WorkspaceTabChip extends ConsumerWidget {
     // exactly one Diagram tab could ever exist; it would have shown
     // instance A's title on instance B's chip once a second instance
     // exists.
-    final displayTitle = tab.isDiagram
-        ? (ref.watch(diagramStudioControllerFamily(tab.id)).valueOrNull?.document.metadata.title ?? tab.title)
-        : tab.title;
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        decoration: BoxDecoration(
-          color: active ? StudioColors.selectedRowBackground : Colors.transparent,
-          border: Border(
-            right: const BorderSide(color: StudioColors.border),
-            bottom: BorderSide(color: active ? StudioColors.selection : Colors.transparent, width: 2),
+    //
+    // AP-OEP-DIAGRAM-MULTI-INSTANCE-UI-001 — a live title is only shown
+    // once it's a *real* one: while a Diagram tab's document is still at
+    // its default "Untitled Diagram" placeholder, every open Diagram tab
+    // would otherwise display that exact same ambiguous label. In that
+    // case this falls back to a deterministic, instance-aware label
+    // instead ("Diagram Studio" for the first open Diagram tab, "Diagram
+    // Studio 2"/"3"/... for each one after, by open order) — computed
+    // fresh from live tab order and provider state every build, per the
+    // task's own "do not persist presentation titles" requirement.
+    final liveTitle = tab.isDiagram ? ref.watch(diagramStudioControllerFamily(tab.id)).valueOrNull?.document.metadata.title : null;
+    final displayTitle = !tab.isDiagram
+        ? tab.title
+        : (liveTitle != null && liveTitle != _untitledDiagramTitle)
+            ? liveTitle
+            : (diagramOrdinal <= 1 ? 'Diagram Studio' : 'Diagram Studio $diagramOrdinal');
+    return GestureDetector(
+      onSecondaryTapDown: (details) => _showContextMenu(context, details.globalPosition),
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          decoration: BoxDecoration(
+            color: active ? StudioColors.selectedRowBackground : Colors.transparent,
+            border: Border(
+              right: const BorderSide(color: StudioColors.border),
+              bottom: BorderSide(color: active ? StudioColors.selection : Colors.transparent, width: 2),
+            ),
           ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(tab.icon, size: 14, color: StudioColors.textSecondary),
-            const SizedBox(width: 6),
-            Text(
-              displayTitle,
-              style: TextStyle(
-                color: active ? StudioColors.textPrimary : StudioColors.textSecondary,
-                fontSize: 12,
-                fontWeight: active ? FontWeight.w600 : FontWeight.w400,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(tab.icon, size: 14, color: StudioColors.textSecondary),
+              const SizedBox(width: 6),
+              Text(
+                displayTitle,
+                style: TextStyle(
+                  color: active ? StudioColors.textPrimary : StudioColors.textSecondary,
+                  fontSize: 12,
+                  fontWeight: active ? FontWeight.w600 : FontWeight.w400,
+                ),
               ),
-            ),
-            const SizedBox(width: 6),
-            InkWell(
-              onTap: onClose,
-              child: const Icon(Icons.close, size: 14, color: StudioColors.textDisabled),
-            ),
-          ],
+              const SizedBox(width: 6),
+              InkWell(
+                onTap: onClose,
+                child: const Icon(Icons.close, size: 14, color: StudioColors.textDisabled),
+              ),
+            ],
+          ),
         ),
       ),
     );

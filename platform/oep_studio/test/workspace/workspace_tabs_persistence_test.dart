@@ -273,6 +273,37 @@ void main() {
         expect(controller.active!.surfaceId, a.id, reason: 'invalid active id falls back to the first surviving tab');
       });
 
+      test(
+          'AP-OEP-DIAGRAM-MULTI-INSTANCE-UI-001: a persisted legacy "diagram-2" record migrates to an ordinary Diagram tab, never dropped',
+          () async {
+        final storage = _FakeWorkspaceTabsStorage()
+          ..tabs = [(id: 'workspace-tab-diagram', surfaceId: WorkspaceTab.diagramSurfaceId), (id: 'workspace-tab-diagram-2', surfaceId: 'diagram-2')]
+          ..activeId = 'workspace-tab-diagram-2';
+        final controller = WorkspaceTabsController(storage: storage);
+
+        await controller.restore();
+
+        expect(controller.tabs, hasLength(2), reason: 'the second tab must survive, not be silently dropped');
+        expect(controller.tabs.map((t) => t.id).toList(), ['workspace-tab-diagram', 'workspace-tab-diagram-2']);
+        expect(controller.tabs.map((t) => t.isDiagram).toList(), [true, true],
+            reason: 'the legacy diagram-2 sentinel no longer exists as its own surfaceId');
+        expect(controller.active!.id, 'workspace-tab-diagram-2');
+        expect(controller.active!.isDiagram, isTrue);
+      });
+
+      test('AP-OEP-DIAGRAM-MULTI-INSTANCE-UI-001: a migrated legacy diagram-2 tab persists back as an ordinary diagram tab',
+          () async {
+        final storage = _FakeWorkspaceTabsStorage()..tabs = [(id: 'workspace-tab-diagram-2', surfaceId: 'diagram-2')];
+        final controller = WorkspaceTabsController(storage: storage);
+
+        await controller.restore();
+        await pumpEventQueue();
+
+        expect(storage.tabs, hasLength(1));
+        expect(storage.tabs.single.surfaceId, WorkspaceTab.diagramSurfaceId,
+            reason: 'the rewritten file must never re-persist the removed diagram-2 sentinel');
+      });
+
       test('O. no-op activation still produces no unnecessary notification with multi-instance tabs present', () async {
         final storage = _FakeWorkspaceTabsStorage();
         final controller = WorkspaceTabsController(storage: storage);
@@ -283,6 +314,118 @@ void main() {
         controller.activate(instanceId); // already active
 
         expect(notifications, 0);
+      });
+    });
+
+    group('AP-OEP-WORKSPACE-SPLIT-VIEW-001', () {
+      test('splitWith persists secondTabId alongside the existing tabs/activeId', () async {
+        final storage = _FakeWorkspaceTabsStorage();
+        final controller = WorkspaceTabsController(storage: storage);
+        final aId = controller.openSurface(a.id);
+        controller.splitWith(aId);
+        await pumpEventQueue();
+
+        expect(storage.secondTabId, aId);
+      });
+
+      test('restore() restores a valid persisted secondTabId', () async {
+        final storage = _FakeWorkspaceTabsStorage()
+          ..tabs = [(id: 'workspace-tab-${a.id}', surfaceId: a.id), (id: 'workspace-tab-${b.id}', surfaceId: b.id)]
+          ..activeId = 'workspace-tab-${b.id}'
+          ..secondTabId = 'workspace-tab-${a.id}';
+        final controller = WorkspaceTabsController(storage: storage);
+
+        await controller.restore();
+
+        expect(controller.secondTabId, 'workspace-tab-${a.id}');
+        expect(controller.activeId, 'workspace-tab-${b.id}');
+      });
+
+      test('an invalid/stale persisted secondTabId restores without a split, rather than fabricating a tab', () async {
+        final storage = _FakeWorkspaceTabsStorage()
+          ..tabs = [(id: 'workspace-tab-${a.id}', surfaceId: a.id)]
+          ..secondTabId = 'workspace-tab-no-such-tab';
+        final controller = WorkspaceTabsController(storage: storage);
+
+        await controller.restore();
+
+        expect(controller.secondTabId, isNull);
+        expect(controller.tabs, hasLength(1), reason: 'the invalid secondTabId must never be reassigned to an unrelated tab');
+      });
+
+      test('a legacy file with no secondTabId at all restores in ordinary single-tab mode', () async {
+        final storage = _LegacyFormatStorage()
+          ..surfaces = [a.id, b.id]
+          ..legacyActiveId = a.id;
+        final controller = WorkspaceTabsController(storage: storage);
+
+        await controller.restore();
+
+        expect(controller.secondTabId, isNull);
+      });
+
+      test('a new-schema file that simply omits secondTabId restores in ordinary single-tab mode', () async {
+        final storage = _FakeWorkspaceTabsStorage()..tabs = [(id: 'workspace-tab-${a.id}', surfaceId: a.id)];
+        final controller = WorkspaceTabsController(storage: storage);
+
+        await controller.restore();
+
+        expect(controller.secondTabId, isNull);
+      });
+
+      test('a self-healing restore (dropping an invalid secondTabId) re-persists the corrected value', () async {
+        final storage = _FakeWorkspaceTabsStorage()
+          ..tabs = [(id: 'workspace-tab-${a.id}', surfaceId: a.id)]
+          ..secondTabId = 'workspace-tab-no-such-tab';
+        final controller = WorkspaceTabsController(storage: storage);
+
+        await controller.restore();
+        await pumpEventQueue();
+
+        expect(storage.secondTabId, isNull);
+      });
+    });
+
+    group('AP-OEP-WORKSPACE-BROWSER-001', () {
+      test('9. persistence restores two Browser instances, distinguished by id', () async {
+        final storage = _FakeWorkspaceTabsStorage();
+        final writer = WorkspaceTabsController(storage: storage);
+        final aId = writer.openNewInstance(SurfaceRegistry.browserSurfaceId);
+        final bId = writer.openNewInstance(SurfaceRegistry.browserSurfaceId);
+        await pumpEventQueue();
+
+        final reader = WorkspaceTabsController(storage: storage);
+        await reader.restore();
+
+        expect(reader.tabs.map((t) => t.id).toList(), [aId, bId]);
+        expect(reader.tabs.map((t) => t.surfaceId).toSet(), {SurfaceRegistry.browserSurfaceId});
+        expect(reader.active!.id, bId, reason: 'the second Browser tab was opened last and therefore active at persist time');
+      });
+
+      test('15. a file with no Browser tabs at all (pre-existing, unmodified schema) restores exactly as before', () async {
+        final storage = _FakeWorkspaceTabsStorage()..tabs = [(id: 'workspace-tab-${a.id}', surfaceId: a.id)];
+        final controller = WorkspaceTabsController(storage: storage);
+
+        await controller.restore();
+
+        expect(controller.tabs, hasLength(1));
+        expect(controller.tabs.single.surfaceId, a.id);
+      });
+
+      test('a persisted split of two Browser instances restores intact', () async {
+        final storage = _FakeWorkspaceTabsStorage();
+        final writer = WorkspaceTabsController(storage: storage);
+        final aId = writer.openNewInstance(SurfaceRegistry.browserSurfaceId);
+        final bId = writer.openNewInstance(SurfaceRegistry.browserSurfaceId);
+        writer.activate(aId);
+        writer.splitWith(bId);
+        await pumpEventQueue();
+
+        final reader = WorkspaceTabsController(storage: storage);
+        await reader.restore();
+
+        expect(reader.activeId, aId);
+        expect(reader.secondTabId, bId);
       });
     });
   });
@@ -326,20 +469,22 @@ void main() {
 class _FakeWorkspaceTabsStorage extends WorkspaceTabsStorage {
   List<PersistedWorkspaceTab> tabs = [];
   String? activeId;
+  String? secondTabId;
   int saveCount = 0;
   int loadCount = 0;
 
   @override
-  Future<({List<PersistedWorkspaceTab> tabs, String? activeId})> load() async {
+  Future<({List<PersistedWorkspaceTab> tabs, String? activeId, String? secondTabId})> load() async {
     loadCount++;
-    return (tabs: List.of(tabs), activeId: activeId);
+    return (tabs: List.of(tabs), activeId: activeId, secondTabId: secondTabId);
   }
 
   @override
-  Future<void> save({required List<PersistedWorkspaceTab> tabs, required String? activeId}) async {
+  Future<void> save({required List<PersistedWorkspaceTab> tabs, required String? activeId, String? secondTabId}) async {
     saveCount++;
     this.tabs = List.of(tabs);
     this.activeId = activeId;
+    this.secondTabId = secondTabId;
   }
 }
 
@@ -352,14 +497,14 @@ class _LegacyFormatStorage extends WorkspaceTabsStorage {
   String? legacyActiveId;
 
   @override
-  Future<({List<PersistedWorkspaceTab> tabs, String? activeId})> load() async {
+  Future<({List<PersistedWorkspaceTab> tabs, String? activeId, String? secondTabId})> load() async {
     final tabs = [for (final surfaceId in surfaces) (id: 'workspace-tab-$surfaceId', surfaceId: surfaceId)];
     final activeId = legacyActiveId == null ? null : 'workspace-tab-$legacyActiveId';
-    return (tabs: tabs, activeId: activeId);
+    return (tabs: tabs, activeId: activeId, secondTabId: null);
   }
 
   @override
-  Future<void> save({required List<PersistedWorkspaceTab> tabs, required String? activeId}) async {
+  Future<void> save({required List<PersistedWorkspaceTab> tabs, required String? activeId, String? secondTabId}) async {
     // Not exercised by the one test using this fake (restore-only).
   }
 }
@@ -383,7 +528,7 @@ class _SlowFirstWriteStorage extends WorkspaceTabsStorage {
   void completeFirstSave() => _firstSaveGate.complete();
 
   @override
-  Future<void> save({required List<PersistedWorkspaceTab> tabs, required String? activeId}) async {
+  Future<void> save({required List<PersistedWorkspaceTab> tabs, required String? activeId, String? secondTabId}) async {
     if (!_sawFirstCall) {
       _sawFirstCall = true;
       _firstSaveStarted.complete();

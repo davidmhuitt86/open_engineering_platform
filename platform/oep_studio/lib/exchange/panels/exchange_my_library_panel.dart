@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../core/routing/studio_destination.dart';
 import '../../core/services/foundation_runtime_service.dart';
 import '../../core/theme/studio_colors.dart';
+import '../../shared/navigation/workspace_aware_navigation.dart';
 import '../../shared/widgets/oep_list_view.dart';
 import '../models/library_entry.dart';
 import '../services/exchange_runtime_service.dart';
@@ -38,7 +38,7 @@ class ExchangeMyLibraryPanel extends ConsumerWidget {
               OutlinedButton.icon(
                 onPressed: () {
                   ref.read(foundationRuntimeServiceProvider.notifier).refreshRepository();
-                  context.go(StudioDestination.repository.path);
+                  openOrActivateDestination(context, ref, StudioDestination.repository);
                 },
                 icon: const Icon(Icons.sync, size: 16),
                 label: const Text('Refresh Repository'),

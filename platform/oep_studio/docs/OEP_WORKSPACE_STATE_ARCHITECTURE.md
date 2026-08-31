@@ -21,6 +21,50 @@ would need, and whether the architecture is ready for it.
 > built" framing is now out of date, corrected here rather than rewritten
 > in place.
 >
+> **Further update (AP-OEP-WORKSPACE-SPLIT-VIEW-001).** Row 1 of §1's
+> table below (`WorkspaceTabsController`'s state: `_tabs`, `_activeId`) is
+> now incomplete: the controller also owns `_secondTabId` (a nullable
+> `WorkspaceTab.id` — `null` means ordinary single-tab mode; non-null
+> names the tab shown alongside `activeId` in a split view), and it is
+> real SESSION STATE, persisted for the same reason `activeId` already
+> is. The persisted shape gained one more optional field:
+> `{tabs: [...], activeId: "<tabId>", secondTabId: "<tabId>"|null}` —
+> `load()` treats a missing/`null` value as "no split," so every file
+> written before this package (and the even older `{surfaces, activeId}`
+> shape) restores unchanged, no migration needed. No Surface id is
+> stored twice (the second pane is identified purely by the same
+> `WorkspaceTab.id` space every tab already uses, per the approved
+> AP-OEP-WORKSPACE-SPLIT-VIEW-AUDIT-001 audit — carried into
+> `WorkspaceTabsController`'s own doc comments) and no document/Engine/
+> WebView state is persisted here, consistent with every other row in
+> this document's own §5 hazard list.
+>
+> **Further update (AP-OEP-WORKSPACE-BROWSER-001).** The Workspace now has
+> a third kind of Surface content, alongside native Surfaces (§1's
+> existing rows) and the Diagram Surface (§1's Diagram rows): a generic
+> **Browser Surface** (`SurfaceRegistry.browserSurfaceId`), reusing the
+> pre-existing `WebSurfaceView`/`WebSurface` widget/model
+> (`docs/OEP_STUDIO_WEB_SURFACE_ARCHITECTURE.md`) unchanged. Unlike
+> Diagram, Browser needed **no new state authority and no new identity
+> system** — its per-instance state (`WebviewController`, URL, navigation
+> history) already lived entirely inside `WebSurfaceView`'s own local
+> `State`, so `WorkspaceTab.id` alone (the same identity every ordinary
+> Surface already uses) is sufficient; `SurfaceDefinition.
+> allowsMultipleInstances: true` plus `WorkspaceTabsController.
+> openNewInstance` (never `openSurface`, § `EngineeringWorkspacePage`'s
+> dedicated "🌐 Browser" menu entry) is the entire mechanism — no
+> `BrowserSession`/`BrowserController`/second tab collection was
+> introduced. Persistence is unaffected: a Browser tab persists as an
+> ordinary `{id, surfaceId}` record through the existing schema, with
+> `SurfaceRegistry.browserSurfaceId` as its `surfaceId` — no new file, no
+> WebView-internal state serialized. `WebSurfacesHostPage`/
+> `WebSurfaceTabsController`/`WebSurfaceTabsStorage` are unchanged and
+> remain in production use for their own, unrelated purpose (hosting the
+> `/diagram` route reached via the sidebar) — they are not a competing
+> Browser architecture, since the Workspace's own Browser Surface is a
+> different, independent code path serving a different destination
+> (Workspace tabs) with no shared runtime state between the two.
+>
 > **Further update (AP-OEP-WORKSPACE-MULTI-INSTANCE-001).** Row 2 of §1's
 > table below ("`id` (deterministic: `'workspace-tab-$surfaceId'`)...
 > DERIVED STATE — id is a pure function of surfaceId — never needs
@@ -237,6 +281,22 @@ is needed.
 > own top-of-file note.
 
 ## 8. Multi-document implications
+
+> **Status update (AP-OEP-DIAGRAM-MULTI-INSTANCE-UI-001).** This
+> section's framing below predates
+> `AP-OEP-DIAGRAM-CONTROLLER-INSTANCING-IMPLEMENTATION-001` giving every
+> Diagram provider independent, `WorkspaceTab.id`-keyed state, and this
+> package exposing that through the "+" menu: opening "Diagram" twice is
+> **no longer** structurally impossible — `WorkspaceTabsController.
+> openNewInstance` (reached by re-selecting "Diagram Studio" once one is
+> already open) creates a genuinely independent Diagram tab, each with
+> its own `EngineeringProjectState`/`EngineHost`. The reasoning below is
+> left as the historical record of why that used to be true; only this
+> one now-superseded claim is corrected. The removed transitional
+> `'diagram-2'` sentinel (a single second, Compare-engine-backed tab,
+> never a real second document) is unrelated to this and is gone
+> entirely — its old persisted tabs migrate to ordinary Diagram tabs, §
+> `WorkspaceTabsController.restore`'s own doc comment.
 
 The current architecture has exactly one Engine/session authority, one
 `EngineeringProjectState`, one Diagram Surface, and one document context

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../core/routing/studio_destination.dart';
 import '../../core/services/foundation_runtime_service.dart';
 import '../../core/theme/studio_colors.dart';
+import '../../shared/navigation/workspace_aware_navigation.dart';
 import '../../shared/widgets/studio_panel_header.dart';
 import '../../shared/widgets/studio_search_field.dart';
 import 'engineering_graph_view.dart';
@@ -64,7 +64,7 @@ class _GraphPageState extends ConsumerState<GraphPage> {
             ),
             const SizedBox(height: 20),
             ElevatedButton(
-              onPressed: () => context.go(StudioDestination.dashboard.path),
+              onPressed: () => openOrActivateDestination(context, ref, StudioDestination.dashboard),
               child: const Text('Open Repository'),
             ),
           ],

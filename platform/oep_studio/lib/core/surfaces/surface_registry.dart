@@ -1,4 +1,6 @@
+import 'package:flutter/material.dart' show Icons;
 import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' show Consumer;
 
 import '../../acquisition/workspaces/acquisition_studio_page.dart';
 import '../../engineering_intelligence/engineering_intelligence_page.dart';
@@ -17,6 +19,9 @@ import '../../knowledge/workspaces/knowledge_studio_page.dart';
 import '../../settings/workspace/settings_workspace_page.dart';
 import '../../workbench/perspectives/engineering_perspective.dart';
 import '../../workbench/perspectives/instruments_perspective.dart';
+import '../../web_surface/web_browser_settings_provider.dart';
+import '../../web_surface/web_surface.dart';
+import '../../web_surface/web_surface_view.dart';
 import '../routing/studio_destination.dart';
 import '../routing/studio_registry.dart';
 import 'surface_definition.dart';
@@ -61,8 +66,40 @@ import 'surface_definition.dart';
 /// `core/routing/studio_registry.dart` at the time of writing) — no new
 /// page implementation, no fork.
 abstract final class SurfaceRegistry {
-  /// All Surfaces currently available for the "+" / New Tab menu.
-  static List<SurfaceDefinition> get all => _surfaces;
+  /// AP-OEP-WORKSPACE-BROWSER-001 — the generic Browser Surface's stable
+  /// id, appended to [_surfaces] below directly (not derived from
+  /// `StudioRegistry`, since Browser has no `StudioDestination`/route of
+  /// its own — it exists only as a Workspace tab, the same shape
+  /// Diagram's own reserved sentinel already established for a Surface
+  /// that has no meaningful standalone route). Unlike Diagram, Browser
+  /// *is* a real, ordinary [SurfaceDefinition] — its independent
+  /// per-instance state ([WebviewController], URL, navigation history)
+  /// lives entirely inside [WebSurfaceView]'s own local `State`, never in
+  /// an external Riverpod family provider the way Diagram's engine state
+  /// does, so [SurfaceDefinition.build]'s plain `Widget Function
+  /// (BuildContext)` signature (no instance id parameter) is already
+  /// sufficient: `EngineeringWorkspacePage._buildTabContent`'s existing
+  /// `KeyedSubtree(key: ValueKey(tab.id), child: surface.build(context))`
+  /// gives each Browser tab its own `Element`/`State` (and therefore its
+  /// own `WebviewController`) purely from `WorkspaceTab.id` already being
+  /// distinct per instance — exactly like every other ordinary Surface,
+  /// no special-casing needed anywhere in the Workspace rendering path.
+  static const String browserSurfaceId = 'browser';
+
+  /// All Surfaces currently available for a generic, `openSurface`-based
+  /// "+" / New Tab menu — deliberately **excludes** Browser: every
+  /// existing consumer of this list (this shell's own "+" menu,
+  /// `WebSurfacesHostPage`'s own native-tab picker) assumes reuse-if-open
+  /// singleton semantics, which Browser explicitly must never have (every
+  /// selection creates a new instance, § `browserSurfaceId`'s own doc
+  /// comment and `EngineeringWorkspacePage`'s dedicated "🌐 Browser" menu
+  /// entry). Excluding it here, once, means no consumer of this list can
+  /// accidentally wire it into the wrong (singleton) open path — the
+  /// alternative, filtering it out at every call site individually, would
+  /// only be as safe as the least careful future caller. [forId] below is
+  /// unaffected (it searches the full internal list), so rendering an
+  /// already-open Browser tab still resolves correctly.
+  static List<SurfaceDefinition> get all => List.unmodifiable(_surfaces.where((s) => s.id != browserSurfaceId));
 
   /// Looks up a Surface by its `id` (a `StudioDestination.name`, for
   /// every Surface this registry currently produces). `null` if not
@@ -99,8 +136,43 @@ abstract final class SurfaceRegistry {
         build: builder,
       ));
     }
+    result.add(_browserSurface());
     return List.unmodifiable(result);
   }
+
+  /// AP-OEP-WORKSPACE-BROWSER-001 — a brand-new, independent
+  /// [WebSurfaceView] every time this is built (i.e. every time a new
+  /// Browser Workspace tab is opened — [SurfaceDefinition.build] is
+  /// called once per tab, at the moment `EngineeringWorkspacePage` first
+  /// renders it). `initialUrl` reads the *current* configured homepage
+  /// (`WebBrowserSettings.homepageUrl`) via a [Consumer] — `build` itself
+  /// only receives a `BuildContext`, not a `WidgetRef` — using
+  /// `ref.read`, not `watch`: [WebSurfaceView.initState] reads
+  /// `widget.surface.initialUrl` exactly once to seed its first
+  /// navigation, so nothing would react to a later homepage-setting
+  /// change on an already-open tab even with `watch`, but `read` avoids
+  /// pointless rebuilds of this `Consumer` from ambient Workspace
+  /// activity (tab open/close/split) it has no reason to react to. The
+  /// inner [WebSurface.id] is never used for Workspace-level identity —
+  /// only [WorkspaceTab.id] is (§ [browserSurfaceId]'s own doc comment) —
+  /// so a fixed placeholder is fine; it's local-only to
+  /// [WebSurfaceView]'s internal bookkeeping.
+  static SurfaceDefinition _browserSurface() => SurfaceDefinition(
+        id: browserSurfaceId,
+        title: 'New Tab',
+        icon: Icons.public,
+        presentationTechnology: SurfacePresentationTechnology.genericWeb,
+        allowsMultipleInstances: true,
+        build: (context) => Consumer(
+          builder: (context, ref, _) => WebSurfaceView(
+            surface: WebSurface(
+              id: 'browser-tab',
+              title: 'New Tab',
+              initialUrl: ref.read(webBrowserSettingsProvider).homepageUrl,
+            ),
+          ),
+        ),
+      );
 
   /// One entry per `StudioDestination` this registry can offer as a
   /// Surface — the identity (`id`/`title`/`icon`) is still derived from

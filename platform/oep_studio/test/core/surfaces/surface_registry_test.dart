@@ -81,6 +81,46 @@ void main() {
       expect(ids.toSet().length, ids.length, reason: 'SurfaceRegistry.all contains duplicate ids: $ids');
     });
 
+    group('Browser (AP-OEP-WORKSPACE-BROWSER-001)', () {
+      test('SurfaceRegistry.all excludes Browser (it has its own dedicated, always-new-instance menu entry)', () {
+        final ids = SurfaceRegistry.all.map((s) => s.id).toSet();
+        expect(ids.contains(SurfaceRegistry.browserSurfaceId), isFalse);
+      });
+
+      test('forId still resolves Browser, for rendering an already-open Browser tab', () {
+        final browser = SurfaceRegistry.forId(SurfaceRegistry.browserSurfaceId);
+        expect(browser, isNotNull);
+        expect(browser!.id, SurfaceRegistry.browserSurfaceId);
+      });
+
+      test('Browser declares multi-instance capability', () {
+        final browser = SurfaceRegistry.forId(SurfaceRegistry.browserSurfaceId)!;
+        expect(browser.allowsMultipleInstances, isTrue);
+      });
+
+      test('Browser is a generic, bridge-free presentation technology (never Legacy V2)', () {
+        final browser = SurfaceRegistry.forId(SurfaceRegistry.browserSurfaceId)!;
+        expect(browser.presentationTechnology, SurfacePresentationTechnology.genericWeb);
+      });
+
+      test('Browser\'s initial tab title is the deterministic default, not a live-bound one', () {
+        final browser = SurfaceRegistry.forId(SurfaceRegistry.browserSurfaceId)!;
+        expect(browser.title, 'New Tab');
+      });
+
+      testWidgets('Browser constructs a real widget instance without a GoRouterState (construction only, never mounted)', (tester) async {
+        late BuildContext capturedContext;
+        await tester.pumpWidget(MaterialApp(home: Builder(builder: (context) {
+          capturedContext = context;
+          return const SizedBox.shrink();
+        })));
+
+        final built = SurfaceRegistry.forId(SurfaceRegistry.browserSurfaceId)!.build(capturedContext);
+
+        expect(built, isNotNull);
+      });
+    });
+
     testWidgets('every surface constructs a real widget instance without a GoRouterState', (tester) async {
       // One throwaway context is enough — every current `build` closure
       // is `(context) => const XPage()`, plain widget *construction*,

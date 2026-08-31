@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../core/models/engineering_project.dart';
 import '../../core/models/object_category.dart';
@@ -12,6 +11,7 @@ import '../../core/services/foundation_runtime_state.dart';
 import '../../core/theme/studio_colors.dart';
 import '../../diagram_studio/persistence/recent_projects_storage.dart';
 import '../../shared/navigation/unified_navigation.dart';
+import '../../shared/navigation/workspace_aware_navigation.dart';
 
 /// The Project Explorer (WORK_PACKAGE_025, ENGINE-TASK-000126) — "the
 /// primary navigation surface for OEP." Replaces the idea of
@@ -79,12 +79,12 @@ class ProjectExplorerPage extends ConsumerWidget {
           child: ListView(
             padding: const EdgeInsets.symmetric(horizontal: 12),
             children: [
-              const _RecentProjectsBranch(),
+              _RecentProjectsBranch(ref: ref),
               _KnowledgeBranch(foundation: foundation, ref: ref),
-              _DiagramsBranch(projectState: projectState),
+              _DiagramsBranch(projectState: projectState, ref: ref),
               _EvidenceBranch(foundation: foundation, ref: ref),
               _ComponentsBranch(foundation: foundation, ref: ref),
-              _ValidationBranch(projectState: projectState),
+              _ValidationBranch(projectState: projectState, ref: ref),
               _AiSessionsBranch(foundation: foundation),
               const _SimulationBranch(),
             ],
@@ -152,7 +152,7 @@ class ProjectExplorerPage extends ConsumerWidget {
       ),
     );
     if (!context.mounted) return;
-    context.go(StudioDestination.diagram.path);
+    openOrActivateDestination(context, ref, StudioDestination.diagram);
   }
 }
 
@@ -200,7 +200,9 @@ class _OpenFromRepositoryDialog extends StatelessWidget {
 }
 
 class _RecentProjectsBranch extends StatelessWidget {
-  const _RecentProjectsBranch();
+  const _RecentProjectsBranch({required this.ref});
+
+  final WidgetRef ref;
 
   @override
   Widget build(BuildContext context) {
@@ -216,7 +218,7 @@ class _RecentProjectsBranch extends StatelessWidget {
               _Leaf(
                 label: entry.projectName,
                 subtitle: entry.repositoryName,
-                onTap: () => context.go(StudioDestination.diagram.path),
+                onTap: () => openOrActivateDestination(context, ref, StudioDestination.diagram),
               ),
           ],
         );
@@ -303,9 +305,10 @@ class _KnowledgeBranch extends StatelessWidget {
 }
 
 class _DiagramsBranch extends StatelessWidget {
-  const _DiagramsBranch({required this.projectState});
+  const _DiagramsBranch({required this.projectState, required this.ref});
 
   final EngineeringProjectState projectState;
+  final WidgetRef ref;
 
   @override
   Widget build(BuildContext context) {
@@ -317,7 +320,7 @@ class _DiagramsBranch extends StatelessWidget {
         _Leaf(
           label: path == null ? 'Untitled Diagram' : path.split(RegExp(r'[\\/]')).last,
           subtitle: projectState.isDirty ? 'Unsaved changes' : 'Diagram Document',
-          onTap: () => context.go(StudioDestination.diagram.path),
+          onTap: () => openOrActivateDestination(context, ref, StudioDestination.diagram),
         ),
       ],
     );
@@ -343,7 +346,7 @@ class _EvidenceBranch extends StatelessWidget {
             subtitle: 'Source Material',
             onTap: () {
               ref.read(foundationRuntimeServiceProvider.notifier).selectSourceMaterial(source);
-              context.go(StudioDestination.knowledge.path);
+              openOrActivateDestination(context, ref, StudioDestination.knowledge);
             },
           ),
       ],
@@ -376,9 +379,10 @@ class _ComponentsBranch extends StatelessWidget {
 }
 
 class _ValidationBranch extends StatelessWidget {
-  const _ValidationBranch({required this.projectState});
+  const _ValidationBranch({required this.projectState, required this.ref});
 
   final EngineeringProjectState projectState;
+  final WidgetRef ref;
 
   @override
   Widget build(BuildContext context) {
@@ -393,7 +397,7 @@ class _ValidationBranch extends StatelessWidget {
         _Leaf(
           label: findings.isEmpty ? 'No findings' : '${findings.length} finding(s)',
           subtitle: 'Open Validation',
-          onTap: () => context.go(StudioDestination.validation.path),
+          onTap: () => openOrActivateDestination(context, ref, StudioDestination.validation),
         ),
       ],
     );

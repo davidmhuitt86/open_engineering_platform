@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../core/foundation/foundation_bridge_exception.dart';
 import '../../core/foundation/oep_api_types.dart';
@@ -8,6 +7,7 @@ import '../../core/models/object_category.dart';
 import '../../core/routing/studio_destination.dart';
 import '../../core/services/foundation_runtime_service.dart';
 import '../../core/theme/studio_colors.dart';
+import '../../shared/navigation/workspace_aware_navigation.dart';
 import '../../shared/widgets/studio_panel_header.dart';
 import '../../shared/widgets/studio_search_field.dart';
 import '../../shared/widgets/studio_utility_button.dart';
@@ -79,7 +79,7 @@ class _RepositoryPageState extends ConsumerState<RepositoryPage> {
           if (mounted) setState(() => _overviewLoaded = false);
         });
       }
-      return const _NoRepositoryOpen();
+      return _NoRepositoryOpen(ref: ref);
     }
 
     if (!_overviewLoaded) {
@@ -103,7 +103,7 @@ class _RepositoryPageState extends ConsumerState<RepositoryPage> {
               StudioUtilityButton(
                 label: _packages == null ? 'Packages' : 'Packages (${_packages!.length})',
                 icon: Icons.inventory_2_outlined,
-                onPressed: () => context.go(StudioDestination.packages.path),
+                onPressed: () => openOrActivateDestination(context, ref, StudioDestination.packages),
               ),
               const SizedBox(width: 8),
               StudioUtilityButton(
@@ -115,7 +115,7 @@ class _RepositoryPageState extends ConsumerState<RepositoryPage> {
               StudioUtilityButton(
                 label: 'Knowledge Graph',
                 icon: Icons.hub_outlined,
-                onPressed: () => context.go(StudioDestination.graph.path),
+                onPressed: () => openOrActivateDestination(context, ref, StudioDestination.graph),
               ),
             ],
           ),
@@ -162,7 +162,7 @@ class _RepositoryPageState extends ConsumerState<RepositoryPage> {
                 }),
                 onSelect: () {
                   ref.read(foundationRuntimeServiceProvider.notifier).selectCategory(category);
-                  context.go(StudioDestination.objects.path);
+                  openOrActivateDestination(context, ref, StudioDestination.objects);
                 },
               );
             },
@@ -264,7 +264,9 @@ class _VersionHistoryTile extends StatelessWidget {
 }
 
 class _NoRepositoryOpen extends StatelessWidget {
-  const _NoRepositoryOpen();
+  const _NoRepositoryOpen({required this.ref});
+
+  final WidgetRef ref;
 
   @override
   Widget build(BuildContext context) {
@@ -289,7 +291,7 @@ class _NoRepositoryOpen extends StatelessWidget {
           ),
           const SizedBox(height: 20),
           ElevatedButton(
-            onPressed: () => context.go(StudioDestination.dashboard.path),
+            onPressed: () => openOrActivateDestination(context, ref, StudioDestination.dashboard),
             child: const Text('Open Repository'),
           ),
         ],

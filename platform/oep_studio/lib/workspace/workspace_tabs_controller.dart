@@ -55,9 +55,18 @@ class WorkspaceTabsController extends ChangeNotifier {
   final List<WorkspaceTab> _tabs = [];
   String? _activeId;
 
+  /// AP-OEP-WORKSPACE-SPLIT-VIEW-001 — the *entire* split-view state:
+  /// which second [WorkspaceTab.id] (if any) is shown alongside
+  /// [activeId]. `null` means single-tab mode. Deliberately not a
+  /// `{enabled, primaryTabId, ...}` struct (see the approved audit's
+  /// Part 3) — `activeId` already is the primary/left pane, and
+  /// "enabled" is fully redundant with this field being non-null.
+  String? _secondTabId;
+
   bool _restored = false;
   List<String>? _lastPersistedTabKeys;
   String? _lastPersistedActiveId;
+  String? _lastPersistedSecondTabId;
   bool _lastPersistedSentinel = false;
 
   /// Monotonic, in-process counter backing [openNewInstance]'s id
@@ -85,6 +94,38 @@ class WorkspaceTabsController extends ChangeNotifier {
   List<WorkspaceTab> get tabs => List.unmodifiable(_tabs);
   String? get activeId => _activeId;
   WorkspaceTab? get active => _activeId == null ? null : _tabs.where((t) => t.id == _activeId).firstOrNull;
+
+  /// AP-OEP-WORKSPACE-SPLIT-VIEW-001 — the second (right) pane's tab id,
+  /// or `null` if the Workspace is in ordinary single-tab mode.
+  String? get secondTabId => _secondTabId;
+  WorkspaceTab? get second => _secondTabId == null ? null : _tabs.where((t) => t.id == _secondTabId).firstOrNull;
+
+  /// Shows [tabId] alongside [activeId] in a split view. A no-op if
+  /// [tabId] does not name a currently-open tab (never fabricates one),
+  /// or if it is already [secondTabId] — matching every other mutator's
+  /// existing "changing nothing is not a change" convention
+  /// (§ [activate]/[openSurface]'s own no-op guards). Explicitly permits
+  /// [tabId] to equal [activeId] — the approved audit found no evidence
+  /// that showing the same tab in both panes should be prohibited, and
+  /// nothing here needs a second identity to represent it (both panes
+  /// simply resolve the same [WorkspaceTab.id] to two independent
+  /// widget instances, exactly as `_buildTabContent` already does for
+  /// any tab).
+  void splitWith(String tabId) {
+    if (tabId == _secondTabId) return;
+    if (!_tabs.any((t) => t.id == tabId)) return;
+    _secondTabId = tabId;
+    notifyListeners();
+    _persistIfChanged();
+  }
+
+  /// Collapses back to single-tab mode. A no-op if not currently split.
+  void closeSplit() {
+    if (_secondTabId == null) return;
+    _secondTabId = null;
+    notifyListeners();
+    _persistIfChanged();
+  }
 
   /// Opens [surfaceId] as a new tab, or focuses it if already open —
   /// the same reuse-if-open semantics `WebSurfacesHostPage._openLegacyV2`
@@ -177,13 +218,27 @@ class WorkspaceTabsController extends ChangeNotifier {
   /// `id`, exactly as before — closing one instance of a multi-instance
   /// Surface never affects any other tab, including another instance of
   /// the same `surfaceId`, since nothing here ever matches by `surfaceId`.
+  ///
+  /// AP-OEP-WORKSPACE-SPLIT-VIEW-001 — [secondTabId] is kept consistent
+  /// with whatever remains open: closing the tab it names collapses the
+  /// split (never leaves a dangling reference to a closed tab); closing
+  /// any other tab, including [activeId], leaves it untouched. The one
+  /// extra case: if closing [activeId] causes the neighbor-selection
+  /// fallback to land on the very tab [secondTabId] already names, the
+  /// split is collapsed rather than silently showing that tab in both
+  /// panes as an accident of which neighbor happened to be next in line
+  /// — a real, explicit `splitWith(activeId)` call still allows this
+  /// (§ that method's own doc comment); only this *unintended* collision
+  /// is resolved here.
   void close(String id) {
     final index = _tabs.indexWhere((t) => t.id == id);
     if (index == -1) return;
     final wasActive = _activeId == id;
     _tabs.removeAt(index);
+    if (id == _secondTabId) _secondTabId = null;
     if (wasActive) {
       _activeId = _tabs.isEmpty ? null : _tabs[index > 0 ? index - 1 : 0].id;
+      if (_secondTabId != null && _secondTabId == _activeId) _secondTabId = null;
     }
     notifyListeners();
     _persistIfChanged();
@@ -197,11 +252,22 @@ class WorkspaceTabsController extends ChangeNotifier {
   /// second guard against any accidental re-entrant call).
   ///
   /// Every stored tab's `surfaceId` is validated against
-  /// [SurfaceRegistry] (or the reserved [WorkspaceTab.diagramSurfaceId]/
-  /// [WorkspaceTab.diagram2SurfaceId] sentinels) before being restored —
-  /// a stale/unknown id (e.g. from an older build whose Surface list has
-  /// since changed) is silently dropped, never fabricated into a
-  /// placeholder tab. Order is preserved among the surviving tabs.
+  /// [SurfaceRegistry] (or the reserved [WorkspaceTab.diagramSurfaceId]
+  /// sentinel) before being restored — a stale/unknown id (e.g. from an
+  /// older build whose Surface list has since changed) is silently
+  /// dropped, never fabricated into a placeholder tab. Order is
+  /// preserved among the surviving tabs.
+  ///
+  /// AP-OEP-DIAGRAM-MULTI-INSTANCE-UI-001 — a record persisted by a
+  /// build that still had the removed `'diagram-2'` sentinel (the
+  /// transitional "Diagram Studio (2)" Compare-engine tab) is migrated
+  /// in place to an ordinary Diagram tab (§ [_migrateLegacyDiagram2]),
+  /// never dropped: the user had a second Diagram-labeled tab open, and
+  /// this preserves "a second Diagram tab was open" continuity even
+  /// though that tab's *content* is necessarily different now (a real,
+  /// independent Diagram document instead of the shared Compare engine —
+  /// there is no lossless mapping from the old content to the new
+  /// architecture, only from the fact that a tab existed).
   /// Duplicate tab *ids* in the persisted file are dropped (a
   /// corruption case, not a legitimate multi-instance one — two
   /// legitimate instances always have different ids by construction);
@@ -219,7 +285,8 @@ class WorkspaceTabsController extends ChangeNotifier {
     final seenIds = <String>{};
     for (final record in loaded.tabs) {
       if (!seenIds.add(record.id)) continue; // corrupt duplicate id, never legitimate
-      if (_isKnownSurfaceId(record.surfaceId)) validTabs.add(record);
+      final migrated = _migrateLegacyDiagram2(record);
+      if (_isKnownSurfaceId(migrated.surfaceId)) validTabs.add(migrated);
     }
 
     // Defensive against the (unlikely) race of a real `openSurface`/
@@ -242,18 +309,28 @@ class WorkspaceTabsController extends ChangeNotifier {
       _activeId = restoredActiveId;
     }
 
+    // AP-OEP-WORKSPACE-SPLIT-VIEW-001 — restored only if it still names
+    // one of the tabs that actually survived restoration; an invalid or
+    // stale id (e.g. the file named a tab that was itself dropped as
+    // unknown/corrupt above) falls back to "no split" rather than
+    // fabricating or reassigning it to an unrelated tab. Same race
+    // guard as `activeId` above: a real `splitWith`/`closeSplit` call
+    // landing before this resolves wins over the persisted value.
+    _secondTabId ??= (loaded.secondTabId != null && _tabs.any((t) => t.id == loaded.secondTabId)) ? loaded.secondTabId : null;
+
     // Only re-persist if restoration actually changed the effective
     // state (dropped stale/corrupt entries, or fell back to a different
     // active id) — an already-clean file is left untouched, per this
     // package's own "avoid unnecessary writes" requirement.
     final effectiveTabs = [for (final tab in _tabs) (id: tab.id, surfaceId: tab.surfaceId)];
-    final changed = !listEquals(_tabKeys(loaded.tabs), _tabKeys(effectiveTabs)) || loaded.activeId != active?.id;
+    final changed =
+        !listEquals(_tabKeys(loaded.tabs), _tabKeys(effectiveTabs)) || loaded.activeId != active?.id || loaded.secondTabId != _secondTabId;
 
     notifyListeners();
     if (changed) {
       await _persist();
     } else {
-      _rememberLastPersisted(_tabKeys(effectiveTabs), active?.id);
+      _rememberLastPersisted(_tabKeys(effectiveTabs), active?.id, _secondTabId);
     }
   }
 
@@ -275,37 +352,56 @@ class WorkspaceTabsController extends ChangeNotifier {
     if (highest + 1 > _instanceSeq) _instanceSeq = highest + 1;
   }
 
-  bool _isKnownSurfaceId(String surfaceId) =>
-      surfaceId == WorkspaceTab.diagramSurfaceId ||
-      surfaceId == WorkspaceTab.diagram2SurfaceId ||
-      SurfaceRegistry.forId(surfaceId) != null;
+  /// The removed `'diagram-2'` sentinel's literal value, kept only as a
+  /// migration target for [_migrateLegacyDiagram2] — not re-exposed on
+  /// [WorkspaceTab] (the mechanism itself is gone, per
+  /// AP-OEP-DIAGRAM-MULTI-INSTANCE-UI-001), just remembered here long
+  /// enough to recognize a record an older build persisted.
+  static const String _legacyDiagram2SurfaceId = 'diagram-2';
+
+  /// Rewrites a persisted `'diagram-2'` record into an ordinary Diagram
+  /// tab (`surfaceId: WorkspaceTab.diagramSurfaceId`, same `id`) — see
+  /// [restore]'s own doc comment for why the `id` is kept as-is rather
+  /// than re-minted through [_nextInstanceId]: it is already a stable,
+  /// unique string that never collides with a future `-instance-<n>` id
+  /// (§ [_instanceIdSuffix]), so reusing it needs no interaction with
+  /// [_instanceSeq]/seeding at all. Every other record passes through
+  /// unchanged.
+  PersistedWorkspaceTab _migrateLegacyDiagram2(PersistedWorkspaceTab record) =>
+      record.surfaceId == _legacyDiagram2SurfaceId ? (id: record.id, surfaceId: WorkspaceTab.diagramSurfaceId) : record;
+
+  bool _isKnownSurfaceId(String surfaceId) => surfaceId == WorkspaceTab.diagramSurfaceId || SurfaceRegistry.forId(surfaceId) != null;
 
   List<String> _tabKeys(List<PersistedWorkspaceTab> tabs) => [for (final t in tabs) '${t.id} ${t.surfaceId}'];
 
-  void _rememberLastPersisted(List<String> tabKeys, String? activeId) {
+  void _rememberLastPersisted(List<String> tabKeys, String? activeId, String? secondTabId) {
     _lastPersistedTabKeys = List.of(tabKeys);
     _lastPersistedActiveId = activeId;
+    _lastPersistedSecondTabId = secondTabId;
     _lastPersistedSentinel = true;
   }
 
   void _persistIfChanged() {
     final tabs = [for (final tab in _tabs) (id: tab.id, surfaceId: tab.surfaceId)];
     final tabKeys = _tabKeys(tabs);
-    if (_lastPersistedSentinel && listEquals(_lastPersistedTabKeys, tabKeys) && _lastPersistedActiveId == _activeId) {
+    if (_lastPersistedSentinel &&
+        listEquals(_lastPersistedTabKeys, tabKeys) &&
+        _lastPersistedActiveId == _activeId &&
+        _lastPersistedSecondTabId == _secondTabId) {
       return;
     }
-    _rememberLastPersisted(tabKeys, _activeId);
-    _enqueueSave(tabs, _activeId);
+    _rememberLastPersisted(tabKeys, _activeId, _secondTabId);
+    _enqueueSave(tabs, _activeId, _secondTabId);
   }
 
   Future<void> _persist() async {
     final tabs = [for (final tab in _tabs) (id: tab.id, surfaceId: tab.surfaceId)];
-    _rememberLastPersisted(_tabKeys(tabs), _activeId);
-    await _enqueueSave(tabs, _activeId);
+    _rememberLastPersisted(_tabKeys(tabs), _activeId, _secondTabId);
+    await _enqueueSave(tabs, _activeId, _secondTabId);
   }
 
-  Future<void> _enqueueSave(List<PersistedWorkspaceTab> tabs, String? activeId) {
-    final next = _writeChain.then((_) => _storage.save(tabs: tabs, activeId: activeId));
+  Future<void> _enqueueSave(List<PersistedWorkspaceTab> tabs, String? activeId, String? secondTabId) {
+    final next = _writeChain.then((_) => _storage.save(tabs: tabs, activeId: activeId, secondTabId: secondTabId));
     _writeChain = next;
     return next;
   }
