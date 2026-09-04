@@ -243,20 +243,25 @@ class LegacyV2BridgeTransport implements LegacyV2Channel {
   /// `(label, category)` it stashed at creation time
   /// (`EngineeringNode.metadata`) — reconstructs enough of V2's own
   /// module shape for `MODULES.push`/`placeCards`/`drawWires` to render
-  /// it again. Terminals are intentionally omitted (documented
-  /// limitation — see the architecture doc) since this bridge does not
-  /// currently mirror V2's terminal list into OEP metadata.
+  /// it again.
   ///
   /// AP-DIAGRAM-V2-BRIDGE-011 — [notes] is passed through when
   /// `metadata['notes']` is stored, so notes survive document
   /// reload/undo-of-delete the same way label/category already did.
+  ///
+  /// AP-DIAGRAM-V2-BRIDGE-SAVE-007 — [terminals] (also stashed in
+  /// `EngineeringNode.metadata`, § [V2ModuleCreatedMessage.terminals])
+  /// closes the gap this doc comment used to describe as an intentional
+  /// omission: without it, every module reconstructed by this call
+  /// rendered with zero terminal dots, which is what made a reopened
+  /// document look like its modules had lost their pins entirely.
   @override
   Future<void> restoreModule(
       String v2ModuleId, String label, String category, double x, double y,
-      {String notes = ''}) {
+      {String notes = '', List<Map<String, String>> terminals = const []}) {
     return _executeIfEnabled(
       'window.__oepBridgeRestoreModule && window.__oepBridgeRestoreModule('
-      '${jsonEncode(v2ModuleId)}, ${jsonEncode(label)}, ${jsonEncode(category)}, $x, $y, ${jsonEncode(notes)})',
+      '${jsonEncode(v2ModuleId)}, ${jsonEncode(label)}, ${jsonEncode(category)}, $x, $y, ${jsonEncode(notes)}, ${jsonEncode(terminals)})',
     );
   }
 
@@ -460,7 +465,7 @@ abstract class LegacyV2Channel {
   Future<void> sendAuthoritativeModuleLabel(String v2ModuleId, String label);
   Future<void> restoreModule(
       String v2ModuleId, String label, String category, double x, double y,
-      {String notes});
+      {String notes, List<Map<String, String>> terminals});
   Future<void> removeModuleFromV2(String v2ModuleId);
   Future<void> confirmWireCreated(String v2WireId, String label, String color);
   Future<void> removeWireFromV2(String v2WireId);
@@ -540,7 +545,8 @@ class V2SnapshotModule {
       required this.category,
       required this.notes,
       required this.x,
-      required this.y});
+      required this.y,
+      this.terminals = const []});
 
   factory V2SnapshotModule.fromJson(Map<String, dynamic> json) =>
       V2SnapshotModule(
@@ -549,6 +555,7 @@ class V2SnapshotModule {
         notes: json['notes'] as String? ?? '',
         x: (json['x'] as num?)?.toDouble() ?? 0,
         y: (json['y'] as num?)?.toDouble() ?? 0,
+        terminals: _parseTerminals(json['terminals']),
       );
 
   final String label;
@@ -556,6 +563,10 @@ class V2SnapshotModule {
   final String notes;
   final double x;
   final double y;
+
+  /// § [V2ModuleCreatedMessage.terminals] — same shape, captured via the
+  /// Save flush barrier's snapshot instead of the live poller.
+  final List<Map<String, String>> terminals;
 }
 
 class V2SnapshotWire {
@@ -608,6 +619,7 @@ class V2ModuleCreatedMessage {
     required this.category,
     required this.x,
     required this.y,
+    this.terminals = const [],
   });
 
   factory V2ModuleCreatedMessage.fromJson(Map<String, dynamic> json) =>
@@ -617,6 +629,7 @@ class V2ModuleCreatedMessage {
         category: json['category'] as String? ?? '',
         x: (json['x'] as num?)?.toDouble() ?? 0,
         y: (json['y'] as num?)?.toDouble() ?? 0,
+        terminals: _parseTerminals(json['terminals']),
       );
 
   final String v2ModuleId;
@@ -624,6 +637,24 @@ class V2ModuleCreatedMessage {
   final String category;
   final double x;
   final double y;
+
+  /// AP-DIAGRAM-V2-BRIDGE-SAVE-007 — V2's own terminal list (`m.terminals`,
+  /// each a raw `{n, c}` pair — terminal name and color code, verbatim
+  /// V2 vocabulary, unchanged/uninterpreted by OEP) at the moment this
+  /// module was observed as created. Stashed into the OEP node's own
+  /// metadata (`_handleModuleCreated`) so a later `restoreModule` call —
+  /// on document reopen, or after an Engine undo-of-delete — can
+  /// reconstruct a module V2 actually renders with terminal dots, instead
+  /// of the empty list `restoreModule` used to always default to.
+  final List<Map<String, String>> terminals;
+}
+
+List<Map<String, String>> _parseTerminals(Object? raw) {
+  if (raw is! List) return const [];
+  return raw
+      .whereType<Map>()
+      .map((t) => t.map((k, v) => MapEntry(k.toString(), v?.toString() ?? '')))
+      .toList();
 }
 
 class V2ModuleDeletedMessage {

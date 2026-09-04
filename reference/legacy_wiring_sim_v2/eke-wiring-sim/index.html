@@ -491,19 +491,29 @@
           </select>
         </div>
       </div>
+      <div class="form-row" id="mpm-location-row">
+        <div class="form-lbl">Location <span style="color:var(--text-faint);font-weight:600;font-size:8px">(where to physically find it on the vehicle)</span></div>
+        <input class="fi" id="mpm-location" placeholder="e.g. Behind left headlight, spliced into main harness"/>
+      </div>
       <div class="form-row">
         <div class="form-lbl">Notes / Description</div>
         <textarea class="fi" id="mpm-notes" placeholder="Any notes about this module…" style="min-height:50px;resize:vertical;font-size:8px;line-height:1.5"></textarea>
       </div>
-      <div class="form-row" style="flex-direction:row;align-items:center;gap:8px;margin-bottom:6px">
+      <div class="form-row" id="mpm-is-conn-row" style="flex-direction:row;align-items:center;gap:8px;margin-bottom:6px">
         <input type="checkbox" id="mpm-is-conn" style="accent-color:#0e7490">
         <div class="form-lbl" style="margin:0">Inline Connector (dual IN/OUT colors per pin)</div>
       </div>
-      <div class="form-lbl">Terminals / Pins <span style="color:var(--text-faint);font-weight:600;font-size:8px">(rename or recolor — color dot updates live)</span></div>
-      <div id="mpm-terms" style="display:flex;flex-direction:column;gap:5px;margin-top:5px;max-height:220px;overflow-y:auto;padding-right:4px"></div>
-      <div style="display:flex;gap:6px;margin-top:6px">
-        <button id="mpm-add-term" onclick="addMpmTerm()">+ Add Terminal</button>
-        <button id="mpm-add-pin" onclick="addMpmPin()" style="display:none">+ Add Pin</button>
+      <div class="form-row" id="mpm-vertical-row" style="display:none;flex-direction:row;align-items:center;gap:8px;margin-bottom:6px">
+        <input type="checkbox" id="mpm-vertical" style="accent-color:#0e7490">
+        <div class="form-lbl" style="margin:0">Stand Vertical (pins top-to-bottom, IN from left / OUT to right)</div>
+      </div>
+      <div id="mpm-terms-section">
+        <div class="form-lbl">Terminals / Pins <span style="color:var(--text-faint);font-weight:600;font-size:8px">(rename or recolor — color dot updates live)</span></div>
+        <div id="mpm-terms" style="display:flex;flex-direction:column;gap:5px;margin-top:5px;max-height:220px;overflow-y:auto;padding-right:4px"></div>
+        <div style="display:flex;gap:6px;margin-top:6px">
+          <button id="mpm-add-term" onclick="addMpmTerm()">+ Add Terminal</button>
+          <button id="mpm-add-pin" onclick="addMpmPin()" style="display:none">+ Add Pin</button>
+        </div>
       </div>
     </div>
     <div class="modal-ft">
@@ -514,8 +524,11 @@
 </div>
 <script>
 document.getElementById('mpm-is-conn').addEventListener('change',function(){
-  document.getElementById('mpm-add-term').style.display=this.checked?'none':'';
-  document.getElementById('mpm-add-pin').style.display=this.checked?'':'none';
+  const isConn=this.checked;
+  document.getElementById('mpm-add-term').style.display=isConn?'none':'';
+  document.getElementById('mpm-add-pin').style.display=isConn?'':'none';
+  document.getElementById('mpm-vertical-row').style.display=isConn?'flex':'none';
+  if(!isConn)document.getElementById('mpm-vertical').checked=false;
 });
 </script>
 
@@ -633,6 +646,10 @@ document.getElementById('mpm-is-conn').addEventListener('change',function(){
         <input type="checkbox" id="am-is-conn" style="accent-color:#0e7490">
         <div class="form-lbl" style="margin:0">Inline Connector (IN → OUT pin colors)</div>
       </div>
+      <div class="form-row" id="am-vertical-row" style="display:none;flex-direction:row;align-items:center;gap:8px">
+        <input type="checkbox" id="am-vertical" style="accent-color:#0e7490">
+        <div class="form-lbl" style="margin:0">Stand Vertical (pins top-to-bottom, IN from left / OUT to right)</div>
+      </div>
       <div class="form-row">
         <div class="form-lbl">Terminals / Pins</div>
         <div id="term-builder"></div>
@@ -650,6 +667,8 @@ document.getElementById('am-is-conn').addEventListener('change',function(){
   const isConn=this.checked;
   document.getElementById('add-term-btn').style.display=isConn?'none':'';
   document.getElementById('add-conn-term-btn').style.display=isConn?'':'none';
+  document.getElementById('am-vertical-row').style.display=isConn?'flex':'none';
+  if(!isConn)document.getElementById('am-vertical').checked=false;
   document.getElementById('term-builder').innerHTML='';
   if(isConn){addConnTermRow('A','W','W');addConnTermRow('B','Bl','Bl');}
   else{addTermRow();addTermRow();}
@@ -684,6 +703,7 @@ document.getElementById('am-is-conn').addEventListener('change',function(){
   <div class="ctx-i" id="ctx-edit" onclick="ctxEdit()">✎ Edit Wire Props</div>
   <div class="ctx-i" id="ctx-trace" onclick="ctxTrace()">◎ Trace Circuit</div>
   <div class="ctx-i" id="ctx-route" onclick="ctxRoute()">↔ Edit Route</div>
+  <div class="ctx-i" id="ctx-rotate" style="display:none" onclick="ctxRotate()">⟳ Rotate Connector</div>
   <div class="ctx-sep"></div>
   <div class="ctx-i danger" id="ctx-del" onclick="ctxDelete()">✕ Delete</div>
 </div>

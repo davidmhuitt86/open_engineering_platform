@@ -51,9 +51,9 @@ void main() {
       await _openPalette(tester);
 
       final commands = CommandRegistry.defaultRegistry.commands;
-      expect(commands, hasLength(21),
+      expect(commands, hasLength(22),
           reason: 'WP-STUDIO-023 registered 13 (Diagram/Acquisition); WP-STUDIO-025 added 5 more (Knowledge); '
-              'WP-EXC-010 added 3 more (Exchange)');
+              'WP-EXC-010 added 3 more (Exchange); AP-EK-020 added 1 more (diagram.analyze).');
 
       final listFinder = find.descendant(of: find.byType(ListView), matching: find.byType(Scrollable));
       // First-registered (Diagram) and last-registered (Acquisition)

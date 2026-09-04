@@ -97,10 +97,104 @@ function handleWireTerm(mid, tn, dot) {
     };
     WIRES.push(nw);
     clearSrcHL(); wireSrc = null;
-    $('wep-status').textContent = 'Click a source terminal';
     selW = nw; drawWires();
-    showToast('Wire created — edit properties');
+    showToast('Wire created — adjust its route, or edit properties');
+    // Wire creation flows straight into Route Edit mode for the wire
+    // just drawn — the user can drag/nudge its route immediately,
+    // without leaving wire-creation flow or saving first. `wireMode` is
+    // still true here; `toggleRouteEditMode()` sees that and calls
+    // `cancelWireMode()` itself before turning Route Edit on, so this is
+    // the same clean handoff `ctxRoute()`/the route-edit button already
+    // use elsewhere — not a special case invented for this path.
+    toggleRouteEditMode();
+    // The properties modal (#wpm) is a full-screen overlay, so it still
+    // makes sense to offer it right after creation (rename from "New
+    // Wire", set a color code) — closing it leaves Route Edit already
+    // active underneath, so the very next thing the user can do is drag
+    // the route with no extra clicks.
     setTimeout(() => editWireProps(), 300);
+  }
+}
+
+// ── Splices ───────────────────────────────────────────────────────
+//
+// A splice is a wire-junction point (a shared ground/power tap, or any
+// point where two or more wires are physically joined) — not a pin or
+// terminal on a real component. Represented as a MODULES entry with
+// `splice:true` and exactly one implicit terminal ("SPLICE"), so it
+// reuses the entire existing terminal/wire/routing/save-load pipeline
+// unchanged (see buildSpliceCard in renderer.js). `location` is a free-
+// text field describing where to physically find it on the vehicle —
+// the field the user specifically needs for splices (module-editor.js's
+// editModProps()/saveModProps() read/write it like `notes`).
+//
+// Reachable two ways:
+//   1. In Wire mode, click a point on an existing wire (not a terminal) —
+//      handleWireClickOnExistingWire, wired into drawWires()'s wireMode
+//      hit-path branch (renderer.js).
+//   2. "Splice" in the Add Module panel — openAddSplice() (module-editor.js)
+//      — places a freestanding splice the user then wires up normally.
+
+function insertSpliceOnWire(w, point) {
+  const id = 'splice-' + Date.now();
+  const spliceMod = {
+    id, label: 'Splice', sub: '', cat: 'splice', splice: true, location: '',
+    exit: 'up', terminals: [{ n: 'SPLICE', c: w.c || 'W' }], _user: true,
+  };
+  MODULES.push(spliceMod);
+  // Center the splice's dot (see buildSpliceCard: a bare 10x10 circle,
+  // no card padding) exactly on the clicked point on the wire.
+  positions[id] = { x: Math.round(point.x - 5), y: Math.round(point.y - 5) };
+  placeCards();
+
+  // Splicing physically means cutting the existing run at this point and
+  // joining both cut ends to the new splice — so the wire being clicked
+  // becomes two wires meeting at the splice, not one wire re-routed
+  // through it. Both halves are created fresh with `wire-` ids (rather
+  // than mutating `w` in place and keeping its original id) so both
+  // reliably round-trip through saveLayout()/onLayoutFile() — which only
+  // persist/restore wires whose id starts with "wire-" (project-saver.js,
+  // project-loader.js) — regardless of whether the wire being spliced was
+  // itself a user-created wire or one of the vehicle bundle's original
+  // wires. The original wire object is removed from WIRES here; if it
+  // was a bundle-original wire (not previously saved as a "wire-"
+  // entry), this deletion — like any deletion of original bundle content
+  // in this app — does not persist across a full reload from the bundle,
+  // which reconstructs it fresh (the same pre-existing limitation
+  // delModule() already has for a bundle module's wires; not something
+  // newly introduced here).
+  const from = { m: w.from.m, t: w.from.t };
+  const to   = { m: w.to.m,   t: w.to.t   };
+  const c = w.c, lbl = w.lbl, desc = w.desc, R = JSON.parse(JSON.stringify(w.R || []));
+  WIRES = WIRES.filter(x => x.id !== w.id);
+  delete wireRoutes[w.id];
+  if (selW && selW.id === w.id) selW = null;
+  const w1 = { id: 'wire-' + Date.now() + '-a', c, lbl, from, to: { m: id, t: 'SPLICE' }, desc, R: JSON.parse(JSON.stringify(R)) };
+  const w2 = { id: 'wire-' + Date.now() + '-b', c, lbl, from: { m: id, t: 'SPLICE' }, to,   desc, R };
+  WIRES.push(w1, w2);
+  return id;
+}
+
+// In Wire mode, clicking a point on an existing wire (rather than a
+// terminal) either starts the new wire from a splice inserted there, or
+// — if a source terminal/splice was already picked — completes the new
+// wire onto a splice inserted there. Mirrors handleWireTerm's own
+// two-branch shape.
+function handleWireClickOnExistingWire(w, evt) {
+  const cr = canvas.getBoundingClientRect();
+  const mx = (evt.clientX - cr.left) / scale, my = (evt.clientY - cr.top) / scale;
+  const hit = closestPointOnWire(w, mx, my);
+  if (!hit) return;
+  const spliceId = insertSpliceOnWire(w, hit.point);
+  if (!wireSrc) {
+    wireSrc = { m: spliceId, t: 'SPLICE' };
+    clearSrcHL();
+    const card = cardEls[spliceId]; if (card) card.classList.add('wire-src');
+    $('wep-status').textContent = 'FROM: Splice  →  click destination';
+    drawWires();
+    showToast('Splice added — now click the destination');
+  } else {
+    handleWireTerm(spliceId, 'SPLICE', null);
   }
 }
 

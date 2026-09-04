@@ -1,0 +1,24 @@
+- behavior_id: equation.power.forward_solver
+  name: Forward Solver
+  behavior_type: Solver
+  description: Solves for power given voltage and current (P = V x I).
+  inputs:
+    - name: voltage
+      value_type: number
+      unit_ref: unit.volt
+      unit_symbol_pending: null
+      required: true
+    - name: current
+      value_type: number
+      unit_ref: unit.ampere
+      unit_symbol_pending: null
+      required: true
+  outputs:
+    - name: power
+      value_type: number
+      unit_ref: unit.watt
+      unit_symbol_pending: null
+  constraints: []
+  dependencies: []
+  execution_metadata:
+    deterministic: true

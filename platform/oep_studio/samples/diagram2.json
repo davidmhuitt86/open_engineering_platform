@@ -1,0 +1,1359 @@
+{
+  "schemaVersion": 1,
+  "documentId": "4b6f21439037ce0f",
+  "graph": {
+    "id": "graph_hlzkexnf4n_2vgt7z",
+    "nodes": [
+      {
+        "id": "node_hlzkey9sjk_1m2whrj",
+        "category": "component",
+        "displayName": "Indicator Lights",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "indicator-lights",
+          "v2Category": "indicator",
+          "v2Terminals": [
+            {
+              "n": "OIL",
+              "c": "Br/R"
+            },
+            {
+              "n": "REV",
+              "c": "Gr"
+            },
+            {
+              "n": "NEU",
+              "c": "Lg/R"
+            }
+          ]
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hlzkey9vmm_1ommirp",
+        "category": "component",
+        "displayName": "CDI Unit",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "cdi-unit",
+          "v2Category": "ignition",
+          "v2Terminals": [
+            {
+              "n": "P1",
+              "c": "Bl/Y"
+            },
+            {
+              "n": "P2",
+              "c": "G"
+            },
+            {
+              "n": "P3",
+              "c": "Blu/Y"
+            },
+            {
+              "n": "P4",
+              "c": "Y/W"
+            },
+            {
+              "n": "P5",
+              "c": "Bl/W"
+            },
+            {
+              "n": "P6",
+              "c": "Gr"
+            }
+          ]
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hlzkey9vmm_1w3qmr0",
+        "category": "component",
+        "displayName": "Alarm Unit",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "alarm-unit",
+          "v2Category": "control",
+          "v2Terminals": [
+            {
+              "n": "A1",
+              "c": "Br/R"
+            },
+            {
+              "n": "A2",
+              "c": "Bl"
+            },
+            {
+              "n": "A3",
+              "c": "G"
+            },
+            {
+              "n": "A5",
+              "c": "P"
+            },
+            {
+              "n": "A6",
+              "c": "Blu/R"
+            }
+          ]
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hlzkey9wef_1loaphe",
+        "category": "component",
+        "displayName": "Ignition Switch",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "ignition-switch",
+          "v2Category": "control",
+          "v2Terminals": [
+            {
+              "n": "BAT1",
+              "c": "R"
+            },
+            {
+              "n": "BAT2",
+              "c": "Bl"
+            },
+            {
+              "n": "IG1",
+              "c": "P"
+            },
+            {
+              "n": "BAT3",
+              "c": "P/W"
+            }
+          ]
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hlzkey9wef_jebsf0",
+        "category": "component",
+        "displayName": "DC Consent",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "dc-consent-jack",
+          "v2Category": "accessory",
+          "v2Terminals": [
+            {
+              "n": "+12V",
+              "c": "P"
+            },
+            {
+              "n": "GND",
+              "c": "G"
+            }
+          ]
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hlzkey9wef_150zdd6",
+        "category": "component",
+        "displayName": "Rectifier",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "rectifier-diode",
+          "v2Category": "charging",
+          "v2Terminals": [
+            {
+              "n": "A",
+              "c": "Lg/R"
+            },
+            {
+              "n": "K",
+              "c": "G/R"
+            }
+          ]
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hlzkey9wef_gh2pji",
+        "category": "component",
+        "displayName": "Reg/Rect",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "regulator-rectifier",
+          "v2Category": "charging",
+          "v2Terminals": [
+            {
+              "n": "GND",
+              "c": "Bl"
+            },
+            {
+              "n": "B+",
+              "c": "R"
+            },
+            {
+              "n": "REG",
+              "c": "G"
+            },
+            {
+              "n": "AC1",
+              "c": "Y"
+            },
+            {
+              "n": "AC2",
+              "c": "Y"
+            },
+            {
+              "n": "AC3",
+              "c": "Y"
+            }
+          ]
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hlzkey9wef_6ri8o",
+        "category": "component",
+        "displayName": "LH Handlebar Sw",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "left-handlebar-switch",
+          "v2Category": "control",
+          "v2Terminals": [
+            {
+              "n": "BAT2",
+              "c": "Bl"
+            },
+            {
+              "n": "IG1",
+              "c": "Bl"
+            },
+            {
+              "n": "TL",
+              "c": "Br"
+            },
+            {
+              "n": "ST",
+              "c": "Y/R"
+            },
+            {
+              "n": "IG2",
+              "c": "Bl/W"
+            },
+            {
+              "n": "LO",
+              "c": "W"
+            },
+            {
+              "n": "HI",
+              "c": "Blu"
+            }
+          ]
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hlzkey9wef_17avgi2",
+        "category": "component",
+        "displayName": "Chassis GND",
+        "symbolId": "ground",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "chassis-ground",
+          "v2Category": "ground",
+          "v2Terminals": [
+            {
+              "n": "A",
+              "c": "G"
+            },
+            {
+              "n": "B",
+              "c": "G"
+            }
+          ]
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hlzkey9x67_18lxpwt",
+        "category": "component",
+        "displayName": "Ignition Coil",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "ignition-coil",
+          "v2Category": "ignition",
+          "v2Terminals": [
+            {
+              "n": "PRI+",
+              "c": "Bl/Y"
+            },
+            {
+              "n": "GND",
+              "c": "G"
+            }
+          ]
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hlzkey9x67_bmvf7q",
+        "category": "component",
+        "displayName": "Spark Plug",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "spark-plug",
+          "v2Category": "ignition",
+          "v2Terminals": [
+            {
+              "n": "HT",
+              "c": "—"
+            }
+          ]
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hlzkey9x67_1n2gfpi",
+        "category": "component",
+        "displayName": "Reverse Switch",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "reverse-switch",
+          "v2Category": "switch",
+          "v2Terminals": [
+            {
+              "n": "OUT",
+              "c": "Gr"
+            },
+            {
+              "n": "BODY",
+              "c": "G"
+            }
+          ]
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hlzkey9x67_1uis8kt",
+        "category": "component",
+        "displayName": "Neutral Switch",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "neutral-switch",
+          "v2Category": "switch",
+          "v2Terminals": [
+            {
+              "n": "OUT",
+              "c": "Lg"
+            },
+            {
+              "n": "BODY",
+              "c": "G"
+            }
+          ]
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hlzkey9x67_o482f7",
+        "category": "component",
+        "displayName": "Oil Temp Switch",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "oil-temp-switch",
+          "v2Category": "switch",
+          "v2Terminals": [
+            {
+              "n": "OUT",
+              "c": "Bl"
+            },
+            {
+              "n": "BODY",
+              "c": "G"
+            }
+          ]
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hlzkey9x67_1olc4rn",
+        "category": "component",
+        "displayName": "Pulser Coil",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "pulser-coil",
+          "v2Category": "ignition",
+          "v2Terminals": [
+            {
+              "n": "OUT",
+              "c": "Blu/Y"
+            },
+            {
+              "n": "BODY",
+              "c": "G"
+            }
+          ]
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hlzkey9x67_1ht7je3",
+        "category": "component",
+        "displayName": "Stator/Alt",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "alternator-stator",
+          "v2Category": "charging",
+          "v2Terminals": [
+            {
+              "n": "GND",
+              "c": "G"
+            },
+            {
+              "n": "LIT",
+              "c": "Y/W"
+            },
+            {
+              "n": "AC1",
+              "c": "Y"
+            },
+            {
+              "n": "AC2",
+              "c": "Y"
+            },
+            {
+              "n": "AC3",
+              "c": "Y"
+            }
+          ]
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hlzkey9xxy_1syxe5y",
+        "category": "component",
+        "displayName": "Starter Motor",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "starter-motor",
+          "v2Category": "starter",
+          "v2Terminals": [
+            {
+              "n": "B+",
+              "c": "Bl"
+            },
+            {
+              "n": "BODY",
+              "c": "G"
+            }
+          ]
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hlzkey9xxy_1m34obe",
+        "category": "component",
+        "displayName": "Starter Relay",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "starter-relay",
+          "v2Category": "starter",
+          "v2Terminals": [
+            {
+              "n": "C+",
+              "c": "Y/R"
+            },
+            {
+              "n": "C-",
+              "c": "Lg/R"
+            },
+            {
+              "n": "MB+",
+              "c": "Bl"
+            },
+            {
+              "n": "MO",
+              "c": "Bl"
+            }
+          ]
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hlzkey9xxy_8lra0d",
+        "category": "component",
+        "displayName": "Battery + Fuses",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "battery-fuses",
+          "v2Category": "power",
+          "v2Terminals": [
+            {
+              "n": "B+(R)",
+              "c": "R"
+            },
+            {
+              "n": "B+(PW)",
+              "c": "P/W"
+            },
+            {
+              "n": "MB+",
+              "c": "Bl"
+            },
+            {
+              "n": "B-",
+              "c": "Bl"
+            }
+          ]
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hlzkey9xxy_90ipu6",
+        "category": "component",
+        "displayName": "RH Headlight",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "rh-headlight",
+          "v2Category": "lighting",
+          "v2Terminals": [
+            {
+              "n": "HI",
+              "c": "Bu"
+            },
+            {
+              "n": "LO",
+              "c": "W"
+            },
+            {
+              "n": "GND",
+              "c": "G"
+            }
+          ]
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hlzkey9xxy_guvkl",
+        "category": "component",
+        "displayName": "LH Headlight",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "lh-headlight",
+          "v2Category": "lighting",
+          "v2Terminals": [
+            {
+              "n": "HI",
+              "c": "Bu"
+            },
+            {
+              "n": "LO",
+              "c": "W"
+            },
+            {
+              "n": "GND",
+              "c": "G"
+            }
+          ]
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hlzkey9xxy_919fat",
+        "category": "component",
+        "displayName": "Tail Light",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "tail-light",
+          "v2Category": "lighting",
+          "v2Terminals": [
+            {
+              "n": "P/W",
+              "c": "P/W"
+            },
+            {
+              "n": "R",
+              "c": "R"
+            }
+          ]
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hlzkf7jod7_10befro",
+        "category": "component",
+        "displayName": "Connector 4P Vertical",
+        "symbolId": "connector",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "mod-connector-4p-vertical-1788549772219",
+          "v2Category": "connector",
+          "v2Terminals": [
+            {
+              "n": "A",
+              "c": "R|R"
+            },
+            {
+              "n": "B",
+              "c": "W|W"
+            },
+            {
+              "n": "C",
+              "c": "G|G"
+            },
+            {
+              "n": "D",
+              "c": "Y|Y"
+            }
+          ]
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      }
+    ],
+    "relationships": [
+      {
+        "id": "rel_hlzkey9ypr_yj1x9u",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hlzkey9x67_1ht7je3",
+        "targetNode": "node_hlzkey9wef_gh2pji",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "stator-ac1",
+          "label": "Stator Ph1",
+          "wireColor": "Y",
+          "sourcePort": "AC1",
+          "targetPort": "AC1"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hlzkeya09b_1cr244c",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hlzkey9x67_1ht7je3",
+        "targetNode": "node_hlzkey9wef_gh2pji",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "stator-ac2",
+          "label": "Stator Ph2",
+          "wireColor": "Y",
+          "sourcePort": "AC2",
+          "targetPort": "AC2"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hlzkeya09b_qtbdv6",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hlzkey9x67_1ht7je3",
+        "targetNode": "node_hlzkey9wef_gh2pji",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "stator-ac3",
+          "label": "Stator Ph3",
+          "wireColor": "Y",
+          "sourcePort": "AC3",
+          "targetPort": "AC3"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hlzkeya09b_1qpwvz5",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hlzkey9x67_1ht7je3",
+        "targetNode": "node_hlzkey9wef_gh2pji",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "stator-gnd",
+          "label": "Stator GND",
+          "wireColor": "G",
+          "sourcePort": "GND",
+          "targetPort": "REG"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hlzkeya114_1k38nk1",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hlzkey9wef_gh2pji",
+        "targetNode": "node_hlzkey9xxy_8lra0d",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "reg-bat",
+          "label": "Charge Out",
+          "wireColor": "R",
+          "sourcePort": "B+",
+          "targetPort": "B+(R)"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hlzkeya114_n1uphh",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hlzkey9x67_1olc4rn",
+        "targetNode": "node_hlzkey9vmm_1ommirp",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "pulser-cdi",
+          "label": "Pulser Signal",
+          "wireColor": "Blu/Y",
+          "sourcePort": "OUT",
+          "targetPort": "P3"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hlzkeya1sz_uiclp3",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hlzkey9x67_1olc4rn",
+        "targetNode": "node_hlzkey9wef_17avgi2",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "pulser-gnd",
+          "label": "Pulser GND",
+          "wireColor": "G",
+          "sourcePort": "BODY",
+          "targetPort": "A"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hlzkeya1sz_17o6vva",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hlzkey9vmm_1ommirp",
+        "targetNode": "node_hlzkey9x67_18lxpwt",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "cdi-coil",
+          "label": "CDI→Ign Coil",
+          "wireColor": "Bl/Y",
+          "sourcePort": "P1",
+          "targetPort": "PRI+"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hlzkeya2ky_bj5992",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hlzkey9x67_18lxpwt",
+        "targetNode": "node_hlzkey9wef_17avgi2",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "coil-gnd",
+          "label": "Coil GND",
+          "wireColor": "G",
+          "sourcePort": "GND",
+          "targetPort": "A"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hlzkeya2ky_1jyemfb",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hlzkey9vmm_1ommirp",
+        "targetNode": "node_hlzkey9wef_17avgi2",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "cdi-gnd",
+          "label": "CDI GND",
+          "wireColor": "G",
+          "sourcePort": "P2",
+          "targetPort": "B"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hlzkeya2ky_sku44p",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hlzkey9sjk_1m2whrj",
+        "targetNode": "node_hlzkey9vmm_1w3qmr0",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "oil-alarm",
+          "label": "Oil Temp Sig",
+          "wireColor": "Br/R",
+          "sourcePort": "OIL",
+          "targetPort": "A1"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hlzkeya2ky_13gvfpn",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hlzkey9x67_1n2gfpi",
+        "targetNode": "node_hlzkey9sjk_1m2whrj",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "rev-ind",
+          "label": "Reverse Signal",
+          "wireColor": "Gr",
+          "sourcePort": "OUT",
+          "targetPort": "REV"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hlzkeya3cj_1fz1u2w",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hlzkey9x67_1n2gfpi",
+        "targetNode": "node_hlzkey9wef_17avgi2",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "rev-gnd",
+          "label": "Rev SW GND",
+          "wireColor": "G",
+          "sourcePort": "BODY",
+          "targetPort": "A"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hlzkeya3cj_xgawgr",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hlzkey9x67_1uis8kt",
+        "targetNode": "node_hlzkey9wef_17avgi2",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "neu-gnd",
+          "label": "Neu SW GND",
+          "wireColor": "G",
+          "sourcePort": "BODY",
+          "targetPort": "A"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hlzkeya3cj_1gna7if",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hlzkey9x67_o482f7",
+        "targetNode": "node_hlzkey9wef_17avgi2",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "oilsw-gnd",
+          "label": "Oil SW GND",
+          "wireColor": "G",
+          "sourcePort": "BODY",
+          "targetPort": "A"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hlzkeya3cj_4yp8ta",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hlzkey9sjk_1m2whrj",
+        "targetNode": "node_hlzkey9wef_150zdd6",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "neu-ind",
+          "label": "Neutral Feed",
+          "wireColor": "Lg/R",
+          "sourcePort": "NEU",
+          "targetPort": "A"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hlzkeya3cj_5uj28b",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hlzkey9xxy_8lra0d",
+        "targetNode": "node_hlzkey9wef_1loaphe",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "bat-ign-r",
+          "label": "Batt to Ign R",
+          "wireColor": "R",
+          "sourcePort": "B+(R)",
+          "targetPort": "BAT1"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hlzkeya44i_fostet",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hlzkey9xxy_8lra0d",
+        "targetNode": "node_hlzkey9wef_1loaphe",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "bat-ign-pw",
+          "label": "Batt to Ign PW",
+          "wireColor": "P/W",
+          "sourcePort": "B+(PW)",
+          "targetPort": "BAT3"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hlzkeya44i_6k93pz",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hlzkey9wef_1loaphe",
+        "targetNode": "node_hlzkey9wef_jebsf0",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "ign-consent",
+          "label": "Ign to DC Jack",
+          "wireColor": "P",
+          "sourcePort": "IG1",
+          "targetPort": "+12V"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hlzkeya44i_cac09o",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hlzkey9wef_1loaphe",
+        "targetNode": "node_hlzkey9vmm_1w3qmr0",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "ign-alarm",
+          "label": "Ign to Alarm",
+          "wireColor": "P",
+          "sourcePort": "IG1",
+          "targetPort": "A5"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hlzkeya4w9_1cjhhcf",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hlzkey9wef_jebsf0",
+        "targetNode": "node_hlzkey9wef_17avgi2",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "jack-gnd",
+          "label": "Jack GND",
+          "wireColor": "G",
+          "sourcePort": "GND",
+          "targetPort": "A"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hlzkeya4w9_18pznd",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hlzkey9wef_6ri8o",
+        "targetNode": "node_hlzkey9vmm_1ommirp",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "kill-cdi",
+          "label": "Kill to CDI",
+          "wireColor": "Bl/W",
+          "sourcePort": "IG2",
+          "targetPort": "P5"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hlzkeya4w9_3tv6e5",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hlzkey9wef_6ri8o",
+        "targetNode": "node_hlzkey9xxy_1m34obe",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "start-relay",
+          "label": "Start Button",
+          "wireColor": "Y/R",
+          "sourcePort": "ST",
+          "targetPort": "C+"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hlzkeya5nt_2pkcfl",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hlzkey9xxy_1m34obe",
+        "targetNode": "node_hlzkey9vmm_1ommirp",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "relay-cdi",
+          "label": "Relay C- CDI",
+          "wireColor": "Gr",
+          "sourcePort": "C-",
+          "targetPort": "P6"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hlzkeya5nt_1hvghqk",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hlzkey9xxy_8lra0d",
+        "targetNode": "node_hlzkey9xxy_1m34obe",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "bat-relay",
+          "label": "Batt to Relay",
+          "wireColor": "Bl",
+          "sourcePort": "MB+",
+          "targetPort": "MB+"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hlzkeya5nt_imerkz",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hlzkey9xxy_1m34obe",
+        "targetNode": "node_hlzkey9xxy_1syxe5y",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "relay-motor",
+          "label": "Relay to Motor",
+          "wireColor": "Bl",
+          "sourcePort": "MO",
+          "targetPort": "B+"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hlzkeya5nt_p71snl",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hlzkey9xxy_1syxe5y",
+        "targetNode": "node_hlzkey9wef_17avgi2",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "motor-gnd",
+          "label": "Motor GND",
+          "wireColor": "G",
+          "sourcePort": "BODY",
+          "targetPort": "B"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hlzkeya5nt_zncz83",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hlzkey9xxy_8lra0d",
+        "targetNode": "node_hlzkey9wef_17avgi2",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "bat-neg",
+          "label": "Battery GND",
+          "wireColor": "Bl",
+          "sourcePort": "B-",
+          "targetPort": "B"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hlzkeya6fk_f7e2zc",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hlzkey9wef_6ri8o",
+        "targetNode": "node_hlzkey9xxy_90ipu6",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "hlsw-lo",
+          "label": "SW Low Beam",
+          "wireColor": "W",
+          "sourcePort": "LO",
+          "targetPort": "LO"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hlzkeya6fk_1j801as",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hlzkey9wef_6ri8o",
+        "targetNode": "node_hlzkey9xxy_90ipu6",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "hlsw-hi",
+          "label": "SW High Beam",
+          "wireColor": "Bu",
+          "sourcePort": "HI",
+          "targetPort": "HI"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hlzkeya6fk_fprjnm",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hlzkey9xxy_90ipu6",
+        "targetNode": "node_hlzkey9wef_17avgi2",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "rh-gnd",
+          "label": "RH HL GND",
+          "wireColor": "G",
+          "sourcePort": "GND",
+          "targetPort": "B"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hlzkeya6fk_1pow9kv",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hlzkey9xxy_90ipu6",
+        "targetNode": "node_hlzkey9xxy_guvkl",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "lh-hi-spl",
+          "label": "LH HI Splice",
+          "wireColor": "Bu",
+          "sourcePort": "HI",
+          "targetPort": "HI"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hlzkeya6fk_cqm4vp",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hlzkey9xxy_90ipu6",
+        "targetNode": "node_hlzkey9xxy_guvkl",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "lh-lo-spl",
+          "label": "LH LO Splice",
+          "wireColor": "W",
+          "sourcePort": "LO",
+          "targetPort": "LO"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hlzkeya77d_sx8h9u",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hlzkey9xxy_90ipu6",
+        "targetNode": "node_hlzkey9xxy_guvkl",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "lh-gnd-spl",
+          "label": "LH GND Splice",
+          "wireColor": "G",
+          "sourcePort": "GND",
+          "targetPort": "GND"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hlzkeya77d_6tiqyi",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hlzkey9x67_1uis8kt",
+        "targetNode": "node_hlzkey9sjk_1m2whrj",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "neu-sw-ind",
+          "label": "Neutral Sense",
+          "wireColor": "Lg",
+          "sourcePort": "OUT",
+          "targetPort": "NEU"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hlzkeya77d_xu2boi",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hlzkey9x67_o482f7",
+        "targetNode": "node_hlzkey9sjk_1m2whrj",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "oil-sw-ind",
+          "label": "Oil Temp Sw Ind",
+          "wireColor": "Bl",
+          "sourcePort": "OUT",
+          "targetPort": "OIL"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hlzkeya77d_s3nvpf",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hlzkey9wef_1loaphe",
+        "targetNode": "node_hlzkey9xxy_919fat",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "tail-pw",
+          "label": "Tail P/W",
+          "wireColor": "P/W",
+          "sourcePort": "BAT3",
+          "targetPort": "P/W"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hlzkeya77d_1m96f8d",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hlzkey9xxy_8lra0d",
+        "targetNode": "node_hlzkey9xxy_919fat",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "tail-r",
+          "label": "Tail R",
+          "wireColor": "R",
+          "sourcePort": "B+(R)",
+          "targetPort": "R"
+        },
+        "evidenceLinks": []
+      }
+    ],
+    "groups": [],
+    "metadata": {}
+  },
+  "layout": {
+    "positions": {
+      "node_hlzkey9sjk_1m2whrj": {
+        "dx": 20.0,
+        "dy": 30.0
+      },
+      "node_hlzkey9vmm_1ommirp": {
+        "dx": 130.0,
+        "dy": 30.0
+      },
+      "node_hlzkey9vmm_1w3qmr0": {
+        "dx": 255.0,
+        "dy": 30.0
+      },
+      "node_hlzkey9wef_1loaphe": {
+        "dx": 380.0,
+        "dy": 30.0
+      },
+      "node_hlzkey9wef_jebsf0": {
+        "dx": 500.0,
+        "dy": 30.0
+      },
+      "node_hlzkey9wef_150zdd6": {
+        "dx": 590.0,
+        "dy": 30.0
+      },
+      "node_hlzkey9wef_gh2pji": {
+        "dx": 668.0,
+        "dy": 30.0
+      },
+      "node_hlzkey9wef_6ri8o": {
+        "dx": 155.0,
+        "dy": 580.0
+      },
+      "node_hlzkey9wef_17avgi2": {
+        "dx": 320.0,
+        "dy": 580.0
+      },
+      "node_hlzkey9x67_18lxpwt": {
+        "dx": 400.0,
+        "dy": 580.0
+      },
+      "node_hlzkey9x67_bmvf7q": {
+        "dx": 480.0,
+        "dy": 580.0
+      },
+      "node_hlzkey9x67_1n2gfpi": {
+        "dx": 540.0,
+        "dy": 580.0
+      },
+      "node_hlzkey9x67_1uis8kt": {
+        "dx": 610.0,
+        "dy": 580.0
+      },
+      "node_hlzkey9x67_o482f7": {
+        "dx": 680.0,
+        "dy": 580.0
+      },
+      "node_hlzkey9x67_1olc4rn": {
+        "dx": 750.0,
+        "dy": 580.0
+      },
+      "node_hlzkey9x67_1ht7je3": {
+        "dx": 820.0,
+        "dy": 580.0
+      },
+      "node_hlzkey9xxy_1syxe5y": {
+        "dx": 940.0,
+        "dy": 580.0
+      },
+      "node_hlzkey9xxy_1m34obe": {
+        "dx": 1020.0,
+        "dy": 580.0
+      },
+      "node_hlzkey9xxy_8lra0d": {
+        "dx": 1130.0,
+        "dy": 580.0
+      },
+      "node_hlzkey9xxy_90ipu6": {
+        "dx": 20.0,
+        "dy": 390.0
+      },
+      "node_hlzkey9xxy_guvkl": {
+        "dx": 20.0,
+        "dy": 470.0
+      },
+      "node_hlzkey9xxy_919fat": {
+        "dx": 1460.0,
+        "dy": 390.0
+      },
+      "node_hlzkf7jod7_10befro": {
+        "dx": 580.0,
+        "dy": 180.0
+      }
+    },
+    "wireOverrides": {},
+    "annotations": {},
+    "layers": {},
+    "layerAssignments": {},
+    "transforms": {},
+    "sizes": {},
+    "wireSegmentOffsets": {}
+  },
+  "metadata": {
+    "title": "diagram2",
+    "createdAt": "2026-09-04T14:22:25.006022",
+    "modifiedAt": "2026-09-04T14:23:45.910411"
+  }
+}

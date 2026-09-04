@@ -49,6 +49,8 @@ function setupDrag(card, modId) {
       $('ctx-edit').style.display = ''; $('ctx-edit').textContent = '✎ Edit Module';
       $('ctx-trace').style.display = 'none';
     }
+    const mod = MODULES.find(x => x.id === modId);
+    $('ctx-rotate').style.display = (mod && mod.connector && !editMode) ? '' : 'none';
     $('ctx-del').textContent = '✕ Delete Module';
     const m = $('ctx');
     m.style.left = e.clientX + 'px'; m.style.top = e.clientY + 'px';
@@ -102,6 +104,8 @@ const CONN_PRESETS = [
   { label:'Connector 3P', sub:'Inline 3-Pin', cat:'connector', exit:'down', connector:true, terminals:[{n:'A',c:'R|R'},{n:'B',c:'W|W'},{n:'C',c:'G|G'}] },
   { label:'Connector 4P', sub:'Inline 4-Pin', cat:'connector', exit:'down', connector:true, terminals:[{n:'A',c:'R|R'},{n:'B',c:'W|W'},{n:'C',c:'G|G'},{n:'D',c:'Y|Y'}] },
   { label:'Connector 6P', sub:'Inline 6-Pin', cat:'connector', exit:'down', connector:true, terminals:[{n:'A',c:'R|R'},{n:'B',c:'W|W'},{n:'C',c:'G|G'},{n:'D',c:'Y|Y'},{n:'E',c:'Bu|Bu'},{n:'F',c:'Bl|Bl'}] },
+  { label:'Connector 4P Vertical', sub:'IN left / OUT right', cat:'connector', exit:'down', connector:true, vertical:true, terminals:[{n:'A',c:'R|R'},{n:'B',c:'W|W'},{n:'C',c:'G|G'},{n:'D',c:'Y|Y'}] },
+  { label:'Connector 6P Vertical', sub:'IN left / OUT right', cat:'connector', exit:'down', connector:true, vertical:true, terminals:[{n:'A',c:'R|R'},{n:'B',c:'W|W'},{n:'C',c:'G|G'},{n:'D',c:'Y|Y'},{n:'E',c:'Bu|Bu'},{n:'F',c:'Bl|Bl'}] },
 ];
 
 function renderModPanel() {
@@ -116,7 +120,10 @@ function renderModPanel() {
   });
   const cr = document.createElement('div'); cr.className = 'mi'; cr.style.marginTop = '8px';
   cr.innerHTML = `<div class="mi-dot" style="background:#555"></div><div><div class="mi-nm">Custom Module</div><div class="mi-sb">Define from scratch</div></div><button class="mi-add" onclick="openAdd()">＋</button>`;
-  sec.appendChild(cr); body.appendChild(sec);
+  sec.appendChild(cr);
+  const spl = document.createElement('div'); spl.className = 'mi';
+  spl.innerHTML = `<div class="mi-dot" style="background:#94a3b8;border-radius:50%"></div><div><div class="mi-nm">Splice</div><div class="mi-sb">Wire joint / shared ground or power tap</div></div><button class="mi-add" onclick="openAddSplice()">＋</button>`;
+  sec.appendChild(spl); body.appendChild(sec);
   const csec = document.createElement('div'); csec.className = 'cat-sec';
   const chd  = document.createElement('div'); chd.className  = 'cat-hd'; chd.style.color = '#0e7490'; chd.textContent = 'Inline Connectors'; csec.appendChild(chd);
   CONN_PRESETS.forEach(p => {
@@ -147,6 +154,7 @@ function openAdd() {
   $('add-modal-title').textContent = 'Add Custom Module';
   $('am-label').value = ''; $('am-sub').value = ''; $('am-cat').value = 'control'; $('am-exit').value = 'down';
   $('term-builder').innerHTML = ''; $('am-is-conn').checked = false;
+  $('am-vertical-row').style.display = 'none'; $('am-vertical').checked = false;
   $('add-term-btn').style.display = ''; $('add-conn-term-btn').style.display = 'none';
   addTermRow(); addTermRow();
   $('add-modal').classList.add('open');
@@ -155,6 +163,7 @@ function openAddConn() {
   $('add-modal-title').textContent = 'Add Custom Connector';
   $('am-label').value = 'Custom Connector'; $('am-sub').value = 'Inline'; $('am-cat').value = 'connector'; $('am-exit').value = 'down';
   $('term-builder').innerHTML = ''; $('am-is-conn').checked = true;
+  $('am-vertical-row').style.display = 'flex'; $('am-vertical').checked = false;
   $('add-term-btn').style.display = 'none'; $('add-conn-term-btn').style.display = '';
   addConnTermRow('A','W','W'); addConnTermRow('B','Bl','Bl');
   $('add-modal').classList.add('open');
@@ -163,6 +172,7 @@ function openAddP(p) {
   $('add-modal-title').textContent = 'Add ' + p.label;
   $('am-label').value = p.label; $('am-sub').value = p.sub; $('am-cat').value = p.cat; $('am-exit').value = p.exit || 'down';
   const isConn = !!p.connector; $('am-is-conn').checked = isConn;
+  $('am-vertical-row').style.display = isConn ? 'flex' : 'none'; $('am-vertical').checked = !!p.vertical;
   $('add-term-btn').style.display = isConn ? 'none' : '';
   $('add-conn-term-btn').style.display = isConn ? '' : 'none';
   $('term-builder').innerHTML = '';
@@ -206,7 +216,7 @@ function commitAddModule() {
   }
   if (!terminals.length) { showToast('Add at least one terminal', 'warn'); return; }
   const m = { id, label, sub: $('am-sub').value.trim(), cat: $('am-cat').value, exit: $('am-exit').value, terminals, _user: true };
-  if (isConn) m.connector = true;
+  if (isConn) { m.connector = true; if ($('am-vertical').checked) m.vertical = true; }
   MODULES.push(m);
   positions[id] = {
     x: Math.round((vp.offsetWidth  / 2 - tx) / scale / 10) * 10,
@@ -214,6 +224,23 @@ function commitAddModule() {
   };
   placeCards(); drawWires(); buildLegend(); closeAddModal(); renderModPanel();
   showToast('Module added: ' + label);
+}
+
+// A freestanding splice, for placing one before it's wired up (the more
+// common path — clicking a point on an existing wire while in Wire mode
+// — is handleWireClickOnExistingWire in wire-editor.js, which inserts
+// one already spliced into that wire).
+function openAddSplice() {
+  const id = 'splice-' + Date.now();
+  const m = { id, label: 'Splice', sub: '', cat: 'splice', splice: true, location: '', exit: 'up', terminals: [{ n: 'SPLICE', c: 'W' }], _user: true };
+  MODULES.push(m);
+  positions[id] = {
+    x: Math.round((vp.offsetWidth  / 2 - tx) / scale / 10) * 10,
+    y: Math.round((vp.offsetHeight / 2 - ty) / scale / 10) * 10,
+  };
+  placeCards(); drawWires(); closeModPanel(); renderModPanel();
+  showToast('Splice added — set its Location, then wire it up');
+  editModProps(id);
 }
 
 function delModule(modId) {
@@ -242,6 +269,15 @@ function editModProps(mid) {
   $('mpm-cat').value   = m.cat   || 'control';
   $('mpm-exit').value  = m.exit  || 'down';
   $('mpm-notes').value = m.notes || '';
+  $('mpm-location').value = m.location || '';
+  // A splice has exactly one fixed terminal ("SPLICE") that every wire
+  // attached to it depends on by name — the terminal editor and the
+  // connector/vertical toggles (which are about pin layout, meaningless
+  // for a single-dot junction) don't apply to it. Location is the field
+  // that matters for a splice, so it stays visible either way.
+  $('mpm-terms-section').style.display = m.splice ? 'none' : '';
+  $('mpm-is-conn-row').style.display   = m.splice ? 'none' : 'flex';
+  if (m.splice) $('mpm-vertical-row').style.display = 'none';
   const tb = $('mpm-terms'); tb.innerHTML = '';
   const isConn = !!m.connector;
   m.terminals.forEach((t, i) => {
@@ -255,6 +291,8 @@ function editModProps(mid) {
     tb.appendChild(row);
   });
   $('mpm-is-conn').checked       = isConn;
+  $('mpm-vertical-row').style.display = isConn ? 'flex' : 'none';
+  $('mpm-vertical').checked      = !!m.vertical;
   $('mpm-add-term').style.display = isConn ? 'none' : '';
   $('mpm-add-pin').style.display  = isConn ? ''     : 'none';
   $('mpm').classList.add('open');
@@ -366,8 +404,10 @@ function saveModProps() {
   m.cat       = $('mpm-cat').value;
   m.exit      = $('mpm-exit').value;
   m.notes     = $('mpm-notes').value.trim();
+  m.location  = $('mpm-location').value.trim();
   m.terminals = newTerms;
   m.connector = isConn || undefined;
+  m.vertical  = (isConn && $('mpm-vertical').checked) || undefined;
   rebuildCard(m);
   closeMpm();
   if (selM === mid) renderModInfo(m);
@@ -375,6 +415,19 @@ function saveModProps() {
   showToast(removedWireCount
     ? `${m.label} updated — ${removedWireCount} wire${removedWireCount === 1 ? '' : 's'} removed (terminal deleted)`
     : `${m.label} updated`);
+}
+
+// Quick toggle for a connector module's orientation (context menu ⟳
+// Rotate Connector) — the same `m.vertical` flag the Add/Edit modals'
+// "Stand Vertical" checkbox sets, so a connector rotated this way is
+// indistinguishable from one authored vertical from the start.
+function rotateModule(modId) {
+  const m = MODULES.find(x => x.id === modId);
+  if (!m || !m.connector) return;
+  m.vertical = !m.vertical || undefined;
+  rebuildCard(m);
+  drawWires();
+  showToast(m.vertical ? `${m.label} rotated vertical` : `${m.label} rotated horizontal`);
 }
 
 function rebuildCard(m) {

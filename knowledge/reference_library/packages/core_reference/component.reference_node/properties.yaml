@@ -1,0 +1,3 @@
+# component.reference_node is a topological anchor with no engineering
+# parameters of its own (SDD-R011 §7) -- an empty Property Facet.
+[]

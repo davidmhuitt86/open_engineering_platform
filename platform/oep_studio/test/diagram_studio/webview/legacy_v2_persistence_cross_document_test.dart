@@ -18,7 +18,8 @@ void main() {
   late Directory documentsDir;
 
   setUp(() {
-    documentsDir = Directory.systemTemp.createTempSync('oep_studio_bridge008_docs_');
+    documentsDir =
+        Directory.systemTemp.createTempSync('oep_studio_bridge008_docs_');
   });
 
   tearDown(() {
@@ -40,14 +41,16 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
       useIsolatedSettingsStorage();
 
-      final (controller, container) = await legacyV2PersistenceBootstrap(tester);
+      final (controller, container) =
+          await legacyV2PersistenceBootstrap(tester);
 
       final pathA = '${documentsDir.path}${Platform.pathSeparator}doc-a.json';
       final pathB = '${documentsDir.path}${Platform.pathSeparator}doc-b.json';
 
       // --- Build and save Document A: module A1 ------------------------
       var channel = LegacyV2PersistenceFakeChannel();
-      var adapter = LegacyV2StateAdapter(controller: controller, channel: channel);
+      var adapter =
+          LegacyV2StateAdapter(controller: controller, channel: channel);
       await adapter.initializeFromDocument();
       channel.simulateCreate('a1', 'Module A1', 'ground', 1, 1);
       await legacyV2PersistenceSettle(tester);
@@ -56,7 +59,9 @@ void main() {
 
       // --- Build and save Document B: module B1, as a genuinely
       //     different in-memory document (newDocument, not overwrite) --
-      await tester.runAsync(() => container.read(engineeringProjectServiceProvider.notifier).newDocument());
+      await tester.runAsync(() => container
+          .read(engineeringProjectServiceProvider.notifier)
+          .newDocument());
       await legacyV2PersistenceSettle(tester);
       channel = LegacyV2PersistenceFakeChannel();
       adapter = LegacyV2StateAdapter(controller: controller, channel: channel);
@@ -74,31 +79,43 @@ void main() {
       await legacyV2PersistenceSettle(tester);
       expect(controller.document.id, docAId);
       var freshChannel = LegacyV2PersistenceFakeChannel();
-      var freshAdapter = LegacyV2StateAdapter(controller: controller, channel: freshChannel);
+      var freshAdapter =
+          LegacyV2StateAdapter(controller: controller, channel: freshChannel);
       await freshAdapter.initializeFromDocument();
       expect(freshAdapter.oepNodeIdFor('a1'), isNotNull);
-      expect(freshAdapter.oepNodeIdFor('b1'), isNull, reason: 'Document A must never resolve Document B\'s module id');
+      expect(freshAdapter.oepNodeIdFor('b1'), isNull,
+          reason: 'Document A must never resolve Document B\'s module id');
       expect(controller.engine.editing.session.graph.nodes.length, 1);
-      expect(controller.engine.editing.session.graph.nodes.values.single.metadata['v2ModuleId'], 'a1');
+      expect(
+          controller.engine.editing.session.graph.nodes.values.single
+              .metadata['v2ModuleId'],
+          'a1');
 
       await tester.runAsync(() => controller.openDocument(pathB));
       await legacyV2PersistenceSettle(tester);
       expect(controller.document.id, docBId);
       freshChannel = LegacyV2PersistenceFakeChannel();
-      freshAdapter = LegacyV2StateAdapter(controller: controller, channel: freshChannel);
+      freshAdapter =
+          LegacyV2StateAdapter(controller: controller, channel: freshChannel);
       await freshAdapter.initializeFromDocument();
       expect(freshAdapter.oepNodeIdFor('b1'), isNotNull);
-      expect(freshAdapter.oepNodeIdFor('a1'), isNull, reason: 'Document B must never resolve Document A\'s module id');
+      expect(freshAdapter.oepNodeIdFor('a1'), isNull,
+          reason: 'Document B must never resolve Document A\'s module id');
       expect(controller.engine.editing.session.graph.nodes.length, 1);
-      expect(controller.engine.editing.session.graph.nodes.values.single.metadata['v2ModuleId'], 'b1');
+      expect(
+          controller.engine.editing.session.graph.nodes.values.single
+              .metadata['v2ModuleId'],
+          'b1');
 
       await tester.runAsync(() => controller.openDocument(pathA));
       await legacyV2PersistenceSettle(tester);
       expect(controller.document.id, docAId);
       freshChannel = LegacyV2PersistenceFakeChannel();
-      freshAdapter = LegacyV2StateAdapter(controller: controller, channel: freshChannel);
+      freshAdapter =
+          LegacyV2StateAdapter(controller: controller, channel: freshChannel);
       await freshAdapter.initializeFromDocument();
-      expect(freshAdapter.oepNodeIdFor('a1'), isNotNull, reason: 'switching back to A must still resolve A\'s module');
+      expect(freshAdapter.oepNodeIdFor('a1'), isNotNull,
+          reason: 'switching back to A must still resolve A\'s module');
       expect(freshAdapter.oepNodeIdFor('b1'), isNull);
       expect(controller.engine.editing.session.graph.nodes.length, 1);
     },

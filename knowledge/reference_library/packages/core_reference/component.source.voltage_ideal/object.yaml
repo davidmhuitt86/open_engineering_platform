@@ -1,0 +1,120 @@
+identity:
+  object_id: component.source.voltage_ideal
+  object_type: Component
+  display_name: Ideal Voltage Source
+  short_name: voltage_ideal
+  version: "1.0.0"
+  lifecycle_state: Published
+  package_id: core_reference
+  uuid: 5f604100-11ad-5805-9572-66beee29b081
+
+classification:
+  domain: Electrical
+  discipline: Electronics
+  family: Sources
+  category: Voltage Sources
+  subcategory: Ideal Sources
+  tags:
+    - source
+    - two-terminal
+    - linear
+    - ideal
+  keywords:
+    - voltage source
+    - ideal source
+    - EMF
+    - electromotive force
+  aliases:
+    - independent voltage source
+  abbreviations:
+    - V
+  alternate_names: []
+  manufacturer_terms: []
+  standards_references:
+    - IEEE 315
+  roles:
+    - Design
+    - Simulation
+    - Education
+  capabilities:
+    - Searchable
+    - Simulatable
+    - Explainable
+
+  standards:
+    - IEEE
+  industries:
+    - Automotive
+    - Industrial
+    - Consumer Electronics
+  technologies: []
+
+authority:
+  authority_type: Physical Law
+  authority_reference: >-
+    Circuit theory models an ideal voltage source as a two-terminal
+    element that maintains a fixed potential difference across its
+    terminals regardless of the current drawn from it.
+  authority_source_object: null
+  notes: >-
+    No Source Object EKO exists yet for circuit-theory source models
+    (SDD-R012 §7) -- free text until one is authored.
+
+evidence:
+  - evidence_type: Standard
+    reference: IEEE 315
+    evidence_source_object: null
+    description: Graphic symbols for electrical and electronics diagrams.
+
+provenance:
+  author: OEP Reference Authoring Team
+  reviewer: Divad Technology Group Engineering Review
+  organization: Divad Technology Group, LLC.
+  created_date: "2026-09-04"
+  review_date: "2026-09-04"
+  approval_date: "2026-09-04"
+  digital_signature: null
+  revision_notes:
+    - "AP-EK-020 completion: authored to close the electrical-core vertical
+      slice's missing ideal-voltage-source component model."
+  sources_consulted:
+    - General electrical engineering fundamentals (public domain
+      principles; no copyrighted text reproduced)
+  confidence: high
+  content_license: CC-BY-4.0
+
+history:
+  previous_versions: []
+  superseded_by: null
+  migration_notes: []
+  deprecation_history: []
+  lifecycle_events:
+    - state: Published
+      date: "2026-09-04"
+      notes: "AP-EK-020 completion: authored alongside component.reference_node
+        and equation.power to complete the electrical-core vertical slice."
+
+simulation:
+  supported_solvers: []
+  runtime_requirements: []
+  simulation_models:
+    - ideal_voltage_source
+  initial_conditions: {}
+  state_variables:
+    - current
+  parameters:
+    - voltage
+  failure_modes: []
+  default_values:
+    voltage: 5
+
+visualization:
+  color_hints: {}
+  rendering_rules: []
+  default_labels:
+    - V
+  connection_styles: []
+  display_groups: []
+  asset_roles: []
+
+assets: []

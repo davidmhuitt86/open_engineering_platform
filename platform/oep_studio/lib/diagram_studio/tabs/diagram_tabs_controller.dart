@@ -16,7 +16,8 @@ import 'diagram_tabs_storage.dart';
 /// state. Keeping this controller document-lifecycle-agnostic is what
 /// avoids creating a second document model (Part 1's explicit rule).
 class DiagramTabsState {
-  const DiagramTabsState({this.tabs = const [], this.activeTabId, this.recentlyClosed = const []});
+  const DiagramTabsState(
+      {this.tabs = const [], this.activeTabId, this.recentlyClosed = const []});
 
   final List<DiagramTab> tabs;
   final String? activeTabId;
@@ -30,7 +31,11 @@ class DiagramTabsState {
     return null;
   }
 
-  DiagramTabsState copyWith({List<DiagramTab>? tabs, String? activeTabId, bool clearActive = false, List<DiagramTab>? recentlyClosed}) =>
+  DiagramTabsState copyWith(
+          {List<DiagramTab>? tabs,
+          String? activeTabId,
+          bool clearActive = false,
+          List<DiagramTab>? recentlyClosed}) =>
       DiagramTabsState(
         tabs: tabs ?? this.tabs,
         activeTabId: clearActive ? null : (activeTabId ?? this.activeTabId),
@@ -97,7 +102,8 @@ class DiagramTabsNotifier extends FamilyNotifier<DiagramTabsState, String> {
         }
       }
     }
-    final id = 'tab_${DateTime.now().microsecondsSinceEpoch}_${state.tabs.length}';
+    final id =
+        'tab_${DateTime.now().microsecondsSinceEpoch}_${state.tabs.length}';
     final tab = DiagramTab(id: id, path: path, title: title);
     state = state.copyWith(tabs: [...state.tabs, tab], activeTabId: id);
     unawaited(_persist());
@@ -122,9 +128,12 @@ class DiagramTabsNotifier extends FamilyNotifier<DiagramTabsState, String> {
     final wasActive = state.activeTabId == id;
     state = state.copyWith(
       tabs: remaining,
-      activeTabId: wasActive ? (remaining.isEmpty ? null : remaining.last.id) : null,
+      activeTabId:
+          wasActive ? (remaining.isEmpty ? null : remaining.last.id) : null,
       clearActive: wasActive && remaining.isEmpty,
-      recentlyClosed: [closing.single, ...state.recentlyClosed].take(DiagramTabsStorage.maxRecentlyClosed).toList(),
+      recentlyClosed: [closing.single, ...state.recentlyClosed]
+          .take(DiagramTabsStorage.maxRecentlyClosed)
+          .toList(),
     );
     unawaited(_persist());
   }
@@ -155,7 +164,10 @@ class DiagramTabsNotifier extends FamilyNotifier<DiagramTabsState, String> {
     state = state.copyWith(
       tabs: [
         for (final tab in state.tabs)
-          if (tab.id == activeId) tab.copyWith(path: path, clearPath: path == null, title: title) else tab,
+          if (tab.id == activeId)
+            tab.copyWith(path: path, clearPath: path == null, title: title)
+          else
+            tab,
       ],
     );
     unawaited(_persist());
@@ -165,7 +177,8 @@ class DiagramTabsNotifier extends FamilyNotifier<DiagramTabsState, String> {
   /// document (via the existing open pipeline) and calls [openTab]
   /// separately; this only clears the history entry.
   void removeFromRecentlyClosed(String id) {
-    state = state.copyWith(recentlyClosed: state.recentlyClosed.where((t) => t.id != id).toList());
+    state = state.copyWith(
+        recentlyClosed: state.recentlyClosed.where((t) => t.id != id).toList());
     unawaited(_persist());
   }
 
@@ -173,11 +186,27 @@ class DiagramTabsNotifier extends FamilyNotifier<DiagramTabsState, String> {
     state = state.copyWith(recentlyClosed: const []);
     unawaited(_persist());
   }
+
+  /// AP-OEP-DIAGRAM-BOOT-UNTITLED-001 — discards whatever tab list
+  /// [_restore] just loaded from disk, for THIS boot's live state only —
+  /// deliberately does **not** call [_persist], so the on-disk record
+  /// (`DiagramTabsStorage`) is untouched and still reflects "what was
+  /// really open last," for a "Load Previous Diagram" action to read
+  /// independently later. `DiagramStudioController.bootstrap` calls this
+  /// on a fresh app start so the user lands on a blank Untitled diagram
+  /// instead of automatically reopening whatever they had open when they
+  /// last closed the app — a deliberate, explicitly requested change from
+  /// the previous silent-auto-restore behavior.
+  void discardRestoredTabsWithoutPersisting() {
+    state = const DiagramTabsState();
+  }
 }
 
 /// Keyed by `WorkspaceTab.id` — mirrors [engineeringProjectServiceFamily]
 /// exactly (same key, same reasoning).
-final diagramTabsFamily = NotifierProvider.family<DiagramTabsNotifier, DiagramTabsState, String>(DiagramTabsNotifier.new);
+final diagramTabsFamily =
+    NotifierProvider.family<DiagramTabsNotifier, DiagramTabsState, String>(
+        DiagramTabsNotifier.new);
 
 /// Backward-compatible alias bound to the primary instance — see
 /// [engineeringProjectServiceProvider]'s own doc comment for the full

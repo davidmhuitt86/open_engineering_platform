@@ -1,0 +1,4 @@
+# unit.ohm is the target of relationships owned by other objects
+# (e.g. component.passive.resistor's HAS_UNIT relationship) -- it has
+# no outgoing relationships of its own.
+[]

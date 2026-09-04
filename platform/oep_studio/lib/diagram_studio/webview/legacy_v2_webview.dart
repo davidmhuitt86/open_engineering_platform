@@ -1,15 +1,18 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:webview_flutter_windows/webview_flutter_windows.dart';
 
+import '../../core/notifications/platform_notification_service.dart';
 import '../../core/services/engineering_project_service.dart';
 import '../../core/theme/studio_colors.dart';
 import '../controller/diagram_studio_controller.dart';
 import '../controller/diagram_studio_controller_provider.dart';
 import '../simulation/diagram_simulation_service.dart';
+import '../tabs/diagram_tabs_storage.dart';
 import 'legacy_v2_android_webview.dart';
 import 'legacy_v2_bridge_transport.dart';
 import 'legacy_v2_state_adapter.dart';
@@ -40,7 +43,8 @@ class LegacyV2WebViewPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (Platform.isWindows) return _WindowsLegacyV2WebViewPage(instanceId: instanceId);
+    if (Platform.isWindows)
+      return _WindowsLegacyV2WebViewPage(instanceId: instanceId);
     return LegacyV2AndroidWebViewPage(instanceId: instanceId);
   }
 }
@@ -92,10 +96,12 @@ class _WindowsLegacyV2WebViewPage extends ConsumerStatefulWidget {
   final String? instanceId;
 
   @override
-  ConsumerState<_WindowsLegacyV2WebViewPage> createState() => _WindowsLegacyV2WebViewPageState();
+  ConsumerState<_WindowsLegacyV2WebViewPage> createState() =>
+      _WindowsLegacyV2WebViewPageState();
 }
 
-class _WindowsLegacyV2WebViewPageState extends ConsumerState<_WindowsLegacyV2WebViewPage> {
+class _WindowsLegacyV2WebViewPageState
+    extends ConsumerState<_WindowsLegacyV2WebViewPage> {
   /// Resolves once per `State` lifetime — this `State` instance is
   /// itself already scoped to one `WorkspaceTab` (a fresh widget/State
   /// per Diagram tab, per `EngineeringWorkspacePage._buildTabContent`),
@@ -103,7 +109,8 @@ class _WindowsLegacyV2WebViewPageState extends ConsumerState<_WindowsLegacyV2Web
   String get _instanceId => widget.instanceId ?? primaryDiagramInstanceId;
 
   final WebviewController _controller = WebviewController();
-  late final LegacyV2BridgeTransport _transport = LegacyV2BridgeTransport(_controller);
+  late final LegacyV2BridgeTransport _transport =
+      LegacyV2BridgeTransport(_controller);
   LegacyV2StateAdapter? _adapter;
 
   String? _error;
@@ -211,7 +218,8 @@ class _WindowsLegacyV2WebViewPageState extends ConsumerState<_WindowsLegacyV2Web
       channel: _transport,
       // AP-DIAGRAM-V2-BRIDGE-006 — resolved fresh per request rather than
       // captured once (see the adapter's own doc comment on this field).
-      simulationServiceResolver: () => ref.read(diagramSimulationServiceProvider),
+      simulationServiceResolver: () =>
+          ref.read(diagramSimulationServiceProvider),
     );
     // AP-DIAGRAM-V2-BRIDGE-SAVE-002 — registered on every `_ensureAdapter`
     // call (cheap/idempotent after the first), not just once, so a Save
@@ -219,7 +227,9 @@ class _WindowsLegacyV2WebViewPageState extends ConsumerState<_WindowsLegacyV2Web
     // Palette's `diagram.saveDocument`) also flushes V2's current state
     // first — see `EngineeringProjectNotifier.beforeSaveFlush`'s own doc
     // comment for the full rationale.
-    ref.read(engineeringProjectServiceFamily(_instanceId).notifier).beforeSaveFlush = adapter.flushBeforeSave;
+    ref
+        .read(engineeringProjectServiceFamily(_instanceId).notifier)
+        .beforeSaveFlush = adapter.flushBeforeSave;
     return adapter;
   }
 
@@ -267,7 +277,9 @@ class _WindowsLegacyV2WebViewPageState extends ConsumerState<_WindowsLegacyV2Web
     // harmless to skip here, since a notifier that no longer exists can't
     // call a stale hook either way.
     try {
-      ref.read(engineeringProjectServiceFamily(_instanceId).notifier).beforeSaveFlush = null;
+      ref
+          .read(engineeringProjectServiceFamily(_instanceId).notifier)
+          .beforeSaveFlush = null;
     } catch (_) {}
     unawaited(_transport.dispose());
     _controller.dispose();
@@ -283,31 +295,41 @@ class _WindowsLegacyV2WebViewPageState extends ConsumerState<_WindowsLegacyV2Web
     // AP-DIAGRAM-V2-BRIDGE-003, Phase 2 — `document.id` (not `.path`),
     // since two different never-saved documents both have `path == null`
     // but distinct `id`s (see `DiagramDocument.id`'s own doc comment).
-    ref.listen(engineeringProjectServiceFamily(_instanceId).select((s) => s.document.id), (previous, next) {
+    ref.listen(
+        engineeringProjectServiceFamily(_instanceId)
+            .select((s) => s.document.id), (previous, next) {
       final adapter = _adapter;
       if (adapter != null) _onDocumentChanged(adapter);
     });
-    // AP-OEP-DIAGRAM-UX-002 — the former "Save As…" toolbar button's
-    // reseed-after-save logic, generalized so it fires no matter what
-    // triggered the save (this button, or the Command Palette's
-    // `diagram.saveDocumentAs`, which calls
-    // `EngineeringProjectServiceNotifier.saveDocumentAs` directly and
-    // has no idea a V2 bridge is even involved). Save As is a path
-    // transition from `null` to non-null with the *same* document id
-    // (`.document.id` alone, watched above, doesn't change on Save As —
-    // confirmed by `DiagramDocument.id`'s own doc comment, which is
-    // exactly why that listener alone was never enough here).
-    ref.listen(engineeringProjectServiceFamily(_instanceId).select((s) => s.documentPath), (previous, next) {
+    // AP-DIAGRAM-V2-BRIDGE-SAVE-006 — Save As assigning a document its
+    // first path is a path transition from `null` to non-null with the
+    // *same* document id (`.document.id`, watched above, does NOT
+    // change on Save As — confirmed by `DiagramDocument.id`'s own doc
+    // comment). This USED to call `adapter.reinitializeForDocument()`
+    // (AP-OEP-DIAGRAM-UX-002's inherited "reseed after Save As" logic,
+    // carried over from the old toolbar button) — which is the wrong
+    // operation here: `reinitializeForDocument()` clears V2's entire
+    // MODULES/WIRES arrays and reseeds only from OEP graph nodes that
+    // already carry a `v2ModuleId` — anything V2-bootstrap-original that
+    // was never individually bridged has no such node and gets silently
+    // dropped. On a diagram whose content mostly traces back to V2's own
+    // bootstrap, this visibly deleted most of the diagram the moment
+    // Save As ran (discovered via real end-to-end testing once Save As
+    // became reachable at all — see the new Save button below). Save As
+    // doesn't change what V2 is showing — `flushBeforeSave` already
+    // reconciled it into the OEP graph moments earlier as part of the
+    // same save — so there is nothing here to clear or reseed; only the
+    // adapter's own bookkeeping token needs updating.
+    ref.listen(
+        engineeringProjectServiceFamily(_instanceId)
+            .select((s) => s.documentPath), (previous, next) {
       if (previous == null && next != null) {
-        final adapter = _adapter;
-        if (adapter == null) return;
-        unawaited(adapter.reinitializeForDocument().then((_) async {
-          await _transport.interceptV2Save();
-        }));
+        _adapter?.acknowledgeSaveAs();
       }
     });
 
-    final controllerAsync = ref.watch(diagramStudioControllerFamily(_instanceId));
+    final controllerAsync =
+        ref.watch(diagramStudioControllerFamily(_instanceId));
     // The debug status bar this used to feed a display string for is
     // gone; the adapter must still be ensured/seeded on every build,
     // which is the actual load-bearing part of this watch.
@@ -332,6 +354,18 @@ class _WindowsLegacyV2WebViewPageState extends ConsumerState<_WindowsLegacyV2Web
     // had no equivalent elsewhere and is a real, if minor, capability
     // gap accepted here rather than kept as a dedicated button.
     //
+    // AP-OEP-DIAGRAM-UX-002's premise — "Save As is already reachable
+    // platform-wide via the Command Palette" — turned out to be false in
+    // practice: Ctrl+K is bound through Flutter's focus-tree-based
+    // `CallbackShortcuts` (`studio_shell.dart`), and a native embedded
+    // WebView holds OS-level keyboard focus outside that tree whenever
+    // it's the visible content (i.e. essentially always, here). A user
+    // whose document has never been saved gets told to press Ctrl+K and
+    // has no way to do so. A single small always-visible Save button —
+    // a mouse click, not a keyboard shortcut, so WebView focus is
+    // irrelevant — closes that gap without resurrecting the rest of the
+    // removed toolbar.
+    //
     // Undo's reseed side effect (`adapter.resyncLastBridgedToV2()`,
     // re-synchronizing whichever V2 module a bridge-originated move last
     // touched) is a real, honest, narrower gap than Save As's: it can
@@ -349,38 +383,314 @@ class _WindowsLegacyV2WebViewPageState extends ConsumerState<_WindowsLegacyV2Web
     // this change) but may leave V2's on-screen module position stale
     // until the next V2-originated action re-syncs it — a real, minor,
     // documented gap, not a silently dropped one.
+    final documentPath = ref.watch(engineeringProjectServiceFamily(_instanceId)
+        .select((s) => s.documentPath));
+
     return Container(
       color: StudioColors.background,
-      child: Column(
+      child: Stack(
         children: [
-          Expanded(
-            child: _error != null
-                ? Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Text(
-                        'Failed to load legacy V2:\n$_error\n\nExpected entry point:\n${_v2EntryPointUri()}',
-                        style: const TextStyle(color: StudioColors.error, fontFamily: 'Consolas'),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  )
-                : !_ready
-                    ? const Center(child: CircularProgressIndicator(color: StudioColors.selection))
-                    : LayoutBuilder(
-                        builder: (context, constraints) {
-                          final size = constraints.biggest;
-                          if (size.isFinite && size != _lastFitSize) {
-                            _lastFitSize = size;
-                            WidgetsBinding.instance.addPostFrameCallback((_) {
-                              if (mounted) _fitV2ViewFromOep();
-                            });
-                          }
-                          return Webview(_controller);
-                        },
-                      ),
+          Column(
+            children: [
+              Expanded(
+                child: _error != null
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Text(
+                            'Failed to load legacy V2:\n$_error\n\nExpected entry point:\n${_v2EntryPointUri()}',
+                            style: const TextStyle(
+                                color: StudioColors.error,
+                                fontFamily: 'Consolas'),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      )
+                    : !_ready
+                        ? const Center(
+                            child: CircularProgressIndicator(
+                                color: StudioColors.selection))
+                        : LayoutBuilder(
+                            builder: (context, constraints) {
+                              final size = constraints.biggest;
+                              if (size.isFinite && size != _lastFitSize) {
+                                _lastFitSize = size;
+                                WidgetsBinding.instance
+                                    .addPostFrameCallback((_) {
+                                  if (mounted) _fitV2ViewFromOep();
+                                });
+                              }
+                              return Webview(_controller);
+                            },
+                          ),
+              ),
+            ],
           ),
+          if (_ready && _error == null)
+            Positioned(
+              top: 8,
+              right: 8,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _LoadPreviousButton(
+                      onPressed: () => _loadPreviousDocument(context)),
+                  const SizedBox(width: 8),
+                  _OpenButton(onPressed: () => _openDocument(context)),
+                  const SizedBox(width: 8),
+                  _SaveButton(
+                    hasPath: documentPath != null,
+                    onPressed: () => _saveDocument(context, documentPath),
+                  ),
+                ],
+              ),
+            ),
         ],
+      ),
+    );
+  }
+
+  /// AP-OEP-DIAGRAM-BOOT-UNTITLED-001 — a fresh app launch/new tab no
+  /// longer auto-reopens the previously active document (§
+  /// `DiagramStudioController.bootstrap`'s own doc comment for why) — the
+  /// user explicitly asked for that to become a one-click action instead
+  /// of silent, automatic behavior. This reads the same on-disk records
+  /// that auto-restore used to read from (`DiagramTabsStorage`, falling
+  /// back to nothing found rather than a second, different source of
+  /// truth) — a fresh, standalone read at click time, not anything
+  /// `bootstrap` computed earlier in this session.
+  Future<void> _loadPreviousDocument(BuildContext context) async {
+    final fileSuffix =
+        _instanceId == primaryDiagramInstanceId ? '' : '_$_instanceId';
+    final stored = await DiagramTabsStorage.load(fileSuffix: fileSuffix);
+    String? path;
+    if (stored.activeTabId != null) {
+      for (final tab in stored.tabs) {
+        if (tab.id == stored.activeTabId) {
+          path = tab.path;
+          break;
+        }
+      }
+    }
+    path ??= stored.tabs.isNotEmpty ? stored.tabs.last.path : null;
+    if (path == null) {
+      if (context.mounted) {
+        PlatformNotificationService.error(
+            context, 'No previous diagram found.');
+      }
+      return;
+    }
+    try {
+      // AP-OEP-DIAGRAM-BOOT-UNTITLED-001 — through the Controller, not
+      // `EngineeringProjectNotifier` directly, so the active tab's own
+      // path/title gets updated too (§ `_openDocument`'s own doc comment
+      // for why this matters).
+      await ref
+          .read(diagramStudioControllerFamily(_instanceId))
+          .requireValue
+          .openDocument(path);
+      if (context.mounted) {
+        PlatformNotificationService.success(
+            context, 'Loaded previous diagram "$path".');
+      }
+    } catch (error) {
+      if (context.mounted) {
+        PlatformNotificationService.error(
+            context, 'Couldn\'t load previous diagram "$path": $error');
+      }
+    }
+  }
+
+  /// AP-DIAGRAM-V2-BRIDGE-SAVE-006 companion fix — `diagram.openDocument`
+  /// (an OEP document, e.g. a saved diagram like `trx300.json`) has only
+  /// ever been reachable through the Command Palette, which — like Ctrl+S
+  /// before the native Save button above — is unreachable while the
+  /// embedded WebView holds OS-level keyboard focus (Ctrl+K never
+  /// reaches Flutter's `CallbackShortcuts`). The legacy V2 editor's own
+  /// "⬆ Load" toolbar button is not a substitute: it reads a completely
+  /// different, V2-internal JSON shape (`positions`/`wireRoutes`/
+  /// `userConns`/`userMods`) via its own native `<input type=file>`, not
+  /// an OEP `DiagramDocument` (`schemaVersion`/`documentId`/`graph`/
+  /// `layout`) — pointing it at an OEP document file parses fine but
+  /// matches none of those keys, so nothing loads and no error surfaces
+  /// either, which reads as "doesn't load at all". This button gives
+  /// `diagram.openDocument` its own click-reachable entry point, mirroring
+  /// the Save button's fix.
+  ///
+  /// AP-OEP-DIAGRAM-TAB-SYNC-001 — goes through
+  /// `DiagramStudioController.openDocument`/`.saveDocumentAs`, not
+  /// `EngineeringProjectNotifier` directly (this method's own original
+  /// version called the notifier directly, which was itself a bug: the
+  /// active tab's `path`/`title` — and therefore `DiagramTabsStorage`'s
+  /// persisted record of "what's actually open" — never got updated, so
+  /// anything that reads the tab's path afterward (a fresh app boot, or
+  /// the "Load Previous Diagram" button above) saw a stale/wrong path.
+  /// This is what made a Save As look like it "didn't persist" unless the
+  /// tab was separately closed first — closing happened to route through
+  /// the correct, tab-updating code instead).
+  Future<void> _openDocument(BuildContext context) async {
+    final file = await openFile(
+      acceptedTypeGroups: const [
+        XTypeGroup(label: 'JSON', extensions: ['json'])
+      ],
+    );
+    if (file == null) return;
+    try {
+      await ref
+          .read(diagramStudioControllerFamily(_instanceId))
+          .requireValue
+          .openDocument(file.path);
+      if (context.mounted) {
+        PlatformNotificationService.success(
+            context, 'Diagram opened from ${file.path}.');
+      }
+    } catch (error) {
+      if (context.mounted) {
+        PlatformNotificationService.error(
+            context, 'Couldn\'t open "${file.path}": $error');
+      }
+    }
+  }
+
+  /// AP-OEP-DIAGRAM-TAB-SYNC-001 — the Save-As branch goes through
+  /// `DiagramStudioController.saveDocumentAs` (not the notifier directly)
+  /// for the same reason `_openDocument` does — see that method's own
+  /// doc comment. The already-has-a-path branch doesn't need this: the
+  /// tab's path was already set correctly whenever it was first assigned.
+  Future<void> _saveDocument(BuildContext context, String? documentPath) async {
+    if (documentPath != null) {
+      await ref
+          .read(engineeringProjectServiceFamily(_instanceId).notifier)
+          .saveDocument();
+      if (context.mounted) {
+        PlatformNotificationService.success(context, 'Diagram saved.');
+      }
+      return;
+    }
+    final location = await getSaveLocation(
+      suggestedName: 'diagram.json',
+      acceptedTypeGroups: const [
+        XTypeGroup(label: 'JSON', extensions: ['json'])
+      ],
+    );
+    if (location == null) return;
+    await ref
+        .read(diagramStudioControllerFamily(_instanceId))
+        .requireValue
+        .saveDocumentAs(location.path);
+    if (context.mounted) {
+      PlatformNotificationService.success(
+          context, 'Diagram saved to ${location.path}.');
+    }
+  }
+}
+
+class _LoadPreviousButton extends StatelessWidget {
+  const _LoadPreviousButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: StudioColors.surfaceRaised,
+      borderRadius: BorderRadius.circular(4),
+      elevation: 2,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(4),
+        onTap: onPressed,
+        child: const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.history, size: 14, color: StudioColors.textPrimary),
+              SizedBox(width: 6),
+              Text(
+                'Load Previous Diagram',
+                style: TextStyle(
+                    fontSize: 12,
+                    color: StudioColors.textPrimary,
+                    fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _OpenButton extends StatelessWidget {
+  const _OpenButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: StudioColors.surfaceRaised,
+      borderRadius: BorderRadius.circular(4),
+      elevation: 2,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(4),
+        onTap: onPressed,
+        child: const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.folder_open_outlined,
+                  size: 14, color: StudioColors.textPrimary),
+              SizedBox(width: 6),
+              Text(
+                'Open…',
+                style: TextStyle(
+                    fontSize: 12,
+                    color: StudioColors.textPrimary,
+                    fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SaveButton extends StatelessWidget {
+  const _SaveButton({required this.hasPath, required this.onPressed});
+
+  final bool hasPath;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: StudioColors.surfaceRaised,
+      borderRadius: BorderRadius.circular(4),
+      elevation: 2,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(4),
+        onTap: onPressed,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.save_outlined,
+                  size: 14, color: StudioColors.textPrimary),
+              const SizedBox(width: 6),
+              Text(
+                hasPath ? 'Save' : 'Save As…',
+                style: const TextStyle(
+                    fontSize: 12,
+                    color: StudioColors.textPrimary,
+                    fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -24,6 +24,7 @@ classification:
     - current
     - resistance
   aliases:
+    - "V = I × R"
     - V = IR
     - law of resistance
   abbreviations: []
@@ -79,6 +80,10 @@ provenance:
     - Initial gold-standard reference implementation (WORK_PACKAGE_001).
     - Migrated to Engineering Knowledge Object Schema Version 1.0, the
       SDD-R011 facet model (WORK_PACKAGE_002).
+    - "AP-EK-020 completion: current/resistance properties.yaml unit_ref
+      now point at the newly-authored unit.ampere/unit.ohm (closing the
+      REFERENCE-TASK-000011 unit_symbol_pending exception); added a
+      spaced 'V = I × R' alias as the canonical machine-read expression."
   sources_consulted:
     - General electrical engineering fundamentals (public domain
       physical law; no copyrighted text reproduced)

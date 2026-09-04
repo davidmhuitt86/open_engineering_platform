@@ -2,10 +2,18 @@ import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/services/engineering_project_service.dart'
+    show primaryDiagramInstanceId;
 import '../../core/theme/studio_colors.dart';
+import '../analysis/analysis_results_panel.dart';
 import '../webview/legacy_v2_webview.dart';
 import 'compare_diagram_controller.dart';
 import 'compare_legacy_v2_webview.dart';
+
+/// AP-EK-020 Part B — whether the Analysis results panel is currently
+/// shown alongside the Primary diagram. Mirrors [compareModeEnabledProvider]
+/// exactly: page-scoped UI toggle, not persisted, always starts closed.
+final analysisPanelVisibleProvider = StateProvider<bool>((ref) => false);
 
 /// AP-OEP-DIAGRAM-COMPARE-001 — whether the Diagram content area is
 /// currently showing the Compare pane split alongside the Primary
@@ -51,13 +59,17 @@ class DiagramWithComparePane extends ConsumerWidget {
     final picked = await openFile();
     if (picked == null) return;
     if (!context.mounted) return;
-    await ref.read(compareDiagramControllerProvider.future).then((c) => c.openDocument(picked.path));
+    await ref
+        .read(compareDiagramControllerProvider.future)
+        .then((c) => c.openDocument(picked.path));
     ref.read(compareModeEnabledProvider.notifier).state = true;
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final compareEnabled = ref.watch(compareModeEnabledProvider);
+    final analysisEnabled =
+        !compareEnabled && ref.watch(analysisPanelVisibleProvider);
     return Column(
       children: [
         Container(
@@ -69,10 +81,40 @@ class DiagramWithComparePane extends ConsumerWidget {
           ),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: TextButton.icon(
-              onPressed: () => _toggleCompare(context, ref),
-              icon: Icon(compareEnabled ? Icons.vertical_split : Icons.compare_arrows, size: 15),
-              label: Text(compareEnabled ? 'Close Compare' : 'Compare Diagrams', style: const TextStyle(fontSize: 12)),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Analysis and Compare share this content area's one
+                // side-panel slot (AP-EK-020 Part B — kept to the
+                // smallest implementation that proves the requirement,
+                // matching Compare's own existing primary-tab-only
+                // scope); Compare disabled while Analysis is open.
+                if (!compareEnabled)
+                  TextButton.icon(
+                    onPressed: () => ref
+                        .read(analysisPanelVisibleProvider.notifier)
+                        .state = !analysisEnabled,
+                    icon: Icon(
+                        analysisEnabled
+                            ? Icons.close
+                            : Icons.analytics_outlined,
+                        size: 15),
+                    label: Text(analysisEnabled ? 'Close Analysis' : 'Analysis',
+                        style: const TextStyle(fontSize: 12)),
+                  ),
+                if (!analysisEnabled)
+                  TextButton.icon(
+                    onPressed: () => _toggleCompare(context, ref),
+                    icon: Icon(
+                        compareEnabled
+                            ? Icons.vertical_split
+                            : Icons.compare_arrows,
+                        size: 15),
+                    label: Text(
+                        compareEnabled ? 'Close Compare' : 'Compare Diagrams',
+                        style: const TextStyle(fontSize: 12)),
+                  ),
+              ],
             ),
           ),
         ),
@@ -85,7 +127,19 @@ class DiagramWithComparePane extends ConsumerWidget {
                     Expanded(child: CompareLegacyV2WebViewPage()),
                   ],
                 )
-              : const LegacyV2WebViewPage(),
+              : analysisEnabled
+                  ? Row(
+                      children: const [
+                        Expanded(child: LegacyV2WebViewPage()),
+                        VerticalDivider(width: 1, color: StudioColors.border),
+                        SizedBox(
+                          width: 340,
+                          child: AnalysisResultsPanel(
+                              instanceId: primaryDiagramInstanceId),
+                        ),
+                      ],
+                    )
+                  : const LegacyV2WebViewPage(),
         ),
       ],
     );

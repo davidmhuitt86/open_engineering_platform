@@ -23,6 +23,7 @@ from compiler.archive import write_deterministic_zip
 from compiler.database import build_database
 from compiler.indexes import build_graph_index, build_search_index, write_json_index
 from compiler.manifest import build_manifest
+from compiler.runtime_export import build_runtime_export
 from validator.checks import run_all_checks
 
 
@@ -63,6 +64,7 @@ def _stage_package(package: PackageSource, staging_dir: Path) -> None:
     build_database([package], staging_dir / "reference.db")
     write_json_index(build_search_index([package]), staging_dir / "search.idx")
     write_json_index(build_graph_index([package]), staging_dir / "graph.idx")
+    write_json_index(build_runtime_export([package]), staging_dir / "runtime.json")
 
     assets_dir = staging_dir / "assets"
     for obj in package.objects:

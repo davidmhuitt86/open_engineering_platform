@@ -18,6 +18,15 @@
   notes: Applies to the maximum_voltage property.
   constraints: []
 
+- relationship_id: component.passive.resistor.has_unit.ohm
+  relationship_type: HAS_UNIT
+  target: unit.ohm
+  cardinality: many_to_one
+  lifecycle: Published
+  confidence: high
+  notes: Applies to the resistance property.
+  constraints: []
+
 - relationship_id: component.passive.resistor.represented_by.symbol_iec
   relationship_type: REPRESENTED_BY
   target: symbol.iec.resistor

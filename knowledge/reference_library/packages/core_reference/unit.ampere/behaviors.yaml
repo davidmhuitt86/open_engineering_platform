@@ -1,0 +1,31 @@
+- behavior_id: unit.ampere.convert_prefix
+  name: Convert SI Prefix
+  behavior_type: Converter
+  description: >-
+    Converts a value expressed in amperes with one SI prefix (e.g.
+    milli-) to another (e.g. kilo-).
+  inputs:
+    - name: value
+      value_type: number
+      unit_ref: unit.ampere
+      unit_symbol_pending: null
+      required: true
+    - name: from_prefix
+      value_type: string
+      unit_ref: null
+      unit_symbol_pending: null
+      required: true
+    - name: to_prefix
+      value_type: string
+      unit_ref: null
+      unit_symbol_pending: null
+      required: true
+  outputs:
+    - name: converted_value
+      value_type: number
+      unit_ref: unit.ampere
+      unit_symbol_pending: null
+  constraints: []
+  dependencies: []
+  execution_metadata:
+    deterministic: true

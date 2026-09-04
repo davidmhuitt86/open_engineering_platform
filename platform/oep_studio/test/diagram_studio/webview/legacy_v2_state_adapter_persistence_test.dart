@@ -14,6 +14,8 @@ class _FakeChannel implements LegacyV2Channel {
 
   final List<String> saveResults = [];
   int interceptCallCount = 0;
+  int clearAllSurfacesCallCount = 0;
+  int restoreModuleCallCount = 0;
 
   @override
   set onModuleMoved(void Function(V2ModuleMovedMessage message)? handler) {}
@@ -59,13 +61,19 @@ class _FakeChannel implements LegacyV2Channel {
   @override
   Future<void> restoreModule(
       String v2ModuleId, String label, String category, double x, double y,
-      {String notes = ''}) async {}
+      {String notes = '',
+      List<Map<String, String>> terminals = const []}) async {
+    restoreModuleCallCount++;
+  }
+
   @override
   Future<void> restoreWire(String v2WireId, String fromModuleId,
       String toModuleId, String label, String color,
       {String fromTerminal = '', String toTerminal = ''}) async {}
   @override
-  Future<void> clearAllSurfaces() async {}
+  Future<void> clearAllSurfaces() async {
+    clearAllSurfacesCallCount++;
+  }
 
   @override
   Future<void> interceptV2Save() async {
@@ -156,6 +164,45 @@ void main() {
       expect(channel.saveResults.last, startsWith('false:'),
           reason:
               'a never-saved document cannot be saved from V2 without a Save As path picker, which this task does not build');
+    },
+  );
+
+  testWidgets(
+    'AP-DIAGRAM-V2-BRIDGE-SAVE-006: acknowledgeSaveAs updates the token '
+    'without touching V2\'s display (unlike reinitializeForDocument)',
+    (tester) async {
+      useIsolatedSettingsStorage();
+
+      final (controller, _) = await bootstrapDiagramStudioController(tester);
+      final channel = _FakeChannel();
+      final adapter =
+          LegacyV2StateAdapter(controller: controller, channel: channel);
+      await adapter.initializeFromDocument();
+      channel.clearAllSurfacesCallCount = 0;
+      channel.restoreModuleCallCount = 0;
+
+      // The exact scenario that used to delete most of a V2-bootstrap-
+      // heavy diagram: Save As assigns the SAME document its first path
+      // (no document switch — `document.id` is unchanged). This must be
+      // a no-op for V2's own display: no clear, no reseed.
+      adapter.acknowledgeSaveAs();
+
+      expect(channel.clearAllSurfacesCallCount, 0,
+          reason:
+              'Save As must never clear V2\'s surfaces -- its content did not change');
+      expect(channel.restoreModuleCallCount, 0,
+          reason:
+              'Save As must never reseed V2 -- nothing was cleared to reseed');
+      expect(adapter.currentDocumentToken, controller.document.id,
+          reason:
+              'the token bookkeeping still needs to reflect the (now-saved) document');
+
+      // Contrast: a genuine document switch DOES clear+reseed -- this is
+      // `reinitializeForDocument()`'s correct, intentional job, not a
+      // bug this fix should also remove.
+      await adapter.reinitializeForDocument();
+      expect(channel.clearAllSurfacesCallCount, 1,
+          reason: 'a real document switch must still clear V2\'s surfaces');
     },
   );
 }

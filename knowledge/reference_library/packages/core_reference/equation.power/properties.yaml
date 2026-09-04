@@ -1,0 +1,46 @@
+# The three variables the power equation relates, modeled as
+# Engineering Properties of the equation itself (SDD-R011 §7).
+- property_id: current
+  display_name: Current
+  value_type: number
+  unit_ref: unit.ampere
+  unit_symbol_pending: null
+  default_value: null
+  range:
+    min: null
+    max: null
+  constraints: []
+  visibility: public
+  required: true
+  read_only: false
+  description: Current flowing through the element.
+
+- property_id: power
+  display_name: Power
+  value_type: number
+  unit_ref: unit.watt
+  unit_symbol_pending: null
+  default_value: null
+  range:
+    min: null
+    max: null
+  constraints: []
+  visibility: public
+  required: true
+  read_only: false
+  description: Power dissipated or delivered by the element.
+
+- property_id: voltage
+  display_name: Voltage
+  value_type: number
+  unit_ref: unit.volt
+  unit_symbol_pending: null
+  default_value: null
+  range:
+    min: null
+    max: null
+  constraints: []
+  visibility: public
+  required: true
+  read_only: false
+  description: Voltage across the element.

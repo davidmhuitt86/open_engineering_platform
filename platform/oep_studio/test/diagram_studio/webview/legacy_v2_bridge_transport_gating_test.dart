@@ -15,20 +15,31 @@ void main() {
     expect(transport.bridgeEnabled, isTrue);
   });
 
-  test('when bridgeEnabled is false, sendAuthoritativeModulePosition completes without touching the controller', () async {
-    final transport = LegacyV2BridgeTransport(WebviewController())..bridgeEnabled = false;
+  test(
+      'when bridgeEnabled is false, sendAuthoritativeModulePosition completes without touching the controller',
+      () async {
+    final transport = LegacyV2BridgeTransport(WebviewController())
+      ..bridgeEnabled = false;
     // Would throw/hang against an uninitialized native controller if the
     // gate didn't short-circuit before reaching `_controller.executeScript`.
-    await expectLater(transport.sendAuthoritativeModulePosition('m', 1, 2), completes);
+    await expectLater(
+        transport.sendAuthoritativeModulePosition('m', 1, 2), completes);
   });
 
-  test('when bridgeEnabled is false, restoreModule completes without touching the controller', () async {
-    final transport = LegacyV2BridgeTransport(WebviewController())..bridgeEnabled = false;
-    await expectLater(transport.restoreModule('m', 'label', 'ground', 1, 2), completes);
+  test(
+      'when bridgeEnabled is false, restoreModule completes without touching the controller',
+      () async {
+    final transport = LegacyV2BridgeTransport(WebviewController())
+      ..bridgeEnabled = false;
+    await expectLater(
+        transport.restoreModule('m', 'label', 'ground', 1, 2), completes);
   });
 
-  test('when bridgeEnabled is false, removeWireFromV2 completes without touching the controller', () async {
-    final transport = LegacyV2BridgeTransport(WebviewController())..bridgeEnabled = false;
+  test(
+      'when bridgeEnabled is false, removeWireFromV2 completes without touching the controller',
+      () async {
+    final transport = LegacyV2BridgeTransport(WebviewController())
+      ..bridgeEnabled = false;
     await expectLater(transport.removeWireFromV2('w'), completes);
   });
 }

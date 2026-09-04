@@ -1,0 +1,119 @@
+identity:
+  object_id: component.reference_node
+  object_type: Component
+  display_name: Reference Node
+  short_name: reference_node
+  version: "1.0.0"
+  lifecycle_state: Published
+  package_id: core_reference
+  uuid: dd9b20ce-6677-5aa0-b23b-b439bd30cd1b
+
+classification:
+  domain: Electrical
+  discipline: Electronics
+  family: Nodes
+  category: Reference
+  subcategory: Ground
+  tags:
+    - reference
+    - ground
+    - common
+    - one-terminal
+  keywords:
+    - ground
+    - reference node
+    - common
+    - zero volt reference
+  aliases:
+    - ground
+    - common
+    - 0V reference
+  abbreviations:
+    - GND
+  alternate_names: []
+  manufacturer_terms: []
+  standards_references:
+    - IEEE 315
+  roles:
+    - Design
+    - Simulation
+    - Education
+  capabilities:
+    - Searchable
+    - Simulatable
+    - Explainable
+
+  standards:
+    - IEEE
+  industries:
+    - Automotive
+    - Industrial
+    - Consumer Electronics
+  technologies: []
+
+authority:
+  authority_type: Physical Law
+  authority_reference: >-
+    Circuit theory (nodal analysis) requires exactly one node in a
+    circuit be designated the 0 V reference against which every other
+    node voltage is measured.
+  authority_source_object: null
+  notes: >-
+    No Source Object EKO exists yet for circuit-theory analysis
+    conventions (SDD-R012 §7) -- free text until one is authored.
+
+evidence:
+  - evidence_type: Standard
+    reference: IEEE 315
+    evidence_source_object: null
+    description: Graphic symbols for electrical and electronics diagrams (ground symbol).
+
+provenance:
+  author: OEP Reference Authoring Team
+  reviewer: Divad Technology Group Engineering Review
+  organization: Divad Technology Group, LLC.
+  created_date: "2026-09-04"
+  review_date: "2026-09-04"
+  approval_date: "2026-09-04"
+  digital_signature: null
+  revision_notes:
+    - "AP-EK-020 completion: authored to close the electrical-core vertical
+      slice's missing reference-node component model."
+  sources_consulted:
+    - General electrical engineering fundamentals (public domain
+      principles; no copyrighted text reproduced)
+  confidence: high
+  content_license: CC-BY-4.0
+
+history:
+  previous_versions: []
+  superseded_by: null
+  migration_notes: []
+  deprecation_history: []
+  lifecycle_events:
+    - state: Published
+      date: "2026-09-04"
+      notes: "AP-EK-020 completion: authored alongside component.source.voltage_ideal
+        and equation.power to complete the electrical-core vertical slice."
+
+simulation:
+  supported_solvers: []
+  runtime_requirements: []
+  simulation_models:
+    - reference_node
+  initial_conditions: {}
+  state_variables: []
+  parameters: []
+  failure_modes: []
+  default_values: {}
+
+visualization:
+  color_hints: {}
+  rendering_rules: []
+  default_labels:
+    - GND
+  connection_styles: []
+  display_groups: []
+  asset_roles: []
+
+assets: []

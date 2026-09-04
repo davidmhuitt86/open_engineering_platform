@@ -1,0 +1,12 @@
+short_definition: >-
+  The circuit's designated 0 V reference point (ground/common).
+detailed_description: >-
+  Every voltage in a circuit is a difference between two points; nodal
+  analysis requires exactly one node be designated the 0 V reference
+  so every other node's voltage has a well-defined absolute value.
+  The reference node has no engineering parameters of its own -- it
+  is a topological anchor, not a physical component.
+engineering_notes: >-
+  A circuit with no designated reference node cannot be analyzed --
+  node voltages would be defined only up to an arbitrary additive
+  constant.

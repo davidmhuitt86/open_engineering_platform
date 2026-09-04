@@ -92,6 +92,7 @@ function renderModInfo(m) {
     <div class="fpr"><span class="fpk">Sub</span><span class="fpv">${m.sub || '—'}</span></div>
     <div class="fpr"><span class="fpk">Category</span><span class="fpv"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${catColor};margin-right:4px;vertical-align:middle"></span>${m.cat}</span></div>
     <div class="fpr"><span class="fpk">Exit</span><span class="fpv">${m.exit || 'down'}</span></div>`;
+  if (m.location) html += `<div class="fpr"><span class="fpk">Location</span><span class="fpv" style="font-size:7.5px;line-height:1.5;white-space:pre-wrap">${m.location}</span></div>`;
   if (m.notes) html += `<div class="fpr"><span class="fpk">Notes</span><span class="fpv" style="font-size:7.5px;line-height:1.5;white-space:pre-wrap">${m.notes}</span></div>`;
   html += `<div class="mip-section-hd">Terminals</div><div class="mip-terms">`;
   m.terminals.forEach(t => {

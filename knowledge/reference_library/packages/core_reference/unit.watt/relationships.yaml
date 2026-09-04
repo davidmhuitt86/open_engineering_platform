@@ -1,0 +1,4 @@
+# unit.watt is the target of relationships owned by other objects
+# (e.g. equation.power's HAS_UNIT relationship) -- it has no outgoing
+# relationships of its own.
+[]

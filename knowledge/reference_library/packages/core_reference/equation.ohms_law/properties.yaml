@@ -18,8 +18,8 @@
 - property_id: current
   display_name: Current
   value_type: number
-  unit_ref: null
-  unit_symbol_pending: A
+  unit_ref: unit.ampere
+  unit_symbol_pending: null
   default_value: null
   range:
     min: null
@@ -33,8 +33,8 @@
 - property_id: resistance
   display_name: Resistance
   value_type: number
-  unit_ref: null
-  unit_symbol_pending: "Ω"
+  unit_ref: unit.ohm
+  unit_symbol_pending: null
   default_value: null
   range:
     min: 0

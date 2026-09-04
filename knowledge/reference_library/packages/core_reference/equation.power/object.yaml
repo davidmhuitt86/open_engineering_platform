@@ -1,0 +1,124 @@
+identity:
+  object_id: equation.power
+  object_type: Equation
+  display_name: Electrical Power Equation
+  short_name: power
+  version: "1.0.0"
+  lifecycle_state: Published
+  package_id: core_reference
+  uuid: 39052760-536e-5601-9789-6da0fac4e018
+
+classification:
+  domain: Electrical
+  discipline: Electronics
+  family: Theory
+  category: Fundamental Laws
+  subcategory: Power Calculation
+  tags:
+    - fundamental
+    - dc theory
+    - linear
+    - power
+  keywords:
+    - power
+    - watts law
+    - joule's law
+    - voltage
+    - current
+  aliases:
+    - "P = V × I"
+    - "P = VI"
+    - Joule's Law (electrical form)
+  abbreviations: []
+  alternate_names: []
+  manufacturer_terms: []
+  standards_references: []
+  roles:
+    - Design
+    - Simulation
+    - Education
+    - Validation
+    - Reference
+  capabilities:
+    - Searchable
+    - Simulatable
+    - Validatable
+    - Explainable
+    - Teachable
+  standards: []
+  industries:
+    - Automotive
+    - Industrial
+    - Consumer Electronics
+  technologies: []
+
+authority:
+  authority_type: Physical Law
+  authority_reference: >-
+    James Prescott Joule's law of electrical power: the power
+    dissipated or delivered by a circuit element equals the product
+    of the voltage across it and the current through it.
+  authority_source_object: null
+  notes: >-
+    No Source Object EKO exists yet to represent Joule as a
+    physical-law authority (SDD-R012 §7 authority.* naming convention)
+    -- free text until one is authored.
+
+evidence:
+  - evidence_type: Calculation
+    reference: Dimensional analysis of P = V x I against SI base units
+    evidence_source_object: null
+    description: Confirms unit consistency of the equation (watt = volt x ampere).
+
+provenance:
+  author: OEP Reference Authoring Team
+  reviewer: Divad Technology Group Engineering Review
+  organization: Divad Technology Group, LLC.
+  created_date: "2026-09-04"
+  review_date: "2026-09-04"
+  approval_date: "2026-09-04"
+  digital_signature: null
+  revision_notes:
+    - "AP-EK-020 completion: authored to close the electrical-core vertical
+      slice's missing power equation."
+  sources_consulted:
+    - General electrical engineering fundamentals (public domain
+      physical law; no copyrighted text reproduced)
+  confidence: verified
+  content_license: CC-BY-4.0
+
+history:
+  previous_versions: []
+  superseded_by: null
+  migration_notes: []
+  deprecation_history: []
+  lifecycle_events:
+    - state: Published
+      date: "2026-09-04"
+      notes: "AP-EK-020 completion: authored alongside component.source.voltage_ideal
+        and component.reference_node to complete the electrical-core
+        vertical slice."
+
+simulation:
+  supported_solvers: []
+  runtime_requirements: []
+  simulation_models:
+    - linear_algebraic_relation
+  initial_conditions: {}
+  state_variables: []
+  parameters:
+    - voltage
+    - current
+    - power
+  failure_modes: []
+  default_values: {}
+
+visualization:
+  color_hints: {}
+  rendering_rules: []
+  default_labels: []
+  connection_styles: []
+  display_groups: []
+  asset_roles: []
+
+assets: []

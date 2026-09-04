@@ -1,0 +1,60 @@
+# Engineering Properties describing the unit itself (SDD-R011 §7).
+- property_id: symbol
+  display_name: Symbol
+  value_type: string
+  unit_ref: null
+  unit_symbol_pending: null
+  value: W
+  default_value: null
+  range: null
+  constraints: []
+  visibility: public
+  required: true
+  read_only: true
+  description: The standard unit symbol.
+
+- property_id: quantity_measured
+  display_name: Quantity Measured
+  value_type: string
+  unit_ref: null
+  unit_symbol_pending: null
+  value: Power
+  default_value: null
+  range: null
+  constraints: []
+  visibility: public
+  required: true
+  read_only: true
+  description: The physical quantity this unit measures.
+
+- property_id: si_base_expression
+  display_name: SI Base Expression
+  value_type: string
+  unit_ref: null
+  unit_symbol_pending: null
+  value: "kg*m^2*s^-3"
+  default_value: null
+  range: null
+  constraints: []
+  visibility: public
+  required: true
+  read_only: true
+  description: The watt expressed in SI base units.
+
+- property_id: conversion_factor_to_si
+  display_name: Conversion Factor to SI
+  value_type: number
+  unit_ref: null
+  unit_symbol_pending: null
+  value: 1.0
+  default_value: null
+  range:
+    min: 0
+    max: null
+  constraints: []
+  visibility: public
+  required: true
+  read_only: true
+  description: >-
+    Multiplier converting one of this unit into the SI base
+    expression. The watt is itself an SI derived unit, so this is 1.0.

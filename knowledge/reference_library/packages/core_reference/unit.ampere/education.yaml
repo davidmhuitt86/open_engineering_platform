@@ -1,0 +1,12 @@
+short_definition: >-
+  The SI base unit of electric current.
+detailed_description: >-
+  One ampere is the SI base unit of electric current, defined (since
+  the 2019 SI redefinition) by fixing the numerical value of the
+  elementary charge. In SI base units the ampere is itself the base
+  quantity A -- it is not derived from other units. Current is the
+  rate of flow of electric charge past a point in a circuit.
+engineering_notes: >-
+  Ohm's Law (V = IR) relates current directly to voltage and
+  resistance; current is the quantity most directly tied to component
+  heating and wire-gauge sizing.

@@ -19,6 +19,25 @@ def test_compile_package_is_deterministic_across_two_independent_builds(tmp_path
     assert first.sha256 == second.sha256
 
 
+def test_compile_package_preserves_package_identity_in_the_staged_manifest(tmp_path):
+    """AP-EK-020 Part A: package_id/version/publisher must survive the
+    compile step unchanged -- the .oerp reader's `KnowledgePackageManifest`
+    is built directly from these fields."""
+    import json
+    import zipfile
+
+    result = compile_package("core_reference", output_dir=tmp_path)
+    with zipfile.ZipFile(result.output_path) as archive:
+        manifest = json.loads(archive.read("manifest.json"))
+        runtime_export = json.loads(archive.read("runtime.json"))
+
+    assert manifest["package_id"] == "core_reference"
+    assert manifest["version"] == "1.0.0"
+    assert manifest["publisher"] == "Divad Technology Group, LLC."
+    assert runtime_export["schemaVersion"] == "1.0.0"
+    assert "runtime.json" in {name for name in zipfile.ZipFile(result.output_path).namelist()}
+
+
 def test_compile_package_raises_for_unknown_package_id(tmp_path):
     with pytest.raises(ValueError, match="no_such_package"):
         compile_package("no_such_package", output_dir=tmp_path)

@@ -1,0 +1,10 @@
+short_definition: >-
+  The SI derived unit of electrical resistance.
+detailed_description: >-
+  One ohm is the resistance between two points of a conductor when a
+  constant potential difference of one volt, applied between these
+  two points, produces a current of one ampere. In SI base units the
+  ohm is expressed as kg x m^2 x s^-3 x A^-2.
+engineering_notes: >-
+  Ohm's Law (V = IR) is the defining relationship between resistance,
+  voltage, and current for ohmic (linear resistive) elements.

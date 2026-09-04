@@ -1,0 +1,14 @@
+short_definition: >-
+  A two-terminal circuit element that maintains a fixed voltage across
+  its terminals regardless of the current drawn from it.
+detailed_description: >-
+  An ideal voltage source has zero internal (Thevenin) resistance --
+  its terminal voltage never sags under load. Real voltage sources
+  (batteries, regulated supplies) approximate this behavior within
+  their rated current range; the ideal model is used for hand
+  analysis and as the DC source model in the first electrical-core
+  vertical slice.
+engineering_notes: >-
+  An ideal voltage source must never have its terminals directly
+  short-circuited in a real analysis -- doing so implies infinite
+  current, which the ideal model does not bound.

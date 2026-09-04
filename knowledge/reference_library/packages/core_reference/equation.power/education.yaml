@@ -1,0 +1,12 @@
+short_definition: >-
+  The power dissipated or delivered by a circuit element equals the
+  product of the voltage across it and the current through it.
+detailed_description: >-
+  Expressed as P = V x I, where P is power in watts, V is voltage in
+  volts, and I is current in amperes. Combined with Ohm's Law, power
+  can also be expressed as P = I^2 x R or P = V^2 / R for a purely
+  resistive element.
+engineering_notes: >-
+  This is the general electrical power relationship; it applies to
+  any two-terminal element under the passive sign convention, not
+  only resistors.

@@ -75,7 +75,8 @@ class _FakeChannel implements LegacyV2Channel {
   @override
   Future<void> restoreModule(
       String v2ModuleId, String label, String category, double x, double y,
-      {String notes = ''}) async {
+      {String notes = '',
+      List<Map<String, String>> terminals = const []}) async {
     restoredModuleIds.add(v2ModuleId);
   }
 

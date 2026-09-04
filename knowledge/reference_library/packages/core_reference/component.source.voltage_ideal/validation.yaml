@@ -1,0 +1,4 @@
+# An ideal voltage source's voltage may be any real value (including
+# negative or zero) -- no positivity constraint applies, unlike a
+# resistor's resistance.
+[]

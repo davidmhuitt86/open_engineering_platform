@@ -26,25 +26,41 @@ import 'legacy_v2_bridge_transport.dart';
 /// **Coordinate mapping**: identity, unchanged from POC-003/AP-DIAGRAM-
 /// V2-WEBVIEW-001's conclusion.
 ///
-/// **Category → symbol mapping (AP-DIAGRAM-V2-WEBVIEW-002)**: V2's 11
-/// module categories (`power`/`ignition`/`charging`/`lighting`/`starter`/
-/// `switch`/`control`/`indicator`/`accessory`/`ground`/`connector`, from
-/// `index.html`'s own category `<select>` options) were checked against
-/// OEP's actual registered symbols
-/// (`platform/oep_engine/assets/symbols/*.json`). Only two are a genuine,
-/// name-identical, non-fabricated match: `ground` → `ground.json` and
-/// `connector` → `connector.json`. The other 9 have no symbol whose
-/// identity is deterministically implied by the category string alone
-/// (e.g. `ignition` could plausibly mean `ignition_coil`, but could just
-/// as easily be a CDI unit, a spark plug, or something with no existing
-/// symbol at all — guessing is exactly the fabrication this task
-/// prohibits). [_symbolIdForCategory] therefore returns `null` for those
-/// 9, and [_handleModuleCreated] does not create an OEP node for them —
-/// see the architecture doc's §6/§15 for the full account. The earlier
-/// `'battery'` placeholder from AP-DIAGRAM-V2-WEBVIEW-001 (used for
-/// *every* module regardless of category) has been retired, per this
-/// task's explicit instruction that it "MUST NOT silently become the
-/// permanent architecture."
+/// **Category → symbol mapping (AP-DIAGRAM-V2-WEBVIEW-002, revised
+/// AP-DIAGRAM-V2-BRIDGE-SAVE-007)**: V2's 11 module categories (`power`/
+/// `ignition`/`charging`/`lighting`/`starter`/`switch`/`control`/
+/// `indicator`/`accessory`/`ground`/`connector`, from `index.html`'s own
+/// category `<select>` options) were checked against OEP's actual
+/// registered symbols (`platform/oep_engine/assets/symbols/*.json`). Only
+/// two are a genuine, name-identical, non-fabricated match: `ground` →
+/// `ground.json` and `connector` → `connector.json`. The other 9 have no
+/// symbol whose *specific* identity is deterministically implied by the
+/// category string alone (e.g. `ignition` could plausibly mean
+/// `ignition_coil`, but could just as easily be a CDI unit, a spark plug,
+/// or something with no existing symbol at all) — [_symbolIdForCategory]
+/// therefore falls back to `generic_module.json` for those 9, rather than
+/// guessing a specific component identity. This is a different thing from
+/// the earlier `'battery'` placeholder (AP-DIAGRAM-V2-WEBVIEW-001, retired)
+/// that this class's doc comment used to warn against: `generic_module` is
+/// OEP's own purpose-built "Unknown Symbol fallback" (see its own
+/// `description`), not a specific-but-wrong component identity, and the
+/// real V2 category is never lost — it is still stashed in
+/// `metadata['v2Category']` on the created node exactly as before.
+///
+/// **Why this changed**: returning `null` for 9 of 11 categories meant
+/// [_handleModuleCreated]/[_handleWireCreated] silently refused to create
+/// an OEP node/relationship for the vast majority of a typical vehicle
+/// diagram (V2's own `Bootstrap.run` demo vehicles use these categories
+/// almost exclusively — `ground`/`connector` are a small minority). Save
+/// As's flush-before-save reconciliation
+/// (`LegacyV2StateAdapter.flushBeforeSave`) captures V2's live module/wire
+/// state through these same two handlers, so a diagram that displayed
+/// completely normally in V2 would silently save as a near-empty OEP
+/// document — confirmed to reproduce exactly this way (Save As, then Open
+/// the saved file: only the handful of `ground`/`connector` modules and
+/// no wires at all came back). Falling back to `generic_module` instead
+/// of refusing makes the OEP document a faithful round-trip of what V2 is
+/// actually showing, for every category, not just two.
 enum _BridgedKind { module, wire }
 
 class LegacyV2StateAdapter {
@@ -201,12 +217,31 @@ class LegacyV2StateAdapter {
 
   String? oepNodeIdFor(String v2ModuleId) => _v2ToOepNodeId[v2ModuleId];
 
+  /// Reads back [_handleModuleCreated]'s stashed `metadata['v2Terminals']`
+  /// — typed `List<Map<String, String>>` in-memory, but `List<dynamic>` of
+  /// `Map<String, dynamic>` once it has round-tripped through a saved
+  /// document's JSON (`jsonDecode` does not restore the original generic
+  /// types) — normalized back to the one shape [LegacyV2Channel.restoreModule]
+  /// expects either way.
+  static List<Map<String, String>> _terminalsFromMetadata(Object? raw) {
+    if (raw is! List) return const [];
+    return raw
+        .whereType<Map>()
+        .map(
+            (t) => t.map((k, v) => MapEntry(k.toString(), v?.toString() ?? '')))
+        .toList();
+  }
+
   /// Deterministic V2 category → OEP symbolId lookup — see class doc
-  /// comment for why only these two entries exist.
-  static String? _symbolIdForCategory(String category) => const {
+  /// comment for why only these two categories have a specific match, and
+  /// why every other category falls back to `generic_module` rather than
+  /// being refused. Always returns a non-null symbolId.
+  static String _symbolIdForCategory(String category) =>
+      const {
         'ground': 'ground',
         'connector': 'connector',
-      }[category];
+      }[category] ??
+      'generic_module';
 
   void _handleV2ModuleMoved(V2ModuleMovedMessage message) {
     if (!_ready) return;
@@ -225,19 +260,17 @@ class LegacyV2StateAdapter {
   }
 
   /// Phase 4 — creates the corresponding OEP node via the existing
-  /// `addNodeWithMetadata` (itself an existing `CreateNodeCommand` call)
-  /// only when [message.category] has a deterministic symbol mapping;
-  /// otherwise records the module as unbridged and leaves it as a
-  /// V2-only, non-authoritative object (documented, not silently
-  /// papered over).
+  /// `addNodeWithMetadata` (itself an existing `CreateNodeCommand` call).
+  /// [_symbolIdForCategory] always resolves a symbolId now (a specific
+  /// match, or the `generic_module` fallback), so every category creates
+  /// a node — see that method's/the class doc comment for why
+  /// [unbridgedV2ModuleIds] is effectively legacy at this point (kept for
+  /// the host UI's display purposes and the theoretical case of a truly
+  /// empty category string, rather than removed outright).
   void _handleModuleCreated(V2ModuleCreatedMessage message) {
     if (!_ready) return;
     if (_v2ToOepNodeId.containsKey(message.v2ModuleId)) return;
     final symbolId = _symbolIdForCategory(message.category);
-    if (symbolId == null) {
-      unbridgedV2ModuleIds.add(message.v2ModuleId);
-      return;
-    }
     final position = Point2D(message.x, message.y);
     final before = controller.engine.editing.session.graph.nodes.keys.toSet();
     controller.addNodeWithMetadata(
@@ -246,7 +279,11 @@ class LegacyV2StateAdapter {
       displayName: message.label,
       metadata: {
         'v2ModuleId': message.v2ModuleId,
-        'v2Category': message.category
+        'v2Category': message.category,
+        // AP-DIAGRAM-V2-BRIDGE-SAVE-007 — V2's own terminal list, so a
+        // later `restoreModule` (document reopen, undo-of-delete) can
+        // reconstruct a module V2 actually renders with terminal dots.
+        if (message.terminals.isNotEmpty) 'v2Terminals': message.terminals,
       },
     );
     final after = controller.engine.editing.session.graph.nodes.keys.toSet();
@@ -722,7 +759,8 @@ class LegacyV2StateAdapter {
     final category = node.metadata['v2Category'] as String? ?? '';
     channel.restoreModule(
         v2Id, node.displayName, category, position.dx, position.dy,
-        notes: node.metadata['notes'] as String? ?? '');
+        notes: node.metadata['notes'] as String? ?? '',
+        terminals: _terminalsFromMetadata(node.metadata['v2Terminals']));
     _syncPositionToV2(v2Id, nodeId);
     _syncLabelToV2(v2Id, nodeId);
   }
@@ -810,12 +848,27 @@ class LegacyV2StateAdapter {
   /// section), not a bug: fabricating a V2 category for a node OEP
   /// never got from V2 would be exactly the kind of invented mapping
   /// this bridge has refused everywhere else.
+  ///
+  /// AP-DIAGRAM-V2-BRIDGE-SAVE-008 — always clears V2's surfaces first,
+  /// including on the very first call (WebView-ready, before any document
+  /// switch). V2's own page load runs its hardcoded `Bootstrap.run`
+  /// demo-vehicle script independently of whatever OEP document is
+  /// actually active; without a clear here, a genuinely blank/new
+  /// document left that demo vehicle on screen untouched (nothing ever
+  /// told V2 to remove it, since the reseed loop below only ever *adds*
+  /// nodes it recognizes) — so a brand-new document, or a fresh app
+  /// launch with no document restored, looked identical to "the trx300
+  /// demo is my diagram" even though the real OEP document underneath
+  /// was empty. [reinitializeForDocument] already cleared for the
+  /// document-switch case; this makes the initial seed symmetric with it
+  /// rather than a silent special case.
   Future<void> initializeFromDocument() async {
     _ready = false;
     _v2ToOepNodeId.clear();
     _v2ToOepRelationshipId.clear();
     unbridgedV2ModuleIds.clear();
     unbridgedV2WireIds.clear();
+    await channel.clearAllSurfaces();
 
     final graph = controller.engine.editing.session.graph;
     final layout = controller.engine.editing.session.layout;
@@ -829,7 +882,8 @@ class LegacyV2StateAdapter {
       final position = layout.positionOf(node.id) ?? const Point2D(50, 50);
       await channel.restoreModule(
           v2Id, node.displayName, category, position.dx, position.dy,
-          notes: node.metadata['notes'] as String? ?? '');
+          notes: node.metadata['notes'] as String? ?? '',
+          terminals: _terminalsFromMetadata(node.metadata['v2Terminals']));
     }
 
     // Rebuild the relationship-id index and seed V2's WIRES — only for
@@ -947,6 +1001,7 @@ class LegacyV2StateAdapter {
         category: entry.value.category,
         x: entry.value.x,
         y: entry.value.y,
+        terminals: entry.value.terminals,
       ));
     }
     for (final v2Id in _v2ToOepNodeId.keys.toList()) {
@@ -1037,22 +1092,57 @@ class LegacyV2StateAdapter {
     return true;
   }
 
-  /// AP-DIAGRAM-V2-BRIDGE-002, Phase 8 — the active OEP document changed
-  /// (or is being loaded for the first time). Clears whatever V2 was
-  /// showing (so document A's modules/wires cannot linger and be
-  /// mutated under document B's identity map — the exact "no
-  /// cross-document identity leakage" requirement), then reinitializes
-  /// from the (now current) document. `_ready` is `false` for the whole
-  /// duration, so any message V2 fires while it's still holding the old
-  /// document's content (before the clear takes effect) is dropped by
-  /// the same gate every handler already checks.
+  /// AP-DIAGRAM-V2-BRIDGE-002, Phase 8 — the active OEP document changed.
+  /// Clears whatever V2 was showing (so document A's modules/wires cannot
+  /// linger and be mutated under document B's identity map — the exact
+  /// "no cross-document identity leakage" requirement), then
+  /// reinitializes from the (now current) document. `_ready` is `false`
+  /// for the whole duration, so any message V2 fires while it's still
+  /// holding the old document's content (before the clear takes effect)
+  /// is dropped by the same gate every handler already checks.
+  ///
+  /// AP-DIAGRAM-V2-BRIDGE-SAVE-008 — the actual clear now happens inside
+  /// [initializeFromDocument] itself (it always clears first, § that
+  /// method's own doc comment), so this only resets the undo-resync
+  /// bookkeeping that's specific to a genuine document switch, not a
+  /// first-ever load.
   Future<void> reinitializeForDocument() async {
-    _ready = false;
     lastBridgedV2ModuleId = null;
     lastBridgedV2WireId = null;
     _lastBridgedKind = null;
-    await channel.clearAllSurfaces();
     await initializeFromDocument();
+  }
+
+  /// AP-DIAGRAM-V2-BRIDGE-SAVE-006 — Save As assigning a document its
+  /// first path is NOT a document switch: it is the exact same document
+  /// (same `document.id`, same content — [flushBeforeSave] already
+  /// reconciled V2's current state into the OEP graph moments earlier,
+  /// as part of the same save), only now with a path attached.
+  /// [reinitializeForDocument] was being reused for this case (the
+  /// `documentPath` null→non-null listener in `legacy_v2_webview.dart`)
+  /// under the theory that "reseed after Save As" was harmless — but
+  /// [reinitializeForDocument] is built for genuine document switching:
+  /// `clearAllSurfaces()` wipes V2's *entire* MODULES/WIRES arrays, and
+  /// [initializeFromDocument]'s reseed loop only restores nodes/
+  /// relationships that already carry this bridge's own `v2ModuleId`/
+  /// `v2WireId` metadata (§ that method's own doc comment — "an
+  /// arbitrary OEP node with no v2ModuleId... is silently left out of
+  /// V2's view"). Any V2 content that only ever existed via V2's own
+  /// independent bootstrap and was never individually touched (so never
+  /// went through a live-poller create event, and — before the flush
+  /// barrier existed — was never captured any other way either) has no
+  /// `v2ModuleId`-bearing OEP node, so a full clear+reseed here silently
+  /// dropped it. This is what a first "Save" on a large, V2-bootstrap-
+  /// heavy diagram looked like from the user's side: "the diagram is
+  /// mostly gone" immediately after Save As.
+  ///
+  /// The correct operation for "the document I already had open just
+  /// got a path" is: don't touch V2's display at all — its content
+  /// didn't change — only update the token this class exposes for
+  /// display/test purposes (see [currentDocumentToken]'s own doc
+  /// comment: nothing else branches on it).
+  void acknowledgeSaveAs() {
+    currentDocumentToken = controller.document.id;
   }
 
   String? _reverseNodeLookup(String oepNodeId) {

@@ -1,0 +1,3 @@
+# No structured bound applies to voltage/current/power individually --
+# any real value is a valid input to P = V x I.
+[]

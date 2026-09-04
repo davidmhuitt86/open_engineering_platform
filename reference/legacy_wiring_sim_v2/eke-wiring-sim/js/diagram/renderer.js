@@ -34,12 +34,32 @@ const STUB=14;
 // ── CARD BUILDER ─────────────────────────────────────────────────
 function buildCard(m){
   const card=document.createElement("div");card.className="mod-card";card.dataset.mid=m.id;
+  if(m.splice){buildSpliceCard(m,card);return card;}
   const stripe=document.createElement("div");stripe.className="cat-stripe";stripe.style.background=CAT_CLR[m.cat]||"#888";card.appendChild(stripe);
   if(m.bulb)buildBulbCard(m,card);
   else if(m.connector)buildConnCard(m,card);
   else buildStdCard(m,card);
   const lbl=document.createElement("div");lbl.className="mod-label";lbl.innerHTML=`${m.label}<br><span class="mod-sub">${m.sub||""}</span>`;card.appendChild(lbl);
   return card;
+}
+// A splice is a joint/junction point, not a real component — it renders
+// as a small dot (the real electrical-diagram symbol for a spliced
+// joint), not a labeled card with a terminal strip. It still carries
+// exactly one terminal ("SPLICE") so every existing wire/terminal-click/
+// routing code path (setupTermClicks, getPos, exitDir, WIRES.from/to)
+// keeps working on it completely unchanged — a splice is deliberately
+// just a MODULES entry with `splice:true`, not a parallel data model.
+function buildSpliceCard(m,card){
+  card.classList.add("splice-card");
+  card.style.cssText+="padding:0;min-width:0;background:transparent;border:none;box-shadow:none;";
+  const k=`${m.id}::SPLICE`;
+  const dot=document.createElement("div");
+  dot.className="t-dot";dot.id="d_"+sid(k);
+  const c=(m.terminals&&m.terminals[0]&&m.terminals[0].c)||"W";
+  dot.style.cssText=`width:10px;height:10px;border-radius:50%;background:${h(c)};border:1.5px solid #0d0d0d;cursor:pointer;`;
+  dot.title=m.label+(m.location?` — ${m.location}`:"");
+  dot.dataset.mid=m.id;dot.dataset.tn="SPLICE";
+  card.appendChild(dot);
 }
 function buildStdCard(m,card){
   card.style.paddingLeft="4px";
@@ -65,6 +85,27 @@ function buildBulbCard(m,card){
 function buildConnCard(m,card){
   card.style.paddingLeft="4px";
   const inner=document.createElement("div");inner.style.cssText="display:flex;flex-direction:column;align-items:center;padding:3px 4px;";
+  if(m.vertical){
+    // Vertical orientation: the connector "stands up" — pins stack
+    // top-to-bottom, and each pin's own IN/OUT dots sit side-by-side
+    // (IN on the left, OUT on the right) so IN wires route in
+    // horizontally from the left and OUT wires route out horizontally
+    // to the right (see exitDir()'s m.vertical branch below).
+    const body=document.createElement("div");body.style.cssText="display:flex;flex-direction:column;align-items:center;gap:0;background:#e2e8f0;border:1.5px solid #475569;border-radius:3px;padding:4px 2px;";
+    m.terminals.forEach((t,i)=>{
+      const parts=t.c.split("|");const cIn=parts[0]||"W",cOut=parts[1]||cIn;
+      const slot=document.createElement("div");slot.style.cssText="display:flex;flex-direction:row;align-items:center;gap:1px;padding:3px 0;";
+      const dIn=document.createElement("div");dIn.className="t-dot";dIn.id="d_"+sid(`${m.id}::${t.n}_IN`);dIn.style.background=h(cIn);dIn.title=`${t.n} IN: ${cIn}`;dIn.dataset.mid=m.id;dIn.dataset.tn=t.n+"_IN";
+      const pin=document.createElement("div");pin.style.cssText="width:8px;height:6px;background:#94a3b8;border:1px solid #475569;border-radius:1px;";
+      const dOut=document.createElement("div");dOut.className="t-dot";dOut.id="d_"+sid(`${m.id}::${t.n}_OUT`);dOut.style.background=h(cOut);dOut.title=`${t.n} OUT: ${cOut}`;dOut.dataset.mid=m.id;dOut.dataset.tn=t.n+"_OUT";
+      const lbl=document.createElement("div");lbl.style.cssText="font-size:4px;color:#334155;font-weight:700;text-align:center;font-family:'Courier New',monospace;white-space:nowrap;margin-left:3px;";lbl.textContent=t.n;
+      slot.appendChild(dIn);slot.appendChild(pin);slot.appendChild(dOut);slot.appendChild(lbl);
+      body.appendChild(slot);
+      if(i<m.terminals.length-1){const sep=document.createElement("div");sep.style.cssText="height:1px;width:22px;background:#475569;margin:1px 0;";body.appendChild(sep);}
+    });
+    inner.appendChild(body);card.appendChild(inner);
+    return;
+  }
   const body=document.createElement("div");body.style.cssText="display:flex;flex-direction:row;align-items:center;gap:0;background:#e2e8f0;border:1.5px solid #475569;border-radius:3px;padding:2px 4px;";
   m.terminals.forEach((t,i)=>{
     const parts=t.c.split("|");const cIn=parts[0]||"W",cOut=parts[1]||cIn;
@@ -136,6 +177,10 @@ function exitDir(modId,termName){
   // wires off the IN pin look like they started at an arbitrary point on
   // the card instead of the actual pin. Route each dot from its own edge.
   if(m.connector&&termName){
+    if(m.vertical){
+      if(termName.endsWith("_IN"))return"left";
+      if(termName.endsWith("_OUT"))return"right";
+    }
     if(termName.endsWith("_IN"))return"up";
     if(termName.endsWith("_OUT"))return"down";
   }
@@ -180,6 +225,26 @@ function route(w){
   for(let i=0;i<c.length-1;i++){const p=c[i],q=c[i+1];if(Math.abs(p.y-q.y)<1){const l=Math.abs(q.x-p.x);if(l>mxL){mxL=l;lp={x:(p.x+q.x)/2,y:p.y};}}}
   if(!lp)lp={x:(a.x+b.x)/2,y:(a.y+b.y)/2};
   return{path:svgP(c),hit:svgP(c.slice(1,-1)),lp,pts:c};
+}
+
+// Projects (mx,my) onto every segment of w's rendered route and returns
+// the closest point on the polyline — the geometry splice placement
+// needs (AP-EK/DIAGRAM splice support) that nothing else in this file
+// computed before (existing wire hit-testing only relies on the
+// browser's own SVG path hit-test, never a point on the path itself).
+function closestPointOnWire(w,mx,my){
+  const rt=route(w);if(!rt)return null;
+  const pts=rt.pts;let best=null,bestD=Infinity;
+  for(let i=0;i<pts.length-1;i++){
+    const p=pts[i],q=pts[i+1];
+    const dx=q.x-p.x,dy=q.y-p.y;const len2=dx*dx+dy*dy;
+    let t=len2>0?((mx-p.x)*dx+(my-p.y)*dy)/len2:0;
+    t=Math.max(0,Math.min(1,t));
+    const px=p.x+t*dx,py=p.y+t*dy;
+    const d=Math.hypot(mx-px,my-py);
+    if(d<bestD){bestD=d;best={x:px,y:py};}
+  }
+  return best?{point:best,dist:bestD}:null;
 }
 
 
@@ -334,6 +399,22 @@ function drawWires(){
         ctxTarget=w;$("ctx-edit").style.display="";$("ctx-trace").style.display="";$("ctx-route").style.display="";$("ctx-del").textContent="✕ Delete Wire";
         selWire(w,e);$("ctx").style.left=e.clientX+"px";$("ctx").style.top=e.clientY+"px";$("ctx").classList.add("open");
       });
+      g.appendChild(hit);
+    }
+    // ── WIRE MODE: clicking a point on an existing wire either starts a
+    //    new wire from a splice inserted there, or (if a source is
+    //    already picked) completes the in-progress wire onto a splice
+    //    inserted there — see handleWireClickOnExistingWire (wire-editor.js).
+    //    Terminal dots keep their own click handlers (setupTermClicks)
+    //    for the "click a real terminal" path; this is the "click
+    //    anywhere along the wire itself" path.
+    else if(wireMode){
+      const hit=document.createElementNS("http://www.w3.org/2000/svg","path");
+      hit.setAttribute("d",rt.hit||rt.path);hit.setAttribute("stroke","transparent");
+      hit.setAttribute("stroke-width","10");hit.setAttribute("fill","none");hit.setAttribute("stroke-linecap","round");
+      hit.classList.add("wire-hit");
+      hit.style.pointerEvents="auto";
+      hit.addEventListener("click",e=>{e.stopPropagation();handleWireClickOnExistingWire(w,e);});
       g.appendChild(hit);
     }
     // ── ROUTE EDIT MODE, non-selected wire: still clickable, so the

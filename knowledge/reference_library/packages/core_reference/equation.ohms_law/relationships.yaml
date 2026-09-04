@@ -7,3 +7,21 @@
   confidence: high
   notes: Applies to the voltage variable.
   constraints: []
+
+- relationship_id: equation.ohms_law.has_unit.ampere
+  relationship_type: HAS_UNIT
+  target: unit.ampere
+  cardinality: many_to_one
+  lifecycle: Published
+  confidence: high
+  notes: Applies to the current variable.
+  constraints: []
+
+- relationship_id: equation.ohms_law.has_unit.ohm
+  relationship_type: HAS_UNIT
+  target: unit.ohm
+  cardinality: many_to_one
+  lifecycle: Published
+  confidence: high
+  notes: Applies to the resistance variable.
+  constraints: []

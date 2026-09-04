@@ -130,10 +130,11 @@ function renderTracerPanel(wires) {
 }
 function closeTracer() { $('tracer').classList.remove('open'); tracedWires.clear(); drawWires(); }
 
-function hideCtx() { $('ctx').classList.remove('open'); $('ctx-edit').style.display = ''; $('ctx-edit').textContent = '✎ Edit Wire Props'; $('ctx-trace').style.display = ''; $('ctx-route').style.display = ''; $('ctx-del').textContent = '✕ Delete Wire'; ctxTarget = null; }
+function hideCtx() { $('ctx').classList.remove('open'); $('ctx-edit').style.display = ''; $('ctx-edit').textContent = '✎ Edit Wire Props'; $('ctx-trace').style.display = ''; $('ctx-route').style.display = ''; $('ctx-rotate').style.display = 'none'; $('ctx-del').textContent = '✕ Delete Wire'; ctxTarget = null; }
 function ctxEdit()   { if (!ctxTarget) return; if (ctxTarget._mid) editModProps(ctxTarget._mid); else { selW = ctxTarget; editWireProps(); } hideCtx(); }
 function ctxTrace()  { if (ctxTarget && !ctxTarget._mid) { selW = ctxTarget; traceCircuit(); } hideCtx(); }
 function ctxRoute()  { if (ctxTarget && !ctxTarget._mid) { selW = ctxTarget; if (!routeEditMode) toggleRouteEditMode(); else drawWires(); } hideCtx(); }
+function ctxRotate() { if (ctxTarget && ctxTarget._mid) { rotateModule(ctxTarget._mid); } hideCtx(); }
 function ctxDelete() { if (!ctxTarget) return; if (ctxTarget._mid) { const mid = ctxTarget._mid; hideCtx(); delModule(mid); } else { selW = ctxTarget; hideCtx(); deleteSelectedWire(); } }
 document.addEventListener('click', e => { if (!e.target.closest('#ctx')) hideCtx(); });
 

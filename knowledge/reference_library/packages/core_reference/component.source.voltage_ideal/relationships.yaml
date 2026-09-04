@@ -1,0 +1,10 @@
+# Relationship Facet (SDD-R011 §8). Source is implicit:
+# component.source.voltage_ideal.
+- relationship_id: component.source.voltage_ideal.has_unit.volt
+  relationship_type: HAS_UNIT
+  target: unit.volt
+  cardinality: many_to_one
+  lifecycle: Published
+  confidence: high
+  notes: Applies to the voltage property.
+  constraints: []

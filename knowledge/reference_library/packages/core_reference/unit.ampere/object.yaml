@@ -1,0 +1,112 @@
+identity:
+  object_id: unit.ampere
+  object_type: Unit
+  display_name: Ampere
+  short_name: ampere
+  version: "1.0.0"
+  lifecycle_state: Published
+  package_id: core_reference
+  uuid: 30cb4c46-b944-56ca-9061-a5ccb14363d9
+
+classification:
+  domain: Electrical
+  discipline: Electronics
+  family: Units
+  category: Electrical Units
+  subcategory: Current
+  tags:
+    - si unit
+    - base unit
+    - current
+  keywords:
+    - ampere
+    - amp
+    - current
+    - electric current
+  aliases: []
+  abbreviations:
+    - A
+  alternate_names: []
+  manufacturer_terms: []
+  standards_references:
+    - SI (International System of Units)
+  roles:
+    - Design
+    - Simulation
+    - Education
+    - Reference
+  capabilities:
+    - Searchable
+    - Explainable
+  standards:
+    - SI
+  industries: []
+  technologies: []
+
+authority:
+  authority_type: Government Standard
+  authority_reference: >-
+    The ampere is an SI base unit, defined under the International
+    System of Units maintained by the BIPM (Bureau International des
+    Poids et Mesures).
+  authority_source_object: null
+  notes: >-
+    No Source Object EKO exists yet for BIPM/SI as a standards body
+    (SDD-R012 §7) -- free text until one is authored.
+
+evidence:
+  - evidence_type: Standard
+    reference: SI (International System of Units)
+    evidence_source_object: null
+    description: BIPM's definition of the ampere as an SI base unit.
+
+provenance:
+  author: OEP Reference Authoring Team
+  reviewer: Divad Technology Group Engineering Review
+  organization: Divad Technology Group, LLC.
+  created_date: "2026-09-04"
+  review_date: "2026-09-04"
+  approval_date: "2026-09-04"
+  digital_signature: null
+  revision_notes:
+    - "AP-EK-020 completion: authored to close the electrical-core vertical
+      slice's missing-unit gap (previously represented only as
+      unit_symbol_pending on consuming objects)."
+  sources_consulted:
+    - International System of Units (SI), Bureau International des
+      Poids et Mesures (public domain definition; no copyrighted text
+      reproduced)
+  confidence: verified
+  content_license: CC-BY-4.0
+
+history:
+  previous_versions: []
+  superseded_by: null
+  migration_notes: []
+  deprecation_history: []
+  lifecycle_events:
+    - state: Published
+      date: "2026-09-04"
+      notes: "AP-EK-020 completion: authored alongside unit.ohm/unit.watt to
+        complete the electrical-core vertical slice's unit set."
+
+simulation:
+  supported_solvers: []
+  runtime_requirements: []
+  simulation_models: []
+  initial_conditions: {}
+  state_variables: []
+  parameters: []
+  failure_modes: []
+  default_values: {}
+
+visualization:
+  color_hints: {}
+  rendering_rules: []
+  default_labels:
+    - A
+  connection_styles: []
+  display_groups: []
+  asset_roles: []
+
+assets: []

@@ -615,43 +615,38 @@ class DiagramStudioController implements DiagramEditingHost {
     final controller = DiagramStudioController(
         engine: host.engine, ref: ref, instanceId: instanceId);
 
-    // The persisted tab list is the authoritative "what was open last"
-    // record, superseding `workspace.lastDocumentPath` (unifying
-    // restoration under one source instead of two potentially-conflicting
-    // ones). Must be awaited before checking `tabs`/`activeTab` below —
-    // restoration runs async and would otherwise race the fallback logic.
+    // Must be awaited before touching tab state below — restoration runs
+    // async and would otherwise race [discardRestoredTabsWithoutPersisting].
     await ref.read(diagramTabsFamily(instanceId).notifier).ensureRestored();
-    final restoredTabs = ref.read(diagramTabsFamily(instanceId));
-    final restoredActivePath = restoredTabs.activeTab?.path;
 
+    // Panel widths/visibility — genuinely Flutter-presentation state this
+    // controller has no business owning (§ this method's own doc comment)
+    // — still loaded and returned to the caller unconditionally; only the
+    // document-content/tab-list restoration below changed.
     final workspace = await WorkspaceStateStorage.load();
 
-    // Only restore a document on the engine's very first start in this
+    // AP-OEP-DIAGRAM-BOOT-UNTITLED-001 — a fresh app start deliberately
+    // does NOT auto-reopen the previously active document or tab list
+    // (the former `workspace.lastDocumentPath`/restored-tabs behavior,
+    // silently reopening whatever was open at last close). The user
+    // explicitly asked for a blank Untitled diagram on every fresh
+    // launch/new tab instead, with reopening the previous diagram made
+    // an explicit, one-click action (the "Load Previous Diagram" button
+    // in `legacy_v2_webview.dart`, which reads the same on-disk records
+    // this discard deliberately leaves untouched — see that method's own
+    // doc comment). Only applies on the engine's very first start in this
     // Studio session — on a later revisit (navigated away and back) the
-    // engine is already running with whatever document the user was
-    // last editing, and re-opening a persisted path here would discard
-    // that live state.
+    // engine already holds whatever document the user was last editing,
+    // and this must not discard that live state.
     if (isFirstStart) {
-      final lastPath = restoredTabs.tabs.isNotEmpty
-          ? restoredActivePath
-          : workspace.lastDocumentPath;
-      if (lastPath != null) {
-        try {
-          await notifier.openDocument(lastPath);
-          if (workspace.viewState != null) {
-            controller.restoreViewState(workspace.viewState!);
-          }
-        } catch (_) {
-          // The last-open file may have moved or been deleted — fall
-          // back to the blank document `ensureEngineStarted` already
-          // began rather than surfacing an error on launch.
-        }
-      }
+      ref
+          .read(diagramTabsFamily(instanceId).notifier)
+          .discardRestoredTabsWithoutPersisting();
     }
 
-    // Seed a real tab for whatever document is now open (restored or
-    // blank) only if restoration found none at all — e.g. the very
-    // first launch ever.
+    // Seed a real tab for whatever document is now open (blank, on a
+    // fresh start; whatever the live session already holds otherwise)
+    // only if there is no tab at all yet.
     if (ref.read(diagramTabsFamily(instanceId)).tabs.isEmpty) {
       ref.read(diagramTabsFamily(instanceId).notifier).openTab(
           path: controller.documentPath,

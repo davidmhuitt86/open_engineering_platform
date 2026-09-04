@@ -994,6 +994,20 @@
             }
           }
         ]
+      },
+      {
+        "id": "node_hlzghbravr_9hnk67",
+        "category": "component",
+        "displayName": "Connector 4P",
+        "symbolId": "connector",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "mod-connector-4p-1788541193301",
+          "v2Category": "connector"
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
       }
     ],
     "relationships": [
@@ -1158,38 +1172,6 @@
         "evidenceLinks": []
       },
       {
-        "id": "oil-alarm",
-        "relationshipType": "connectedTo",
-        "sourceNode": "indicator-lights",
-        "targetNode": "alarm-unit",
-        "repositoryRelationshipId": null,
-        "metadata": {
-          "v2WireId": "oil-alarm",
-          "label": "Oil Temp Sig",
-          "wireColor": "Br/R",
-          "sourcePort": "OIL",
-          "targetPort": "A1",
-          "v2Description": "Oil temp indicator → alarm unit"
-        },
-        "evidenceLinks": []
-      },
-      {
-        "id": "rev-ind",
-        "relationshipType": "connectedTo",
-        "sourceNode": "reverse-switch",
-        "targetNode": "indicator-lights",
-        "repositoryRelationshipId": null,
-        "metadata": {
-          "v2WireId": "rev-ind",
-          "label": "Reverse Signal",
-          "wireColor": "Gr",
-          "sourcePort": "OUT",
-          "targetPort": "REV",
-          "v2Description": "Reverse switch → indicator lamp"
-        },
-        "evidenceLinks": []
-      },
-      {
         "id": "rev-gnd",
         "relationshipType": "connectedTo",
         "sourceNode": "reverse-switch",
@@ -1234,22 +1216,6 @@
           "sourcePort": "BODY",
           "targetPort": "A",
           "v2Description": "Oil temp switch body ground"
-        },
-        "evidenceLinks": []
-      },
-      {
-        "id": "neu-ind",
-        "relationshipType": "connectedTo",
-        "sourceNode": "indicator-lights",
-        "targetNode": "rectifier-diode",
-        "repositoryRelationshipId": null,
-        "metadata": {
-          "v2WireId": "neu-ind",
-          "label": "Neutral Feed",
-          "wireColor": "Lg/R",
-          "sourcePort": "NEU",
-          "targetPort": "A",
-          "v2Description": "Neutral indicator → rectifier diode"
         },
         "evidenceLinks": []
       },
@@ -1542,22 +1508,6 @@
         "evidenceLinks": []
       },
       {
-        "id": "neu-sw-ind",
-        "relationshipType": "connectedTo",
-        "sourceNode": "neutral-switch",
-        "targetNode": "indicator-lights",
-        "repositoryRelationshipId": null,
-        "metadata": {
-          "v2WireId": "neu-sw-ind",
-          "label": "Neutral Sense",
-          "wireColor": "Lg",
-          "sourcePort": "OUT",
-          "targetPort": "NEU",
-          "v2Description": "Neutral switch → indicator"
-        },
-        "evidenceLinks": []
-      },
-      {
         "id": "oil-sw-ind",
         "relationshipType": "connectedTo",
         "sourceNode": "oil-temp-switch",
@@ -1698,6 +1648,10 @@
       "tail-light": {
         "dx": 1460.0,
         "dy": 390.0
+      },
+      "node_hlzghbravr_9hnk67": {
+        "dx": 550.0,
+        "dy": 210.0
       }
     },
     "wireOverrides": {},
@@ -1712,12 +1666,15 @@
       },
       "oil-alarm": {
         "0": 64.74820143884891
+      },
+      "oil-sw-ind": {
+        "2": -34.433285509325685
       }
     }
   },
   "metadata": {
     "title": "TRX300",
     "createdAt": "2026-09-04T00:38:20.171480",
-    "modifiedAt": "2026-09-04T01:38:15.303089"
+    "modifiedAt": "2026-09-04T12:00:33.633224"
   }
 }

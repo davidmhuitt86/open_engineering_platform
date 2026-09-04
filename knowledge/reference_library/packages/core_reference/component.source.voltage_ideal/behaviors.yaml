@@ -1,0 +1,14 @@
+- behavior_id: component.source.voltage_ideal.terminal_voltage
+  name: Terminal Voltage
+  behavior_type: Solver
+  description: The fixed potential difference the source maintains across its terminals.
+  inputs: []
+  outputs:
+    - name: voltage
+      value_type: number
+      unit_ref: unit.volt
+      unit_symbol_pending: null
+  constraints: []
+  dependencies: []
+  execution_metadata:
+    deterministic: true

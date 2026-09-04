@@ -205,15 +205,23 @@ const String _kRawBridgeScript = r'''
   // module/wire's fields in place, or creating one that's genuinely
   // missing — rather than treating "already present" as "already
   // correct."
-  window.__oepBridgeRestoreModule = function (id, label, category, x, y, notes) {
+  window.__oepBridgeRestoreModule = function (id, label, category, x, y, notes, terminals) {
     if (typeof MODULES === 'undefined') return;
     var m = MODULES.find(function (existing) { return existing.id === id; });
+    // AP-DIAGRAM-V2-BRIDGE-SAVE-007 — `terminals` is the OEP-authoritative
+    // list (round-tripped through the saved document's node metadata);
+    // only overwrite an existing module's terminals when the caller
+    // actually supplied a non-empty list, so a plain position/label
+    // resync (undo/redo path, which does not carry terminal data) never
+    // wipes terminals V2's own bootstrap already populated.
+    var hasTerminals = terminals && terminals.length > 0;
     if (m) {
       m.label = label;
       m.cat = category;
       m.notes = notes || '';
+      if (hasTerminals) { m.terminals = terminals; }
     } else {
-      m = { id: id, label: label, sub: '', cat: category, notes: notes || '', exit: 'down', terminals: [], _user: true };
+      m = { id: id, label: label, sub: '', cat: category, notes: notes || '', exit: 'down', terminals: hasTerminals ? terminals : [], _user: true };
       MODULES.push(m);
     }
     if (typeof positions !== 'undefined') { positions[id] = { x: x, y: y }; }
@@ -309,7 +317,7 @@ const String _kRawBridgeScript = r'''
     if (typeof MODULES !== 'undefined') {
       MODULES.forEach(function (m) {
         var pos = (typeof positions !== 'undefined' && positions[m.id]) ? positions[m.id] : { x: 0, y: 0 };
-        modules[m.id] = { label: m.label || '', category: m.cat || '', notes: m.notes || '', x: pos.x, y: pos.y };
+        modules[m.id] = { label: m.label || '', category: m.cat || '', notes: m.notes || '', x: pos.x, y: pos.y, terminals: m.terminals || [] };
       });
     }
     var wires = {};
@@ -438,7 +446,7 @@ const String _kRawBridgeScript = r'''
       if (typeof MODULES !== 'undefined') {
         var current = {};
         MODULES.forEach(function (m) {
-          current[m.id] = { label: m.label, cat: m.cat, notes: m.notes || '' };
+          current[m.id] = { label: m.label, cat: m.cat, notes: m.notes || '', terminals: m.terminals || [] };
         });
 
         // Created: an id present now that wasn't present last poll.
@@ -447,7 +455,7 @@ const String _kRawBridgeScript = r'''
             var pos = (typeof positions !== 'undefined' && positions[newId]) ? positions[newId] : { x: 0, y: 0 };
             pending.push({
               type: 'moduleCreated',
-              payload: { id: newId, label: current[newId].label, category: current[newId].cat, x: pos.x, y: pos.y },
+              payload: { id: newId, label: current[newId].label, category: current[newId].cat, x: pos.x, y: pos.y, terminals: current[newId].terminals },
             });
           }
         }

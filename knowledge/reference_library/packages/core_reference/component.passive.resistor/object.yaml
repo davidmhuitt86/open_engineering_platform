@@ -94,6 +94,9 @@ provenance:
     - Initial gold-standard reference implementation (WORK_PACKAGE_001).
     - Migrated to Engineering Knowledge Object Schema Version 1.0, the
       SDD-R011 facet model (WORK_PACKAGE_002).
+    - "AP-EK-020 completion: resistance property's unit_ref now points
+      at the newly-authored unit.ohm (closing the REFERENCE-TASK-000011
+      unit_symbol_pending exception)."
   sources_consulted:
     - IEC 60115 (Fixed resistors for use in electronic equipment)
     - General electrical engineering fundamentals (public domain

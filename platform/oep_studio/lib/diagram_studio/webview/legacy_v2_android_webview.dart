@@ -53,10 +53,12 @@ class LegacyV2AndroidWebViewPage extends ConsumerStatefulWidget {
   static const String _entryAssetUrl = 'file:///android_asset/index.html';
 
   @override
-  ConsumerState<LegacyV2AndroidWebViewPage> createState() => _LegacyV2AndroidWebViewPageState();
+  ConsumerState<LegacyV2AndroidWebViewPage> createState() =>
+      _LegacyV2AndroidWebViewPageState();
 }
 
-class _LegacyV2AndroidWebViewPageState extends ConsumerState<LegacyV2AndroidWebViewPage> {
+class _LegacyV2AndroidWebViewPageState
+    extends ConsumerState<LegacyV2AndroidWebViewPage> {
   String get _instanceId => widget.instanceId ?? primaryDiagramInstanceId;
 
   late final WebViewController _controller;
@@ -97,7 +99,8 @@ class _LegacyV2AndroidWebViewPageState extends ConsumerState<LegacyV2AndroidWebV
           },
         ),
       );
-      await _controller.loadRequest(Uri.parse(LegacyV2AndroidWebViewPage._entryAssetUrl));
+      await _controller
+          .loadRequest(Uri.parse(LegacyV2AndroidWebViewPage._entryAssetUrl));
       if (!mounted) return;
       setState(() => _ready = true);
     } catch (e) {
@@ -120,7 +123,8 @@ class _LegacyV2AndroidWebViewPageState extends ConsumerState<LegacyV2AndroidWebV
   /// is a genuine `file://` URL, so [isTrustedLegacyV2Url]'s directory-
   /// prefix check applies unchanged.
   void _onNavigate(String url) {
-    final trusted = isTrustedLegacyV2Url(url, LegacyV2AndroidWebViewPage._entryAssetUrl);
+    final trusted =
+        isTrustedLegacyV2Url(url, LegacyV2AndroidWebViewPage._entryAssetUrl);
     _transport.bridgeEnabled = trusted;
   }
 
@@ -128,11 +132,14 @@ class _LegacyV2AndroidWebViewPageState extends ConsumerState<LegacyV2AndroidWebV
     final adapter = _adapter ??= LegacyV2StateAdapter(
       controller: controller,
       channel: _transport,
-      simulationServiceResolver: () => ref.read(diagramSimulationServiceProvider),
+      simulationServiceResolver: () =>
+          ref.read(diagramSimulationServiceProvider),
     );
     // AP-DIAGRAM-V2-BRIDGE-SAVE-002 — see the Windows host's own doc
     // comment on this same line for the full rationale.
-    ref.read(engineeringProjectServiceFamily(_instanceId).notifier).beforeSaveFlush = adapter.flushBeforeSave;
+    ref
+        .read(engineeringProjectServiceFamily(_instanceId).notifier)
+        .beforeSaveFlush = adapter.flushBeforeSave;
     return adapter;
   }
 
@@ -161,7 +168,9 @@ class _LegacyV2AndroidWebViewPageState extends ConsumerState<LegacyV2AndroidWebV
     // AP-DIAGRAM-V2-BRIDGE-SAVE-002 — best-effort; see the Windows host's
     // own doc comment on this same line for why this must never throw.
     try {
-      ref.read(engineeringProjectServiceFamily(_instanceId).notifier).beforeSaveFlush = null;
+      ref
+          .read(engineeringProjectServiceFamily(_instanceId).notifier)
+          .beforeSaveFlush = null;
     } catch (_) {}
     unawaited(_transport.dispose());
     super.dispose();
@@ -169,11 +178,15 @@ class _LegacyV2AndroidWebViewPageState extends ConsumerState<LegacyV2AndroidWebV
 
   @override
   Widget build(BuildContext context) {
-    ref.listen(engineeringProjectServiceFamily(_instanceId).select((s) => s.document.id), (previous, next) {
+    ref.listen(
+        engineeringProjectServiceFamily(_instanceId)
+            .select((s) => s.document.id), (previous, next) {
       final adapter = _adapter;
       if (adapter != null) _onDocumentChanged(adapter);
     });
-    ref.listen(engineeringProjectServiceFamily(_instanceId).select((s) => s.documentPath), (previous, next) {
+    ref.listen(
+        engineeringProjectServiceFamily(_instanceId)
+            .select((s) => s.documentPath), (previous, next) {
       if (previous == null && next != null) {
         final adapter = _adapter;
         if (adapter == null) return;
@@ -183,7 +196,8 @@ class _LegacyV2AndroidWebViewPageState extends ConsumerState<LegacyV2AndroidWebV
       }
     });
 
-    final controllerAsync = ref.watch(diagramStudioControllerFamily(_instanceId));
+    final controllerAsync =
+        ref.watch(diagramStudioControllerFamily(_instanceId));
     // The debug status bar this used to feed a display string for is
     // gone; the adapter must still be ensured/seeded on every build,
     // which is the actual load-bearing part of this watch.
@@ -203,13 +217,16 @@ class _LegacyV2AndroidWebViewPageState extends ConsumerState<LegacyV2AndroidWebV
                       padding: const EdgeInsets.all(24),
                       child: Text(
                         'Failed to load legacy V2:\n$_error',
-                        style: const TextStyle(color: StudioColors.error, fontFamily: 'Consolas'),
+                        style: const TextStyle(
+                            color: StudioColors.error, fontFamily: 'Consolas'),
                         textAlign: TextAlign.center,
                       ),
                     ),
                   )
                 : !_ready
-                    ? const Center(child: CircularProgressIndicator(color: StudioColors.selection))
+                    ? const Center(
+                        child: CircularProgressIndicator(
+                            color: StudioColors.selection))
                     : LayoutBuilder(
                         builder: (context, constraints) {
                           final size = constraints.biggest;

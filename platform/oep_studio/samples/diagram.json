@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "documentId": "ada4f241f25f5a6c",
+  "graph": {
+    "id": "graph_hlzjwkic9r_1u9gbnc",
+    "nodes": [
+      {
+        "id": "node_hlzjwldkil_b9rl3g",
+        "category": "component",
+        "displayName": "Chassis GND",
+        "symbolId": "ground",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "chassis-ground",
+          "v2Category": "ground"
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hlzjwwbgjg_wxq7wu",
+        "category": "component",
+        "displayName": "Connector 4P Vertical",
+        "symbolId": "connector",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "mod-connector-4p-vertical-1788548665051",
+          "v2Category": "connector"
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      }
+    ],
+    "relationships": [],
+    "groups": [],
+    "metadata": {}
+  },
+  "layout": {
+    "positions": {
+      "node_hlzjwldkil_b9rl3g": {
+        "dx": 320.0,
+        "dy": 580.0
+      },
+      "node_hlzjwwbgjg_wxq7wu": {
+        "dx": 460.0,
+        "dy": 180.0
+      }
+    },
+    "wireOverrides": {},
+    "annotations": {},
+    "layers": {},
+    "layerAssignments": {},
+    "transforms": {},
+    "sizes": {},
+    "wireSegmentOffsets": {}
+  },
+  "metadata": {
+    "title": "diagram",
+    "createdAt": "2026-09-04T14:04:00.040542",
+    "modifiedAt": "2026-09-04T14:04:56.595584"
+  }
+}

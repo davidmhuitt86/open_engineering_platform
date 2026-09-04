@@ -1,9 +1,19 @@
-"""Regression coverage for the five gold-standard EKOs (ENGINE-TASK-000005/000006).
+"""Regression coverage for the core_reference package's gold-standard EKOs
+(ENGINE-TASK-000005/000006, extended by AP-EK-020).
 
 These tests guard the actual authored content under
 ``packages/core_reference/`` -- if a future edit breaks a relationship,
 drops a required section, or reintroduces a duplicate id, one of these
 fails before the compiler would even be asked to build a package.
+
+The original five (WORK_PACKAGE_001/002) demonstrated the full
+SDD-R011 facet model for one component/equation/unit/symbol/material.
+AP-EK-020 added six more objects (three Units, two Components, one
+Equation) to close the electrical-core vertical slice's previously-
+disclosed knowledge gap (see AP-EK-020's final report): the ideal
+voltage source and reference-node component models, the power
+equation, and the ampere/ohm/watt units those objects and the
+pre-existing resistor/Ohm's-Law objects needed `unit_ref`s for.
 """
 
 from oep_reference_core.package_source import discover_packages
@@ -12,7 +22,7 @@ from oep_reference_core.schema_registry import SchemaRegistry
 
 from validator.checks import run_all_checks
 
-EXPECTED_OBJECT_IDS = {
+ORIGINAL_GOLD_OBJECT_IDS = {
     "component.passive.resistor",
     "equation.ohms_law",
     "unit.volt",
@@ -20,13 +30,24 @@ EXPECTED_OBJECT_IDS = {
     "material.copper",
 }
 
+AP_EK_020_OBJECT_IDS = {
+    "unit.ampere",
+    "unit.ohm",
+    "unit.watt",
+    "component.source.voltage_ideal",
+    "component.reference_node",
+    "equation.power",
+}
+
+EXPECTED_OBJECT_IDS = ORIGINAL_GOLD_OBJECT_IDS | AP_EK_020_OBJECT_IDS
+
 
 def _core_reference_package():
     packages = discover_packages(PACKAGES_DIR)
     return next(p for p in packages if p.package_id == "core_reference")
 
 
-def test_exactly_five_gold_standard_objects_exist():
+def test_exactly_eleven_gold_standard_objects_exist():
     package = _core_reference_package()
     assert {obj.object_id for obj in package.objects} == EXPECTED_OBJECT_IDS
 

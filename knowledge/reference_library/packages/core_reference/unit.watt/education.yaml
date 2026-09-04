@@ -1,0 +1,11 @@
+short_definition: >-
+  The SI derived unit of power.
+detailed_description: >-
+  One watt is the rate of energy transfer equal to one joule per
+  second. For a DC electrical circuit, power equals the product of
+  voltage and current: P = V x I. In SI base units the watt is
+  expressed as kg x m^2 x s^-3.
+engineering_notes: >-
+  Component power ratings (e.g. a resistor's power_rating property)
+  bound the maximum power a component may safely dissipate before
+  thermal failure.

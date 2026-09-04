@@ -6,8 +6,8 @@
 - property_id: resistance
   display_name: Resistance
   value_type: number
-  unit_ref: null
-  unit_symbol_pending: "Ω"
+  unit_ref: unit.ohm
+  unit_symbol_pending: null
   default_value: 1000
   range:
     min: 0

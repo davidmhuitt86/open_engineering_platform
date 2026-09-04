@@ -1,0 +1,6 @@
+- rule_id: unit.watt.conversion_factor_positive
+  subject: conversion_factor_to_si
+  operator: gt
+  operand: 0
+  severity: error
+  description: Conversion Factor to SI shall be greater than zero.

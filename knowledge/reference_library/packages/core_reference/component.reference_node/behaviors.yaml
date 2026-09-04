@@ -1,0 +1,3 @@
+# component.reference_node has no executable behaviors -- it is a
+# topological anchor, not a simulatable element.
+[]

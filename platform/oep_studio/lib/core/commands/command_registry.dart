@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../acquisition/services/acquisition_runtime_service.dart';
+import '../../diagram_studio/analysis/analysis_controller.dart';
 import '../../diagram_studio/commands/studio_command_actions.dart';
 import '../../exchange/services/exchange_runtime_service.dart';
 import '../routing/studio_destination.dart';
@@ -58,15 +59,17 @@ class CommandResult {
 
   bool get isSuccess => outcome == CommandOutcome.success;
 
-  static const CommandResult success = CommandResult._(CommandOutcome.success, null);
+  static const CommandResult success =
+      CommandResult._(CommandOutcome.success, null);
 
-  factory CommandResult.notFound(String commandId) =>
-      CommandResult._(CommandOutcome.notFound, 'No command registered with id "$commandId".');
+  factory CommandResult.notFound(String commandId) => CommandResult._(
+      CommandOutcome.notFound, 'No command registered with id "$commandId".');
 
   factory CommandResult.invalidArguments(String message) =>
       CommandResult._(CommandOutcome.invalidArguments, message);
 
-  factory CommandResult.failure(String message) => CommandResult._(CommandOutcome.failure, message);
+  factory CommandResult.failure(String message) =>
+      CommandResult._(CommandOutcome.failure, message);
 }
 
 /// A command's executor — the Studio-owned implementation half of the
@@ -75,7 +78,8 @@ class CommandResult {
 /// validating arguments, catching failures, producing a [CommandResult]
 /// — while every [execute] function is a thin call straight through to
 /// a method that already existed before this Work Package.
-typedef CommandExecutor = FutureOr<void> Function(WidgetRef ref, CommandArgs args);
+typedef CommandExecutor = FutureOr<void> Function(
+    WidgetRef ref, CommandArgs args);
 
 /// One already-existing Studio operation, described so the Platform's
 /// command dispatch can find and run it (WP-STUDIO-023). Immutable,
@@ -133,7 +137,8 @@ class CommandDescriptor {
 /// are future consumers of [execute]/[commands], per this Work
 /// Package's own scope.
 class CommandRegistry {
-  CommandRegistry(List<CommandDescriptor> commands, {StudioRegistry? studioRegistry})
+  CommandRegistry(List<CommandDescriptor> commands,
+      {StudioRegistry? studioRegistry})
       : _commands = List.unmodifiable(commands),
         _studioRegistry = studioRegistry ?? StudioRegistry.defaultRegistry;
 
@@ -152,15 +157,21 @@ class CommandRegistry {
 
   /// Every command registered against [capabilityId], in registration
   /// order — a capability may have zero, one, or several commands.
-  List<CommandDescriptor> commandsForCapability(String capabilityId) =>
-      [for (final command in _commands) if (command.capabilityId == capabilityId) command];
+  List<CommandDescriptor> commandsForCapability(String capabilityId) => [
+        for (final command in _commands)
+          if (command.capabilityId == capabilityId) command
+      ];
 
   /// Every command belonging to any capability [destination] owns
   /// (via [StudioRegistry.capabilitiesFor]), in registration order.
   List<CommandDescriptor> commandsForStudio(StudioDestination destination) {
-    final capabilityIds = _studioRegistry.capabilitiesFor(destination).map((c) => c.id).toSet();
+    final capabilityIds =
+        _studioRegistry.capabilitiesFor(destination).map((c) => c.id).toSet();
     if (capabilityIds.isEmpty) return const [];
-    return [for (final command in _commands) if (capabilityIds.contains(command.capabilityId)) command];
+    return [
+      for (final command in _commands)
+        if (capabilityIds.contains(command.capabilityId)) command
+    ];
   }
 
   /// Checks every registered [CommandDescriptor] for internal
@@ -190,7 +201,8 @@ class CommandRegistry {
       if (command.capabilityId.trim().isEmpty) {
         issues.add('Command "${command.id}" has a blank capabilityId.');
       } else if (_studioRegistry.findCapability(command.capabilityId) == null) {
-        issues.add('Command "${command.id}" references unknown capability "${command.capabilityId}".');
+        issues.add(
+            'Command "${command.id}" references unknown capability "${command.capabilityId}".');
       }
     }
     return issues;
@@ -202,11 +214,14 @@ class CommandRegistry {
   /// executor throws is caught and reported as
   /// [CommandOutcome.failure] rather than propagating, so a caller
   /// always gets a [CommandResult] back.
-  Future<CommandResult> execute(WidgetRef ref, String commandId, {CommandArgs args = CommandArgs.none}) async {
+  Future<CommandResult> execute(WidgetRef ref, String commandId,
+      {CommandArgs args = CommandArgs.none}) async {
     final command = findCommand(commandId);
     if (command == null) return CommandResult.notFound(commandId);
-    if (command.requiresArgument && (args.value == null || args.value!.trim().isEmpty)) {
-      return CommandResult.invalidArguments('Command "$commandId" requires a non-empty argument.');
+    if (command.requiresArgument &&
+        (args.value == null || args.value!.trim().isEmpty)) {
+      return CommandResult.invalidArguments(
+          'Command "$commandId" requires a non-empty argument.');
     }
     try {
       await command.execute(ref, args);
@@ -225,7 +240,8 @@ class CommandRegistry {
       label: 'New Diagram',
       description: 'Starts a new, empty diagram editing session.',
       capabilityId: 'diagram.editing',
-      execute: (ref, args) => ref.read(engineeringProjectServiceProvider.notifier).newDocument(),
+      execute: (ref, args) =>
+          ref.read(engineeringProjectServiceProvider.notifier).newDocument(),
     ),
     CommandDescriptor(
       id: 'diagram.openDocument',
@@ -233,14 +249,17 @@ class CommandRegistry {
       description: 'Opens an existing diagram document from disk.',
       capabilityId: 'diagram.editing',
       requiresArgument: true,
-      execute: (ref, args) => ref.read(engineeringProjectServiceProvider.notifier).openDocument(args.value!),
+      execute: (ref, args) => ref
+          .read(engineeringProjectServiceProvider.notifier)
+          .openDocument(args.value!),
     ),
     CommandDescriptor(
       id: 'diagram.saveDocument',
       label: 'Save Diagram',
       description: 'Saves the active diagram document to its current path.',
       capabilityId: 'diagram.editing',
-      execute: (ref, args) => ref.read(engineeringProjectServiceProvider.notifier).saveDocument(),
+      execute: (ref, args) =>
+          ref.read(engineeringProjectServiceProvider.notifier).saveDocument(),
     ),
     CommandDescriptor(
       id: 'diagram.saveDocumentAs',
@@ -248,19 +267,24 @@ class CommandRegistry {
       description: 'Saves the active diagram document to a new path.',
       capabilityId: 'diagram.editing',
       requiresArgument: true,
-      execute: (ref, args) => ref.read(engineeringProjectServiceProvider.notifier).saveDocumentAs(args.value!),
+      execute: (ref, args) => ref
+          .read(engineeringProjectServiceProvider.notifier)
+          .saveDocumentAs(args.value!),
     ),
     CommandDescriptor(
       id: 'diagram.closeDocument',
       label: 'Close Diagram',
-      description: 'Closes the active diagram document and returns to a blank session.',
+      description:
+          'Closes the active diagram document and returns to a blank session.',
       capabilityId: 'diagram.editing',
-      execute: (ref, args) => ref.read(engineeringProjectServiceProvider.notifier).closeDocument(),
+      execute: (ref, args) =>
+          ref.read(engineeringProjectServiceProvider.notifier).closeDocument(),
     ),
     CommandDescriptor(
       id: 'diagram.undo',
       label: 'Undo',
-      description: 'Undoes the most recent editing command on the active diagram.',
+      description:
+          'Undoes the most recent editing command on the active diagram.',
       capabilityId: 'diagram.editing',
       // Routed through StudioCommandActions (WP-STUDIO-026) rather than
       // calling `engine.editing.undo()` directly — that's exactly what
@@ -276,7 +300,8 @@ class CommandRegistry {
     CommandDescriptor(
       id: 'diagram.redo',
       label: 'Redo',
-      description: 'Re-applies the most recently undone editing command on the active diagram.',
+      description:
+          'Re-applies the most recently undone editing command on the active diagram.',
       capabilityId: 'diagram.editing',
       execute: (ref, args) {
         final engine = ref.read(engineeringProjectServiceProvider).engine;
@@ -287,9 +312,20 @@ class CommandRegistry {
     CommandDescriptor(
       id: 'diagram.revalidate',
       label: 'Revalidate Diagram',
-      description: 'Forces a fresh validation pass over the active diagram graph.',
+      description:
+          'Forces a fresh validation pass over the active diagram graph.',
       capabilityId: 'diagram.validation',
-      execute: (ref, args) => ref.read(engineeringProjectServiceProvider.notifier).revalidate(),
+      execute: (ref, args) =>
+          ref.read(engineeringProjectServiceProvider.notifier).revalidate(),
+    ),
+    CommandDescriptor(
+      id: 'diagram.analyze',
+      label: 'Analyze',
+      description:
+          'Runs deterministic electrical analysis (AP-EK-020) on the active diagram graph.',
+      capabilityId: 'diagram.editing',
+      execute: (ref, args) =>
+          ref.read(diagramAnalysisProvider.notifier).analyze(),
     ),
 
     // --- Engineering Acquisition Studio (AcquisitionRuntimeNotifier,
@@ -300,7 +336,9 @@ class CommandRegistry {
       description: 'Executes a registered acquisition job by id.',
       capabilityId: 'acquisition.jobOrchestration',
       requiresArgument: true,
-      execute: (ref, args) => ref.read(acquisitionRuntimeServiceProvider.notifier).executeJob(args.value!),
+      execute: (ref, args) => ref
+          .read(acquisitionRuntimeServiceProvider.notifier)
+          .executeJob(args.value!),
     ),
     CommandDescriptor(
       id: 'acquisition.cancelJob',
@@ -308,15 +346,20 @@ class CommandRegistry {
       description: 'Cancels a running acquisition job by id.',
       capabilityId: 'acquisition.jobOrchestration',
       requiresArgument: true,
-      execute: (ref, args) => ref.read(acquisitionRuntimeServiceProvider.notifier).cancelJob(args.value!),
+      execute: (ref, args) => ref
+          .read(acquisitionRuntimeServiceProvider.notifier)
+          .cancelJob(args.value!),
     ),
     CommandDescriptor(
       id: 'acquisition.verify',
       label: 'Verify Download',
-      description: 'Runs integrity verification (SHA-256) against a completed download session.',
+      description:
+          'Runs integrity verification (SHA-256) against a completed download session.',
       capabilityId: 'acquisition.integrityPipeline',
       requiresArgument: true,
-      execute: (ref, args) => ref.read(acquisitionRuntimeServiceProvider.notifier).verify(args.value!),
+      execute: (ref, args) => ref
+          .read(acquisitionRuntimeServiceProvider.notifier)
+          .verify(args.value!),
     ),
     CommandDescriptor(
       id: 'acquisition.extractMetadata',
@@ -324,15 +367,20 @@ class CommandRegistry {
       description: 'Extracts artifact metadata from a verified download.',
       capabilityId: 'acquisition.integrityPipeline',
       requiresArgument: true,
-      execute: (ref, args) => ref.read(acquisitionRuntimeServiceProvider.notifier).extractMetadata(args.value!),
+      execute: (ref, args) => ref
+          .read(acquisitionRuntimeServiceProvider.notifier)
+          .extractMetadata(args.value!),
     ),
     CommandDescriptor(
       id: 'acquisition.publish',
       label: 'Publish to Reference Vault',
-      description: 'Publishes a verified artifact with extracted metadata into the Reference Vault.',
+      description:
+          'Publishes a verified artifact with extracted metadata into the Reference Vault.',
       capabilityId: 'acquisition.vaultPublishing',
       requiresArgument: true,
-      execute: (ref, args) => ref.read(acquisitionRuntimeServiceProvider.notifier).publish(args.value!),
+      execute: (ref, args) => ref
+          .read(acquisitionRuntimeServiceProvider.notifier)
+          .publish(args.value!),
     ),
 
     // --- Knowledge Studio (WP-STUDIO-025) -----------------------------
@@ -354,7 +402,9 @@ class CommandRegistry {
       description: 'Accepts a Knowledge Candidate during Engineering Review.',
       capabilityId: 'knowledge.review',
       requiresArgument: true,
-      execute: (ref, args) => ref.read(foundationRuntimeServiceProvider.notifier).acceptKnowledgeCandidate(args.value!),
+      execute: (ref, args) => ref
+          .read(foundationRuntimeServiceProvider.notifier)
+          .acceptKnowledgeCandidate(args.value!),
     ),
     CommandDescriptor(
       id: 'knowledge.rejectCandidate',
@@ -362,31 +412,42 @@ class CommandRegistry {
       description: 'Rejects a Knowledge Candidate during Engineering Review.',
       capabilityId: 'knowledge.review',
       requiresArgument: true,
-      execute: (ref, args) => ref.read(foundationRuntimeServiceProvider.notifier).rejectKnowledgeCandidate(args.value!),
+      execute: (ref, args) => ref
+          .read(foundationRuntimeServiceProvider.notifier)
+          .rejectKnowledgeCandidate(args.value!),
     ),
     CommandDescriptor(
       id: 'knowledge.deleteCandidate',
       label: 'Delete Knowledge Candidate',
-      description: 'Deletes a Knowledge Candidate, cascading to its relationships and evidence links.',
+      description:
+          'Deletes a Knowledge Candidate, cascading to its relationships and evidence links.',
       capabilityId: 'knowledge.review',
       requiresArgument: true,
-      execute: (ref, args) => ref.read(foundationRuntimeServiceProvider.notifier).deleteKnowledgeCandidate(args.value!),
+      execute: (ref, args) => ref
+          .read(foundationRuntimeServiceProvider.notifier)
+          .deleteKnowledgeCandidate(args.value!),
     ),
     CommandDescriptor(
       id: 'knowledge.acceptAiSuggestion',
       label: 'Accept AI Suggestion',
-      description: 'Accepts an AI-suggested entity, creating a Knowledge Candidate from it.',
+      description:
+          'Accepts an AI-suggested entity, creating a Knowledge Candidate from it.',
       capabilityId: 'knowledge.aiAssistance',
       requiresArgument: true,
-      execute: (ref, args) => ref.read(foundationRuntimeServiceProvider.notifier).acceptAiSuggestion(args.value!),
+      execute: (ref, args) => ref
+          .read(foundationRuntimeServiceProvider.notifier)
+          .acceptAiSuggestion(args.value!),
     ),
     CommandDescriptor(
       id: 'knowledge.rejectAiSuggestion',
       label: 'Reject AI Suggestion',
-      description: 'Rejects an AI-suggested entity, keeping it available for auditing.',
+      description:
+          'Rejects an AI-suggested entity, keeping it available for auditing.',
       capabilityId: 'knowledge.aiAssistance',
       requiresArgument: true,
-      execute: (ref, args) => ref.read(foundationRuntimeServiceProvider.notifier).rejectAiSuggestion(args.value!),
+      execute: (ref, args) => ref
+          .read(foundationRuntimeServiceProvider.notifier)
+          .rejectAiSuggestion(args.value!),
     ),
 
     // --- Engineering Exchange Studio (ExchangeRuntimeNotifier,
@@ -399,24 +460,33 @@ class CommandRegistry {
     CommandDescriptor(
       id: 'exchange.search',
       label: 'Search Engineering Exchange',
-      description: 'Searches the Engineering Exchange marketplace for packages.',
+      description:
+          'Searches the Engineering Exchange marketplace for packages.',
       capabilityId: 'exchange.browse',
       requiresArgument: true,
-      execute: (ref, args) => ref.read(exchangeRuntimeServiceProvider.notifier).search(q: args.value!),
+      execute: (ref, args) => ref
+          .read(exchangeRuntimeServiceProvider.notifier)
+          .search(q: args.value!),
     ),
     CommandDescriptor(
       id: 'exchange.refreshMarketplace',
       label: 'Refresh Marketplace',
-      description: 'Reloads Marketplace Home\'s package and publisher samples from the Engineering Exchange.',
+      description:
+          'Reloads Marketplace Home\'s package and publisher samples from the Engineering Exchange.',
       capabilityId: 'exchange.browse',
-      execute: (ref, args) => ref.read(exchangeRuntimeServiceProvider.notifier).refreshMarketplace(),
+      execute: (ref, args) => ref
+          .read(exchangeRuntimeServiceProvider.notifier)
+          .refreshMarketplace(),
     ),
     CommandDescriptor(
       id: 'exchange.refreshRepository',
       label: 'Refresh Repository',
-      description: 'Re-fetches Repository Statistics and the Current Object/Relationship Lists after an install.',
+      description:
+          'Re-fetches Repository Statistics and the Current Object/Relationship Lists after an install.',
       capabilityId: 'exchange.install',
-      execute: (ref, args) => ref.read(foundationRuntimeServiceProvider.notifier).refreshRepository(),
+      execute: (ref, args) => ref
+          .read(foundationRuntimeServiceProvider.notifier)
+          .refreshRepository(),
     ),
 
     // Not registered: `duplicateKnowledgeSession`/`deleteKnowledgeSession`

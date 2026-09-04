@@ -1,0 +1,15 @@
+# Property Facet (SDD-R011 §7).
+- property_id: voltage
+  display_name: Voltage
+  value_type: number
+  unit_ref: unit.volt
+  unit_symbol_pending: null
+  default_value: 5
+  range:
+    min: null
+    max: null
+  constraints: []
+  visibility: public
+  required: true
+  read_only: false
+  description: Fixed potential difference the ideal source maintains across its terminals.

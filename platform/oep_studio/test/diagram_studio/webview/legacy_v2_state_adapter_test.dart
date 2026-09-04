@@ -112,7 +112,8 @@ class _FakeChannel implements LegacyV2Channel {
   @override
   Future<void> restoreModule(
       String v2ModuleId, String label, String category, double x, double y,
-      {String notes = ''}) async {
+      {String notes = '',
+      List<Map<String, String>> terminals = const []}) async {
     restoredModules.add((v2ModuleId, label, category, x, y));
   }
 
@@ -282,30 +283,44 @@ void main() {
           const Point2D(10, 20));
       expect(channel.sentPositions.last, ('gnd-1', 10.0, 20.0));
 
-      // --- "power" has NO deterministic symbol mapping — must not
-      //     fabricate one; no node created, id recorded as unbridged -----
+      // --- "power" has NO category-specific symbol mapping, but
+      //     AP-DIAGRAM-V2-BRIDGE-SAVE-007 falls back to `generic_module`
+      //     rather than refusing — a real node IS created, and the true
+      //     V2 category survives in metadata ---------------------------
       final beforePower = engine.editing.session.graph.nodes.keys.toSet();
       channel.simulateCreate('pwr-1', 'Main Fuse Box', 'power', 30, 40);
       await settle(tester);
-      expect(engine.editing.session.graph.nodes.keys.toSet(), beforePower,
+      final afterPower = engine.editing.session.graph.nodes.keys.toSet();
+      expect(afterPower.length, beforePower.length + 1,
           reason:
-              'a category with no deterministic symbol mapping must not create a node');
-      expect(adapter.oepNodeIdFor('pwr-1'), isNull);
-      expect(adapter.unbridgedV2ModuleIds, contains('pwr-1'));
+              'a category with no specific symbol mapping must still create a node, via the generic_module fallback');
+      final powerNodeId = afterPower.difference(beforePower).single;
+      expect(adapter.oepNodeIdFor('pwr-1'), powerNodeId);
+      expect(adapter.unbridgedV2ModuleIds, isNot(contains('pwr-1')));
+      expect(
+          engine
+              .editing.session.graph.nodes[powerNodeId]!.metadata['v2Category'],
+          'power',
+          reason:
+              'the real V2 category must survive even under the fallback symbol');
+
+      // Undo it immediately — this test's later assertions depend on
+      // precise LIFO command-stack arithmetic that predates this
+      // fallback-symbol behavior (§ the comments further down about
+      // "two more undos remain..."); undoing here removes pwr-1's
+      // CreateNodeCommand from the stack entirely (a fresh command push
+      // clears any redo history) so that arithmetic stays valid without
+      // needing to be re-derived around an extra, unrelated command.
+      controller.commands.undo();
+      await settle(tester);
+      expect(
+          engine.editing.session.graph.nodes.containsKey(powerNodeId), isFalse);
 
       // --- Re-sending a create for an already-mapped id is a no-op -------
       final beforeDup = engine.editing.session.graph.nodes.keys.toSet();
       channel.simulateCreate('gnd-1', 'Ground Point', 'ground', 10, 20);
       await settle(tester);
       expect(engine.editing.session.graph.nodes.keys.toSet(), beforeDup);
-
-      // --- Move for an id that was never (or couldn't be) created is a
-      //     no-op — the retired "auto-create via placeholder symbol on
-      //     first move" behavior must not have come back -----------------
-      final beforeMoveNoop = engine.editing.session.graph.nodes.keys.toSet();
-      channel.simulateMove('pwr-1', 5, 5);
-      await settle(tester);
-      expect(engine.editing.session.graph.nodes.keys.toSet(), beforeMoveNoop);
 
       // --- A second mapped module, for the wire-creation tests below -----
       channel.simulateCreate('gnd-2', 'Second Ground', 'ground', 100, 100);
@@ -335,17 +350,21 @@ void main() {
       expect(relationship.metadata['sourcePort'], 'A');
       expect(relationship.metadata['targetPort'], 'B');
 
-      // --- Wire creation: one endpoint unmapped -> not bridged, no
-      //     fabricated node or relationship -------------------------------
+      // --- Wire creation: an endpoint that was never created at all (no
+      //     `simulateCreate` ever sent for it, e.g. a message-ordering
+      //     gap) has no OEP node to reference -> not bridged, no
+      //     fabricated node or relationship. This is now the only way an
+      //     unbridged wire can occur — [_symbolIdForCategory] no longer
+      //     refuses any known category (AP-DIAGRAM-V2-BRIDGE-SAVE-007) --
       final beforeUnbridgedRel =
           engine.editing.session.graph.relationships.keys.toSet();
-      channel.simulateWireCreated(
-          'wire-2', 'gnd-1', 'A', 'pwr-1', 'X', 'Should Not Bridge', 'W');
+      channel.simulateWireCreated('wire-2', 'gnd-1', 'A', 'never-created', 'X',
+          'Should Not Bridge', 'W');
       await settle(tester);
       expect(engine.editing.session.graph.relationships.keys.toSet(),
           beforeUnbridgedRel,
           reason:
-              'a wire touching an unbridged module must not create a relationship');
+              'a wire touching a module with no OEP mapping must not create a relationship');
       expect(adapter.oepRelationshipIdFor('wire-2'), isNull);
       expect(adapter.unbridgedV2WireIds, contains('wire-2'));
 
