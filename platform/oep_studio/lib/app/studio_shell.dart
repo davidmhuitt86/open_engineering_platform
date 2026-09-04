@@ -206,7 +206,7 @@ class _StudioShellState extends ConsumerState<StudioShell> with WidgetsBindingOb
     final recoverable = _workspaceManager.recoverableWorkspacePath;
     if (recoverable == null) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) unawaited(_showRecoveryPrompt(recoverable));
+      if (mounted) unawaited(_recoverSilently(recoverable));
     });
   }
 
@@ -236,35 +236,28 @@ class _StudioShellState extends ConsumerState<StudioShell> with WidgetsBindingOb
     return (shouldExit ?? false) ? AppExitResponse.exit : AppExitResponse.cancel;
   }
 
-  /// Shown once at startup when [WorkspaceManager.initialize] finds a
+  /// Called once at startup when [WorkspaceManager.initialize] finds a
   /// workspace flagged dirty when the app last closed (or crashed).
-  Future<void> _showRecoveryPrompt(String path) async {
-    final shouldRecover = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: StudioColors.surfaceRaised,
-        title: const Text('Recover Diagram?'),
-        content: Text('"$path" had unsaved changes when Studio last closed. Reopen it?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Discard')),
-          TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Recover')),
-        ],
-      ),
-    );
-    if (!mounted) return;
-    if (shouldRecover ?? false) {
-      // The recovered path is only as reliable as whatever the sentinel
-      // recorded — by the next launch, the file may have been moved,
-      // deleted, or corrupted outside Studio entirely. That must not
-      // propagate as an uncaught exception; report it the same way any
-      // other failed Open already would.
-      try {
-        await ref.read(engineeringProjectServiceProvider.notifier).openDocument(path);
-        _eventBus.publish(WorkspaceEvent(kind: WorkspaceEventKind.recovered, path: path));
-        if (mounted) PlatformNotificationService.success(context, 'Recovered diagram from last session.');
-      } catch (error) {
-        if (mounted) PlatformNotificationService.error(context, 'Couldn\'t recover "$path": ${error.toString()}');
-      }
+  ///
+  /// AP-OEP-WORKSPACE-SILENT-RECOVERY-001 — reopens automatically, no
+  /// prompt: the intended workflow is that Studio always comes back
+  /// exactly as the user left it, diagram included, the same way a
+  /// cleanly-closed session already reopens its last document silently
+  /// (`DiagramStudioController`'s own `lastDocumentPath` restore). Asking
+  /// "Recover or Discard?" only for the dirty-at-close case was an
+  /// inconsistent second path to the same destination; recovering
+  /// unconditionally makes both cases behave the same way.
+  Future<void> _recoverSilently(String path) async {
+    // The recovered path is only as reliable as whatever the sentinel
+    // recorded — by the next launch, the file may have been moved,
+    // deleted, or corrupted outside Studio entirely. That must not
+    // propagate as an uncaught exception; report it the same way any
+    // other failed Open already would.
+    try {
+      await ref.read(engineeringProjectServiceProvider.notifier).openDocument(path);
+      _eventBus.publish(WorkspaceEvent(kind: WorkspaceEventKind.recovered, path: path));
+    } catch (error) {
+      if (mounted) PlatformNotificationService.error(context, 'Couldn\'t recover "$path": ${error.toString()}');
     }
     await _workspaceManager.clearRecoverable();
   }

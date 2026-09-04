@@ -206,13 +206,21 @@ class _WindowsLegacyV2WebViewPageState extends ConsumerState<_WindowsLegacyV2Web
   /// itself to [_transport]'s `onModuleMoved` callback — the adapter is
   /// the only layer that ever calls into [DiagramStudioController].
   LegacyV2StateAdapter _ensureAdapter(DiagramStudioController controller) {
-    return _adapter ??= LegacyV2StateAdapter(
+    final adapter = _adapter ??= LegacyV2StateAdapter(
       controller: controller,
       channel: _transport,
       // AP-DIAGRAM-V2-BRIDGE-006 — resolved fresh per request rather than
       // captured once (see the adapter's own doc comment on this field).
       simulationServiceResolver: () => ref.read(diagramSimulationServiceProvider),
     );
+    // AP-DIAGRAM-V2-BRIDGE-SAVE-002 — registered on every `_ensureAdapter`
+    // call (cheap/idempotent after the first), not just once, so a Save
+    // triggered from OUTSIDE V2's own in-page button (Ctrl+S, the Command
+    // Palette's `diagram.saveDocument`) also flushes V2's current state
+    // first — see `EngineeringProjectNotifier.beforeSaveFlush`'s own doc
+    // comment for the full rationale.
+    ref.read(engineeringProjectServiceFamily(_instanceId).notifier).beforeSaveFlush = adapter.flushBeforeSave;
+    return adapter;
   }
 
   /// AP-DIAGRAM-V2-BRIDGE-002, Phase 7 — the very first seeding, once
@@ -251,6 +259,16 @@ class _WindowsLegacyV2WebViewPageState extends ConsumerState<_WindowsLegacyV2Web
 
   @override
   void dispose() {
+    // AP-DIAGRAM-V2-BRIDGE-SAVE-002 — never leave a disposed widget's
+    // adapter reachable from a save trigger that outlives it. Best-effort
+    // only: if the family entry has already been torn down by the time
+    // this widget disposes (e.g. its own WorkspaceTab closing, or app
+    // shutdown racing this widget's teardown), `ref.read` can throw —
+    // harmless to skip here, since a notifier that no longer exists can't
+    // call a stale hook either way.
+    try {
+      ref.read(engineeringProjectServiceFamily(_instanceId).notifier).beforeSaveFlush = null;
+    } catch (_) {}
     unawaited(_transport.dispose());
     _controller.dispose();
     super.dispose();

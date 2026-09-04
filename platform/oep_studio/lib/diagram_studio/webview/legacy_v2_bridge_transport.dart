@@ -71,7 +71,8 @@ class LegacyV2BridgeTransport implements LegacyV2Channel {
   /// AP-DIAGRAM-V2-WEBVIEW-002 — fired when an already-known module's
   /// `label`/`cat`/`sub` differs from the previous poll's snapshot (i.e.
   /// after `saveModProps` has already run).
-  void Function(V2ModulePropertiesChangedMessage message)? onModulePropertiesChanged;
+  void Function(V2ModulePropertiesChangedMessage message)?
+      onModulePropertiesChanged;
 
   /// AP-DIAGRAM-V2-WEBVIEW-003 — fired once, the poll tick after a new
   /// entry appears in V2's own `WIRES` array (i.e. after `handleWireTerm`
@@ -99,7 +100,8 @@ class LegacyV2BridgeTransport implements LegacyV2Channel {
   /// id, toggled by clicking the same module again — confirmed by
   /// reading `inspector.js` directly), so this mirrors the exact same
   /// single-id shape [onWireSelectionChanged] already uses.
-  void Function(V2ModuleSelectionChangedMessage message)? onModuleSelectionChanged;
+  void Function(V2ModuleSelectionChangedMessage message)?
+      onModuleSelectionChanged;
 
   /// AP-DIAGRAM-V2-BRIDGE-005 — fired when an already-known wire's
   /// `lbl`/`c` differs from the previous poll's snapshot (i.e. after V2's
@@ -107,7 +109,8 @@ class LegacyV2BridgeTransport implements LegacyV2Channel {
   /// [onModulePropertiesChanged]'s detection shape exactly — V2 mutates
   /// the wire object in place on Save, so this is a diff against a
   /// per-wire `{lbl, c}` snapshot, not an id-presence check.
-  void Function(V2WirePropertiesChangedMessage message)? onWirePropertiesChanged;
+  void Function(V2WirePropertiesChangedMessage message)?
+      onWirePropertiesChanged;
 
   /// AP-DIAGRAM-V2-BRIDGE-006 — fired whenever V2's own selected-wire-id +
   /// meter-mode pair changes (poll-diffed, same rationale as every other
@@ -171,19 +174,24 @@ class LegacyV2BridgeTransport implements LegacyV2Channel {
       case 'moduleDeleted':
         onModuleDeleted?.call(V2ModuleDeletedMessage.fromJson(payload));
       case 'modulePropertiesChanged':
-        onModulePropertiesChanged?.call(V2ModulePropertiesChangedMessage.fromJson(payload));
+        onModulePropertiesChanged
+            ?.call(V2ModulePropertiesChangedMessage.fromJson(payload));
       case 'wireCreated':
         onWireCreated?.call(V2WireCreatedMessage.fromJson(payload));
       case 'wireDeleted':
         onWireDeleted?.call(V2WireDeletedMessage.fromJson(payload));
       case 'wireSelectionChanged':
-        onWireSelectionChanged?.call(V2WireSelectionChangedMessage.fromJson(payload));
+        onWireSelectionChanged
+            ?.call(V2WireSelectionChangedMessage.fromJson(payload));
       case 'moduleSelectionChanged':
-        onModuleSelectionChanged?.call(V2ModuleSelectionChangedMessage.fromJson(payload));
+        onModuleSelectionChanged
+            ?.call(V2ModuleSelectionChangedMessage.fromJson(payload));
       case 'wirePropertiesChanged':
-        onWirePropertiesChanged?.call(V2WirePropertiesChangedMessage.fromJson(payload));
+        onWirePropertiesChanged
+            ?.call(V2WirePropertiesChangedMessage.fromJson(payload));
       case 'measurementRequested':
-        onMeasurementRequested?.call(V2MeasurementRequestedMessage.fromJson(payload));
+        onMeasurementRequested
+            ?.call(V2MeasurementRequestedMessage.fromJson(payload));
       case 'saveRequested':
         onSaveRequested?.call();
     }
@@ -207,7 +215,8 @@ class LegacyV2BridgeTransport implements LegacyV2Channel {
   /// loop prevention: the injected script records this value as
   /// already-synced so its own poller won't re-emit `moduleMoved` for it.
   @override
-  Future<void> sendAuthoritativeModulePosition(String v2ModuleId, double x, double y) {
+  Future<void> sendAuthoritativeModulePosition(
+      String v2ModuleId, double x, double y) {
     return _executeIfEnabled(
       'window.__oepBridgeApplyAuthoritative && window.__oepBridgeApplyAuthoritative('
       '${jsonEncode(v2ModuleId)}, $x, $y)',
@@ -242,7 +251,9 @@ class LegacyV2BridgeTransport implements LegacyV2Channel {
   /// `metadata['notes']` is stored, so notes survive document
   /// reload/undo-of-delete the same way label/category already did.
   @override
-  Future<void> restoreModule(String v2ModuleId, String label, String category, double x, double y, {String notes = ''}) {
+  Future<void> restoreModule(
+      String v2ModuleId, String label, String category, double x, double y,
+      {String notes = ''}) {
     return _executeIfEnabled(
       'window.__oepBridgeRestoreModule && window.__oepBridgeRestoreModule('
       '${jsonEncode(v2ModuleId)}, ${jsonEncode(label)}, ${jsonEncode(category)}, $x, $y, ${jsonEncode(notes)})',
@@ -319,7 +330,8 @@ class LegacyV2BridgeTransport implements LegacyV2Channel {
   /// mutable, once document B becomes active.
   @override
   Future<void> clearAllSurfaces() {
-    return _executeIfEnabled('window.__oepBridgeClearAll && window.__oepBridgeClearAll()');
+    return _executeIfEnabled(
+        'window.__oepBridgeClearAll && window.__oepBridgeClearAll()');
   }
 
   /// AP-DIAGRAM-V2-BRIDGE-003, Phase 4 — intercepts V2's own "Save"
@@ -341,7 +353,8 @@ class LegacyV2BridgeTransport implements LegacyV2Channel {
   /// same as every other post-ready `executeScript` call in this class).
   @override
   Future<void> interceptV2Save() {
-    return _executeIfEnabled('window.__oepBridgeInterceptSave && window.__oepBridgeInterceptSave()');
+    return _executeIfEnabled(
+        'window.__oepBridgeInterceptSave && window.__oepBridgeInterceptSave()');
   }
 
   /// AP-DIAGRAM-V2-BRIDGE-003, Phase 5 — feedback for the intercepted
@@ -369,11 +382,40 @@ class LegacyV2BridgeTransport implements LegacyV2Channel {
   /// arrives) rather than overwriting what the user is currently looking
   /// at with an answer to a question V2 no longer cares about.
   @override
-  Future<void> applyMeasurementResult(String v2WireId, String mode, String displayValue, String unit, String note) {
+  Future<void> applyMeasurementResult(String v2WireId, String mode,
+      String displayValue, String unit, String note) {
     return _executeIfEnabled(
       'window.__oepBridgeApplyMeasurementResult && window.__oepBridgeApplyMeasurementResult('
       '${jsonEncode(v2WireId)}, ${jsonEncode(mode)}, ${jsonEncode(displayValue)}, '
       '${jsonEncode(unit)}, ${jsonEncode(note)})',
+    );
+  }
+
+  /// AP-DIAGRAM-V2-BRIDGE-SAVE-001 — `executeScript` already JSON-decodes
+  /// WebView2's own JSON-encoded transport of the script's result (see
+  /// `webview_flutter_windows`'s own implementation — `jsonDecode(data as
+  /// String)`), so a JS object return value arrives here already as a
+  /// `Map`. Deliberately bypasses [_executeIfEnabled]/[bridgeEnabled]'s
+  /// silent-no-op convention (every other method here fires-and-forgets
+  /// an OEP-authoritative *write* into V2, where "do nothing while
+  /// untrusted" is correct; this is a *read* whose caller — the Save flush
+  /// barrier — must be able to tell "disabled/unreachable" apart from
+  /// "nothing changed," so it returns `null` explicitly instead).
+  @override
+  Future<V2SaveSnapshot?> captureSaveSnapshot() async {
+    if (!bridgeEnabled) return null;
+    final result = await _controller.executeScript(
+        'window.__oepBridgeCaptureSaveSnapshot && window.__oepBridgeCaptureSaveSnapshot()');
+    if (result == null) return null;
+    return V2SaveSnapshot.fromJson(Map<String, dynamic>.from(result as Map));
+  }
+
+  @override
+  Future<void> restoreWireRouteOffsets(
+      String v2WireId, Map<String, double> offsets) {
+    return _executeIfEnabled(
+      'window.__oepBridgeApplyWireRouteOffsets && window.__oepBridgeApplyWireRouteOffsets('
+      '${jsonEncode(v2WireId)}, ${jsonEncode(offsets)})',
     );
   }
 
@@ -382,7 +424,8 @@ class LegacyV2BridgeTransport implements LegacyV2Channel {
   /// "Fit view" (`zReset()`), proven in POC-002. Not a general-purpose
   /// command channel: nothing above the transport should reach for this
   /// to implement new bridged operations.
-  Future<void> executeRawScript(String script) => _controller.executeScript(script);
+  Future<void> executeRawScript(String script) =>
+      _controller.executeScript(script);
 
   Future<void> dispose() async {
     await _sub?.cancel();
@@ -398,18 +441,26 @@ abstract class LegacyV2Channel {
   set onModuleMoved(void Function(V2ModuleMovedMessage message)? handler);
   set onModuleCreated(void Function(V2ModuleCreatedMessage message)? handler);
   set onModuleDeleted(void Function(V2ModuleDeletedMessage message)? handler);
-  set onModulePropertiesChanged(void Function(V2ModulePropertiesChangedMessage message)? handler);
+  set onModulePropertiesChanged(
+      void Function(V2ModulePropertiesChangedMessage message)? handler);
   set onWireCreated(void Function(V2WireCreatedMessage message)? handler);
   set onWireDeleted(void Function(V2WireDeletedMessage message)? handler);
-  set onWireSelectionChanged(void Function(V2WireSelectionChangedMessage message)? handler);
-  set onModuleSelectionChanged(void Function(V2ModuleSelectionChangedMessage message)? handler);
-  set onWirePropertiesChanged(void Function(V2WirePropertiesChangedMessage message)? handler);
-  set onMeasurementRequested(void Function(V2MeasurementRequestedMessage message)? handler);
+  set onWireSelectionChanged(
+      void Function(V2WireSelectionChangedMessage message)? handler);
+  set onModuleSelectionChanged(
+      void Function(V2ModuleSelectionChangedMessage message)? handler);
+  set onWirePropertiesChanged(
+      void Function(V2WirePropertiesChangedMessage message)? handler);
+  set onMeasurementRequested(
+      void Function(V2MeasurementRequestedMessage message)? handler);
   set onSaveRequested(void Function()? handler);
 
-  Future<void> sendAuthoritativeModulePosition(String v2ModuleId, double x, double y);
+  Future<void> sendAuthoritativeModulePosition(
+      String v2ModuleId, double x, double y);
   Future<void> sendAuthoritativeModuleLabel(String v2ModuleId, String label);
-  Future<void> restoreModule(String v2ModuleId, String label, String category, double x, double y, {String notes});
+  Future<void> restoreModule(
+      String v2ModuleId, String label, String category, double x, double y,
+      {String notes});
   Future<void> removeModuleFromV2(String v2ModuleId);
   Future<void> confirmWireCreated(String v2WireId, String label, String color);
   Future<void> removeWireFromV2(String v2WireId);
@@ -425,13 +476,121 @@ abstract class LegacyV2Channel {
   Future<void> clearAllSurfaces();
   Future<void> interceptV2Save();
   Future<void> reportSaveResult(bool success, String message);
-  Future<void> applyMeasurementResult(String v2WireId, String mode, String displayValue, String unit, String note);
+  Future<void> applyMeasurementResult(String v2WireId, String mode,
+      String displayValue, String unit, String note);
+
+  /// AP-DIAGRAM-V2-BRIDGE-SAVE-001 — the Save flush barrier's inbound
+  /// half: a synchronous (awaitable), deterministic read of V2's CURRENT
+  /// module/wire/route state, independent of the 400ms poller. `null`
+  /// only if the WebView could not be reached at all (disposed, or
+  /// [LegacyV2BridgeTransport.bridgeEnabled]/equivalent is `false`) — the
+  /// caller must not treat that as "nothing changed."
+  Future<V2SaveSnapshot?> captureSaveSnapshot();
+
+  /// AP-DIAGRAM-V2-BRIDGE-SAVE-001 — reseeds V2's own `wireRoutes[id]`
+  /// with OEP-authoritative segment offsets (document load, or resync
+  /// after an Undo touching a route). An empty [offsets] clears the
+  /// entry (V2's own Reset Route behavior).
+  Future<void> restoreWireRouteOffsets(
+      String v2WireId, Map<String, double> offsets);
+}
+
+/// AP-DIAGRAM-V2-BRIDGE-SAVE-001 — the decoded result of
+/// `window.__oepBridgeCaptureSaveSnapshot()`, in V2's own vocabulary
+/// (verbatim ids/fields) — [LegacyV2StateAdapter.flushBeforeSave] is what
+/// gives this OEP meaning, exactly like every other message in this file.
+class V2SaveSnapshot {
+  const V2SaveSnapshot(
+      {required this.modules, required this.wires, required this.wireRoutes});
+
+  factory V2SaveSnapshot.fromJson(Map<String, dynamic> json) {
+    final rawModules =
+        Map<String, dynamic>.from(json['modules'] as Map? ?? const {});
+    final rawWires =
+        Map<String, dynamic>.from(json['wires'] as Map? ?? const {});
+    final rawRoutes =
+        Map<String, dynamic>.from(json['wireRoutes'] as Map? ?? const {});
+    return V2SaveSnapshot(
+      modules: rawModules.map((id, v) => MapEntry(
+          id, V2SnapshotModule.fromJson(Map<String, dynamic>.from(v as Map)))),
+      wires: rawWires.map((id, v) => MapEntry(
+          id, V2SnapshotWire.fromJson(Map<String, dynamic>.from(v as Map)))),
+      wireRoutes: rawRoutes.map((id, v) => MapEntry(
+            id,
+            Map<String, dynamic>.from(v as Map).map((segIdx, offset) =>
+                MapEntry(int.parse(segIdx), (offset as num).toDouble())),
+          )),
+    );
+  }
+
+  /// v2ModuleId -> current module snapshot.
+  final Map<String, V2SnapshotModule> modules;
+
+  /// v2WireId -> current wire snapshot.
+  final Map<String, V2SnapshotWire> wires;
+
+  /// v2WireId -> (segmentIndex -> scalar offset). A wire with no manual
+  /// route adjustment (or one that was Reset) is simply absent here.
+  final Map<String, Map<int, double>> wireRoutes;
+}
+
+class V2SnapshotModule {
+  const V2SnapshotModule(
+      {required this.label,
+      required this.category,
+      required this.notes,
+      required this.x,
+      required this.y});
+
+  factory V2SnapshotModule.fromJson(Map<String, dynamic> json) =>
+      V2SnapshotModule(
+        label: json['label'] as String? ?? '',
+        category: json['category'] as String? ?? '',
+        notes: json['notes'] as String? ?? '',
+        x: (json['x'] as num?)?.toDouble() ?? 0,
+        y: (json['y'] as num?)?.toDouble() ?? 0,
+      );
+
+  final String label;
+  final String category;
+  final String notes;
+  final double x;
+  final double y;
+}
+
+class V2SnapshotWire {
+  const V2SnapshotWire({
+    required this.fromModuleId,
+    required this.fromTerminal,
+    required this.toModuleId,
+    required this.toTerminal,
+    required this.label,
+    required this.color,
+  });
+
+  factory V2SnapshotWire.fromJson(Map<String, dynamic> json) => V2SnapshotWire(
+        fromModuleId: json['fromModuleId'] as String,
+        fromTerminal: json['fromTerminal'] as String? ?? '',
+        toModuleId: json['toModuleId'] as String,
+        toTerminal: json['toTerminal'] as String? ?? '',
+        label: json['label'] as String? ?? '',
+        color: json['color'] as String? ?? '',
+      );
+
+  final String fromModuleId;
+  final String fromTerminal;
+  final String toModuleId;
+  final String toTerminal;
+  final String label;
+  final String color;
 }
 
 class V2ModuleMovedMessage {
-  const V2ModuleMovedMessage({required this.v2ModuleId, required this.x, required this.y});
+  const V2ModuleMovedMessage(
+      {required this.v2ModuleId, required this.x, required this.y});
 
-  factory V2ModuleMovedMessage.fromJson(Map<String, dynamic> json) => V2ModuleMovedMessage(
+  factory V2ModuleMovedMessage.fromJson(Map<String, dynamic> json) =>
+      V2ModuleMovedMessage(
         v2ModuleId: json['id'] as String,
         x: (json['x'] as num).toDouble(),
         y: (json['y'] as num).toDouble(),
@@ -451,7 +610,8 @@ class V2ModuleCreatedMessage {
     required this.y,
   });
 
-  factory V2ModuleCreatedMessage.fromJson(Map<String, dynamic> json) => V2ModuleCreatedMessage(
+  factory V2ModuleCreatedMessage.fromJson(Map<String, dynamic> json) =>
+      V2ModuleCreatedMessage(
         v2ModuleId: json['id'] as String,
         label: json['label'] as String? ?? '',
         category: json['category'] as String? ?? '',
@@ -483,7 +643,8 @@ class V2ModulePropertiesChangedMessage {
     this.notes = '',
   });
 
-  factory V2ModulePropertiesChangedMessage.fromJson(Map<String, dynamic> json) =>
+  factory V2ModulePropertiesChangedMessage.fromJson(
+          Map<String, dynamic> json) =>
       V2ModulePropertiesChangedMessage(
         v2ModuleId: json['id'] as String,
         label: json['label'] as String? ?? '',
@@ -493,6 +654,7 @@ class V2ModulePropertiesChangedMessage {
 
   final String v2ModuleId;
   final String label;
+
   /// AP-DIAGRAM-V2-BRIDGE-011 — V2's own free-text module notes field
   /// (`js/models/module.js`'s `notes`, edited via `saveModProps()`).
   final String notes;
@@ -510,7 +672,8 @@ class V2WireCreatedMessage {
     required this.color,
   });
 
-  factory V2WireCreatedMessage.fromJson(Map<String, dynamic> json) => V2WireCreatedMessage(
+  factory V2WireCreatedMessage.fromJson(Map<String, dynamic> json) =>
+      V2WireCreatedMessage(
         v2WireId: json['id'] as String,
         fromModuleId: json['fromModuleId'] as String,
         fromTerminal: json['fromTerminal'] as String? ?? '',
@@ -567,9 +730,11 @@ class V2ModuleSelectionChangedMessage {
 /// there is no "blank means remove this metadata key" case to handle for
 /// bridge-originated edits.
 class V2WirePropertiesChangedMessage {
-  const V2WirePropertiesChangedMessage({required this.v2WireId, required this.label, required this.color});
+  const V2WirePropertiesChangedMessage(
+      {required this.v2WireId, required this.label, required this.color});
 
-  factory V2WirePropertiesChangedMessage.fromJson(Map<String, dynamic> json) => V2WirePropertiesChangedMessage(
+  factory V2WirePropertiesChangedMessage.fromJson(Map<String, dynamic> json) =>
+      V2WirePropertiesChangedMessage(
         v2WireId: json['id'] as String,
         label: json['label'] as String? ?? '',
         color: json['color'] as String? ?? '',
@@ -589,9 +754,11 @@ class V2WirePropertiesChangedMessage {
 /// do not feed into `updateMeter()`'s lookup at all, so they carry no
 /// measurement meaning and are not part of this message.
 class V2MeasurementRequestedMessage {
-  const V2MeasurementRequestedMessage({required this.v2WireId, required this.mode});
+  const V2MeasurementRequestedMessage(
+      {required this.v2WireId, required this.mode});
 
-  factory V2MeasurementRequestedMessage.fromJson(Map<String, dynamic> json) => V2MeasurementRequestedMessage(
+  factory V2MeasurementRequestedMessage.fromJson(Map<String, dynamic> json) =>
+      V2MeasurementRequestedMessage(
         v2WireId: json['id'] as String,
         mode: json['mode'] as String,
       );
@@ -608,7 +775,8 @@ class V2StatusMessage {
     this.editMode,
   });
 
-  factory V2StatusMessage.fromJson(Map<String, dynamic> json) => V2StatusMessage(
+  factory V2StatusMessage.fromJson(Map<String, dynamic> json) =>
+      V2StatusMessage(
         selectedModuleId: json['selM'] as String?,
         moduleCount: json['moduleCount'] as int?,
         wireCount: json['wireCount'] as int?,
@@ -633,4 +801,3 @@ class V2StatusMessage {
   /// is in — never consulted by any handler, never persisted.
   final bool? editMode;
 }
-

@@ -41,7 +41,8 @@ class CompareDiagramController implements DiagramEditingHost {
   bool get canUndo => commands.canUndo;
   bool get canRedo => commands.canRedo;
 
-  EngineeringProjectState get _projectState => _ref.read(compareEngineeringProjectServiceProvider);
+  EngineeringProjectState get _projectState =>
+      _ref.read(compareEngineeringProjectServiceProvider);
   GraphSelection get selection => _projectState.selection;
   EditingSession? get session => _projectState.session;
 
@@ -53,7 +54,9 @@ class CompareDiagramController implements DiagramEditingHost {
 
   bool get isDirty => document.isDirty;
 
-  void markDirty() => _ref.read(compareEngineeringProjectServiceProvider.notifier).markDocumentDirty();
+  void markDirty() => _ref
+      .read(compareEngineeringProjectServiceProvider.notifier)
+      .markDocumentDirty();
 
   void undo() {
     commands.undo();
@@ -122,8 +125,10 @@ class CompareDiagramController implements DiagramEditingHost {
   }
 
   @override
-  void updateRelationshipMetadata(String relationshipId, Map<String, Object?> patch) {
-    engine.editing.execute(UpdateRelationshipPropertiesCommand(relationshipId, patch));
+  void updateRelationshipMetadata(
+      String relationshipId, Map<String, Object?> patch) {
+    engine.editing
+        .execute(UpdateRelationshipPropertiesCommand(relationshipId, patch));
     markDirty();
   }
 
@@ -133,18 +138,33 @@ class CompareDiagramController implements DiagramEditingHost {
     markDirty();
   }
 
-  Future<void> newDocument() => _ref.read(compareEngineeringProjectServiceProvider.notifier).newDocument();
+  @override
+  void setWireSegmentOffsets(String relationshipId, Map<int, double>? offsets) {
+    engine.editing
+        .execute(SetWireSegmentOffsetsCommand(relationshipId, offsets));
+    markDirty();
+  }
 
-  Future<void> openDocument(String path) =>
-      _ref.read(compareEngineeringProjectServiceProvider.notifier).openDocument(path);
+  Future<void> newDocument() => _ref
+      .read(compareEngineeringProjectServiceProvider.notifier)
+      .newDocument();
+
+  Future<void> openDocument(String path) => _ref
+      .read(compareEngineeringProjectServiceProvider.notifier)
+      .openDocument(path);
 
   @override
-  Future<void> saveDocument() => _ref.read(compareEngineeringProjectServiceProvider.notifier).saveDocument();
+  Future<void> saveDocument() => _ref
+      .read(compareEngineeringProjectServiceProvider.notifier)
+      .saveDocument();
 
-  Future<void> saveDocumentAs(String path) =>
-      _ref.read(compareEngineeringProjectServiceProvider.notifier).saveDocumentAs(path);
+  Future<void> saveDocumentAs(String path) => _ref
+      .read(compareEngineeringProjectServiceProvider.notifier)
+      .saveDocumentAs(path);
 
-  Future<void> closeDocument() => _ref.read(compareEngineeringProjectServiceProvider.notifier).closeDocument();
+  Future<void> closeDocument() => _ref
+      .read(compareEngineeringProjectServiceProvider.notifier)
+      .closeDocument();
 
   /// The full bootstrap: start (or reuse) the Compare document's own
   /// `EngineHost` via [EngineeringProjectNotifier.ensureEngineStarted] —
@@ -155,18 +175,21 @@ class CompareDiagramController implements DiagramEditingHost {
   /// caches the result), matching the Primary controller's own lifetime
   /// guarantee.
   static Future<CompareDiagramController> bootstrap({required Ref ref}) async {
-    final notifier = ref.read(compareEngineeringProjectServiceProvider.notifier);
+    final notifier =
+        ref.read(compareEngineeringProjectServiceProvider.notifier);
     final host = await notifier.ensureEngineStarted();
     return CompareDiagramController(engine: host.engine, ref: ref);
   }
 }
 
-class CompareDiagramControllerNotifier extends AsyncNotifier<CompareDiagramController> {
+class CompareDiagramControllerNotifier
+    extends AsyncNotifier<CompareDiagramController> {
   @override
-  Future<CompareDiagramController> build() => CompareDiagramController.bootstrap(ref: ref);
+  Future<CompareDiagramController> build() =>
+      CompareDiagramController.bootstrap(ref: ref);
 }
 
-final compareDiagramControllerProvider =
-    AsyncNotifierProvider<CompareDiagramControllerNotifier, CompareDiagramController>(
+final compareDiagramControllerProvider = AsyncNotifierProvider<
+    CompareDiagramControllerNotifier, CompareDiagramController>(
   CompareDiagramControllerNotifier.new,
 );

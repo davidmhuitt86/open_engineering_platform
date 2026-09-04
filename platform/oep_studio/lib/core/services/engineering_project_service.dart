@@ -102,7 +102,8 @@ class EngineeringProjectState {
 /// ([engineeringProjectServiceProvider]), so they remain correct exactly
 /// as long as that remains true (a known, documented, transitional
 /// limitation — not silently papered over).
-class EngineeringProjectNotifier extends FamilyNotifier<EngineeringProjectState, String> {
+class EngineeringProjectNotifier
+    extends FamilyNotifier<EngineeringProjectState, String> {
   StreamSubscription<EditingSession>? _sessionSub;
   StreamSubscription<GraphSelection>? _selectionSub;
   StreamSubscription<ViewState>? _viewStateSub;
@@ -120,12 +121,42 @@ class EngineeringProjectNotifier extends FamilyNotifier<EngineeringProjectState,
   // the dispose callback the same value without ever touching `state`.
   EngineHost? _host;
 
+  /// AP-DIAGRAM-V2-BRIDGE-SAVE-002 — a document-lifecycle-scoped hook a
+  /// WebView bridge host (`LegacyV2WebViewPage`/`LegacyV2AndroidWebViewPage`/
+  /// their Compare-pane counterparts) registers so ANY save trigger for
+  /// this instance — V2's own in-page Save button, the app-wide
+  /// `diagram.saveDocument`/`diagram.saveDocumentAs` commands
+  /// (`command_registry.dart`, reachable via Ctrl+S/the Command Palette),
+  /// or any future trigger — reconciles the bridge's current state first.
+  ///
+  /// **Why this exists**: `LegacyV2StateAdapter.flushBeforeSave` was
+  /// originally wired only into the adapter's own `_handleSaveRequested`
+  /// (V2's in-page Save button), which fixed that one trigger but left
+  /// every OTHER save path — Ctrl+S, the Command Palette, a future
+  /// toolbar Save button — writing whatever `state.session` already held,
+  /// with no idea a V2 bridge was even involved (this is the exact gap
+  /// the `documentPath` listener's own doc comment in `legacy_v2_webview.dart`
+  /// already called out for Save As's reseed side effect — the same
+  /// "any trigger, not just this widget's own button" problem, now fixed
+  /// the same way for the pre-save flush too). This notifier deliberately
+  /// stays unaware of the bridge/adapter/WebView (no import, no type
+  /// reference) — the host widget hands it a closure, not the other way
+  /// around, so layering stays intact (`EngineeringProjectNotifier` is
+  /// shared by non-Diagram-Studio callers too, e.g. `CompareDiagramController`
+  /// reuses this exact class).
+  ///
+  /// `null` (the default, and after the registering widget disposes) is a
+  /// genuine "no bridge active for this instance" state — never invented,
+  /// never left stale past the widget's own lifetime.
+  Future<void> Function()? beforeSaveFlush;
+
   @override
   EngineeringProjectState build(String arg) {
     ref.onDispose(() {
       _sessionSub?.cancel();
       _selectionSub?.cancel();
       _viewStateSub?.cancel();
+      beforeSaveFlush = null;
       final host = _host;
       if (host != null) unawaited(host.dispose());
     });
@@ -151,7 +182,8 @@ class EngineeringProjectNotifier extends FamilyNotifier<EngineeringProjectState,
       ),
     );
     _sessionSub = host.engine.editing.sessionChanges.listen((s) {
-      state = state.copyWith(session: s, validationReport: host.engine.validate(s.graph));
+      state = state.copyWith(
+          session: s, validationReport: host.engine.validate(s.graph));
     });
     _selectionSub = host.engine.registry.selection.changes.listen((s) {
       state = state.copyWith(selection: s);
@@ -161,7 +193,8 @@ class EngineeringProjectNotifier extends FamilyNotifier<EngineeringProjectState,
     });
     _host = host;
 
-    host.engine.beginEditingSession(EngineeringGraph.empty(host.engine.graph.generateId('graph')));
+    host.engine.beginEditingSession(
+        EngineeringGraph.empty(host.engine.graph.generateId('graph')));
     _applyNewDocumentViewStateDefaults(host);
 
     state = state.copyWith(
@@ -176,8 +209,12 @@ class EngineeringProjectNotifier extends FamilyNotifier<EngineeringProjectState,
   void _applyNewDocumentViewStateDefaults(EngineHost host) {
     final settings = ref.read(diagramStudioSettingsProvider);
     final service = host.engine.registry.viewState as ViewStateService;
-    if (service.current.grid.visible != settings.defaultGridVisible) service.toggleGrid();
-    if (service.current.grid.snapEnabled != settings.defaultSnapEnabled) service.toggleSnap();
+    if (service.current.grid.visible != settings.defaultGridVisible) {
+      service.toggleGrid();
+    }
+    if (service.current.grid.snapEnabled != settings.defaultSnapEnabled) {
+      service.toggleSnap();
+    }
     service.setGuidesVisible(settings.defaultGuidesVisible);
   }
 
@@ -186,7 +223,8 @@ class EngineeringProjectNotifier extends FamilyNotifier<EngineeringProjectState,
   Future<void> newDocument() async {
     final host = await ensureEngineStarted();
     state.document.close();
-    host.engine.beginEditingSession(EngineeringGraph.empty(host.engine.graph.generateId('graph')));
+    host.engine.beginEditingSession(
+        EngineeringGraph.empty(host.engine.graph.generateId('graph')));
     _applyNewDocumentViewStateDefaults(host);
     state = state.copyWith();
   }
@@ -194,7 +232,8 @@ class EngineeringProjectNotifier extends FamilyNotifier<EngineeringProjectState,
   Future<void> openDocument(String path) async {
     final host = await ensureEngineStarted();
     final opened = await state.document.open(path);
-    host.engine.editing.resetSession(EditingSession.initial(opened.graph).copyWith(layout: opened.layout));
+    host.engine.editing.resetSession(
+        EditingSession.initial(opened.graph).copyWith(layout: opened.layout));
     state = state.copyWith();
     await _reconnectToFoundationDiagram(host, opened.graph);
   }
@@ -221,7 +260,8 @@ class EngineeringProjectNotifier extends FamilyNotifier<EngineeringProjectState,
   /// error-reporting mechanism is created for this case (this Notifier
   /// has no `BuildContext` to surface one through, and none of this
   /// package's existing seams reach here).
-  Future<void> _reconnectToFoundationDiagram(EngineHost host, EngineeringGraph graph) async {
+  Future<void> _reconnectToFoundationDiagram(
+      EngineHost host, EngineeringGraph graph) async {
     final diagramId = graph.diagramRepositoryId;
     if (diagramId == null || diagramId.isEmpty) return;
     final bridge = host.engine.registry.foundationBridge;
@@ -234,15 +274,32 @@ class EngineeringProjectNotifier extends FamilyNotifier<EngineeringProjectState,
     }
   }
 
+  /// AP-DIAGRAM-V2-BRIDGE-SAVE-001 — reads [EngineeringEngine.editing]'s
+  /// own live session (`state.engine?.editing.session`), not the
+  /// Riverpod-mirrored `state.session`. The two are not the same thing at
+  /// every instant: `state.session` is only updated by a listener on
+  /// `EditingService.sessionChanges`, an **async** broadcast stream (not
+  /// `sync: true`) — so immediately after an `engine.editing.execute(...)`
+  /// call, `state.session` can still be one microtask stale. That gap is
+  /// invisible in ordinary interactive use (there is always a real async
+  /// event — a keystroke, a mouse-up — between an edit and the next Save
+  /// click), but a caller that reconciles external state into the Engine
+  /// and then calls `saveDocument()` in the same synchronous stretch
+  /// (the Legacy V2 bridge's own save-flush barrier,
+  /// `LegacyV2StateAdapter.flushBeforeSave`) cannot rely on that gap
+  /// closing in time. Reading the engine's own session directly removes
+  /// the dependency on that microtask timing entirely, for every caller.
   Future<void> saveDocument() async {
-    final session = state.session;
+    await beforeSaveFlush?.call();
+    final session = state.engine?.editing.session ?? state.session;
     if (session == null) return;
     await state.document.save(session.graph, session.layout);
     state = state.copyWith();
   }
 
   Future<void> saveDocumentAs(String path) async {
-    final session = state.session;
+    await beforeSaveFlush?.call();
+    final session = state.engine?.editing.session ?? state.session;
     if (session == null) return;
     await state.document.saveAs(path, session.graph, session.layout);
     state = state.copyWith();
@@ -278,7 +335,8 @@ class EngineeringProjectNotifier extends FamilyNotifier<EngineeringProjectState,
   Future<void> closeDocument() async {
     final host = await ensureEngineStarted();
     state.document.close();
-    host.engine.beginEditingSession(EngineeringGraph.empty(host.engine.graph.generateId('graph')));
+    host.engine.beginEditingSession(
+        EngineeringGraph.empty(host.engine.graph.generateId('graph')));
     _applyNewDocumentViewStateDefaults(host);
     state = state.copyWith();
   }
@@ -299,13 +357,15 @@ class EngineeringProjectNotifier extends FamilyNotifier<EngineeringProjectState,
     final host = state.engineHost;
     final session = state.session;
     if (host == null || session == null) return;
-    state = state.copyWith(validationReport: host.engine.validate(session.graph));
+    state =
+        state.copyWith(validationReport: host.engine.validate(session.graph));
   }
 
   // --- Recent history (ENGINE-TASK-000119) ---------------------------------
 
   void recordHistory(RecentHistoryEntry entry) {
-    final updated = [entry, ...state.recentHistory].take(_maxRecentHistory).toList();
+    final updated =
+        [entry, ...state.recentHistory].take(_maxRecentHistory).toList();
     state = state.copyWith(recentHistory: updated);
   }
 
@@ -321,8 +381,8 @@ class EngineeringProjectNotifier extends FamilyNotifier<EngineeringProjectState,
 /// `diagram-2`, an index, or a timestamp — per the approved design).
 /// Every Diagram Workspace tab reads its own state via
 /// `engineeringProjectServiceFamily(tab.id)`.
-final engineeringProjectServiceFamily =
-    NotifierProvider.family<EngineeringProjectNotifier, EngineeringProjectState, String>(
+final engineeringProjectServiceFamily = NotifierProvider.family<
+    EngineeringProjectNotifier, EngineeringProjectState, String>(
   EngineeringProjectNotifier.new,
 );
 
@@ -348,4 +408,5 @@ const primaryDiagramInstanceId = 'workspace-tab-diagram';
 /// invalidated on tab-close (§ `engineeringProjectServiceFamily`'s own
 /// disposal contract lives at the call site that explicitly
 /// invalidates a *non-primary* instance, never this one).
-final engineeringProjectServiceProvider = engineeringProjectServiceFamily(primaryDiagramInstanceId);
+final engineeringProjectServiceProvider =
+    engineeringProjectServiceFamily(primaryDiagramInstanceId);

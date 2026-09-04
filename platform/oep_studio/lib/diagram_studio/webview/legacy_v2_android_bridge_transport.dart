@@ -40,12 +40,15 @@ class LegacyV2AndroidBridgeTransport implements LegacyV2Channel {
   void Function(V2StatusMessage message)? onStatus;
   void Function(V2ModuleCreatedMessage message)? onModuleCreated;
   void Function(V2ModuleDeletedMessage message)? onModuleDeleted;
-  void Function(V2ModulePropertiesChangedMessage message)? onModulePropertiesChanged;
+  void Function(V2ModulePropertiesChangedMessage message)?
+      onModulePropertiesChanged;
   void Function(V2WireCreatedMessage message)? onWireCreated;
   void Function(V2WireDeletedMessage message)? onWireDeleted;
   void Function(V2WireSelectionChangedMessage message)? onWireSelectionChanged;
-  void Function(V2ModuleSelectionChangedMessage message)? onModuleSelectionChanged;
-  void Function(V2WirePropertiesChangedMessage message)? onWirePropertiesChanged;
+  void Function(V2ModuleSelectionChangedMessage message)?
+      onModuleSelectionChanged;
+  void Function(V2WirePropertiesChangedMessage message)?
+      onWirePropertiesChanged;
   void Function(V2MeasurementRequestedMessage message)? onMeasurementRequested;
   void Function()? onSaveRequested;
 
@@ -56,7 +59,8 @@ class LegacyV2AndroidBridgeTransport implements LegacyV2Channel {
   Future<void> attach() async {
     await _controller.addJavaScriptChannel(
       'OepBridge',
-      onMessageReceived: (JavaScriptMessage message) => _onRawMessage(message.message),
+      onMessageReceived: (JavaScriptMessage message) =>
+          _onRawMessage(message.message),
     );
     await _controller.runJavaScript(
       legacyV2BridgeScript('window.OepBridge.postMessage(s)'),
@@ -64,7 +68,8 @@ class LegacyV2AndroidBridgeTransport implements LegacyV2Channel {
   }
 
   void _onRawMessage(String raw) {
-    final Map<String, dynamic> envelope = jsonDecode(raw) as Map<String, dynamic>;
+    final Map<String, dynamic> envelope =
+        jsonDecode(raw) as Map<String, dynamic>;
     // Same batching rationale as `LegacyV2BridgeTransport._onRawMessage`
     // — a `JavaScriptChannel` message is a single string, so ordering
     // within one poll tick is guaranteed by construction here too.
@@ -92,19 +97,24 @@ class LegacyV2AndroidBridgeTransport implements LegacyV2Channel {
       case 'moduleDeleted':
         onModuleDeleted?.call(V2ModuleDeletedMessage.fromJson(payload));
       case 'modulePropertiesChanged':
-        onModulePropertiesChanged?.call(V2ModulePropertiesChangedMessage.fromJson(payload));
+        onModulePropertiesChanged
+            ?.call(V2ModulePropertiesChangedMessage.fromJson(payload));
       case 'wireCreated':
         onWireCreated?.call(V2WireCreatedMessage.fromJson(payload));
       case 'wireDeleted':
         onWireDeleted?.call(V2WireDeletedMessage.fromJson(payload));
       case 'wireSelectionChanged':
-        onWireSelectionChanged?.call(V2WireSelectionChangedMessage.fromJson(payload));
+        onWireSelectionChanged
+            ?.call(V2WireSelectionChangedMessage.fromJson(payload));
       case 'moduleSelectionChanged':
-        onModuleSelectionChanged?.call(V2ModuleSelectionChangedMessage.fromJson(payload));
+        onModuleSelectionChanged
+            ?.call(V2ModuleSelectionChangedMessage.fromJson(payload));
       case 'wirePropertiesChanged':
-        onWirePropertiesChanged?.call(V2WirePropertiesChangedMessage.fromJson(payload));
+        onWirePropertiesChanged
+            ?.call(V2WirePropertiesChangedMessage.fromJson(payload));
       case 'measurementRequested':
-        onMeasurementRequested?.call(V2MeasurementRequestedMessage.fromJson(payload));
+        onMeasurementRequested
+            ?.call(V2MeasurementRequestedMessage.fromJson(payload));
       case 'saveRequested':
         onSaveRequested?.call();
     }
@@ -116,7 +126,8 @@ class LegacyV2AndroidBridgeTransport implements LegacyV2Channel {
   }
 
   @override
-  Future<void> sendAuthoritativeModulePosition(String v2ModuleId, double x, double y) {
+  Future<void> sendAuthoritativeModulePosition(
+      String v2ModuleId, double x, double y) {
     return _executeIfEnabled(
       'window.__oepBridgeApplyAuthoritative && window.__oepBridgeApplyAuthoritative('
       '${jsonEncode(v2ModuleId)}, $x, $y)',
@@ -132,7 +143,9 @@ class LegacyV2AndroidBridgeTransport implements LegacyV2Channel {
   }
 
   @override
-  Future<void> restoreModule(String v2ModuleId, String label, String category, double x, double y, {String notes = ''}) {
+  Future<void> restoreModule(
+      String v2ModuleId, String label, String category, double x, double y,
+      {String notes = ''}) {
     return _executeIfEnabled(
       'window.__oepBridgeRestoreModule && window.__oepBridgeRestoreModule('
       '${jsonEncode(v2ModuleId)}, ${jsonEncode(label)}, ${jsonEncode(category)}, $x, $y, ${jsonEncode(notes)})',
@@ -180,12 +193,14 @@ class LegacyV2AndroidBridgeTransport implements LegacyV2Channel {
 
   @override
   Future<void> clearAllSurfaces() {
-    return _executeIfEnabled('window.__oepBridgeClearAll && window.__oepBridgeClearAll()');
+    return _executeIfEnabled(
+        'window.__oepBridgeClearAll && window.__oepBridgeClearAll()');
   }
 
   @override
   Future<void> interceptV2Save() {
-    return _executeIfEnabled('window.__oepBridgeInterceptSave && window.__oepBridgeInterceptSave()');
+    return _executeIfEnabled(
+        'window.__oepBridgeInterceptSave && window.__oepBridgeInterceptSave()');
   }
 
   @override
@@ -197,7 +212,8 @@ class LegacyV2AndroidBridgeTransport implements LegacyV2Channel {
   }
 
   @override
-  Future<void> applyMeasurementResult(String v2WireId, String mode, String displayValue, String unit, String note) {
+  Future<void> applyMeasurementResult(String v2WireId, String mode,
+      String displayValue, String unit, String note) {
     return _executeIfEnabled(
       'window.__oepBridgeApplyMeasurementResult && window.__oepBridgeApplyMeasurementResult('
       '${jsonEncode(v2WireId)}, ${jsonEncode(mode)}, ${jsonEncode(displayValue)}, '
@@ -205,8 +221,41 @@ class LegacyV2AndroidBridgeTransport implements LegacyV2Channel {
     );
   }
 
+  /// AP-DIAGRAM-V2-BRIDGE-SAVE-001 — Android counterpart of
+  /// [LegacyV2BridgeTransport.captureSaveSnapshot]. `runJavaScriptReturningResult`
+  /// (unlike `executeScript` on Windows) does **not** pre-decode a JSON
+  /// object result — for a non-primitive JS return value it hands back
+  /// the raw JSON text as a plain Dart `String` (confirmed by reading
+  /// `webview_flutter_android`'s own `runJavaScriptReturningResult`:
+  /// it only special-cases `'true'`/`'false'`/numeric strings, falling
+  /// through to the raw string otherwise) — so exactly one `jsonDecode`
+  /// is needed here where Windows needs zero, matching the same "each
+  /// transport does its own minimal platform glue" split every other
+  /// method in this file already has. The underlying JS this calls is
+  /// the identical, shared `window.__oepBridgeCaptureSaveSnapshot`.
+  @override
+  Future<V2SaveSnapshot?> captureSaveSnapshot() async {
+    if (!bridgeEnabled) return null;
+    final result = await _controller.runJavaScriptReturningResult(
+      'window.__oepBridgeCaptureSaveSnapshot && window.__oepBridgeCaptureSaveSnapshot()',
+    );
+    if (result is! String || result.isEmpty || result == 'null') return null;
+    return V2SaveSnapshot.fromJson(
+        Map<String, dynamic>.from(jsonDecode(result) as Map));
+  }
+
+  @override
+  Future<void> restoreWireRouteOffsets(
+      String v2WireId, Map<String, double> offsets) {
+    return _executeIfEnabled(
+      'window.__oepBridgeApplyWireRouteOffsets && window.__oepBridgeApplyWireRouteOffsets('
+      '${jsonEncode(v2WireId)}, ${jsonEncode(offsets)})',
+    );
+  }
+
   /// Same escape hatch as [LegacyV2BridgeTransport.executeRawScript].
-  Future<void> executeRawScript(String script) => _controller.runJavaScript(script);
+  Future<void> executeRawScript(String script) =>
+      _controller.runJavaScript(script);
 
   Future<void> dispose() async {
     // No subscription to cancel here — `addJavaScriptChannel`'s callback

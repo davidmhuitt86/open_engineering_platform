@@ -36,6 +36,7 @@ export '../core/editing/commands/resize_node_command.dart';
 export '../core/editing/commands/rotate_nodes_command.dart';
 export '../core/editing/commands/set_group_locked_command.dart';
 export '../core/editing/commands/set_wire_route_command.dart';
+export '../core/editing/commands/set_wire_segment_offsets_command.dart';
 export '../core/editing/commands/ungroup_command.dart';
 export '../core/editing/commands/update_annotation_command.dart';
 export '../core/editing/commands/update_evidence_link_command.dart';

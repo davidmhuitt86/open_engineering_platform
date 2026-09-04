@@ -89,11 +89,15 @@ class _CompareLegacyV2AndroidWebViewPageState extends ConsumerState<CompareLegac
   }
 
   LegacyV2StateAdapter _ensureAdapter(CompareDiagramController controller) {
-    return _adapter ??= LegacyV2StateAdapter(
+    final adapter = _adapter ??= LegacyV2StateAdapter(
       controller: controller,
       channel: _transport,
       simulationServiceResolver: () => ref.read(diagramSimulationServiceProvider),
     );
+    // AP-DIAGRAM-V2-BRIDGE-SAVE-002 — see the Primary Windows host's own
+    // doc comment on this same line for the full rationale.
+    ref.read(compareEngineeringProjectServiceProvider.notifier).beforeSaveFlush = adapter.flushBeforeSave;
+    return adapter;
   }
 
   void _triggerInitialSeed(LegacyV2StateAdapter adapter) {
@@ -118,6 +122,12 @@ class _CompareLegacyV2AndroidWebViewPageState extends ConsumerState<CompareLegac
 
   @override
   void dispose() {
+    // AP-DIAGRAM-V2-BRIDGE-SAVE-002 — best-effort; see the Primary
+    // Windows host's own doc comment on this same line for why this must
+    // never throw.
+    try {
+      ref.read(compareEngineeringProjectServiceProvider.notifier).beforeSaveFlush = null;
+    } catch (_) {}
     unawaited(_transport.dispose());
     super.dispose();
   }

@@ -48,7 +48,10 @@ import 'legacy_v2_bridge_transport.dart';
 enum _BridgedKind { module, wire }
 
 class LegacyV2StateAdapter {
-  LegacyV2StateAdapter({required this.controller, required this.channel, this.simulationServiceResolver}) {
+  LegacyV2StateAdapter(
+      {required this.controller,
+      required this.channel,
+      this.simulationServiceResolver}) {
     channel.onModuleMoved = _handleV2ModuleMoved;
     channel.onModuleCreated = _handleModuleCreated;
     channel.onModuleDeleted = _handleModuleDeleted;
@@ -126,7 +129,8 @@ class LegacyV2StateAdapter {
 
   final Map<String, String> _v2ToOepRelationshipId = {};
 
-  String? oepRelationshipIdFor(String v2WireId) => _v2ToOepRelationshipId[v2WireId];
+  String? oepRelationshipIdFor(String v2WireId) =>
+      _v2ToOepRelationshipId[v2WireId];
 
   /// AP-DIAGRAM-V2-BRIDGE-002, Phase 7 — the readiness gate. `false`
   /// until [initializeFromDocument] has finished seeding V2 from the
@@ -150,11 +154,13 @@ class LegacyV2StateAdapter {
 
   /// Fired after a successful move/create/undo-resync with the
   /// authoritative `(v2ModuleId, oepNodeId, x, y)` — display-only.
-  void Function(String v2ModuleId, String oepNodeId, double x, double y)? onAuthoritativeResult;
+  void Function(String v2ModuleId, String oepNodeId, double x, double y)?
+      onAuthoritativeResult;
 
   /// Fired after a successful property edit/undo-resync with the
   /// authoritative `(v2ModuleId, oepNodeId, label)` — display-only.
-  void Function(String v2ModuleId, String oepNodeId, String label)? onAuthoritativeLabel;
+  void Function(String v2ModuleId, String oepNodeId, String label)?
+      onAuthoritativeLabel;
 
   /// Fired after a bridged module is deleted (V2-originated) or a
   /// create is undone — display-only.
@@ -189,7 +195,9 @@ class LegacyV2StateAdapter {
   /// AP-DIAGRAM-V2-BRIDGE-005 — fired after a successful wire property
   /// edit/undo-resync with the authoritative `(v2WireId, relationshipId,
   /// label, color)` — display-only.
-  void Function(String v2WireId, String relationshipId, String label, String color)? onAuthoritativeWireProperties;
+  void Function(
+          String v2WireId, String relationshipId, String label, String color)?
+      onAuthoritativeWireProperties;
 
   String? oepNodeIdFor(String v2ModuleId) => _v2ToOepNodeId[v2ModuleId];
 
@@ -236,7 +244,10 @@ class LegacyV2StateAdapter {
       symbolId,
       position,
       displayName: message.label,
-      metadata: {'v2ModuleId': message.v2ModuleId, 'v2Category': message.category},
+      metadata: {
+        'v2ModuleId': message.v2ModuleId,
+        'v2Category': message.category
+      },
     );
     final after = controller.engine.editing.session.graph.nodes.keys.toSet();
     final nodeId = after.difference(before).single;
@@ -280,7 +291,8 @@ class LegacyV2StateAdapter {
   /// string here is a real "clear the notes" request and is patched as
   /// `null` (removing the key), matching this bridge's existing
   /// null-removes-key convention elsewhere.
-  void _handleModulePropertiesChanged(V2ModulePropertiesChangedMessage message) {
+  void _handleModulePropertiesChanged(
+      V2ModulePropertiesChangedMessage message) {
     if (!_ready) return;
     final nodeId = _v2ToOepNodeId[message.v2ModuleId];
     if (nodeId == null) return;
@@ -300,7 +312,8 @@ class LegacyV2StateAdapter {
     // change" short-circuit of its own).
     final currentNotes = currentNode.metadata['notes'] as String? ?? '';
     if (currentNotes != message.notes) {
-      controller.updateNodeMetadata(nodeId, {'notes': message.notes.isEmpty ? null : message.notes});
+      controller.updateNodeMetadata(
+          nodeId, {'notes': message.notes.isEmpty ? null : message.notes});
       bridgedSomething = true;
     }
     if (!bridgedSomething) return;
@@ -348,9 +361,11 @@ class LegacyV2StateAdapter {
       onWireUnbridgeable?.call(message.v2WireId);
       return;
     }
-    final before = controller.engine.editing.session.graph.relationships.keys.toSet();
+    final before =
+        controller.engine.editing.session.graph.relationships.keys.toSet();
     controller.createRelationship(sourceNodeId, targetNodeId);
-    final after = controller.engine.editing.session.graph.relationships.keys.toSet();
+    final after =
+        controller.engine.editing.session.graph.relationships.keys.toSet();
     final relationshipId = after.difference(before).single;
     controller.updateRelationshipMetadata(relationshipId, {
       // AP-DIAGRAM-V2-BRIDGE-002, Phase 5/6 — stashed so
@@ -369,7 +384,8 @@ class LegacyV2StateAdapter {
 
     // Phase 7 — read back what the Engine actually stored, not what was
     // requested, before confirming to V2.
-    final relationship = controller.engine.editing.session.graph.relationships[relationshipId]!;
+    final relationship =
+        controller.engine.editing.session.graph.relationships[relationshipId]!;
     channel.confirmWireCreated(
       message.v2WireId,
       relationship.metadata['label'] as String? ?? '',
@@ -480,9 +496,11 @@ class LegacyV2StateAdapter {
     if (!_ready) return;
     final relationshipId = _v2ToOepRelationshipId[message.v2WireId];
     if (relationshipId == null) return;
-    final current = controller.engine.editing.session.graph.relationships[relationshipId];
+    final current =
+        controller.engine.editing.session.graph.relationships[relationshipId];
     if (current == null) return;
-    if (current.metadata['label'] == message.label && current.metadata['wireColor'] == message.color) {
+    if (current.metadata['label'] == message.label &&
+        current.metadata['wireColor'] == message.color) {
       return;
     }
     controller.updateRelationshipMetadata(relationshipId, {
@@ -496,11 +514,13 @@ class LegacyV2StateAdapter {
     // requested, before confirming to V2. Reuses `confirmWireCreated`
     // (identical `(v2WireId, label, color)` shape) rather than a second
     // outbound method.
-    final authoritative = controller.engine.editing.session.graph.relationships[relationshipId]!;
+    final authoritative =
+        controller.engine.editing.session.graph.relationships[relationshipId]!;
     final label = authoritative.metadata['label'] as String? ?? '';
     final color = authoritative.metadata['wireColor'] as String? ?? '';
     channel.confirmWireCreated(message.v2WireId, label, color);
-    onAuthoritativeWireProperties?.call(message.v2WireId, relationshipId, label, color);
+    onAuthoritativeWireProperties?.call(
+        message.v2WireId, relationshipId, label, color);
   }
 
   /// AP-DIAGRAM-V2-BRIDGE-006 — V2's own `updateMeter()` (`meter-panel.js`)
@@ -550,11 +570,15 @@ class LegacyV2StateAdapter {
       );
       return;
     }
-    final relationship = controller.engine.editing.session.graph.relationships[relationshipId];
+    final relationship =
+        controller.engine.editing.session.graph.relationships[relationshipId];
     if (relationship == null) return;
-    final probeA = ProbePoint(nodeId: relationship.sourceNode, relationshipId: relationshipId);
-    final probeB = ProbePoint(nodeId: relationship.targetNode, relationshipId: relationshipId);
-    unawaited(_runMeasurement(simulation, message.v2WireId, message.mode, type, probeA, probeB));
+    final probeA = ProbePoint(
+        nodeId: relationship.sourceNode, relationshipId: relationshipId);
+    final probeB = ProbePoint(
+        nodeId: relationship.targetNode, relationshipId: relationshipId);
+    unawaited(_runMeasurement(
+        simulation, message.v2WireId, message.mode, type, probeA, probeB));
   }
 
   Future<void> _runMeasurement(
@@ -566,11 +590,14 @@ class LegacyV2StateAdapter {
     ProbePoint probeB,
   ) async {
     try {
-      final result = await simulation.measure(probeA: probeA, probeB: probeB, type: type);
+      final result =
+          await simulation.measure(probeA: probeA, probeB: probeB, type: type);
       final (display, unit, note) = _formatMeasurementForV2(v2Mode, result);
-      await channel.applyMeasurementResult(v2WireId, v2Mode, display, unit, note);
+      await channel.applyMeasurementResult(
+          v2WireId, v2Mode, display, unit, note);
     } catch (e) {
-      await channel.applyMeasurementResult(v2WireId, v2Mode, '—', '', 'Measurement failed: $e');
+      await channel.applyMeasurementResult(
+          v2WireId, v2Mode, '—', '', 'Measurement failed: $e');
     }
   }
 
@@ -604,26 +631,42 @@ class LegacyV2StateAdapter {
   ///    "this type has no numeric reading" case per [MeasurementResult]'s
   ///    own doc comment) displays `'—'` (em dash) with the engine's own
   ///    `notes` explaining why, rather than `0.00`.
-  (String, String, String) _formatMeasurementForV2(String v2Mode, MeasurementResult result) {
+  (String, String, String) _formatMeasurementForV2(
+      String v2Mode, MeasurementResult result) {
     final notes = result.notes ?? '';
     if (v2Mode == 'CONT' || (v2Mode == 'DIODE' && result.continuous != null)) {
       final isContinuous = result.reachable && (result.continuous ?? false);
       return (isContinuous ? '000' : 'OPN', '', notes);
     }
     if (!result.reachable) {
-      return ('OL', '', notes.isEmpty ? 'Unreachable under the current simulation state.' : notes);
+      return (
+        'OL',
+        '',
+        notes.isEmpty
+            ? 'Unreachable under the current simulation state.'
+            : notes
+      );
     }
     final value = result.measuredValue;
     if (value == null) {
-      return ('—', result.unit, notes.isEmpty ? 'No numeric reading reported for this measurement.' : notes);
+      return (
+        '—',
+        result.unit,
+        notes.isEmpty
+            ? 'No numeric reading reported for this measurement.'
+            : notes
+      );
     }
     return (value.toStringAsFixed(2), result.unit, notes);
   }
 
   void _syncPositionToV2(String v2ModuleId, String nodeId) {
-    final authoritative = controller.engine.editing.session.layout.positionOf(nodeId)!;
-    channel.sendAuthoritativeModulePosition(v2ModuleId, authoritative.dx, authoritative.dy);
-    onAuthoritativeResult?.call(v2ModuleId, nodeId, authoritative.dx, authoritative.dy);
+    final authoritative =
+        controller.engine.editing.session.layout.positionOf(nodeId)!;
+    channel.sendAuthoritativeModulePosition(
+        v2ModuleId, authoritative.dx, authoritative.dy);
+    onAuthoritativeResult?.call(
+        v2ModuleId, nodeId, authoritative.dx, authoritative.dy);
   }
 
   void _syncLabelToV2(String v2ModuleId, String nodeId) {
@@ -673,9 +716,13 @@ class LegacyV2StateAdapter {
       onModuleRemoved?.call(v2Id);
       return;
     }
-    final position = controller.engine.editing.session.layout.positionOf(nodeId) ?? const Point2D(50, 50);
+    final position =
+        controller.engine.editing.session.layout.positionOf(nodeId) ??
+            const Point2D(50, 50);
     final category = node.metadata['v2Category'] as String? ?? '';
-    channel.restoreModule(v2Id, node.displayName, category, position.dx, position.dy, notes: node.metadata['notes'] as String? ?? '');
+    channel.restoreModule(
+        v2Id, node.displayName, category, position.dx, position.dy,
+        notes: node.metadata['notes'] as String? ?? '');
     _syncPositionToV2(v2Id, nodeId);
     _syncLabelToV2(v2Id, nodeId);
   }
@@ -697,7 +744,8 @@ class LegacyV2StateAdapter {
     if (v2Id == null) return;
     final relationshipId = _v2ToOepRelationshipId[v2Id];
     if (relationshipId == null) return;
-    final relationship = controller.engine.editing.session.graph.relationships[relationshipId];
+    final relationship =
+        controller.engine.editing.session.graph.relationships[relationshipId];
     if (relationship == null) {
       channel.removeWireFromV2(v2Id);
       onWireRemoved?.call(v2Id);
@@ -724,6 +772,16 @@ class LegacyV2StateAdapter {
       toTerminal: relationship.metadata['targetPort'] as String? ?? '',
     );
     channel.confirmWireCreated(v2Id, label, color);
+    // AP-DIAGRAM-V2-BRIDGE-SAVE-001 — an Undo/Redo touching this
+    // relationship may have reverted its route offsets too (they share
+    // the same command stack as every other bridged wire mutation); push
+    // whatever is now current back into V2's own `wireRoutes[id]`, same
+    // "restore-if-missing, remove-if-gone" shape as label/color above.
+    final offsets = controller.engine.editing.session.layout
+            .wireSegmentOffsetsOf(relationshipId) ??
+        const <int, double>{};
+    channel.restoreWireRouteOffsets(v2Id,
+        offsets.map((segIdx, offset) => MapEntry(segIdx.toString(), offset)));
     onWireBridged?.call(v2Id, relationshipId);
     onAuthoritativeWireProperties?.call(v2Id, relationshipId, label, color);
   }
@@ -769,7 +827,9 @@ class LegacyV2StateAdapter {
       _v2ToOepNodeId[v2Id] = node.id;
       final category = node.metadata['v2Category'] as String? ?? '';
       final position = layout.positionOf(node.id) ?? const Point2D(50, 50);
-      await channel.restoreModule(v2Id, node.displayName, category, position.dx, position.dy, notes: node.metadata['notes'] as String? ?? '');
+      await channel.restoreModule(
+          v2Id, node.displayName, category, position.dx, position.dy,
+          notes: node.metadata['notes'] as String? ?? '');
     }
 
     // Rebuild the relationship-id index and seed V2's WIRES — only for
@@ -791,6 +851,17 @@ class LegacyV2StateAdapter {
         fromTerminal: relationship.metadata['sourcePort'] as String? ?? '',
         toTerminal: relationship.metadata['targetPort'] as String? ?? '',
       );
+      // AP-DIAGRAM-V2-BRIDGE-SAVE-001 — reseed V2's own `wireRoutes[id]`
+      // from whatever manual route offsets this relationship carries, so
+      // a saved route edit survives close/reopen visually in V2, not just
+      // in the OEP document.
+      final offsets = layout.wireSegmentOffsetsOf(relationship.id);
+      if (offsets != null && offsets.isNotEmpty) {
+        await channel.restoreWireRouteOffsets(
+            v2WireId,
+            offsets
+                .map((segIdx, offset) => MapEntry(segIdx.toString(), offset)));
+      }
     }
 
     currentDocumentToken = controller.document.id;
@@ -809,15 +880,161 @@ class LegacyV2StateAdapter {
   /// here — documented as DEFERRED in the persistence architecture doc;
   /// V2 is told why via [LegacyV2Channel.reportSaveResult] rather than
   /// silently doing nothing or falling back to V2's own file download.
+  ///
+  /// AP-DIAGRAM-V2-BRIDGE-SAVE-001 — [flushBeforeSave] is awaited FIRST,
+  /// so Save never depends on the 400ms poller having already caught up
+  /// with a module drag or a route edit (see that method's own doc
+  /// comment for the full rationale/mechanism).
   Future<void> _handleSaveRequested() async {
     if (!_ready) return;
     final path = controller.documentPath;
     if (path == null) {
-      await channel.reportSaveResult(false, 'Document has never been saved — use the "Save As…" button in the Legacy V2 toolbar first.');
+      // AP-DIAGRAM-V2-BRIDGE-SAVE-005 — this message previously pointed
+      // at a Legacy V2 toolbar "Save As…" button that no longer exists
+      // (removed by AP-OEP-DIAGRAM-UX-002, which moved Save As to the
+      // platform-wide Command Palette). Point at where the action
+      // actually lives now instead of a dead UI reference.
+      await channel.reportSaveResult(false,
+          'Document has never been saved — open the Command Palette (Ctrl+K) and run "Save Diagram As" first.');
       return;
     }
+    await flushBeforeSave();
     await controller.saveDocument();
     await channel.reportSaveResult(true, 'Saved "$path".');
+  }
+
+  /// AP-DIAGRAM-V2-BRIDGE-SAVE-001 — the Save flush barrier. Takes ONE
+  /// deterministic snapshot of V2's CURRENT module/wire/route state
+  /// (`LegacyV2Channel.captureSaveSnapshot`, no polling, no stability
+  /// window) and reconciles it into the Engine session before the caller
+  /// proceeds to `saveDocument()`. This is what removes Save's dependency
+  /// on the background poller: `saveDocument()` itself always writes
+  /// whatever the current session is (verified by direct inspection of
+  /// `EngineeringProjectNotifier.saveDocument`) — the only thing that was
+  /// ever missing was a guarantee that the session reflects V2's true
+  /// current state at the moment Save runs.
+  ///
+  /// Deliberately reuses the exact same handlers the live poller already
+  /// drives — [_handleModuleCreated]/[_handleModuleDeleted]/
+  /// [_handleModulePropertiesChanged]/[_handleV2ModuleMoved]/
+  /// [_handleWireCreated]/[_handleWireDeleted]/
+  /// [_handleWirePropertiesChanged] — by synthesizing the same message
+  /// types from the snapshot, so there is exactly one mutation code path
+  /// for each kind of change, live or flushed; both still go through
+  /// `DiagramEditingHost`'s existing methods (`EditingService`/
+  /// `StudioCommandActions`, unchanged) and therefore participate in the
+  /// existing command stack, undo/redo, and dirty tracking automatically.
+  /// Wire-route offsets have no live-poller equivalent at all (§ this
+  /// task's own root-cause finding — V2's `wireRoutes` was never observed
+  /// before this), so that reconciliation is new, driven directly by
+  /// [DiagramEditingHost.setWireSegmentOffsets].
+  Future<void> flushBeforeSave() async {
+    if (!_ready) return;
+    final snapshot = await channel.captureSaveSnapshot();
+    if (snapshot == null || !_ready) return;
+
+    // Modules: creations and deletions first (so the survivor loop below
+    // always has an up-to-date `_v2ToOepNodeId`), then property/position
+    // reconciliation for whatever now maps to a real OEP node.
+    for (final entry in snapshot.modules.entries) {
+      if (_v2ToOepNodeId.containsKey(entry.key) ||
+          unbridgedV2ModuleIds.contains(entry.key)) {
+        continue;
+      }
+      _handleModuleCreated(V2ModuleCreatedMessage(
+        v2ModuleId: entry.key,
+        label: entry.value.label,
+        category: entry.value.category,
+        x: entry.value.x,
+        y: entry.value.y,
+      ));
+    }
+    for (final v2Id in _v2ToOepNodeId.keys.toList()) {
+      if (!snapshot.modules.containsKey(v2Id)) {
+        _handleModuleDeleted(V2ModuleDeletedMessage(v2ModuleId: v2Id));
+      }
+    }
+    for (final entry in snapshot.modules.entries) {
+      final nodeId = _v2ToOepNodeId[entry.key];
+      if (nodeId == null) continue;
+      if (controller.engine.editing.session.graph.nodes[nodeId] == null) {
+        continue;
+      }
+      _handleModulePropertiesChanged(V2ModulePropertiesChangedMessage(
+        v2ModuleId: entry.key,
+        label: entry.value.label,
+        category: entry.value.category,
+        notes: entry.value.notes,
+      ));
+      final currentPosition =
+          controller.engine.editing.session.layout.positionOf(nodeId);
+      if (currentPosition == null ||
+          currentPosition.dx != entry.value.x ||
+          currentPosition.dy != entry.value.y) {
+        _handleV2ModuleMoved(V2ModuleMovedMessage(
+            v2ModuleId: entry.key, x: entry.value.x, y: entry.value.y));
+      }
+    }
+
+    // Wires: creations and deletions first, then property/route
+    // reconciliation for survivors.
+    for (final entry in snapshot.wires.entries) {
+      if (_v2ToOepRelationshipId.containsKey(entry.key) ||
+          unbridgedV2WireIds.contains(entry.key)) {
+        continue;
+      }
+      _handleWireCreated(V2WireCreatedMessage(
+        v2WireId: entry.key,
+        fromModuleId: entry.value.fromModuleId,
+        fromTerminal: entry.value.fromTerminal,
+        toModuleId: entry.value.toModuleId,
+        toTerminal: entry.value.toTerminal,
+        label: entry.value.label,
+        color: entry.value.color,
+      ));
+    }
+    for (final v2Id in _v2ToOepRelationshipId.keys.toList()) {
+      if (!snapshot.wires.containsKey(v2Id)) {
+        _handleWireDeleted(V2WireDeletedMessage(v2WireId: v2Id));
+      }
+    }
+    for (final entry in snapshot.wires.entries) {
+      final relationshipId = _v2ToOepRelationshipId[entry.key];
+      if (relationshipId == null) continue;
+      final relationship =
+          controller.engine.editing.session.graph.relationships[relationshipId];
+      if (relationship == null) continue;
+      if (relationship.metadata['label'] != entry.value.label ||
+          relationship.metadata['wireColor'] != entry.value.color) {
+        _handleWirePropertiesChanged(V2WirePropertiesChangedMessage(
+          v2WireId: entry.key,
+          label: entry.value.label,
+          color: entry.value.color,
+        ));
+      }
+      final currentOffsets = controller.engine.editing.session.layout
+          .wireSegmentOffsetsOf(relationshipId);
+      final snapshotOffsets = snapshot.wireRoutes[entry.key];
+      if (!_wireOffsetsEqual(currentOffsets, snapshotOffsets)) {
+        controller.setWireSegmentOffsets(
+            relationshipId,
+            (snapshotOffsets != null && snapshotOffsets.isNotEmpty)
+                ? snapshotOffsets
+                : null);
+        lastBridgedV2WireId = entry.key;
+        _lastBridgedKind = _BridgedKind.wire;
+      }
+    }
+  }
+
+  static bool _wireOffsetsEqual(Map<int, double>? a, Map<int, double>? b) {
+    final left = a ?? const <int, double>{};
+    final right = b ?? const <int, double>{};
+    if (left.length != right.length) return false;
+    for (final e in left.entries) {
+      if (right[e.key] != e.value) return false;
+    }
+    return true;
   }
 
   /// AP-DIAGRAM-V2-BRIDGE-002, Phase 8 — the active OEP document changed

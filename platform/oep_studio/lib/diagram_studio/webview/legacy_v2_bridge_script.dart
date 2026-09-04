@@ -188,34 +188,66 @@ const String _kRawBridgeScript = r'''
     delete syncedWireProps[id];
   };
 
+  // AP-DIAGRAM-V2-BRIDGE-SAVE-004 — `restoreModule`/`restoreWire` are
+  // called both to reconstruct a module/wire V2 doesn't have yet (e.g.
+  // after an Engine undo-of-delete) AND to reseed V2 with a just-opened
+  // document's authoritative state (`initializeFromDocument`). The
+  // original "already present -> no-op" guard was correct for the first
+  // case but silently broke the second whenever V2's OWN globals (e.g.
+  // `Bootstrap.run('trx300')`'s bundled demo vehicle, app.js) already
+  // populate MODULES/WIRES with the same ids before OEP's restore call
+  // runs — the id-already-exists check short-circuited BEFORE the
+  // position/label/color assignment below it ever ran, so a saved edit
+  // to a module V2 itself had already loaded (its position, label,
+  // notes; a wire's label/color) never made it back into V2 on reopen,
+  // even though the OEP document on disk was correct. Restoring now
+  // always applies the authoritative values — updating an existing
+  // module/wire's fields in place, or creating one that's genuinely
+  // missing — rather than treating "already present" as "already
+  // correct."
   window.__oepBridgeRestoreModule = function (id, label, category, x, y, notes) {
     if (typeof MODULES === 'undefined') return;
-    if (MODULES.some(function (m) { return m.id === id; })) return;
-    var m = { id: id, label: label, sub: '', cat: category, notes: notes || '', exit: 'down', terminals: [], _user: true };
-    MODULES.push(m);
+    var m = MODULES.find(function (existing) { return existing.id === id; });
+    if (m) {
+      m.label = label;
+      m.cat = category;
+      m.notes = notes || '';
+    } else {
+      m = { id: id, label: label, sub: '', cat: category, notes: notes || '', exit: 'down', terminals: [], _user: true };
+      MODULES.push(m);
+    }
     if (typeof positions !== 'undefined') { positions[id] = { x: x, y: y }; }
     if (typeof placeCards === 'function') { placeCards(); }
+    if (typeof rebuildCard === 'function') { rebuildCard(m); }
     if (typeof drawWires === 'function') { drawWires(); }
     lastModules[id] = { label: label, cat: category, notes: notes || '' };
+    syncedModuleProps[id] = { label: label, notes: notes || '' };
     synced[id] = { x: x, y: y };
     lastSeen[id] = { x: x, y: y, stableCount: 99 };
   };
 
   window.__oepBridgeRestoreWire = function (id, fromModuleId, toModuleId, label, color, fromTerminal, toTerminal) {
     if (typeof WIRES === 'undefined') return;
-    if (WIRES.some(function (w) { return w.id === id; })) return;
-    var w = {
-      id: id,
-      c: color,
-      lbl: label,
-      from: { m: fromModuleId, t: fromTerminal || '' },
-      to: { m: toModuleId, t: toTerminal || '' },
-      desc: '',
-      R: Array.from({ length: 4 }, function () {
-        return { VDC: '0.00', VAC: '0.00', CONT: 'OPN', RES: 'OL', DIODE: 'OL', note: '' };
-      }),
-    };
-    WIRES.push(w);
+    var w = WIRES.find(function (existing) { return existing.id === id; });
+    if (w) {
+      w.lbl = label;
+      w.c = color;
+      w.from = { m: fromModuleId, t: fromTerminal || '' };
+      w.to = { m: toModuleId, t: toTerminal || '' };
+    } else {
+      w = {
+        id: id,
+        c: color,
+        lbl: label,
+        from: { m: fromModuleId, t: fromTerminal || '' },
+        to: { m: toModuleId, t: toTerminal || '' },
+        desc: '',
+        R: Array.from({ length: 4 }, function () {
+          return { VDC: '0.00', VAC: '0.00', CONT: 'OPN', RES: 'OL', DIODE: 'OL', note: '' };
+        }),
+      };
+      WIRES.push(w);
+    }
     if (typeof drawWires === 'function') { drawWires(); }
     lastWires[id] = true;
     lastWireProps[id] = { lbl: label, c: color };
@@ -261,6 +293,55 @@ const String _kRawBridgeScript = r'''
     if (noteEl) { noteEl.textContent = note || ''; }
   };
 
+  // AP-DIAGRAM-V2-BRIDGE-SAVE-001 — the Save flush barrier's own
+  // snapshot primitive. Reads V2's CURRENT globals directly (no
+  // stability/debounce wait of any kind — that is the whole point: the
+  // 400ms poll's 2-tick stabilization exists to avoid spamming live
+  // `moduleMoved` events during an in-progress drag, which is irrelevant
+  // here because Save is a discrete, deliberate user action, not a live
+  // stream). Returns a plain JS object (not a JSON string) — WebView2's
+  // `ExecuteScript`/Android's `evaluateJavascript` each already transport
+  // the JS return value as its own JSON representation across the
+  // native boundary; wrapping it in a second `JSON.stringify` here would
+  // just make the Dart side undo an extra, pointless layer.
+  window.__oepBridgeCaptureSaveSnapshot = function () {
+    var modules = {};
+    if (typeof MODULES !== 'undefined') {
+      MODULES.forEach(function (m) {
+        var pos = (typeof positions !== 'undefined' && positions[m.id]) ? positions[m.id] : { x: 0, y: 0 };
+        modules[m.id] = { label: m.label || '', category: m.cat || '', notes: m.notes || '', x: pos.x, y: pos.y };
+      });
+    }
+    var wires = {};
+    if (typeof WIRES !== 'undefined') {
+      WIRES.forEach(function (w) {
+        wires[w.id] = {
+          fromModuleId: w.from.m, fromTerminal: w.from.t || '',
+          toModuleId: w.to.m, toTerminal: w.to.t || '',
+          label: w.lbl || '', color: w.c || '',
+        };
+      });
+    }
+    var wireRoutesSnapshot = {};
+    if (typeof wireRoutes !== 'undefined') {
+      for (var wid in wireRoutes) { wireRoutesSnapshot[wid] = wireRoutes[wid]; }
+    }
+    return { modules: modules, wires: wires, wireRoutes: wireRoutesSnapshot };
+  };
+
+  // AP-DIAGRAM-V2-BRIDGE-SAVE-001 — reseeds V2's own `wireRoutes[id]`
+  // from OEP-authoritative data (document load, or resync after an Undo
+  // that reverted a route edit). `offsets` is `{segIdx: offset}` or an
+  // empty object (clears any existing entry, matching V2's own Reset
+  // Route behavior — `delete wireRoutes[id]`).
+  window.__oepBridgeApplyWireRouteOffsets = function (id, offsets) {
+    if (typeof wireRoutes === 'undefined') return;
+    var hasAny = false;
+    for (var k in offsets) { hasAny = true; break; }
+    if (hasAny) { wireRoutes[id] = offsets; } else { delete wireRoutes[id]; }
+    if (typeof drawWires === 'function') { drawWires(); }
+  };
+
   window.__oepBridgeInterceptSave = function () {
     // See the Dart-side `interceptV2Save`'s own doc comment for why this
     // must run after V2's own script has already defined `saveLayout` —
@@ -270,6 +351,36 @@ const String _kRawBridgeScript = r'''
       window.__oepBridgePostMessage(JSON.stringify({ type: 'saveRequested', payload: {} }));
     };
   };
+
+  // AP-DIAGRAM-V2-BRIDGE-SAVE-003 — root-cause fix for the interception
+  // never actually taking effect. This script is injected via
+  // `addScriptToExecuteOnDocumentCreated`, which runs BEFORE any of V2's
+  // own `<script src>` tags — so calling `__oepBridgeInterceptSave()`
+  // directly at this point would just get clobbered the moment V2's own
+  // `js/storage/project-saver.js` executes its `function saveLayout(){}`
+  // declaration (a hoisted top-level function declaration, which wins
+  // regardless of assignment order once IT runs). The Dart side's own
+  // explicit `interceptV2Save()` call (fired after `initializeFromDocument`
+  // completes) was meant to run late enough to avoid this — but
+  // `WebviewController.loadUrl()` resolves as soon as WebView2's
+  // `Navigate()` call is dispatched, NOT once the page has actually
+  // finished loading (confirmed by reading `webview_flutter_windows`'s own
+  // native `loadUrl` handler — it calls `webview_->LoadUrl(url)` and
+  // returns success immediately, no NavigationCompleted wait at all), so
+  // in practice the Dart-side call could still land before V2's own
+  // scripts had executed. Listening for the browser's own `load` event
+  // — fired only after every synchronous `<script src>` tag, including
+  // project-saver.js, has already run — applies the override at the one
+  // point that is actually guaranteed correct, independent of any
+  // Dart-side round-trip timing. The existing Dart-side call is left in
+  // place too (harmless — either it's now redundant, or it runs first
+  // and gets clobbered by V2's own declaration exactly as before, in
+  // which case this listener still fixes it moments later).
+  window.addEventListener('load', function () {
+    if (typeof window.__oepBridgeInterceptSave === 'function') {
+      window.__oepBridgeInterceptSave();
+    }
+  });
 
   window.__oepBridgeReportSaveResult = function (success, message) {
     if (typeof showToast === 'function') {

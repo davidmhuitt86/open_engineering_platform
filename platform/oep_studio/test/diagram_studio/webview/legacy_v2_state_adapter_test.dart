@@ -39,53 +39,68 @@ class _FakeChannel implements LegacyV2Channel {
   final List<String> removedWires = [];
 
   @override
-  set onModuleMoved(void Function(V2ModuleMovedMessage message)? handler) => _onMoved = handler;
+  set onModuleMoved(void Function(V2ModuleMovedMessage message)? handler) =>
+      _onMoved = handler;
   @override
-  set onModuleCreated(void Function(V2ModuleCreatedMessage message)? handler) => _onCreated = handler;
+  set onModuleCreated(void Function(V2ModuleCreatedMessage message)? handler) =>
+      _onCreated = handler;
   @override
-  set onModuleDeleted(void Function(V2ModuleDeletedMessage message)? handler) => _onDeleted = handler;
+  set onModuleDeleted(void Function(V2ModuleDeletedMessage message)? handler) =>
+      _onDeleted = handler;
   @override
-  set onModulePropertiesChanged(void Function(V2ModulePropertiesChangedMessage message)? handler) =>
+  set onModulePropertiesChanged(
+          void Function(V2ModulePropertiesChangedMessage message)? handler) =>
       _onPropsChanged = handler;
   @override
-  set onWireCreated(void Function(V2WireCreatedMessage message)? handler) => _onWireCreated = handler;
+  set onWireCreated(void Function(V2WireCreatedMessage message)? handler) =>
+      _onWireCreated = handler;
   @override
-  set onWireDeleted(void Function(V2WireDeletedMessage message)? handler) => _onWireDeleted = handler;
+  set onWireDeleted(void Function(V2WireDeletedMessage message)? handler) =>
+      _onWireDeleted = handler;
   @override
-  set onWireSelectionChanged(void Function(V2WireSelectionChangedMessage message)? handler) =>
+  set onWireSelectionChanged(
+          void Function(V2WireSelectionChangedMessage message)? handler) =>
       _onWireSelectionChanged = handler;
   @override
-  set onModuleSelectionChanged(void Function(V2ModuleSelectionChangedMessage message)? handler) =>
+  set onModuleSelectionChanged(
+          void Function(V2ModuleSelectionChangedMessage message)? handler) =>
       _onModuleSelectionChanged = handler;
   @override
-  set onWirePropertiesChanged(void Function(V2WirePropertiesChangedMessage message)? handler) =>
+  set onWirePropertiesChanged(
+          void Function(V2WirePropertiesChangedMessage message)? handler) =>
       _onWirePropertiesChanged = handler;
   @override
-  set onMeasurementRequested(void Function(V2MeasurementRequestedMessage message)? handler) =>
+  set onMeasurementRequested(
+          void Function(V2MeasurementRequestedMessage message)? handler) =>
       _onMeasurementRequested = handler;
   @override
   set onSaveRequested(void Function()? handler) => _onSaveRequested = handler;
   void Function()? _onSaveRequested;
   void Function(V2WireDeletedMessage message)? _onWireDeleted;
   void Function(V2WireSelectionChangedMessage message)? _onWireSelectionChanged;
-  void Function(V2ModuleSelectionChangedMessage message)? _onModuleSelectionChanged;
-  void Function(V2WirePropertiesChangedMessage message)? _onWirePropertiesChanged;
+  void Function(V2ModuleSelectionChangedMessage message)?
+      _onModuleSelectionChanged;
+  void Function(V2WirePropertiesChangedMessage message)?
+      _onWirePropertiesChanged;
   void Function(V2MeasurementRequestedMessage message)? _onMeasurementRequested;
 
   final List<(String, String, String, String, String)> appliedMeasurements = [];
 
   @override
-  Future<void> applyMeasurementResult(String v2WireId, String mode, String displayValue, String unit, String note) async {
+  Future<void> applyMeasurementResult(String v2WireId, String mode,
+      String displayValue, String unit, String note) async {
     appliedMeasurements.add((v2WireId, mode, displayValue, unit, note));
   }
 
   @override
-  Future<void> sendAuthoritativeModulePosition(String v2ModuleId, double x, double y) async {
+  Future<void> sendAuthoritativeModulePosition(
+      String v2ModuleId, double x, double y) async {
     sentPositions.add((v2ModuleId, x, y));
   }
 
   @override
-  Future<void> sendAuthoritativeModuleLabel(String v2ModuleId, String label) async {
+  Future<void> sendAuthoritativeModuleLabel(
+      String v2ModuleId, String label) async {
     sentLabels.add((v2ModuleId, label));
   }
 
@@ -95,12 +110,15 @@ class _FakeChannel implements LegacyV2Channel {
   }
 
   @override
-  Future<void> restoreModule(String v2ModuleId, String label, String category, double x, double y, {String notes = ''}) async {
+  Future<void> restoreModule(
+      String v2ModuleId, String label, String category, double x, double y,
+      {String notes = ''}) async {
     restoredModules.add((v2ModuleId, label, category, x, y));
   }
 
   @override
-  Future<void> confirmWireCreated(String v2WireId, String label, String color) async {
+  Future<void> confirmWireCreated(
+      String v2WireId, String label, String color) async {
     confirmedWires.add((v2WireId, label, color));
   }
 
@@ -113,7 +131,9 @@ class _FakeChannel implements LegacyV2Channel {
   int clearAllSurfacesCallCount = 0;
 
   @override
-  Future<void> restoreWire(String v2WireId, String fromModuleId, String toModuleId, String label, String color, {String fromTerminal = '', String toTerminal = ''}) async {
+  Future<void> restoreWire(String v2WireId, String fromModuleId,
+      String toModuleId, String label, String color,
+      {String fromTerminal = '', String toTerminal = ''}) async {
     restoredWires.add((v2WireId, fromModuleId, toModuleId, label, color));
   }
 
@@ -137,14 +157,26 @@ class _FakeChannel implements LegacyV2Channel {
   void simulateMove(String v2ModuleId, double x, double y) =>
       _onMoved?.call(V2ModuleMovedMessage(v2ModuleId: v2ModuleId, x: x, y: y));
 
-  void simulateCreate(String v2ModuleId, String label, String category, double x, double y) =>
-      _onCreated?.call(V2ModuleCreatedMessage(v2ModuleId: v2ModuleId, label: label, category: category, x: x, y: y));
+  void simulateCreate(String v2ModuleId, String label, String category,
+          double x, double y) =>
+      _onCreated?.call(V2ModuleCreatedMessage(
+          v2ModuleId: v2ModuleId,
+          label: label,
+          category: category,
+          x: x,
+          y: y));
 
-  void simulateDelete(String v2ModuleId) => _onDeleted?.call(V2ModuleDeletedMessage(v2ModuleId: v2ModuleId));
+  void simulateDelete(String v2ModuleId) =>
+      _onDeleted?.call(V2ModuleDeletedMessage(v2ModuleId: v2ModuleId));
 
-  void simulatePropertiesChanged(String v2ModuleId, String label, String category, {String notes = ''}) =>
-      _onPropsChanged
-          ?.call(V2ModulePropertiesChangedMessage(v2ModuleId: v2ModuleId, label: label, category: category, notes: notes));
+  void simulatePropertiesChanged(
+          String v2ModuleId, String label, String category,
+          {String notes = ''}) =>
+      _onPropsChanged?.call(V2ModulePropertiesChangedMessage(
+          v2ModuleId: v2ModuleId,
+          label: label,
+          category: category,
+          notes: notes));
 
   void simulateWireCreated(
     String v2WireId,
@@ -165,19 +197,46 @@ class _FakeChannel implements LegacyV2Channel {
         color: color,
       ));
 
-  void simulateWireDeleted(String v2WireId) => _onWireDeleted?.call(V2WireDeletedMessage(v2WireId: v2WireId));
+  void simulateWireDeleted(String v2WireId) =>
+      _onWireDeleted?.call(V2WireDeletedMessage(v2WireId: v2WireId));
 
-  void simulateWireSelectionChanged(String? v2WireId) =>
-      _onWireSelectionChanged?.call(V2WireSelectionChangedMessage(v2WireId: v2WireId));
+  void simulateWireSelectionChanged(String? v2WireId) => _onWireSelectionChanged
+      ?.call(V2WireSelectionChangedMessage(v2WireId: v2WireId));
 
   void simulateModuleSelectionChanged(String? v2ModuleId) =>
-      _onModuleSelectionChanged?.call(V2ModuleSelectionChangedMessage(v2ModuleId: v2ModuleId));
+      _onModuleSelectionChanged
+          ?.call(V2ModuleSelectionChangedMessage(v2ModuleId: v2ModuleId));
 
-  void simulateWirePropertiesChanged(String v2WireId, String label, String color) =>
-      _onWirePropertiesChanged?.call(V2WirePropertiesChangedMessage(v2WireId: v2WireId, label: label, color: color));
+  void simulateWirePropertiesChanged(
+          String v2WireId, String label, String color) =>
+      _onWirePropertiesChanged?.call(V2WirePropertiesChangedMessage(
+          v2WireId: v2WireId, label: label, color: color));
 
   void simulateMeasurementRequested(String v2WireId, String mode) =>
-      _onMeasurementRequested?.call(V2MeasurementRequestedMessage(v2WireId: v2WireId, mode: mode));
+      _onMeasurementRequested
+          ?.call(V2MeasurementRequestedMessage(v2WireId: v2WireId, mode: mode));
+
+  /// AP-DIAGRAM-V2-BRIDGE-SAVE-001 — the snapshot [flushBeforeSave] reads
+  /// on the next `saveRequested`. `null` (the default) simulates "nothing
+  /// to reconcile" (an empty snapshot), matching every other test in this
+  /// file's convention of exercising the live per-message handlers
+  /// directly rather than through the flush path unless a test says so.
+  V2SaveSnapshot? nextSnapshot;
+  int captureSaveSnapshotCallCount = 0;
+  final List<(String, Map<String, double>)> restoredWireRouteOffsets = [];
+
+  @override
+  Future<V2SaveSnapshot?> captureSaveSnapshot() async {
+    captureSaveSnapshotCallCount++;
+    return nextSnapshot ??
+        const V2SaveSnapshot(modules: {}, wires: {}, wireRoutes: {});
+  }
+
+  @override
+  Future<void> restoreWireRouteOffsets(
+      String v2WireId, Map<String, double> offsets) async {
+    restoredWireRouteOffsets.add((v2WireId, offsets));
+  }
 }
 
 void main() {
@@ -196,7 +255,8 @@ void main() {
       final EngineeringEngine engine = controller.engine;
 
       final channel = _FakeChannel();
-      final adapter = LegacyV2StateAdapter(controller: controller, channel: channel);
+      final adapter =
+          LegacyV2StateAdapter(controller: controller, channel: channel);
 
       // AP-DIAGRAM-V2-BRIDGE-002 — the adapter now starts un-ready and
       // ignores every inbound message until `initializeFromDocument` has
@@ -212,11 +272,14 @@ void main() {
       channel.simulateCreate('gnd-1', 'Ground Point', 'ground', 10, 20);
       await settle(tester);
       final after = engine.editing.session.graph.nodes.keys.toSet();
-      expect(after.length, before.length + 1, reason: 'a mapped category must create exactly one OEP node');
+      expect(after.length, before.length + 1,
+          reason: 'a mapped category must create exactly one OEP node');
       final nodeId = after.difference(before).single;
       expect(adapter.oepNodeIdFor('gnd-1'), nodeId);
-      expect(engine.editing.session.graph.nodes[nodeId]!.displayName, 'Ground Point');
-      expect(engine.editing.session.layout.positionOf(nodeId), const Point2D(10, 20));
+      expect(engine.editing.session.graph.nodes[nodeId]!.displayName,
+          'Ground Point');
+      expect(engine.editing.session.layout.positionOf(nodeId),
+          const Point2D(10, 20));
       expect(channel.sentPositions.last, ('gnd-1', 10.0, 20.0));
 
       // --- "power" has NO deterministic symbol mapping — must not
@@ -225,7 +288,8 @@ void main() {
       channel.simulateCreate('pwr-1', 'Main Fuse Box', 'power', 30, 40);
       await settle(tester);
       expect(engine.editing.session.graph.nodes.keys.toSet(), beforePower,
-          reason: 'a category with no deterministic symbol mapping must not create a node');
+          reason:
+              'a category with no deterministic symbol mapping must not create a node');
       expect(adapter.oepNodeIdFor('pwr-1'), isNull);
       expect(adapter.unbridgedV2ModuleIds, contains('pwr-1'));
 
@@ -250,13 +314,17 @@ void main() {
 
       // --- Wire creation: both endpoints mapped -> real relationship -----
       final beforeRel = engine.editing.session.graph.relationships.keys.toSet();
-      channel.simulateWireCreated('wire-1', 'gnd-1', 'A', 'gnd-2', 'B', 'Bridging Wire', 'G');
+      channel.simulateWireCreated(
+          'wire-1', 'gnd-1', 'A', 'gnd-2', 'B', 'Bridging Wire', 'G');
       await settle(tester);
       final afterRel = engine.editing.session.graph.relationships.keys.toSet();
-      expect(afterRel.length, beforeRel.length + 1, reason: 'both endpoints mapped must create exactly one OEP relationship');
+      expect(afterRel.length, beforeRel.length + 1,
+          reason:
+              'both endpoints mapped must create exactly one OEP relationship');
       final relationshipId = afterRel.difference(beforeRel).single;
       expect(adapter.oepRelationshipIdFor('wire-1'), relationshipId);
-      final relationship = engine.editing.session.graph.relationships[relationshipId]!;
+      final relationship =
+          engine.editing.session.graph.relationships[relationshipId]!;
       expect(relationship.sourceNode, nodeId);
       expect(relationship.targetNode, secondNodeId);
       expect(relationship.metadata['label'], 'Bridging Wire');
@@ -269,19 +337,26 @@ void main() {
 
       // --- Wire creation: one endpoint unmapped -> not bridged, no
       //     fabricated node or relationship -------------------------------
-      final beforeUnbridgedRel = engine.editing.session.graph.relationships.keys.toSet();
-      channel.simulateWireCreated('wire-2', 'gnd-1', 'A', 'pwr-1', 'X', 'Should Not Bridge', 'W');
+      final beforeUnbridgedRel =
+          engine.editing.session.graph.relationships.keys.toSet();
+      channel.simulateWireCreated(
+          'wire-2', 'gnd-1', 'A', 'pwr-1', 'X', 'Should Not Bridge', 'W');
       await settle(tester);
-      expect(engine.editing.session.graph.relationships.keys.toSet(), beforeUnbridgedRel,
-          reason: 'a wire touching an unbridged module must not create a relationship');
+      expect(engine.editing.session.graph.relationships.keys.toSet(),
+          beforeUnbridgedRel,
+          reason:
+              'a wire touching an unbridged module must not create a relationship');
       expect(adapter.oepRelationshipIdFor('wire-2'), isNull);
       expect(adapter.unbridgedV2WireIds, contains('wire-2'));
 
       // --- Re-sending an already-bridged wire creation is a no-op --------
-      final beforeDupRel = engine.editing.session.graph.relationships.keys.toSet();
-      channel.simulateWireCreated('wire-1', 'gnd-1', 'A', 'gnd-2', 'B', 'Bridging Wire', 'G');
+      final beforeDupRel =
+          engine.editing.session.graph.relationships.keys.toSet();
+      channel.simulateWireCreated(
+          'wire-1', 'gnd-1', 'A', 'gnd-2', 'B', 'Bridging Wire', 'G');
       await settle(tester);
-      expect(engine.editing.session.graph.relationships.keys.toSet(), beforeDupRel);
+      expect(engine.editing.session.graph.relationships.keys.toSet(),
+          beforeDupRel);
 
       // --- Undo the wire creation: `_handleWireCreated` issues TWO real
       //     commands (CreateRelationshipCommand, then
@@ -293,11 +368,18 @@ void main() {
       //     (see the wire bridge doc §13 for the documented account) ------
       controller.commands.undo();
       await settle(tester);
-      expect(engine.editing.session.graph.relationships.containsKey(relationshipId), isTrue,
-          reason: 'the first undo only reverts the metadata patch (label/color), not the relationship itself');
+      expect(
+          engine.editing.session.graph.relationships
+              .containsKey(relationshipId),
+          isTrue,
+          reason:
+              'the first undo only reverts the metadata patch (label/color), not the relationship itself');
       controller.commands.undo();
       await settle(tester);
-      expect(engine.editing.session.graph.relationships.containsKey(relationshipId), isFalse,
+      expect(
+          engine.editing.session.graph.relationships
+              .containsKey(relationshipId),
+          isFalse,
           reason: 'the second undo reverts CreateRelationshipCommand itself');
       adapter.resyncLastBridgedToV2();
       expect(channel.removedWires, contains('wire-1'));
@@ -305,40 +387,58 @@ void main() {
       // --- Property edit: label bridges via the existing RenameNodeCommand
       channel.simulatePropertiesChanged('gnd-1', 'Chassis Ground', 'ground');
       await settle(tester);
-      expect(engine.editing.session.graph.nodes[nodeId]!.displayName, 'Chassis Ground');
+      expect(engine.editing.session.graph.nodes[nodeId]!.displayName,
+          'Chassis Ground');
       expect(channel.sentLabels.last, ('gnd-1', 'Chassis Ground'));
 
       // --- AP-DIAGRAM-V2-BRIDGE-011: notes bridge via the new
       //     UpdateNodeMetadataCommand (metadata, not properties) --------
-      channel.simulatePropertiesChanged('gnd-1', 'Chassis Ground', 'ground', notes: 'Behind the dash');
+      channel.simulatePropertiesChanged('gnd-1', 'Chassis Ground', 'ground',
+          notes: 'Behind the dash');
       await settle(tester);
-      expect(engine.editing.session.graph.nodes[nodeId]!.metadata['notes'], 'Behind the dash');
-      expect(controller.isDirty, isTrue, reason: 'a real notes mutation must dirty the document');
+      expect(engine.editing.session.graph.nodes[nodeId]!.metadata['notes'],
+          'Behind the dash');
+      expect(controller.isDirty, isTrue,
+          reason: 'a real notes mutation must dirty the document');
 
       // Blank notes clears the metadata key (null-removes-key convention).
-      channel.simulatePropertiesChanged('gnd-1', 'Chassis Ground', 'ground', notes: '');
+      channel.simulatePropertiesChanged('gnd-1', 'Chassis Ground', 'ground',
+          notes: '');
       await settle(tester);
-      expect(engine.editing.session.graph.nodes[nodeId]!.metadata.containsKey('notes'), isFalse,
-          reason: 'a blank V2 notes field is a genuine clear request, unlike label/wire-color\'s fall-back-to-previous convention');
+      expect(
+          engine.editing.session.graph.nodes[nodeId]!.metadata
+              .containsKey('notes'),
+          isFalse,
+          reason:
+              'a blank V2 notes field is a genuine clear request, unlike label/wire-color\'s fall-back-to-previous convention');
 
       // --- Undo the two notes commands first (LIFO -- they're on top of
       //     the rename), confirming each is independently undoable and
       //     the label is untouched by either -----------------------------
       controller.commands.undo();
       await settle(tester);
-      expect(engine.editing.session.graph.nodes[nodeId]!.metadata['notes'], 'Behind the dash',
-          reason: 'undo must revert the notes-clear command, restoring the previous note');
-      expect(engine.editing.session.graph.nodes[nodeId]!.displayName, 'Chassis Ground');
+      expect(engine.editing.session.graph.nodes[nodeId]!.metadata['notes'],
+          'Behind the dash',
+          reason:
+              'undo must revert the notes-clear command, restoring the previous note');
+      expect(engine.editing.session.graph.nodes[nodeId]!.displayName,
+          'Chassis Ground');
       controller.commands.undo();
       await settle(tester);
-      expect(engine.editing.session.graph.nodes[nodeId]!.metadata.containsKey('notes'), isFalse,
-          reason: 'undo must revert the notes-set command, back to no notes at all');
-      expect(engine.editing.session.graph.nodes[nodeId]!.displayName, 'Chassis Ground');
+      expect(
+          engine.editing.session.graph.nodes[nodeId]!.metadata
+              .containsKey('notes'),
+          isFalse,
+          reason:
+              'undo must revert the notes-set command, back to no notes at all');
+      expect(engine.editing.session.graph.nodes[nodeId]!.displayName,
+          'Chassis Ground');
 
       // --- Undo the rename: Engine reverts, adapter re-syncs V2 ----------
       controller.commands.undo();
       await settle(tester);
-      expect(engine.editing.session.graph.nodes[nodeId]!.displayName, 'Ground Point',
+      expect(engine.editing.session.graph.nodes[nodeId]!.displayName,
+          'Ground Point',
           reason: 'undo must revert RenameNodeCommand');
       adapter.resyncLastBridgedToV2();
       expect(channel.sentLabels.last, ('gnd-1', 'Ground Point'));
@@ -349,7 +449,8 @@ void main() {
       expect(engine.editing.session.graph.nodes.containsKey(nodeId), isFalse,
           reason: 'delete must use the existing DeleteNodeCommand');
       expect(adapter.oepNodeIdFor('gnd-1'), nodeId,
-          reason: 'the id mapping must be kept after delete, so undo can still find it');
+          reason:
+              'the id mapping must be kept after delete, so undo can still find it');
 
       // --- Undo the delete: Engine restores the node; adapter tells V2 to
       //     restore the module (idempotent restoreModule call), then
@@ -359,7 +460,8 @@ void main() {
       expect(engine.editing.session.graph.nodes.containsKey(nodeId), isTrue,
           reason: 'Engine undo must restore the deleted node');
       adapter.resyncLastBridgedToV2();
-      expect(channel.restoredModules.last, ('gnd-1', 'Ground Point', 'ground', 10.0, 20.0));
+      expect(channel.restoredModules.last,
+          ('gnd-1', 'Ground Point', 'ground', 10.0, 20.0));
 
       // --- Two more undos remain on the real stack below this point:
       //     CreateNode(gnd-2) (never touched since it was created, so
@@ -368,8 +470,10 @@ void main() {
       //     command-stack order, not a bridge bug. -----------------------
       controller.commands.undo();
       await settle(tester);
-      expect(engine.editing.session.graph.nodes.containsKey(secondNodeId), isFalse,
-          reason: 'the next undo down the real stack is CreateNode(gnd-2), not gnd-1 — LIFO order');
+      expect(
+          engine.editing.session.graph.nodes.containsKey(secondNodeId), isFalse,
+          reason:
+              'the next undo down the real stack is CreateNode(gnd-2), not gnd-1 — LIFO order');
       expect(engine.editing.session.graph.nodes.containsKey(nodeId), isTrue);
 
       // --- Undo the original gnd-1 creation: node is gone again —
@@ -393,7 +497,8 @@ void main() {
       // id gets a genuinely new node.
       channel.simulateCreate('gnd-3', 'Third Ground', 'ground', 30, 30);
       await settle(tester);
-      channel.simulateWireCreated('wire-4', 'gnd-3', 'A', 'gnd-2', 'B', 'Bridging Wire', 'G');
+      channel.simulateWireCreated(
+          'wire-4', 'gnd-3', 'A', 'gnd-2', 'B', 'Bridging Wire', 'G');
       await settle(tester);
       final wireRelId = adapter.oepRelationshipIdFor('wire-4')!;
 
@@ -425,7 +530,8 @@ void main() {
       channel.simulateModuleSelectionChanged('module-never-bridged');
       await settle(tester);
       expect(engine.registry.selection.current.nodeIds, {gnd3NodeId},
-          reason: 'an unmapped module selecting in V2 must leave OEP selection exactly as it was');
+          reason:
+              'an unmapped module selecting in V2 must leave OEP selection exactly as it was');
       channel.simulateModuleSelectionChanged(null);
       await settle(tester);
 
@@ -433,25 +539,30 @@ void main() {
       //     kept for undo ---------------------------------------------
       channel.simulateWireDeleted('wire-4');
       await settle(tester);
-      expect(engine.editing.session.graph.relationships.containsKey(wireRelId), isFalse,
+      expect(engine.editing.session.graph.relationships.containsKey(wireRelId),
+          isFalse,
           reason: 'delete must use the existing DeleteRelationshipCommand');
       expect(adapter.oepRelationshipIdFor('wire-4'), wireRelId,
-          reason: 'the id mapping must be kept after delete, so undo can still find it');
+          reason:
+              'the id mapping must be kept after delete, so undo can still find it');
 
       // --- Undo the deletion: Engine restores the relationship; adapter
       //     tells V2 to restore the wire (idempotent restoreWire call) --
       controller.commands.undo();
       await settle(tester);
-      expect(engine.editing.session.graph.relationships.containsKey(wireRelId), isTrue,
+      expect(engine.editing.session.graph.relationships.containsKey(wireRelId),
+          isTrue,
           reason: 'Engine undo must restore the deleted relationship');
       adapter.resyncLastBridgedToV2();
-      expect(channel.restoredWires.last, ('wire-4', 'gnd-3', 'gnd-2', 'Bridging Wire', 'G'));
+      expect(channel.restoredWires.last,
+          ('wire-4', 'gnd-3', 'gnd-2', 'Bridging Wire', 'G'));
 
       // --- AP-DIAGRAM-V2-BRIDGE-005: wire property editing, on a fresh
       //     wire id (wire-4 was deleted-then-undone above; a genuinely
       //     new id avoids disturbing the LIFO undo-stack arithmetic every
       //     assertion above this point already depends on). -------------
-      channel.simulateWireCreated('wire-5', 'gnd-3', 'A', 'gnd-2', 'B', 'Original Label', 'W');
+      channel.simulateWireCreated(
+          'wire-5', 'gnd-3', 'A', 'gnd-2', 'B', 'Original Label', 'W');
       await settle(tester);
       final wire5RelId = adapter.oepRelationshipIdFor('wire-5')!;
 
@@ -488,14 +599,16 @@ void main() {
       controller.commands.undo();
       await settle(tester);
       rel = engine.editing.session.graph.relationships[wire5RelId]!;
-      expect(rel.metadata['wireColor'], 'W', reason: 'undo must revert the color-edit command');
+      expect(rel.metadata['wireColor'], 'W',
+          reason: 'undo must revert the color-edit command');
       adapter.resyncLastBridgedToV2();
       expect(channel.confirmedWires.last, ('wire-5', 'Edited Label', 'W'));
 
       // Unmapped wire id: no-op, no crash.
       channel.simulateWirePropertiesChanged('wire-unmapped', 'X', 'Y');
       await settle(tester);
-      expect(engine.editing.session.graph.relationships.containsKey(wire5RelId), isTrue);
+      expect(engine.editing.session.graph.relationships.containsKey(wire5RelId),
+          isTrue);
 
       // --- AP-DIAGRAM-V2-BRIDGE-006: measurement request, no simulation
       //     session reachable (`adapter` above has no
@@ -505,14 +618,17 @@ void main() {
       await settle(tester);
       expect(channel.appliedMeasurements.last.$1, 'wire-5');
       expect(channel.appliedMeasurements.last.$2, 'RES');
-      expect(channel.appliedMeasurements.last.$3, '—', reason: 'no session reachable must not fabricate a reading');
-      expect(channel.appliedMeasurements.last.$5, contains('No active OEP simulation session'));
+      expect(channel.appliedMeasurements.last.$3, '—',
+          reason: 'no session reachable must not fabricate a reading');
+      expect(channel.appliedMeasurements.last.$5,
+          contains('No active OEP simulation session'));
 
       // Unmapped wire: no-op, no crash.
       final measurementsBefore = channel.appliedMeasurements.length;
       channel.simulateMeasurementRequested('wire-unmapped', 'RES');
       await settle(tester);
-      expect(channel.appliedMeasurements.length, measurementsBefore, reason: 'an unbridged wire id must be a no-op');
+      expect(channel.appliedMeasurements.length, measurementsBefore,
+          reason: 'an unbridged wire id must be a no-op');
 
       // --- Same request, but through a second adapter/channel wired to a
       //     REAL DiagramSimulationService/SimulationEngine (not a fake) —
@@ -527,7 +643,8 @@ void main() {
       //     that stale entry from before the undo). --------------------
       channel.simulateCreate('gnd-4', 'Fourth Ground', 'ground', 40, 40);
       await settle(tester);
-      channel.simulateWireCreated('wire-6', 'gnd-3', 'A', 'gnd-4', 'B', 'Measured Wire', 'W');
+      channel.simulateWireCreated(
+          'wire-6', 'gnd-3', 'A', 'gnd-4', 'B', 'Measured Wire', 'W');
       await settle(tester);
 
       final simEngine = SimulationEngine();
@@ -551,14 +668,173 @@ void main() {
       });
       await settle(tester);
       expect(measurementChannel.appliedMeasurements, isNotEmpty,
-          reason: 'a real session must produce some applied result, not silence');
+          reason:
+              'a real session must produce some applied result, not silence');
       final realResult = measurementChannel.appliedMeasurements.last;
       expect(realResult.$1, 'wire-6');
       expect(realResult.$2, 'CONT');
       expect(realResult.$3, anyOf('000', 'OPN'),
-          reason: 'continuity must translate to one of V2\'s own two sentinel codes, never a fabricated number');
+          reason:
+              'continuity must translate to one of V2\'s own two sentinel codes, never a fabricated number');
       expect(realResult.$5, isNot(contains('No active OEP simulation session')),
           reason: 'a real session must not report the no-session message');
+
+      // ══════════════════════════════════════════════════════════════
+      // AP-DIAGRAM-V2-BRIDGE-SAVE-001 — the Save flush barrier
+      // (`flushBeforeSave`). Every assertion below deliberately never
+      // calls `channel.simulateMove`/`simulateWireCreated`/etc. for the
+      // change being verified — the whole point is that `flushBeforeSave`
+      // must reconcile V2's current state WITHOUT any live per-message
+      // event ever having fired, exactly the "poller hasn't caught up
+      // yet" scenario that produced the original module-position-save
+      // race. Fresh module/wire ids throughout, so this doesn't disturb
+      // any LIFO undo-stack arithmetic the earlier parts of this test
+      // still depend on.
+      // ══════════════════════════════════════════════════════════════
+
+      // --- Module position: flush commits a move with NO moduleMoved
+      //     event ever having been simulated -----------------------------
+      channel.simulateCreate('flush-mod-1', 'Flush Module', 'ground', 1, 1);
+      await settle(tester);
+      final flushNodeId = adapter.oepNodeIdFor('flush-mod-1')!;
+      expect(engine.editing.session.layout.positionOf(flushNodeId),
+          const Point2D(1, 1));
+
+      channel.nextSnapshot = V2SaveSnapshot(
+        modules: {
+          'flush-mod-1': const V2SnapshotModule(
+              label: 'Flush Module',
+              category: 'ground',
+              notes: '',
+              x: 77,
+              y: 88)
+        },
+        wires: const {},
+        wireRoutes: const {},
+      );
+      await adapter.flushBeforeSave();
+      expect(engine.editing.session.layout.positionOf(flushNodeId),
+          const Point2D(77, 88),
+          reason:
+              'flushBeforeSave must commit V2\'s current position with no moduleMoved event and no polling wait at all');
+
+      // --- Module creation: flush detects a module that only ever
+      //     appeared in a snapshot, never via simulateCreate — proving the
+      //     flush does not depend on the poller for create detection
+      //     either (§5's "wire/module creation-deletion state" requirement)
+      final beforeFlushCreateNodes =
+          engine.editing.session.graph.nodes.keys.toSet();
+      channel.nextSnapshot = V2SaveSnapshot(
+        modules: {
+          'flush-mod-1': const V2SnapshotModule(
+              label: 'Flush Module',
+              category: 'ground',
+              notes: '',
+              x: 77,
+              y: 88),
+          'flush-mod-2': const V2SnapshotModule(
+              label: 'Never Live-Created',
+              category: 'ground',
+              notes: '',
+              x: 5,
+              y: 6),
+        },
+        wires: const {},
+        wireRoutes: const {},
+      );
+      await adapter.flushBeforeSave();
+      final afterFlushCreateNodes =
+          engine.editing.session.graph.nodes.keys.toSet();
+      expect(afterFlushCreateNodes.length, beforeFlushCreateNodes.length + 1,
+          reason:
+              'a module that only ever appeared in a flush snapshot must still be bridged');
+      final flushMod2NodeId = adapter.oepNodeIdFor('flush-mod-2');
+      expect(flushMod2NodeId, isNotNull);
+      expect(engine.editing.session.layout.positionOf(flushMod2NodeId!),
+          const Point2D(5, 6));
+
+      // --- Wire creation, property edit, and route persistence, all via
+      //     one flush -- proving route offsets (never observed by the
+      //     poller at all, the second confirmed bug) round-trip through
+      //     the Engine's own SetWireSegmentOffsetsCommand ----------------
+      channel.nextSnapshot = V2SaveSnapshot(
+        modules: {
+          'flush-mod-1': const V2SnapshotModule(
+              label: 'Flush Module',
+              category: 'ground',
+              notes: '',
+              x: 77,
+              y: 88),
+          'flush-mod-2': const V2SnapshotModule(
+              label: 'Never Live-Created',
+              category: 'ground',
+              notes: '',
+              x: 5,
+              y: 6),
+        },
+        wires: {
+          'flush-wire-1': const V2SnapshotWire(
+            fromModuleId: 'flush-mod-1',
+            fromTerminal: 'A',
+            toModuleId: 'flush-mod-2',
+            toTerminal: 'B',
+            label: 'Flush Wire',
+            color: 'W',
+          ),
+        },
+        wireRoutes: {
+          'flush-wire-1': {0: 12.5, 2: -3.0},
+        },
+      );
+      await adapter.flushBeforeSave();
+      final flushRelId = adapter.oepRelationshipIdFor('flush-wire-1');
+      expect(flushRelId, isNotNull,
+          reason:
+              'a wire that only ever appeared in a flush snapshot must still be bridged');
+      final flushRelationship =
+          engine.editing.session.graph.relationships[flushRelId]!;
+      expect(flushRelationship.metadata['label'], 'Flush Wire');
+      expect(flushRelationship.metadata['wireColor'], 'W');
+      expect(engine.editing.session.layout.wireSegmentOffsetsOf(flushRelId!),
+          {0: 12.5, 2: -3.0},
+          reason:
+              'route-segment offsets must persist through the flush with no live wireRoutes observation ever having existed');
+
+      // --- Route Reset (V2's own `delete wireRoutes[wireId]`): the next
+      //     flush's snapshot omits the wire entirely from `wireRoutes` --
+      channel.nextSnapshot = V2SaveSnapshot(
+        modules: channel.nextSnapshot!.modules,
+        wires: channel.nextSnapshot!.wires,
+        wireRoutes: const {}, // reset -- no entry for 'flush-wire-1'
+      );
+      await adapter.flushBeforeSave();
+      expect(engine.editing.session.layout.wireSegmentOffsetsOf(flushRelId),
+          isNull,
+          reason:
+              'an absent wireRoutes entry must clear the OEP override entirely (Reset Route), not leave it stale');
+
+      // --- Module/wire deletion via flush: both disappear from a
+      //     snapshot with no simulateDelete/simulateWireDeleted ever
+      //     having been called ------------------------------------------
+      channel.nextSnapshot =
+          const V2SaveSnapshot(modules: {}, wires: {}, wireRoutes: {});
+      await adapter.flushBeforeSave();
+      expect(engine.editing.session.graph.relationships.containsKey(flushRelId),
+          isFalse,
+          reason:
+              'a wire missing from a flush snapshot must be deleted, same as a live wireDeleted event');
+      expect(
+          engine.editing.session.graph.nodes.containsKey(flushNodeId), isFalse,
+          reason:
+              'a module missing from a flush snapshot must be deleted, same as a live moduleDeleted event');
+      expect(engine.editing.session.graph.nodes.containsKey(flushMod2NodeId),
+          isFalse);
+
+      // --- flushBeforeSave with no snapshot available (disabled/
+      //     unreachable transport) must be a safe no-op, not a crash ----
+      channel.nextSnapshot =
+          null; // captureSaveSnapshot() falls back to an empty snapshot -- reconciles to no-op here
+      await adapter.flushBeforeSave();
     },
   );
 }

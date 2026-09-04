@@ -36,6 +36,15 @@ abstract interface class DiagramEditingHost {
   void createRelationship(String sourceNodeId, String targetNodeId);
   void deleteRelationship(String relationshipId);
   void updateNodeMetadata(String nodeId, Map<String, Object?> patch);
-  void updateRelationshipMetadata(String relationshipId, Map<String, Object?> patch);
+  void updateRelationshipMetadata(
+      String relationshipId, Map<String, Object?> patch);
+
+  /// AP-DIAGRAM-V2-BRIDGE-SAVE-001 — see `DiagramLayoutState.
+  /// wireSegmentOffsets`'s own doc comment for why this is a distinct
+  /// concept from the pre-existing (but not currently bridged)
+  /// `setWireRoute`/`SetWireRouteCommand`. `offsets == null` means "Reset
+  /// Route" (V2's own `delete wireRoutes[wireId]`).
+  void setWireSegmentOffsets(String relationshipId, Map<int, double>? offsets);
+
   Future<void> saveDocument();
 }

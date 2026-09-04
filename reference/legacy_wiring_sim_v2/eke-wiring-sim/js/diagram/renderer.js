@@ -200,7 +200,11 @@ function drawWires(){
     const isDim=(selW&&!isSel&&tracedWires.size===0)||(tracedWires.size>0&&!isTr);
     const bc=h(w.c),tc=trH(w.c);
     const g=document.createElementNS("http://www.w3.org/2000/svg","g");
-    g.dataset.wid=w.id;g.style.opacity=isDim?"0.1":"1";
+    g.dataset.wid=w.id;
+    // In Route Edit mode every other wire must stay at least slightly
+    // visible and clickable (see the routeEditMode-only hit zone below) —
+    // 0.1 (the normal "focus on selection" dim level) reads as invisible.
+    g.style.opacity=isDim?(routeEditMode?"0.4":"0.1"):"1";
     // Glow for selected / traced
     if(isSel||isTr){
       const gl=document.createElementNS("http://www.w3.org/2000/svg","path");
@@ -330,6 +334,19 @@ function drawWires(){
         ctxTarget=w;$("ctx-edit").style.display="";$("ctx-trace").style.display="";$("ctx-route").style.display="";$("ctx-del").textContent="✕ Delete Wire";
         selWire(w,e);$("ctx").style.left=e.clientX+"px";$("ctx").style.top=e.clientY+"px";$("ctx").classList.add("open");
       });
+      g.appendChild(hit);
+    }
+    // ── ROUTE EDIT MODE, non-selected wire: still clickable, so the
+    //    user can switch which wire they're routing without leaving the
+    //    mode. Deliberately narrower than the segment-drag hit zone above
+    //    (which only exists for the selected wire) -- this only selects.
+    else if(routeEditMode&&!isSel){
+      const hit=document.createElementNS("http://www.w3.org/2000/svg","path");
+      hit.setAttribute("d",rt.hit||rt.path);hit.setAttribute("stroke","transparent");
+      hit.setAttribute("stroke-width","10");hit.setAttribute("fill","none");hit.setAttribute("stroke-linecap","round");
+      hit.classList.add("wire-hit");
+      hit.style.pointerEvents="auto";
+      hit.addEventListener("click",e=>{e.stopPropagation();selWireForRouteEdit(w,e);});
       g.appendChild(hit);
     }
     // Flow animation overlay (selected wire AND any traced wire with voltage)

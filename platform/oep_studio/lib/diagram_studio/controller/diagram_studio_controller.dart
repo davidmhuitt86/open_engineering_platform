@@ -107,7 +107,8 @@ import '../webview/diagram_editing_host.dart';
 ///   for the regression coverage proving this against the real engine
 ///   and tab providers, not just by inspection.
 class DiagramStudioController implements DiagramEditingHost {
-  DiagramStudioController({required this.engine, required Ref ref, required this.instanceId})
+  DiagramStudioController(
+      {required this.engine, required Ref ref, required this.instanceId})
       : _ref = ref,
         commands = StudioCommandActions(engine);
 
@@ -151,7 +152,8 @@ class DiagramStudioController implements DiagramEditingHost {
   /// reference only.
   DiagramIntelligenceService? intelligence;
 
-  EngineeringProjectState get _projectState => _ref.read(engineeringProjectServiceFamily(instanceId));
+  EngineeringProjectState get _projectState =>
+      _ref.read(engineeringProjectServiceFamily(instanceId));
   GraphSelection get selection => _projectState.selection;
   EditingSession? get session => _projectState.session;
   ViewState get viewState => _projectState.viewState;
@@ -163,9 +165,11 @@ class DiagramStudioController implements DiagramEditingHost {
   String? get documentPath => document.path;
   bool get isDirty => document.isDirty;
 
-  ViewStateService get _viewStateService => engine.registry.viewState as ViewStateService;
+  ViewStateService get _viewStateService =>
+      engine.registry.viewState as ViewStateService;
 
-  String? get activeTabId => _ref.read(diagramTabsFamily(instanceId)).activeTabId;
+  String? get activeTabId =>
+      _ref.read(diagramTabsFamily(instanceId)).activeTabId;
   bool isActiveTab(String id) => activeTabId == id;
 
   // --- Centralized dirty-state + Intelligence sync (WAVE 1 Step 4) --------
@@ -179,7 +183,9 @@ class DiagramStudioController implements DiagramEditingHost {
   // document is considered dirty).
 
   void markDirty() {
-    _ref.read(engineeringProjectServiceFamily(instanceId).notifier).markDocumentDirty();
+    _ref
+        .read(engineeringProjectServiceFamily(instanceId).notifier)
+        .markDocumentDirty();
     _scheduleIntelligenceSync();
   }
 
@@ -215,7 +221,8 @@ class DiagramStudioController implements DiagramEditingHost {
     commands.copy(session!, selection);
     final entry = engine.clipboard.provider.content;
     if (entry != null && !entry.isEmpty) {
-      unawaited(Clipboard.setData(ClipboardData(text: ClipboardCodec.encode(entry))));
+      unawaited(
+          Clipboard.setData(ClipboardData(text: ClipboardCodec.encode(entry))));
     }
   }
 
@@ -342,7 +349,8 @@ class DiagramStudioController implements DiagramEditingHost {
   }
 
   void resizeNode(String nodeId, Size2D size, {Point2D? newPosition}) {
-    engine.editing.execute(ResizeNodeCommand(nodeId, size, newPosition: newPosition));
+    engine.editing
+        .execute(ResizeNodeCommand(nodeId, size, newPosition: newPosition));
     markDirty();
   }
 
@@ -370,7 +378,8 @@ class DiagramStudioController implements DiagramEditingHost {
     markDirty();
   }
 
-  void reconnectRelationship(String relationshipId, {String? newSourceNode, String? newTargetNode}) {
+  void reconnectRelationship(String relationshipId,
+      {String? newSourceNode, String? newTargetNode}) {
     engine.editing.execute(ReconnectRelationshipCommand(
       relationshipId,
       newSourceNode: newSourceNode,
@@ -381,6 +390,13 @@ class DiagramStudioController implements DiagramEditingHost {
 
   void setWireRoute(String relationshipId, List<Point2D>? points) {
     engine.editing.execute(SetWireRouteCommand(relationshipId, points));
+    markDirty();
+  }
+
+  @override
+  void setWireSegmentOffsets(String relationshipId, Map<int, double>? offsets) {
+    engine.editing
+        .execute(SetWireSegmentOffsetsCommand(relationshipId, offsets));
     markDirty();
   }
 
@@ -395,8 +411,10 @@ class DiagramStudioController implements DiagramEditingHost {
   /// real, but any relationship metadata key could go through this same
   /// method — it is not wire-specific itself.
   @override
-  void updateRelationshipMetadata(String relationshipId, Map<String, Object?> patch) {
-    engine.editing.execute(UpdateRelationshipPropertiesCommand(relationshipId, patch));
+  void updateRelationshipMetadata(
+      String relationshipId, Map<String, Object?> patch) {
+    engine.editing
+        .execute(UpdateRelationshipPropertiesCommand(relationshipId, patch));
     markDirty();
   }
 
@@ -476,7 +494,8 @@ class DiagramStudioController implements DiagramEditingHost {
 
   void replaceSymbol(String symbolId) {
     if (selection.nodeIds.length != 1) return;
-    engine.editing.execute(ReplaceSymbolCommand(selection.nodeIds.single, symbolId));
+    engine.editing
+        .execute(ReplaceSymbolCommand(selection.nodeIds.single, symbolId));
     markDirty();
   }
 
@@ -515,7 +534,8 @@ class DiagramStudioController implements DiagramEditingHost {
   void toggleLayerVisible(String layerId) {
     final layer = session!.layout.layerById(layerId);
     if (layer == null) return;
-    engine.editing.execute(UpdateLayerCommand(layerId, visible: !layer.visible));
+    engine.editing
+        .execute(UpdateLayerCommand(layerId, visible: !layer.visible));
     markDirty();
   }
 
@@ -537,7 +557,8 @@ class DiagramStudioController implements DiagramEditingHost {
   }
 
   void resetLayout() {
-    engine.editing.resetSession(session!.copyWith(layout: DiagramLayoutState.empty));
+    engine.editing
+        .resetSession(session!.copyWith(layout: DiagramLayoutState.empty));
   }
 
   void restoreViewState(ViewState saved) {
@@ -585,10 +606,14 @@ class DiagramStudioController implements DiagramEditingHost {
     required Ref ref,
     required String instanceId,
   }) async {
-    final notifier = ref.read(engineeringProjectServiceFamily(instanceId).notifier);
-    final isFirstStart = ref.read(engineeringProjectServiceFamily(instanceId)).engineHost == null;
+    final notifier =
+        ref.read(engineeringProjectServiceFamily(instanceId).notifier);
+    final isFirstStart =
+        ref.read(engineeringProjectServiceFamily(instanceId)).engineHost ==
+            null;
     final host = await notifier.ensureEngineStarted();
-    final controller = DiagramStudioController(engine: host.engine, ref: ref, instanceId: instanceId);
+    final controller = DiagramStudioController(
+        engine: host.engine, ref: ref, instanceId: instanceId);
 
     // The persisted tab list is the authoritative "what was open last"
     // record, superseding `workspace.lastDocumentPath` (unifying
@@ -607,11 +632,15 @@ class DiagramStudioController implements DiagramEditingHost {
     // last editing, and re-opening a persisted path here would discard
     // that live state.
     if (isFirstStart) {
-      final lastPath = restoredTabs.tabs.isNotEmpty ? restoredActivePath : workspace.lastDocumentPath;
+      final lastPath = restoredTabs.tabs.isNotEmpty
+          ? restoredActivePath
+          : workspace.lastDocumentPath;
       if (lastPath != null) {
         try {
           await notifier.openDocument(lastPath);
-          if (workspace.viewState != null) controller.restoreViewState(workspace.viewState!);
+          if (workspace.viewState != null) {
+            controller.restoreViewState(workspace.viewState!);
+          }
         } catch (_) {
           // The last-open file may have moved or been deleted — fall
           // back to the blank document `ensureEngineStarted` already
@@ -624,9 +653,9 @@ class DiagramStudioController implements DiagramEditingHost {
     // blank) only if restoration found none at all — e.g. the very
     // first launch ever.
     if (ref.read(diagramTabsFamily(instanceId)).tabs.isEmpty) {
-      ref
-          .read(diagramTabsFamily(instanceId).notifier)
-          .openTab(path: controller.documentPath, title: titleForPath(controller.documentPath));
+      ref.read(diagramTabsFamily(instanceId).notifier).openTab(
+          path: controller.documentPath,
+          title: titleForPath(controller.documentPath));
     }
 
     // AP-DIAGRAM-V2-BRIDGE-010 — extracted from the retired native
@@ -647,7 +676,8 @@ class DiagramStudioController implements DiagramEditingHost {
     // own provider's doc comment), the same lifetime `engine` itself
     // already has, so there is nothing shorter-lived for this
     // subscription to leak past.
-    controller.engine.registry.selection.changes.listen((_) => controller._syncPropertyInspectorSelection(ref));
+    controller.engine.registry.selection.changes
+        .listen((_) => controller._syncPropertyInspectorSelection(ref));
     controller._syncPropertyInspectorSelection(ref);
 
     return (controller, workspace);
@@ -664,28 +694,34 @@ class DiagramStudioController implements DiagramEditingHost {
     if (currentSelection.nodeIds.isNotEmpty) {
       final node = session.graph.nodes[currentSelection.nodeIds.first];
       if (node != null) {
-        notifier.selectEngineeringInspectable(EngineeringInspectable.node(node));
+        notifier
+            .selectEngineeringInspectable(EngineeringInspectable.node(node));
         return;
       }
     }
     if (currentSelection.relationshipIds.isNotEmpty) {
-      final relationship = session.graph.relationships[currentSelection.relationshipIds.first];
+      final relationship =
+          session.graph.relationships[currentSelection.relationshipIds.first];
       if (relationship != null) {
-        notifier.selectEngineeringInspectable(EngineeringInspectable.relationship(relationship));
+        notifier.selectEngineeringInspectable(
+            EngineeringInspectable.relationship(relationship));
         return;
       }
     }
     if (currentSelection.groupIds.isNotEmpty) {
       final group = session.graph.groups[currentSelection.groupIds.first];
       if (group != null) {
-        notifier.selectEngineeringInspectable(EngineeringInspectable.group(group));
+        notifier
+            .selectEngineeringInspectable(EngineeringInspectable.group(group));
         return;
       }
     }
     if (currentSelection.annotationIds.isNotEmpty) {
-      final annotation = session.layout.annotationOf(currentSelection.annotationIds.first);
+      final annotation =
+          session.layout.annotationOf(currentSelection.annotationIds.first);
       if (annotation != null) {
-        notifier.selectEngineeringInspectable(EngineeringInspectable.annotation(annotation));
+        notifier.selectEngineeringInspectable(
+            EngineeringInspectable.annotation(annotation));
         return;
       }
     }
@@ -725,24 +761,40 @@ class DiagramStudioController implements DiagramEditingHost {
   // of Engine/tab calls that follows it moves here.
 
   Future<void> newDocument() async {
-    await _ref.read(engineeringProjectServiceFamily(instanceId).notifier).newDocument();
-    _ref.read(diagramTabsFamily(instanceId).notifier).openTab(path: null, title: 'Untitled Diagram');
+    await _ref
+        .read(engineeringProjectServiceFamily(instanceId).notifier)
+        .newDocument();
+    _ref
+        .read(diagramTabsFamily(instanceId).notifier)
+        .openTab(path: null, title: 'Untitled Diagram');
   }
 
   Future<void> openDocument(String path) async {
-    await _ref.read(engineeringProjectServiceFamily(instanceId).notifier).openDocument(path);
-    _ref.read(diagramTabsFamily(instanceId).notifier).openTab(path: path, title: titleForPath(path));
+    await _ref
+        .read(engineeringProjectServiceFamily(instanceId).notifier)
+        .openDocument(path);
+    _ref
+        .read(diagramTabsFamily(instanceId).notifier)
+        .openTab(path: path, title: titleForPath(path));
   }
 
   @override
-  Future<void> saveDocument() => _ref.read(engineeringProjectServiceFamily(instanceId).notifier).saveDocument();
+  Future<void> saveDocument() => _ref
+      .read(engineeringProjectServiceFamily(instanceId).notifier)
+      .saveDocument();
 
   Future<void> saveDocumentAs(String path) async {
-    await _ref.read(engineeringProjectServiceFamily(instanceId).notifier).saveDocumentAs(path);
-    _ref.read(diagramTabsFamily(instanceId).notifier).updateActiveTabDocument(path: path, title: titleForPath(path));
+    await _ref
+        .read(engineeringProjectServiceFamily(instanceId).notifier)
+        .saveDocumentAs(path);
+    _ref
+        .read(diagramTabsFamily(instanceId).notifier)
+        .updateActiveTabDocument(path: path, title: titleForPath(path));
   }
 
-  Future<void> closeDocument() => _ref.read(engineeringProjectServiceFamily(instanceId).notifier).closeDocument();
+  Future<void> closeDocument() => _ref
+      .read(engineeringProjectServiceFamily(instanceId).notifier)
+      .closeDocument();
 
   // --- Tab lifecycle (WAVE 2, AP-DIAGRAM-W2 Step 7) -------------------------
 
@@ -753,16 +805,22 @@ class DiagramStudioController implements DiagramEditingHost {
   /// needs this fact before this method ever runs.
   Future<void> closeTab(String id, {required bool wasActive}) async {
     if (wasActive) {
-      await _ref.read(engineeringProjectServiceFamily(instanceId).notifier).closeDocument();
+      await _ref
+          .read(engineeringProjectServiceFamily(instanceId).notifier)
+          .closeDocument();
     }
     _ref.read(diagramTabsFamily(instanceId).notifier).closeTab(id);
     if (wasActive) {
       final newActive = _ref.read(diagramTabsFamily(instanceId)).activeTab;
       if (newActive != null) {
         if (newActive.path != null) {
-          await _ref.read(engineeringProjectServiceFamily(instanceId).notifier).openDocument(newActive.path!);
+          await _ref
+              .read(engineeringProjectServiceFamily(instanceId).notifier)
+              .openDocument(newActive.path!);
         } else {
-          await _ref.read(engineeringProjectServiceFamily(instanceId).notifier).newDocument();
+          await _ref
+              .read(engineeringProjectServiceFamily(instanceId).notifier)
+              .newDocument();
         }
       }
     }
@@ -777,9 +835,13 @@ class DiagramStudioController implements DiagramEditingHost {
     final target = tabsState.tabs.where((t) => t.id == id).toList();
     if (target.isEmpty) return null;
     if (target.single.path != null) {
-      await _ref.read(engineeringProjectServiceFamily(instanceId).notifier).openDocument(target.single.path!);
+      await _ref
+          .read(engineeringProjectServiceFamily(instanceId).notifier)
+          .openDocument(target.single.path!);
     } else {
-      await _ref.read(engineeringProjectServiceFamily(instanceId).notifier).newDocument();
+      await _ref
+          .read(engineeringProjectServiceFamily(instanceId).notifier)
+          .newDocument();
     }
     _ref.read(diagramTabsFamily(instanceId).notifier).activate(id);
     return target.single.mode;
@@ -787,13 +849,23 @@ class DiagramStudioController implements DiagramEditingHost {
 
   Future<void> reopenRecentlyClosed(DiagramTab entry) async {
     if (entry.path != null) {
-      await _ref.read(engineeringProjectServiceFamily(instanceId).notifier).openDocument(entry.path!);
-      _ref.read(diagramTabsFamily(instanceId).notifier).openTab(path: entry.path, title: entry.title);
+      await _ref
+          .read(engineeringProjectServiceFamily(instanceId).notifier)
+          .openDocument(entry.path!);
+      _ref
+          .read(diagramTabsFamily(instanceId).notifier)
+          .openTab(path: entry.path, title: entry.title);
     } else {
-      await _ref.read(engineeringProjectServiceFamily(instanceId).notifier).newDocument();
-      _ref.read(diagramTabsFamily(instanceId).notifier).openTab(path: null, title: entry.title);
+      await _ref
+          .read(engineeringProjectServiceFamily(instanceId).notifier)
+          .newDocument();
+      _ref
+          .read(diagramTabsFamily(instanceId).notifier)
+          .openTab(path: null, title: entry.title);
     }
-    _ref.read(diagramTabsFamily(instanceId).notifier).removeFromRecentlyClosed(entry.id);
+    _ref
+        .read(diagramTabsFamily(instanceId).notifier)
+        .removeFromRecentlyClosed(entry.id);
   }
 
   /// Single, unsequenced tab-state mutations wired directly to a tab
@@ -802,7 +874,8 @@ class DiagramStudioController implements DiagramEditingHost {
   /// lifecycle or needs a discard-confirmation, so there is nothing to
   /// sequence; these exist purely so `diagram_studio_page.dart` has no
   /// reason to read `diagramTabsProvider`'s notifier directly at all.
-  void togglePin(String id) => _ref.read(diagramTabsFamily(instanceId).notifier).togglePin(id);
+  void togglePin(String id) =>
+      _ref.read(diagramTabsFamily(instanceId).notifier).togglePin(id);
 
   void setTabMode(String id, DiagramStudioMode mode) =>
       _ref.read(diagramTabsFamily(instanceId).notifier).setMode(id, mode);

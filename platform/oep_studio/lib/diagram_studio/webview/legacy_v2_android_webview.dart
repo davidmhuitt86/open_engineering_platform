@@ -125,11 +125,15 @@ class _LegacyV2AndroidWebViewPageState extends ConsumerState<LegacyV2AndroidWebV
   }
 
   LegacyV2StateAdapter _ensureAdapter(DiagramStudioController controller) {
-    return _adapter ??= LegacyV2StateAdapter(
+    final adapter = _adapter ??= LegacyV2StateAdapter(
       controller: controller,
       channel: _transport,
       simulationServiceResolver: () => ref.read(diagramSimulationServiceProvider),
     );
+    // AP-DIAGRAM-V2-BRIDGE-SAVE-002 — see the Windows host's own doc
+    // comment on this same line for the full rationale.
+    ref.read(engineeringProjectServiceFamily(_instanceId).notifier).beforeSaveFlush = adapter.flushBeforeSave;
+    return adapter;
   }
 
   void _triggerInitialSeed(LegacyV2StateAdapter adapter) {
@@ -154,6 +158,11 @@ class _LegacyV2AndroidWebViewPageState extends ConsumerState<LegacyV2AndroidWebV
 
   @override
   void dispose() {
+    // AP-DIAGRAM-V2-BRIDGE-SAVE-002 — best-effort; see the Windows host's
+    // own doc comment on this same line for why this must never throw.
+    try {
+      ref.read(engineeringProjectServiceFamily(_instanceId).notifier).beforeSaveFlush = null;
+    } catch (_) {}
     unawaited(_transport.dispose());
     super.dispose();
   }
