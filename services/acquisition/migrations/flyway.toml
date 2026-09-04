@@ -1,0 +1,10 @@
+# Flyway configuration (WORK_PACKAGE_001: "Create migration structure...
+# Placeholder only"). Not invoked as part of the build or test suite --
+# running migrations against a real PostgreSQL instance is left to a
+# developer/operator, documented in README.md "Database Migrations".
+
+[flyway]
+url = "jdbc:postgresql://localhost:5432/oep_acquisition"
+user = "oep_acquisition"
+password = ""
+locations = ["filesystem:./migrations"]
