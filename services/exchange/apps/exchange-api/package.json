@@ -1,0 +1,35 @@
+{
+  "name": "@oep-exchange/exchange-api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The Exchange REST API server (Fastify) — Publishers, Packages, Search, Downloads, Administration.",
+  "type": "module",
+  "main": "./dist/server.js",
+  "scripts": {
+    "build": "tsc -b",
+    "start": "node dist/server.js",
+    "dev": "tsx watch src/server.ts",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@fastify/multipart": "^9.0.3",
+    "@fastify/swagger": "^9.4.0",
+    "@fastify/swagger-ui": "^5.2.0",
+    "@oep-exchange/api-contracts": "0.1.0",
+    "@oep-exchange/core": "0.1.0",
+    "@oep-exchange/installer": "0.1.0",
+    "@oep-exchange/manifest": "0.1.0",
+    "@oep-exchange/package-manager": "0.1.0",
+    "@oep-exchange/search": "0.1.0",
+    "fastify": "^5.1.0",
+    "pg": "^8.13.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.1",
+    "@types/pg": "^8.11.10",
+    "adm-zip": "^0.6.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.6"
+  }
+}

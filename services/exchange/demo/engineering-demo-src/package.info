@@ -1,0 +1,5 @@
+Package: com.oep.demo.engineering-showcase
+Title: Engineering Demo Package
+Version: 1.0.0
+Publisher: OEP Demo Publisher (demo-publisher)
+Built with: @oep-exchange/package-cli

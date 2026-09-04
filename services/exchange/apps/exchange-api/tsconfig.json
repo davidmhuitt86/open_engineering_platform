@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src"
+  },
+  "include": ["src"],
+  "references": [
+    { "path": "../../packages/core" },
+    { "path": "../../packages/api-contracts" },
+    { "path": "../../packages/manifest" },
+    { "path": "../../packages/package_manager" },
+    { "path": "../../packages/search" },
+    { "path": "../../packages/installer" }
+  ]
+}
