@@ -1,0 +1,126 @@
+identity:
+  object_id: equation.ohms_law
+  object_type: Equation
+  display_name: Ohm's Law
+  short_name: ohms_law
+  version: "1.0.0"
+  lifecycle_state: Published
+  package_id: core_reference
+  uuid: 752eaa2f-b5df-59ac-a450-a1d65fde35f4
+
+classification:
+  domain: Electrical
+  discipline: Electronics
+  family: Theory
+  category: Fundamental Laws
+  subcategory: DC Circuit Theory
+  tags:
+    - fundamental
+    - dc theory
+    - linear
+  keywords:
+    - ohms law
+    - voltage
+    - current
+    - resistance
+  aliases:
+    - V = IR
+    - law of resistance
+  abbreviations: []
+  alternate_names: []
+  manufacturer_terms: []
+  standards_references: []
+  roles:
+    - Design
+    - Simulation
+    - Education
+    - Validation
+    - Reference
+  capabilities:
+    - Searchable
+    - Simulatable
+    - Validatable
+    - Explainable
+    - Teachable
+  standards: []
+  industries:
+    - Automotive
+    - Industrial
+    - Consumer Electronics
+  technologies: []
+
+authority:
+  authority_type: Physical Law
+  authority_reference: >-
+    Georg Ohm's empirical law (1827): the current through a conductor
+    is directly proportional to voltage and inversely proportional to
+    resistance.
+  authority_source_object: null
+  notes: >-
+    No Source Object EKO exists yet to represent Ohm as a physical-law
+    authority (SDD-R012 §7 authority.* naming convention) -- free text
+    until one is authored.
+
+evidence:
+  - evidence_type: Calculation
+    reference: Dimensional analysis of V = I x R against SI base units
+    evidence_source_object: null
+    description: Confirms unit consistency of the equation (volt = ampere x ohm).
+
+provenance:
+  author: OEP Reference Authoring Team
+  reviewer: Divad Technology Group Engineering Review
+  organization: Divad Technology Group, LLC.
+  created_date: "2026-07-16"
+  review_date: "2026-07-17"
+  approval_date: "2026-07-17"
+  digital_signature: null
+  revision_notes:
+    - Initial gold-standard reference implementation (WORK_PACKAGE_001).
+    - Migrated to Engineering Knowledge Object Schema Version 1.0, the
+      SDD-R011 facet model (WORK_PACKAGE_002).
+  sources_consulted:
+    - General electrical engineering fundamentals (public domain
+      physical law; no copyrighted text reproduced)
+  confidence: verified
+  content_license: CC-BY-4.0
+
+history:
+  previous_versions: []
+  superseded_by: null
+  migration_notes:
+    - "WORK_PACKAGE_002: refactored into the SDD-R011 facet model; see
+      component.passive.resistor's history facet for the full
+      migration rationale, identical across all five gold objects."
+  deprecation_history: []
+  lifecycle_events:
+    - state: Published
+      date: "2026-07-16"
+      notes: Initial gold-standard reference implementation (WORK_PACKAGE_001).
+    - state: Published
+      date: "2026-07-17"
+      notes: Migrated to Engineering Knowledge Object Schema Version 1.0 (WORK_PACKAGE_002).
+
+simulation:
+  supported_solvers: []
+  runtime_requirements: []
+  simulation_models:
+    - linear_algebraic_relation
+  initial_conditions: {}
+  state_variables: []
+  parameters:
+    - voltage
+    - current
+    - resistance
+  failure_modes: []
+  default_values: {}
+
+visualization:
+  color_hints: {}
+  rendering_rules: []
+  default_labels: []
+  connection_styles: []
+  display_groups: []
+  asset_roles: []
+
+assets: []

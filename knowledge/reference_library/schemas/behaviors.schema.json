@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "behaviors.schema.json",
+  "title": "Behavior Facet -- behaviors.yaml",
+  "description": "SDD-R011 §9, SDD-R005. Declarative metadata only -- no executable solver implementation (SDD-R005 §11: \"The implementation language is intentionally unspecified\"; the Engineering Behavior Engine that would execute these is out of scope for this repository). As of WORK_PACKAGE_002 (REFERENCE-TASK-000015): behavior_type uses SDD-R011 §9's nine-value list, replacing SDD-R005 §5's twelve-value list; `description` is explicitly documentation only, separate from the executable contract (inputs/outputs/constraints/dependencies); `execution_metadata` records facts about execution without performing it. Behavior identifiers describe engineering intent (verb phrases), not arbitrary codes.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["behavior_id", "name", "behavior_type", "description", "inputs", "outputs"],
+    "properties": {
+      "behavior_id": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$"
+      },
+      "name": { "type": "string", "minLength": 1 },
+      "behavior_type": {
+        "type": "string",
+        "enum": ["Solver", "Calculator", "Validator", "Converter", "Analyzer", "Optimizer", "Recommender", "Explainer", "Simulator"],
+        "description": "SDD-R011 §9."
+      },
+      "description": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Documentation only (SDD-R011 §9: \"Behavior descriptions are documentation\") -- never a substitute for the structured inputs/outputs/constraints below."
+      },
+      "inputs": {
+        "type": "array",
+        "items": { "$ref": "#/$defs/variable" },
+        "default": []
+      },
+      "outputs": {
+        "type": "array",
+        "items": { "$ref": "#/$defs/variable" },
+        "default": []
+      },
+      "constraints": {
+        "type": "array",
+        "items": { "$ref": "constraint.schema.json" },
+        "default": [],
+        "description": "REFERENCE-TASK-000014 structured pre/post-conditions (SDD-R005 §8), replacing WORK_PACKAGE_001's free-text constraint strings."
+      },
+      "dependencies": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$"
+        },
+        "default": [],
+        "description": "SDD-R005 §10 -- Object IDs this behavior's calculation depends upon."
+      },
+      "execution_metadata": {
+        "type": "object",
+        "default": {},
+        "description": "SDD-R011 §9. Facts describing execution (e.g. deterministic, complexity) without performing it -- no executable code lives here."
+      }
+    }
+  },
+  "$defs": {
+    "variable": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "value_type"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "value_type": { "type": "string", "enum": ["number", "integer", "string", "boolean"] },
+        "unit_ref": {
+          "type": ["string", "null"],
+          "default": null,
+          "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$"
+        },
+        "unit_symbol_pending": {
+          "type": ["string", "null"],
+          "default": null,
+          "description": "See properties.schema.json -- same documented, temporary escape hatch (REFERENCE-TASK-000011)."
+        },
+        "required": { "type": "boolean", "default": true },
+        "description": { "type": "string" }
+      }
+    }
+  }
+}

@@ -1,0 +1,41 @@
+# Behavior Facet (SDD-R011 §9). Declarative metadata only.
+- behavior_id: material.copper.calculate_wire_resistance
+  name: Calculate Wire Resistance
+  behavior_type: Calculator
+  description: >-
+    Computes the DC resistance of a copper conductor from its length,
+    cross-sectional area, and operating temperature.
+  inputs:
+    - name: length
+      value_type: number
+      unit_ref: null
+      unit_symbol_pending: m
+      required: true
+    - name: cross_sectional_area
+      value_type: number
+      unit_ref: null
+      unit_symbol_pending: "m²"
+      required: true
+    - name: temperature
+      value_type: number
+      unit_ref: null
+      unit_symbol_pending: "°C"
+      required: false
+      description: Defaults to 20°C when omitted.
+  outputs:
+    - name: resistance
+      value_type: number
+      unit_ref: null
+      unit_symbol_pending: "Ω"
+  constraints:
+    - subject: length
+      operator: gt
+      operand: 0
+      description: Length shall be greater than zero.
+    - subject: cross_sectional_area
+      operator: gt
+      operand: 0
+      description: Cross-sectional area shall be greater than zero.
+  dependencies: []
+  execution_metadata:
+    deterministic: true

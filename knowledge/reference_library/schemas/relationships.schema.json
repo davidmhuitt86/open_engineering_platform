@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "relationships.schema.json",
+  "title": "Relationship Facet -- relationships.yaml",
+  "description": "SDD-R011 §8, SDD-R003 Universal Relationship Model. The source of every entry is implicit -- the owning Engineering Knowledge Object (SDD-R010 §6: relationships are authored per-object, one file per object, listing only relationships where that object is the source). As of WORK_PACKAGE_002, the shape follows SDD-R011 §8 exactly (relationship_id, relationship_type, target, cardinality, lifecycle, confidence, notes) -- the WORK_PACKAGE_001 fields `category`, `metadata`, `behavior`, and a nested `provenance`/`version` were dropped; see docs/SCHEMA_MIGRATION.md.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["relationship_id", "relationship_type", "target"],
+    "properties": {
+      "relationship_id": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+        "description": "SDD-R003 §4 -- globally unique."
+      },
+      "relationship_type": {
+        "type": "string",
+        "minLength": 1,
+        "description": "SDD-R011 §8 / SDD-R003 §8. Checked against the known Relationship Type list by the validator (soft, extensible)."
+      },
+      "target": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+        "description": "Object ID of the target Engineering Knowledge Object (SDD-R003 §7)."
+      },
+      "cardinality": {
+        "type": "string",
+        "enum": ["one_to_one", "one_to_many", "many_to_one", "many_to_many"],
+        "description": "SDD-R011 §8 (SDD-R003 §14 \"Multiplicity\", renamed)."
+      },
+      "lifecycle": {
+        "type": "string",
+        "enum": ["Draft", "Under Review", "Technically Verified", "Approved", "Published", "Deprecated", "Superseded", "Archived"],
+        "description": "SDD-R011 §8 -- the relationship's own maturity, independent of either endpoint's lifecycle_state."
+      },
+      "confidence": {
+        "type": "string",
+        "enum": ["low", "medium", "high", "verified"],
+        "description": "SDD-R011 §8."
+      },
+      "notes": {
+        "type": "string",
+        "default": "",
+        "description": "SDD-R011 §8. Documentation only -- never authoritative for validation (use `constraints` for that)."
+      },
+      "constraints": {
+        "type": "array",
+        "default": [],
+        "items": { "$ref": "constraint.schema.json" },
+        "description": "REFERENCE-TASK-000014 structured constraints this relationship imposes (SDD-R003 §12)."
+      }
+    }
+  }
+}

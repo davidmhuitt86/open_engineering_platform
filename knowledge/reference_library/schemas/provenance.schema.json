@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "provenance.schema.json",
+  "title": "Provenance Facet",
+  "description": "SDD-R011 §17. Records the authoring/review PROCESS -- who, when, under what license. Distinct from Authority (where the engineering truth originates) and Evidence (what supports the assertion). As of WORK_PACKAGE_002, `review_status` was removed -- identity.lifecycle_state is the single authoritative lifecycle field (Constitution Article V); see docs/SCHEMA_MIGRATION.md. Objects without provenance shall never become official OEP Reference Library objects (SDD-R001 §21).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["author", "organization", "created_date", "confidence", "content_license"],
+  "properties": {
+    "author": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The individual or organization that authored this Engineering Knowledge Object or relationship."
+    },
+    "reviewer": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "The individual or organization that performed engineering review. Required before status may be Published (SDD-R008 §13)."
+    },
+    "organization": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The maintaining organization (WORK_PACKAGE_001's `classification.ownership`, relocated here as of WORK_PACKAGE_002 -- provenance is where \"who maintains this record\" belongs, distinct from Authority's \"where does the truth come from\")."
+    },
+    "created_date": {
+      "type": "string",
+      "format": "date",
+      "description": "ISO-8601 date this content was first authored."
+    },
+    "review_date": {
+      "type": ["string", "null"],
+      "default": null,
+      "format": "date",
+      "description": "SDD-R011 §17 Review Date. ISO-8601 date of the most recent engineering review."
+    },
+    "approval_date": {
+      "type": ["string", "null"],
+      "default": null,
+      "format": "date",
+      "description": "SDD-R011 §17 Approval Date."
+    },
+    "digital_signature": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "SDD-R011 §17. Null until platform signing infrastructure exists (deferred, same as the package-level signature -- see docs/PACKAGE_FORMAT.md)."
+    },
+    "revision_notes": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "default": [],
+      "description": "Moved from WORK_PACKAGE_001's separate structured `version` section, which SDD-R011 §5 does not carry forward as its own facet."
+    },
+    "sources_consulted": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "default": []
+    },
+    "confidence": {
+      "type": "string",
+      "enum": ["low", "medium", "high", "verified"],
+      "description": "Qualitative confidence in engineering accuracy, distinct from lifecycle_state."
+    },
+    "content_license": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The license under which this authored content (not the engineering fact itself) is distributed."
+    }
+  }
+}

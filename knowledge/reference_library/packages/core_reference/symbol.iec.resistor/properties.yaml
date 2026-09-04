@@ -1,0 +1,44 @@
+- property_id: default_scale
+  display_name: Default Scale
+  value_type: number
+  unit_ref: null
+  unit_symbol_pending: null
+  default_value: 1.0
+  range:
+    min: 0
+    max: null
+  constraints: []
+  visibility: public
+  required: true
+  read_only: false
+  description: Default rendering scale factor applied when this symbol is placed.
+
+- property_id: view_box
+  display_name: View Box
+  value_type: string
+  unit_ref: null
+  unit_symbol_pending: null
+  value: "0 0 100 40"
+  default_value: null
+  range: null
+  constraints: []
+  visibility: public
+  required: true
+  read_only: true
+  description: The SVG viewBox this symbol's asset was authored against.
+
+- property_id: lead_count
+  display_name: Lead Count
+  value_type: integer
+  unit_ref: null
+  unit_symbol_pending: null
+  value: 2
+  default_value: null
+  range:
+    min: 2
+    max: 2
+  constraints: []
+  visibility: public
+  required: true
+  read_only: true
+  description: Number of connection leads this symbol exposes.

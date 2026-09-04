@@ -1,0 +1,30 @@
+# Validation Facet (SDD-R011 §10). Structured rules
+# (REFERENCE-TASK-000014) -- subject is a property_id from
+# properties.yaml; description is non-authoritative documentation.
+- rule_id: component.passive.resistor.resistance_positive
+  subject: resistance
+  operator: gt
+  operand: 0
+  severity: error
+  description: Resistance shall be greater than zero.
+
+- rule_id: component.passive.resistor.power_rating_positive
+  subject: power_rating
+  operator: gt
+  operand: 0
+  severity: error
+  description: Power Rating shall be greater than zero.
+
+- rule_id: component.passive.resistor.tolerance_bounded
+  subject: tolerance
+  operator: lte
+  operand: 20
+  severity: error
+  description: Tolerance shall not exceed 20%.
+
+- rule_id: component.passive.resistor.maximum_voltage_non_negative
+  subject: maximum_voltage
+  operator: gte
+  operand: 0
+  severity: warning
+  description: Maximum Voltage, when specified, shall not be negative.

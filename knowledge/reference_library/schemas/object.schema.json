@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "object.schema.json",
+  "title": "Engineering Knowledge Object -- object.yaml",
+  "description": "SDD-R011 §4: an Engineering Knowledge Object is a structured collection of Engineering Knowledge Facets, not a file. This file carries the nine facets that are not array-heavy enough to warrant their own sibling file (Identity, Classification, Authority, Evidence, Provenance, History, Simulation, Visualization, Assets); Properties, Relationships, Behaviors, Validation, and Education remain their own files exactly as in WORK_PACKAGE_001, each independently schema'd as its own facet (SDD-R011 §21 rule 3: \"Files are implementation details\" -- the facet, not the file, is the architectural unit; see docs/SCHEMA_MIGRATION.md).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["identity", "classification", "authority", "provenance", "history"],
+  "properties": {
+    "identity": { "$ref": "identity.schema.json" },
+    "classification": { "$ref": "classification.schema.json" },
+    "authority": { "$ref": "authority.schema.json" },
+    "evidence": { "$ref": "evidence.schema.json", "default": [] },
+    "provenance": { "$ref": "provenance.schema.json" },
+    "history": { "$ref": "history.schema.json" },
+    "simulation": { "$ref": "simulation.schema.json", "default": {} },
+    "visualization": { "$ref": "visualization.schema.json", "default": {} },
+    "assets": { "$ref": "assets.schema.json", "default": [] }
+  }
+}

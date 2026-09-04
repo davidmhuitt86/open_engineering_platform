@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "visualization.schema.json",
+  "title": "Visualization Facet",
+  "description": "SDD-R011 §13. Presentation hints only -- never changes engineering meaning. Raw asset files (icons, previews, 3D models, footprints) moved to the Asset Facet (assets.schema.json) as of WORK_PACKAGE_002; this facet references them by role name, not by path, keeping 'which files this object owns' and 'how to present them' independently evolvable (SDD-R011 §19).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "color_hints": {
+      "type": "object",
+      "default": {},
+      "description": "Free-form role -> color hint map (e.g. {\"body\": \"#c8a165\"}). Advisory only."
+    },
+    "rendering_rules": { "type": "array", "items": { "type": "string", "minLength": 1 }, "default": [] },
+    "default_labels": { "type": "array", "items": { "type": "string", "minLength": 1 }, "default": [] },
+    "connection_styles": { "type": "array", "items": { "type": "string", "minLength": 1 }, "default": [] },
+    "display_groups": { "type": "array", "items": { "type": "string", "minLength": 1 }, "default": [] },
+    "asset_roles": {
+      "type": "array",
+      "default": [],
+      "description": "Role names (matching assets.yaml's `role` field) this object actually uses for presentation, e.g. [\"icon\", \"symbol\"].",
+      "items": { "type": "string", "minLength": 1 }
+    }
+  }
+}

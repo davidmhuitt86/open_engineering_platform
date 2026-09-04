@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "validation.schema.json",
+  "title": "Validation Facet -- validation.yaml",
+  "description": "SDD-R011 §10, SDD-R001 §13. Reusable engineering validation rules the owning object contributes to the Engineering Reference Library, consumed by Diagram Studio / Engineering Engine validation, never duplicated there (SDD-R001 §13). As of WORK_PACKAGE_002 (REFERENCE-TASK-000014): a rule is the same structured Constraint shape (subject/operator/operand) constraint.schema.json defines, plus a rule_id and severity -- fields are inlined here rather than composed via $ref/allOf, since `additionalProperties: false` on a $ref'd subschema rejects sibling fields added by the same allOf, a well-known JSON Schema composition pitfall. SDD-R011 §10: \"Human-readable validation text shall not be authoritative,\" so the free-text `expression` string WORK_PACKAGE_001 used is gone; `description` remains only as non-authoritative documentation alongside the structured fields.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["rule_id", "subject", "operator", "severity"],
+    "properties": {
+      "rule_id": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$"
+      },
+      "subject": {
+        "type": "string",
+        "minLength": 1,
+        "description": "The property_id (or \"self\") this rule constrains -- see constraint.schema.json."
+      },
+      "operator": {
+        "type": "string",
+        "enum": ["gt", "gte", "lt", "lte", "eq", "neq", "not_null", "not_empty"]
+      },
+      "operand": {
+        "type": ["number", "string", "boolean", "null"]
+      },
+      "severity": {
+        "type": "string",
+        "enum": ["info", "warning", "error"]
+      },
+      "description": {
+        "type": "string",
+        "description": "Non-authoritative documentation of the rule above (SDD-R011 §10)."
+      }
+    }
+  }
+}

@@ -1,0 +1,49 @@
+short_definition: >-
+  The IEC 60617 rectangular schematic symbol used to represent a
+  fixed resistor.
+detailed_description: >-
+  IEC 60617 defines a plain rectangle as the standard symbol for a
+  fixed resistor, with two leads extending from the short sides. This
+  is distinct from the zig-zag symbol used by ANSI/IEEE conventions
+  for the same component. Diagram Studio renders this symbol at the
+  scale and rotation each placed instance specifies.
+engineering_notes: >-
+  Symbol geometry carries no engineering behavior of its own (SDD-R001
+  §20: "Visualization remains independent of engineering behavior") --
+  it exists purely so a Resistor can be drawn consistently across
+  every diagram that references it.
+typical_applications:
+  - Schematic capture in Diagram Studio
+  - Printed circuit documentation
+limitations:
+  - Represents only the IEC convention; an ANSI-style resistor symbol
+    is a separate Symbol EKO, not a variant of this one.
+common_mistakes:
+  - Mixing IEC (rectangle) and ANSI (zig-zag) resistor symbols within
+    the same diagram set.
+design_considerations:
+  - Confirm the target audience/standard (IEC vs. ANSI) before
+    choosing a symbol convention for a diagram set.
+troubleshooting: []
+frequently_asked_questions:
+  - question: Why is the resistor symbol a rectangle instead of a zig-zag?
+    answer: >-
+      IEC 60617 uses a plain rectangle for a fixed resistor; the
+      zig-zag symbol is the ANSI/IEEE convention for the same
+      component, a separate Symbol EKO.
+examples:
+  - title: IEC vs. ANSI resistor symbols
+    description: >-
+      The IEC convention draws a fixed resistor as a plain rectangle;
+      the ANSI/IEEE convention draws the same component as a zig-zag
+      line. Both represent identical engineering behavior -- only the
+      drawing convention differs.
+worked_problems: []
+exercises:
+  - Identify whether a schematic using zig-zag resistor symbols is
+    drawn to the IEC or ANSI convention.
+references:
+  - IEC 60617 -- Graphical symbols for diagrams
+learning_path:
+  - Reading schematic symbols
+  - IEC vs. ANSI symbol conventions

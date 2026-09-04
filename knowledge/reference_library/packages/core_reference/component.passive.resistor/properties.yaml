@@ -1,0 +1,126 @@
+# Property Facet (SDD-R011 §7). property_id is permanent
+# (REFERENCE-TASK-000012); display_name may change freely.
+# unit_ref resolves to a compiled Unit EKO; unit_symbol_pending is the
+# documented, temporary exception for units with no compiled Unit EKO
+# yet (REFERENCE-TASK-000011) -- see docs/SCHEMA_MIGRATION.md.
+- property_id: resistance
+  display_name: Resistance
+  value_type: number
+  unit_ref: null
+  unit_symbol_pending: "Ω"
+  default_value: 1000
+  range:
+    min: 0
+    max: null
+  constraints: []
+  visibility: public
+  required: true
+  read_only: false
+  description: Nominal resistance value.
+
+- property_id: tolerance
+  display_name: Tolerance
+  value_type: number
+  unit_ref: null
+  unit_symbol_pending: "%"
+  default_value: 5
+  range:
+    min: 0
+    max: 20
+  constraints: []
+  visibility: public
+  required: true
+  read_only: false
+  description: Maximum permitted deviation from the nominal resistance value.
+
+- property_id: power_rating
+  display_name: Power Rating
+  value_type: number
+  unit_ref: null
+  unit_symbol_pending: W
+  default_value: 0.25
+  range:
+    min: 0
+    max: null
+  constraints: []
+  visibility: public
+  required: true
+  read_only: false
+  description: Maximum continuous power the resistor may safely dissipate.
+
+- property_id: temperature_coefficient
+  display_name: Temperature Coefficient
+  value_type: number
+  unit_ref: null
+  unit_symbol_pending: ppm/°C
+  default_value: 100
+  range:
+    min: null
+    max: null
+  constraints: []
+  visibility: public
+  required: false
+  read_only: false
+  description: Change in resistance per degree Celsius, in parts per million.
+
+- property_id: maximum_voltage
+  display_name: Maximum Voltage
+  value_type: number
+  unit_ref: unit.volt
+  unit_symbol_pending: null
+  default_value: 200
+  range:
+    min: 0
+    max: null
+  constraints: []
+  visibility: public
+  required: false
+  read_only: false
+  description: >-
+    Maximum voltage the resistor may safely be operated at.
+
+- property_id: preferred_series
+  display_name: Preferred Series
+  value_type: enum
+  unit_ref: null
+  unit_symbol_pending: null
+  default_value: E24
+  range: null
+  enum_values:
+    - E6
+    - E12
+    - E24
+    - E96
+  constraints: []
+  visibility: public
+  required: false
+  read_only: false
+  description: The IEC 60063 preferred-value series this part is drawn from.
+
+- property_id: package_style
+  display_name: Package Style
+  value_type: string
+  unit_ref: null
+  unit_symbol_pending: null
+  default_value: THT-axial
+  range: null
+  constraints: []
+  visibility: public
+  required: false
+  read_only: false
+  description: Physical package/footprint style (e.g. axial through-hole, 0603 SMD).
+
+- property_id: noise
+  display_name: Noise
+  value_type: number
+  unit_ref: null
+  unit_symbol_pending: μV/V
+  default_value: null
+  range:
+    min: 0
+    max: null
+  constraints: []
+  visibility: advanced
+  required: false
+  read_only: false
+  description: Excess (current) noise, typically specified per volt applied.

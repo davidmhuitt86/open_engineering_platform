@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "evidence.schema.json",
+  "title": "Evidence Facet -- evidence.yaml",
+  "description": "SDD-R011 §16, SDD-R012 §13. Supports the engineering assertions this object makes. Distinct from Authority (where the truth originates) and Provenance (who authored/reviewed this record). Free-text `reference` until Source Object EKOs exist (SDD-R012 §7) -- see docs/SCHEMA_MIGRATION.md.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["evidence_type", "reference"],
+    "properties": {
+      "evidence_type": {
+        "type": "string",
+        "enum": ["Standard", "Datasheet", "Manual", "Application Note", "Test Result", "Calculation", "Simulation Result"],
+        "description": "SDD-R011 §16 / SDD-R012 §13 initial list."
+      },
+      "reference": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Free text identifying the specific source (e.g. \"IEC 60115\")."
+      },
+      "evidence_source_object": {
+        "type": ["string", "null"],
+        "default": null,
+        "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+        "description": "Object ID of a Source Object EKO, once one exists for this reference. Null for this work package."
+      },
+      "description": { "type": "string", "default": "" }
+    }
+  }
+}

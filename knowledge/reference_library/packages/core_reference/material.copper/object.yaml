@@ -1,0 +1,142 @@
+identity:
+  object_id: material.copper
+  object_type: Material
+  display_name: Copper
+  short_name: copper
+  version: "1.0.0"
+  lifecycle_state: Published
+  package_id: core_reference
+  uuid: 74fd8439-d695-5d3c-b23f-117d5ad08b49
+
+classification:
+  domain: Materials
+  discipline: Electronics
+  family: Conductors
+  category: Elemental Conductors
+  subcategory: Pure Copper
+  tags:
+    - conductor
+    - metal
+    - elemental
+  keywords:
+    - copper
+    - conductor
+    - conductivity
+    - resistivity
+  aliases:
+    - Cu
+  abbreviations:
+    - Cu
+  alternate_names:
+    - electrolytic copper
+  manufacturer_terms:
+    - ETP copper
+    - OFC copper
+  standards_references:
+    - ASTM B3
+    - IEC 60228
+  roles:
+    - Design
+    - Simulation
+    - Education
+    - Manufacturing
+    - Reference
+  capabilities:
+    - Searchable
+    - Simulatable
+    - Explainable
+    - Exportable
+  standards:
+    - ASTM
+    - IEC
+  industries:
+    - Automotive
+    - Industrial
+    - Consumer Electronics
+    - Energy
+  technologies: []
+
+authority:
+  authority_type: International Standard
+  authority_reference: >-
+    Standard physical properties of elemental copper, as characterized
+    by ASTM B3 (Soft or Annealed Copper Wire) and IEC 60228
+    (Conductors of Insulated Cables).
+  authority_source_object: null
+  notes: >-
+    No Source Object EKOs exist yet for ASTM B3 / IEC 60228 (SDD-R012
+    §7 standard.* naming convention) -- free text until they are
+    authored.
+
+evidence:
+  - evidence_type: Standard
+    reference: ASTM B3 -- Standard Specification for Soft or Annealed Copper Wire
+    evidence_source_object: null
+    description: Reference resistivity and conductivity figures for annealed copper.
+  - evidence_type: Standard
+    reference: IEC 60228 -- Conductors of insulated cables
+    evidence_source_object: null
+    description: Conductor material properties used in cable construction standards.
+
+provenance:
+  author: OEP Reference Authoring Team
+  reviewer: Divad Technology Group Engineering Review
+  organization: Divad Technology Group, LLC.
+  created_date: "2026-07-16"
+  review_date: "2026-07-17"
+  approval_date: "2026-07-17"
+  digital_signature: null
+  revision_notes:
+    - Initial gold-standard reference implementation (WORK_PACKAGE_001).
+    - Migrated to Engineering Knowledge Object Schema Version 1.0, the
+      SDD-R011 facet model (WORK_PACKAGE_002).
+  sources_consulted:
+    - Standard published physical constants for elemental copper
+      (public domain physical data; no copyrighted text reproduced)
+  confidence: verified
+  content_license: CC-BY-4.0
+
+history:
+  previous_versions: []
+  superseded_by: null
+  migration_notes:
+    - "WORK_PACKAGE_002: refactored into the SDD-R011 facet model; see
+      component.passive.resistor's history facet for the full
+      migration rationale, identical across all five gold objects."
+  deprecation_history: []
+  lifecycle_events:
+    - state: Published
+      date: "2026-07-16"
+      notes: Initial gold-standard reference implementation (WORK_PACKAGE_001).
+    - state: Published
+      date: "2026-07-17"
+      notes: Migrated to Engineering Knowledge Object Schema Version 1.0 (WORK_PACKAGE_002).
+
+simulation:
+  supported_solvers: []
+  runtime_requirements: []
+  simulation_models:
+    - linear_temperature_dependent_resistivity
+  initial_conditions: {}
+  state_variables:
+    - temperature
+  parameters:
+    - resistivity_at_20c
+    - temperature_coefficient
+  failure_modes:
+    - oxidation_corrosion
+  default_values:
+    resistivity_at_20c: 1.68e-8
+    temperature_coefficient: 0.00393
+
+visualization:
+  color_hints:
+    swatch: "#B87333"
+  rendering_rules: []
+  default_labels:
+    - Cu
+  connection_styles: []
+  display_groups: []
+  asset_roles: []
+
+assets: []

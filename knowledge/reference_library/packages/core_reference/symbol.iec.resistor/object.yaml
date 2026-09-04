@@ -1,0 +1,124 @@
+identity:
+  object_id: symbol.iec.resistor
+  object_type: Symbol
+  display_name: IEC Resistor Symbol
+  short_name: iec_resistor_symbol
+  version: "1.0.0"
+  lifecycle_state: Published
+  package_id: core_reference
+  uuid: 0978f445-77e7-56a3-8611-4ee990ec5fc7
+
+classification:
+  domain: Electrical
+  discipline: Electronics
+  family: Symbols
+  category: Passive Component Symbols
+  subcategory: Resistor Symbols
+  tags:
+    - iec
+    - schematic symbol
+    - rectangle style
+  keywords:
+    - resistor symbol
+    - iec 60617
+    - schematic
+  aliases:
+    - rectangle resistor symbol
+  abbreviations: []
+  alternate_names: []
+  manufacturer_terms: []
+  standards_references:
+    - IEC 60617
+  roles:
+    - Design
+    - Education
+    - Reference
+  capabilities:
+    - Searchable
+    - Renderable
+    - Explainable
+    - Exportable
+    - Printable
+  standards:
+    - IEC
+  industries: []
+  technologies: []
+
+authority:
+  authority_type: International Standard
+  authority_reference: >-
+    IEC 60617 defines the rectangular schematic symbol convention for
+    a fixed resistor.
+  authority_source_object: null
+  notes: >-
+    No Source Object EKO exists yet for IEC 60617 (SDD-R012 §7) --
+    free text until one is authored.
+
+evidence:
+  - evidence_type: Standard
+    reference: IEC 60617
+    evidence_source_object: null
+    description: Graphical symbols for diagrams.
+
+provenance:
+  author: OEP Reference Authoring Team
+  reviewer: Divad Technology Group Engineering Review
+  organization: Divad Technology Group, LLC.
+  created_date: "2026-07-16"
+  review_date: "2026-07-17"
+  approval_date: "2026-07-17"
+  digital_signature: null
+  revision_notes:
+    - Initial gold-standard reference implementation (WORK_PACKAGE_001).
+    - Migrated to Engineering Knowledge Object Schema Version 1.0, the
+      SDD-R011 facet model (WORK_PACKAGE_002).
+  sources_consulted:
+    - IEC 60617 (Graphical symbols for diagrams) -- geometry
+      reproduced as an original, independently authored rendering; no
+      copyrighted artwork copied.
+  confidence: high
+  content_license: CC-BY-4.0
+
+history:
+  previous_versions: []
+  superseded_by: null
+  migration_notes:
+    - "WORK_PACKAGE_002: refactored into the SDD-R011 facet model;
+      asset file references moved from visualization.assets to the
+      new top-level Asset Facet (assets.yaml equivalent, here the
+      object.yaml `assets` key) -- see docs/SCHEMA_MIGRATION.md."
+  deprecation_history: []
+  lifecycle_events:
+    - state: Published
+      date: "2026-07-16"
+      notes: Initial gold-standard reference implementation (WORK_PACKAGE_001).
+    - state: Published
+      date: "2026-07-17"
+      notes: Migrated to Engineering Knowledge Object Schema Version 1.0 (WORK_PACKAGE_002).
+
+simulation:
+  supported_solvers: []
+  runtime_requirements: []
+  simulation_models: []
+  initial_conditions: {}
+  state_variables: []
+  parameters: []
+  failure_modes: []
+  default_values: {}
+
+visualization:
+  color_hints: {}
+  rendering_rules: []
+  default_labels: []
+  connection_styles: []
+  display_groups: []
+  asset_roles:
+    - symbol
+
+assets:
+  - role: symbol
+    path: symbol.svg
+    kind: svg
+    description: >-
+      IEC 60617 rectangular resistor symbol, two leads, viewBox
+      0 0 100 40.

@@ -1,0 +1,9 @@
+# Source is implicit: equation.ohms_law.
+- relationship_id: equation.ohms_law.has_unit.volt
+  relationship_type: HAS_UNIT
+  target: unit.volt
+  cardinality: many_to_one
+  lifecycle: Published
+  confidence: high
+  notes: Applies to the voltage variable.
+  constraints: []

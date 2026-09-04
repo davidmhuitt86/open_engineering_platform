@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "identity.schema.json",
+  "title": "Identity Facet",
+  "description": "SDD-R011 §5. Uniquely identifies the Engineering Knowledge Object. Immutable once published -- object_id, uuid, and package_id never change across the object's lifetime; only version and lifecycle_state advance.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["object_id", "object_type", "display_name", "short_name", "version", "lifecycle_state", "package_id", "uuid"],
+  "properties": {
+    "object_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+      "description": "Globally unique, dotted, referenced only by this id (SDD-R010 §10)."
+    },
+    "object_type": {
+      "type": "string",
+      "minLength": 1,
+      "description": "SDD-R001 §4. Checked against the known Object Type list by the validator (soft, extensible)."
+    },
+    "display_name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "May change across revisions -- never used as an identifier (REFERENCE-TASK-000012)."
+    },
+    "short_name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "A short, human-friendly name (SDD-R011 §5) -- replaces WORK_PACKAGE_001's canonical_name field."
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Semantic version of this object. Structured major/minor/patch decomposition was a separate section in WORK_PACKAGE_001; SDD-R011 §5 lists only a single Version field on Identity, so this string is now the sole authoritative version -- see docs/SCHEMA_MIGRATION.md."
+    },
+    "lifecycle_state": {
+      "type": "string",
+      "enum": ["Draft", "Under Review", "Technically Verified", "Approved", "Published", "Deprecated", "Superseded", "Archived"],
+      "description": "SDD-R008 §4 lifecycle states. The single authoritative status field -- SDD-R002 §10's Lifecycle classification dimension is represented here, not duplicated under classification (Constitution Article V)."
+    },
+    "package_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$",
+      "description": "The package this object is authored under -- new in SDD-R011 §5, makes package membership an explicit identity fact rather than only implicit from directory location."
+    },
+    "uuid": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "description": "A stable identifier independent of object_id, so a future rename/re-slug of object_id can be tracked as the same underlying object (SDD-R011 §5)."
+    }
+  }
+}

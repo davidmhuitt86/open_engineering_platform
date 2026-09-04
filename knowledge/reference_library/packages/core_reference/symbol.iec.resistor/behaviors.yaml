@@ -1,0 +1,32 @@
+- behavior_id: symbol.iec.resistor.render
+  name: Render
+  behavior_type: Converter
+  description: >-
+    Produces the symbol's rendered geometry at a given scale and
+    rotation for display in Diagram Studio.
+  inputs:
+    - name: scale
+      value_type: number
+      unit_ref: null
+      unit_symbol_pending: null
+      required: false
+      description: Defaults to default_scale when omitted.
+    - name: rotation_degrees
+      value_type: number
+      unit_ref: null
+      unit_symbol_pending: deg
+      required: false
+  outputs:
+    - name: rendered_geometry_ref
+      value_type: string
+      unit_ref: null
+      unit_symbol_pending: null
+      description: Reference to the rendered geometry (Diagram Studio's own concern).
+  constraints:
+    - subject: scale
+      operator: gt
+      operand: 0
+      description: Scale shall be greater than zero.
+  dependencies: []
+  execution_metadata:
+    deterministic: true

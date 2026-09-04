@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 40">
+  <!-- IEC 60617 fixed resistor symbol: rectangle body with two leads. -->
+  <line x1="0" y1="20" x2="25" y2="20" stroke="black" stroke-width="2" />
+  <rect x="25" y="10" width="50" height="20" fill="none" stroke="black" stroke-width="2" />
+  <line x1="75" y1="20" x2="100" y2="20" stroke="black" stroke-width="2" />
+</svg>

@@ -1,0 +1,98 @@
+# Property Facet (SDD-R011 §7). None of these quantities have a
+# compiled Unit EKO yet (only unit.volt exists) -- all use
+# unit_symbol_pending; see docs/SCHEMA_MIGRATION.md.
+- property_id: resistivity_at_20c
+  display_name: Resistivity at 20°C
+  value_type: number
+  unit_ref: null
+  unit_symbol_pending: "Ω·m"
+  value: null
+  default_value: 1.68e-8
+  range:
+    min: 0
+    max: null
+  constraints: []
+  visibility: public
+  required: true
+  read_only: false
+  description: Electrical resistivity at 20 degrees Celsius.
+
+- property_id: temperature_coefficient
+  display_name: Temperature Coefficient of Resistance
+  value_type: number
+  unit_ref: null
+  unit_symbol_pending: "1/°C"
+  value: null
+  default_value: 0.00393
+  range:
+    min: null
+    max: null
+  constraints: []
+  visibility: public
+  required: true
+  read_only: false
+  description: Fractional change in resistance per degree Celsius.
+
+- property_id: conductivity_iacs
+  display_name: Conductivity (IACS)
+  value_type: number
+  unit_ref: null
+  unit_symbol_pending: "%"
+  value: null
+  default_value: 100
+  range:
+    min: 0
+    max: null
+  constraints: []
+  visibility: public
+  required: false
+  read_only: false
+  description: Conductivity relative to the International Annealed Copper Standard.
+
+- property_id: melting_point
+  display_name: Melting Point
+  value_type: number
+  unit_ref: null
+  unit_symbol_pending: "°C"
+  value: 1085
+  default_value: null
+  range:
+    min: null
+    max: null
+  constraints: []
+  visibility: public
+  required: true
+  read_only: true
+  description: Melting point at standard atmospheric pressure.
+
+- property_id: density
+  display_name: Density
+  value_type: number
+  unit_ref: null
+  unit_symbol_pending: "g/cm³"
+  value: 8.96
+  default_value: null
+  range:
+    min: 0
+    max: null
+  constraints: []
+  visibility: public
+  required: false
+  read_only: true
+  description: Density at room temperature.
+
+- property_id: thermal_conductivity
+  display_name: Thermal Conductivity
+  value_type: number
+  unit_ref: null
+  unit_symbol_pending: "W/(m·K)"
+  value: 401
+  default_value: null
+  range:
+    min: 0
+    max: null
+  constraints: []
+  visibility: public
+  required: false
+  read_only: true
+  description: Thermal conductivity at room temperature.

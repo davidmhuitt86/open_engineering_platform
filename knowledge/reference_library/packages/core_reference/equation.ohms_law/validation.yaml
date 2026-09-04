@@ -1,0 +1,15 @@
+- rule_id: equation.ohms_law.resistance_nonzero_for_current_solve
+  subject: resistance
+  operator: neq
+  operand: 0
+  severity: error
+  description: >-
+    Resistance shall not equal zero when solving for current given
+    voltage.
+
+- rule_id: equation.ohms_law.resistance_non_negative
+  subject: resistance
+  operator: gte
+  operand: 0
+  severity: error
+  description: Resistance shall not be negative for a passive ohmic element.

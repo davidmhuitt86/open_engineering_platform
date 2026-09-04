@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "constraint.schema.json",
+  "title": "Structured Constraint",
+  "description": "REFERENCE-TASK-000014: a single machine-readable predicate, replacing the free-text constraint strings and validation.yaml `expression` strings WORK_PACKAGE_001 used. Reused via $ref from properties.schema.json, relationships.schema.json, behaviors.schema.json, and validation.schema.json (which adds rule_id/severity on top of this same shape).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["subject", "operator"],
+  "properties": {
+    "subject": {
+      "type": "string",
+      "minLength": 1,
+      "description": "What this constraint applies to -- a property_id, a behavior input/output variable name, or \"self\" for a whole-object/relationship constraint."
+    },
+    "operator": {
+      "type": "string",
+      "enum": ["gt", "gte", "lt", "lte", "eq", "neq", "not_null", "not_empty"],
+      "description": "gt/gte/lt/lte/eq/neq compare `subject` against `operand`. not_null and not_empty are unary and ignore `operand`."
+    },
+    "operand": {
+      "description": "Required for binary operators (gt/gte/lt/lte/eq/neq); omitted or null for unary operators (not_null/not_empty).",
+      "type": ["number", "string", "boolean", "null"]
+    },
+    "description": {
+      "type": "string",
+      "description": "Human-readable explanation, generated from or alongside the structured fields -- never authoritative on its own (SDD-R011 §10: \"Human-readable validation text shall not be authoritative\")."
+    }
+  }
+}

@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "classification.schema.json",
+  "title": "Classification Facet",
+  "description": "SDD-R011 §6, SDD-R002 Engineering Classification Model, with Tags/Keywords/Aliases/search terms folded in from SDD-R001 §7/§19 (SDD-R011 has no separate Search Metadata facet). Every classification dimension is independent -- none implies another (SDD-R002 §17). As of WORK_PACKAGE_002: `authority` moved to the new Authority Facet (authority.schema.json) and `visibility`/`ownership` were dropped -- see docs/SCHEMA_MIGRATION.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["domain", "category"],
+  "properties": {
+    "domain": {
+      "type": "string",
+      "minLength": 1,
+      "description": "SDD-R002 §4 -- the highest engineering discipline (e.g. Electrical)."
+    },
+    "discipline": {
+      "type": "string",
+      "description": "SDD-R002 §5 -- specializes Domain (e.g. Electronics)."
+    },
+    "family": {
+      "type": "string",
+      "description": "SDD-R002 §6 -- broad grouping (e.g. Passive Components)."
+    },
+    "category": {
+      "type": "string",
+      "minLength": 1,
+      "description": "SDD-R002 §7 -- refines Family (e.g. Resistors)."
+    },
+    "subcategory": {
+      "type": "string",
+      "description": "SDD-R002 §7 -- further refines Category (e.g. Fixed Resistor)."
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "default": []
+    },
+    "keywords": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "default": []
+    },
+    "aliases": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "default": []
+    },
+    "abbreviations": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "default": []
+    },
+    "alternate_names": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "default": []
+    },
+    "manufacturer_terms": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "default": []
+    },
+    "standards_references": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "default": []
+    },
+    "roles": {
+      "type": "array",
+      "description": "SDD-R011 §6 / SDD-R002 §8 -- how the object participates in OEP workflows.",
+      "items": { "type": "string", "minLength": 1 },
+      "default": []
+    },
+    "capabilities": {
+      "type": "array",
+      "description": "SDD-R011 §6 / SDD-R002 §9 -- what platform services may consume the object.",
+      "items": { "type": "string", "minLength": 1 },
+      "default": []
+    },
+    "standards": {
+      "type": "array",
+      "description": "SDD-R002 §14.",
+      "items": { "type": "string", "minLength": 1 },
+      "default": []
+    },
+    "industries": {
+      "type": "array",
+      "description": "SDD-R011 §6 / SDD-R002 §15.",
+      "items": { "type": "string", "minLength": 1 },
+      "default": []
+    },
+    "technologies": {
+      "type": "array",
+      "description": "SDD-R011 §6 / SDD-R002 §16.",
+      "items": { "type": "string", "minLength": 1 },
+      "default": []
+    }
+  }
+}

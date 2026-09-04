@@ -1,0 +1,9 @@
+# Relationship Facet (SDD-R011 §8). Source is implicit: material.copper.
+- relationship_id: material.copper.used_by.resistor
+  relationship_type: USED_BY
+  target: component.passive.resistor
+  cardinality: one_to_many
+  lifecycle: Published
+  confidence: medium
+  notes: Component leads and terminations.
+  constraints: []
