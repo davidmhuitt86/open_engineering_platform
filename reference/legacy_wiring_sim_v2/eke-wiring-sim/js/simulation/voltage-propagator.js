@@ -19,6 +19,79 @@
  * No DOM. No rendering. No UI.
  */
 
+// AP-CONNECTOR-BRIDGE-001 — strips a connector pin ref's `_IN`/`_OUT`
+// suffix (buildConnCard's own convention, renderer.js) down to its bare
+// pin number, so "pin 1 IN" and "pin 1 OUT" compare equal (same
+// physical pin, passes through) while "pin 1" and "pin 2" don't (two
+// different, electrically-unrelated pins on the same connector body).
+// Shared byte-for-byte with ground-propagator.js's own copy — no module
+// system in this codebase to import a single definition from.
+function _pinNumberOf(termRef) {
+  if (termRef == null) return null;
+  return String(termRef).replace(/_(IN|OUT)$/, '');
+}
+
+// AP-DEADEND-GENERALIZE-001 — generalizes AP-CONNECTOR-BRIDGE-001's
+// same-pin-only gating (below) to EVERY plain component this app has no
+// real pass-through behavior for, instead of a hardcoded list of
+// component types. This graph has one node per MODULE, not per
+// terminal, so a component with no RECOGNIZED reason to conduct (a
+// switch, a diode, a splice's own bus-bar job, a connector's own
+// per-pin gating) let voltage or ground "tunnel" straight through its
+// body between ANY two of its pins — this bit TWO separate real
+// components in the same diagram before a per-type fix could even be
+// written for the first one: an Ignition Coil's PRI+/GND, and (once the
+// coil was fixed) a 5-pin Alarm Unit whose power feed leaked out its
+// own unrelated chassis-ground pin — both poisoning a shared
+// ground-splice bus with false nonzero voltage that then read back as
+// "powered" on completely unrelated lamps sharing that same ground
+// return. Naming every individual component type as it's discovered is
+// a losing game (this app has no module system to enumerate them from
+// one place, and the user's own diagrams can use ANY component shape).
+//
+// Deliberately NOT a full dead end (unlike a lamp or the starter
+// motor): a component like a Starter Solenoid legitimately reuses ONE
+// physical pin (its BAT lug) for several wires (battery in, AND a
+// downstream feed onward to the ignition switch) — those must still
+// bridge freely, since they're the same physical terminal, not two
+// different ones. So this is treated exactly like a connector — same
+// pin only, never a fully different pin — just applied by DEFAULT
+// instead of only to modules explicitly flagged `connector: true`.
+// Excludes anything that already has its own correct, explicit
+// pass-through rule elsewhere in this file (switch, multi-switch,
+// diode, splice).
+//
+// AP-BATTERY-TUNNEL-001 — the power source itself (`cat==='power'`,
+// almost always the Battery) was ALSO excluded here at first, on the
+// reasoning that it's "just the seed" — wrong: a battery's + and −
+// posts are two electrically SEPARATE pins exactly like an Ignition
+// Coil's PRI+/GND, and its − post is routinely wired straight to a
+// real Ground Point (correctly — that's how a battery grounds a
+// vehicle's chassis). Excluding it from this same-pin gating meant
+// GroundPropagator, reaching that − pin exactly as intended, then
+// tunneled straight through the battery's own body and out its +
+// post — flooding the ENTIRE downstream power distribution network
+// (every module fed from the battery, however many hops away) with a
+// false "grounded" status. This one node explained nearly every
+// "always lit regardless of switch state" symptom traced this
+// session; the coil/alarm-unit fixes above were real but secondary —
+// this was the dominant leak. Safe to include here even though the
+// battery is also VoltagePropagator's own seed: a seed node is always
+// first entered with `viaTerm: null` (see `queue`'s own construction
+// below), and the gating check only ever activates for a non-null
+// viaTerm — so this never restricts the battery's OWN initial seeded
+// exploration, only a LATER re-entry via one specific pin.
+// Shared byte-for-byte with ground-propagator.js's own copy.
+function _isUnmodeledComponent(node) {
+  if (!node || node.type !== 'module' || !node.module) return false;
+  const m = node.module;
+  if (m.cat === 'splice') return false;
+  if (typeof SwitchBehavior !== 'undefined' && SwitchBehavior.isSwitch(node)) return false;
+  if (typeof MultiSwitchBehavior !== 'undefined' && MultiSwitchBehavior.isMultiSwitch(node)) return false;
+  if (typeof DiodeBehavior !== 'undefined' && DiodeBehavior.isDiode(node)) return false;
+  return true;
+}
+
 const VoltagePropagator = {
 
   /**
@@ -33,37 +106,159 @@ const VoltagePropagator = {
     /** @type {Map<string, number>} nodeId → solved voltage */
     const nodeVoltage = new Map();
 
-    // Seed: ground nodes are 0V
-    GraphTraversal.groundNodes(graph).forEach(id => nodeVoltage.set(id, 0));
-
-    // Seed: power source nodes use their supply voltage
-    // Battery voltage depends on key position (running = charging voltage)
+    // AP-VOLTAGE-GROUND-RACE-001 — ground nodes used to ALSO be seeded
+    // here (at 0V) alongside power sources, both racing in the SAME BFS.
+    // Since a normal 2-terminal load (a bulb: one terminal to power, the
+    // OTHER straight to ground — the ordinary, expected topology, not an
+    // edge case) has an edge reaching a ground node directly, whichever
+    // seed's BFS got there first won — if the ground-side BFS happened
+    // to reach the load's node before the power-side BFS did (pure Map/
+    // queue insertion-order luck, nothing to do with the actual wiring),
+    // the load was permanently marked 0V/unpowered even with a perfectly
+    // valid power path, since `visited` blocked the power BFS from ever
+    // overwriting it. Ground reachability is GroundPropagator's job
+    // (a completely separate BFS) — this one now seeds ONLY power
+    // sources, so "is this node powered" is answered purely by whether
+    // voltage can reach it, never short-circuited by an unrelated race.
     const batteryVoltage = VoltagePropagator._batteryVoltage(conditions);
     GraphTraversal.powerNodes(graph).forEach(id => {
       nodeVoltage.set(id, batteryVoltage);
     });
 
-    // BFS from all power sources simultaneously
-    const queue   = [...nodeVoltage.keys()];
-    const visited = new Set(queue);
+    // BFS from all power sources simultaneously. Queue items carry
+    // `viaTerm` — the terminal ref THIS node was entered through — so a
+    // connector node (see AP-CONNECTOR-BRIDGE-001 below) knows which of
+    // its own edges are allowed to continue propagation.
+    const queue   = [...nodeVoltage.keys()].map(id => ({ id, viaTerm: null }));
+    const visited = new Set(nodeVoltage.keys());
+
+    // AP-MULTI-ENTRY-001 — nodeId → Set of entry-pin keys already tried,
+    // for a connector/multi-switch node specifically (see below).
+    const enteredPins = new Map();
 
     while (queue.length) {
-      const nodeId  = queue.shift();
+      const { id: nodeId, viaTerm } = queue.shift();
       const node    = graph.nodes.get(nodeId);
       if (!node) continue;
+      // AP-VOLTAGE-GROUND-RACE-001 — a ground node is a SINK for voltage
+      // propagation, not a conductor: once reached (marked 0V below, via
+      // the 'ground' edge behavior), it must NOT keep propagating that
+      // 0V onward to every OTHER thing sharing the same chassis-ground
+      // point — that would falsely cap every other load on that ground
+      // bus at 0V regardless of whether ITS OWN power path is separately
+      // valid, for the exact same reason removing the seed above fixes.
+      //
+      // AP-LAMP-TUNNEL-001 — a lamp (or any real 2-terminal load with an
+      // internal drop across it, not a plain junction) is ALSO a dead
+      // end here, for the same underlying reason: this graph has one
+      // node per MODULE, not per terminal, so an edge touching a lamp's
+      // OWN power pin and a SEPARATE edge touching its OWN ground pin
+      // are — as far as this BFS can tell — just two edges on the same
+      // node. Without this, voltage reaching a lamp's power pin would
+      // keep "tunneling" through it and out its ground-return wire,
+      // incorrectly marking whatever ELSE shares that return path
+      // (another module, even the battery itself if reached indirectly)
+      // as powered at the lamp's own voltage — confirmed live: a second,
+      // unrelated bulb wired to the same battery lit up whenever a FIRST
+      // bulb's own ground-return path was traced through, purely because
+      // of this tunneling, with no real electrical connection between
+      // the two circuits at all.
+      if (node.type === 'ground') continue;
+      if (typeof LampBehavior !== 'undefined' && LampBehavior.isLamp(node)) continue;
       const srcV = nodeVoltage.get(nodeId);
+      // AP-CONNECTOR-BRIDGE-001 — a connector's pins are NOT electrically
+      // joined to each other (it's a mechanical multi-pin plug bundling
+      // otherwise-unrelated wires, unlike a splice, whose whole job IS
+      // joining every wire on it) — but this graph has one node per
+      // MODULE, not per terminal, so every pin's edges used to look
+      // identical to the BFS, and voltage arriving on pin 1 "tunneled"
+      // straight out pin 2 to whatever THAT wire happened to feed, with
+      // zero real electrical connection between them. Confirmed live: a
+      // bulb wired only to a connector's pin 2, with nothing else on
+      // that circuit at all, still read as fully powered purely because
+      // the SAME connector's pin 1 happened to be wired to the battery.
+      // Fix: once inside a connector, only continue through an edge on
+      // the SAME pin number (its `_IN`/`_OUT` counterpart) as the one we
+      // arrived through — never a DIFFERENT pin. `viaTerm` is null only
+      // for a seed node (a connector is never a power source), so this
+      // never over-restricts anything else.
+      //
+      // AP-DEADEND-GENERALIZE-001 — an unmodeled component (see above)
+      // gets this EXACT same same-pin-only treatment, not just a real
+      // `connector: true` module: it may freely bridge several wires
+      // that share one physical pin, but never tunnels between two of
+      // its OWN different pins the way a lamp or the starter motor
+      // (fully dead-ended, not pin-gated, above) would.
+      const isConnectorLike = node.type === 'connector' || _isUnmodeledComponent(node);
+      const viaPin = isConnectorLike && viaTerm != null ? _pinNumberOf(viaTerm) : null;
+      // AP-MULTI-SWITCH-001 — same "which of my own edges may this signal
+      // continue out of" mechanism as the connector fix just above, but
+      // for a real multi-position switch (knowledge/behaviors/multi-
+      // switch.js — Ignition/Lighting/Dimmer/Engine Stop/Starter,
+      // matched by terminal name, not a hardcoded module id): instead of
+      // "same pin number", the rule is "is (viaTerm, thisTerm) one of
+      // THIS switch's own internally-bridged pairs under its CURRENT
+      // selected position" — e.g. the ignition switch only bridges its
+      // own BAT1 to its own BAT2 when its `power` group is 'on'.
+      const isMultiSwitch = typeof MultiSwitchBehavior !== 'undefined' && MultiSwitchBehavior.isMultiSwitch(node);
 
       node.edges.forEach(edge => {
-        const nextId = edge.fromNode === nodeId ? edge.toNode : edge.fromNode;
-        if (visited.has(nextId)) return;
+        if (isConnectorLike && viaPin != null) {
+          const thisTerm = edge.fromNode === nodeId ? edge.fromTerm : edge.toTerm;
+          if (_pinNumberOf(thisTerm) !== viaPin) return;
+        }
+        if (isMultiSwitch && viaTerm != null) {
+          const thisTerm = edge.fromNode === nodeId ? edge.fromTerm : edge.toTerm;
+          if (!MultiSwitchBehavior.pairClosed(node, viaTerm, thisTerm, conditions)) return;
+        }
+        const nextId   = edge.fromNode === nodeId ? edge.toNode : edge.fromNode;
+        const nextTerm = edge.fromNode === nodeId ? edge.toTerm : edge.fromTerm;
+        const nextNode = graph.nodes.get(nextId);
+
+        // AP-MULTI-ENTRY-001 — a connector or multi-switch node can have
+        // SEVERAL independent external wires landing on DIFFERENT pins of
+        // the SAME node (e.g. a handlebar switch's BAT2 pin fed by the
+        // battery AND its ST pin fed by the starter button, from two
+        // unrelated directions) — each entry pin can unlock a DIFFERENT
+        // set of onward pairs (the isConnector/isMultiSwitch filter
+        // above). A single global `visited` flag, set by whichever entry
+        // edge the BFS happens to process FIRST, would permanently block
+        // every OTHER entry attempt — even via a pin that would unlock
+        // genuinely different, still-unexplored onward pairs. Confirmed
+        // live: the handlebar switch got marked visited via its ST pin
+        // (reached from the starter circuit) before its own BAT2 pin's
+        // edge (from the battery) was ever tried, so the lights/dimmer/
+        // taillight pairs — gated on a BAT2 entry — never got a chance to
+        // evaluate, leaving the headlights permanently dark regardless of
+        // switch position. Fix: track entry pins PER NODE for a gated
+        // next-hop, and allow re-queueing the same node via a genuinely
+        // NEW entry pin even after it's already been visited via another
+        // one. Voltage itself is still only ever recorded once (first
+        // arrival wins, below) — only "which of my edges get explored"
+        // needs re-running per pin.
+        const nextIsConnectorLike = nextNode && (nextNode.type === 'connector' || _isUnmodeledComponent(nextNode));
+        const nextIsMultiSwitch = nextNode && typeof MultiSwitchBehavior !== 'undefined' && MultiSwitchBehavior.isMultiSwitch(nextNode);
+        const nextIsGated = nextIsConnectorLike || nextIsMultiSwitch;
+        const nextEntryKey = nextIsConnectorLike
+          ? _pinNumberOf(nextTerm)
+          : (nextIsMultiSwitch ? MultiSwitchBehavior._resolveTermName(nextNode.module, nextTerm) : null);
+
+        if (nextIsGated && nextEntryKey != null) {
+          if (!enteredPins.has(nextId)) enteredPins.set(nextId, new Set());
+          const pins = enteredPins.get(nextId);
+          if (pins.has(nextEntryKey)) return;
+          pins.add(nextEntryKey);
+        } else if (visited.has(nextId)) {
+          return;
+        }
 
         // Ask the behavior registry whether this wire passes voltage
         const passV = VoltagePropagator._resolveEdgeVoltage(edge, srcV, conditions, graph);
 
         if (passV !== null) {
-          nodeVoltage.set(nextId, passV);
+          if (!nodeVoltage.has(nextId)) nodeVoltage.set(nextId, passV);
           visited.add(nextId);
-          queue.push(nextId);
+          queue.push({ id: nextId, viaTerm: nextTerm });
         }
       });
     }

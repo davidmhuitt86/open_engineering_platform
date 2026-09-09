@@ -62,14 +62,26 @@ class _FakeChannel implements LegacyV2Channel {
   Future<void> restoreModule(
       String v2ModuleId, String label, String category, double x, double y,
       {String notes = '',
-      List<Map<String, String>> terminals = const []}) async {
+      List<Map<String, String>> terminals = const [],
+      String exit = '',
+      bool? connector,
+      bool? vertical,
+      String? labelPos,
+      String? pinLabelPos,
+      String? subLabelPos,
+      String? sub,
+      String? labelJustify,
+      String? kind,
+      String? bulbStyle,
+      String? bulbColor,
+      bool? flipped}) async {
     restoreModuleCallCount++;
   }
 
   @override
   Future<void> restoreWire(String v2WireId, String fromModuleId,
       String toModuleId, String label, String color,
-      {String fromTerminal = '', String toTerminal = ''}) async {}
+      {String fromTerminal = '', String toTerminal = '', String fromExit = '', String toExit = '', bool cable = false}) async {}
   @override
   Future<void> clearAllSurfaces() async {
     clearAllSurfacesCallCount++;

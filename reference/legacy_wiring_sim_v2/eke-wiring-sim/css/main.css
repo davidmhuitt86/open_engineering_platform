@@ -96,6 +96,47 @@
 html,body{height:100%;overflow:hidden;background:var(--bg);font-family:'Courier New',monospace;touch-action:none;color:var(--ink)}
 body{font-size:10px}
 
+/* UI-scale (app.js setUiScale) intentionally does NOT touch <html>/<body>
+   or anything else that's an ancestor of #viewport. Earlier attempts
+   applied zoom at the document level and tried to cancel it back out on
+   #viewport (first with a flat 1 — wrong, zoom compounds multiplicatively
+   through nested elements, so cancelling an ancestor zoom of U needs the
+   descendant's own zoom to be 1/U; then with that correct reciprocal,
+   which fixed the coordinate math and visual size but broke real-mouse
+   click hit-testing on the wire-layer SVG in the actual WebView2 host —
+   a nested/fractional-zoom quirk that didn't reproduce in a plain
+   Chromium tab, only in WebView2). Rather than rely on zoom-cancellation
+   behavior that's already bitten us twice, UI scale is applied directly
+   and only to the chrome elements themselves (below) via the --ui-zoom
+   custom property, which cascades to them wherever they live in the DOM
+   — #viewport and everything above it in the tree never receive any
+   zoom styling at all, so there's nothing to cancel and no nested-zoom
+   hit-testing edge case to hit. */
+:root{--ui-zoom:1;}
+#topbar-wrap,#left-sidebar,#wep,#mod-panel,#srch,
+#legend,#minimap,#toast,#kbh,
+#graph-inspector,.modal-bg{zoom:var(--ui-zoom);}
+/* #fp, #tracer, #swpack-panel, #ctx, #panel-menu-global are
+   DELIBERATELY excluded from the list above — confirmed live (real
+   WebView2 host) that this was the actual cause of "the right-click
+   menu pops up in random places instead of at the cursor": every one
+   of these is positioned via JS setting `style.left`/`style.top`
+   directly from a raw client coordinate (openCtxAt's `e.clientX`,
+   showPanel's `evt.clientX`, panelMenuOpen's `btn.getBoundingClientRect()`,
+   or app.js's own attachDrag() for whichever of fp/tracer/swpack-panel
+   the user has dragged). `zoom` on the element ITSELF multiplies its
+   own left/top by --ui-zoom when rendering, but the JS that COMPUTED
+   that left/top value never accounted for any such multiplication —
+   so at the default 130% UI scale, "open at x=200" actually rendered
+   at x=260, consistently offset by the zoom factor rather than at the
+   click point (looking "random" only because the exact offset scales
+   with distance from the origin, so it differs click to click). None
+   of these panels are ancestors of anything else that needs them
+   zoomed, so simply not zooming them avoids the whole class of bug —
+   same reasoning #viewport itself is permanently excluded for, just a
+   different failure mode (that one was `getBoundingClientRect()`
+   reads going wrong; this one is `style.left` writes going wrong). */
+
 /* ══════════════════════════════════════════════════════════════
    TOPBAR — two rows: row 1 = identity/key/switches (fixed),
    row 2 = action buttons (wraps, never gets clipped at high zoom)
@@ -124,6 +165,12 @@ body{font-size:10px}
 .tb-btn.wire-on{background:#0891b2;color:#fff;border-color:#0891b2}
 .tb-btn.save-btn{background:var(--green);color:#fff;border-color:var(--green)}
 #zoom-display{font-size:9px;color:var(--text-lo);font-weight:600;min-width:34px;text-align:center}
+/* AP-VIEW-SETTINGS-001 — #zoom-display/#ui-scale-display went from a
+   plain read-only <span> to an editable <input> (type a % directly,
+   per direct user request) — same visual footprint as before, styled to
+   look like the surrounding toolbar text rather than a form field. */
+.pct-input{font-family:inherit;font-size:9px;color:var(--text-lo);font-weight:600;min-width:34px;text-align:center;background:transparent;border:1px solid transparent;border-radius:3px;padding:2px 3px}
+.pct-input:hover,.pct-input:focus{background:var(--surf-3);border-color:var(--border-1);outline:none;color:var(--text-hi)}
 #edit-badge,#wire-badge{border-radius:3px;padding:3px 9px;font-size:9px;font-weight:800;letter-spacing:.08em;display:none}
 #edit-badge{background:var(--purple);color:#fff}
 #wire-badge{background:#0891b2;color:#fff}
@@ -144,15 +191,92 @@ body{font-size:10px}
 .mod-card.wire-src{box-shadow:0 0 0 2px #0891b2,0 0 0 5px rgba(8,145,178,.3)}
 .mod-card.sel-flash{box-shadow:0 0 0 2px var(--purple),0 0 0 5px rgba(124,58,237,.25)}
 #viewport.edit-mode .mod-card{cursor:grab}
-.mod-label{position:absolute;top:0;left:50%;transform:translate(-50%,-100%);padding-bottom:2px;font-size:7px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;color:var(--card-tlbl);text-align:center;line-height:1.3;pointer-events:none;}
+/* AP-MODULE-LAYOUT-001 — module-name/sub-label placement (default 'top',
+   matching the original always-above-the-card behavior exactly) is now a
+   per-module choice (`m.labelPos`), not fixed — same idea as the pin
+   label positioning below. Absolutely positioned relative to the card on
+   all four sides, so it never affects card layout/sizing. */
+/* AP-MODULE-LABEL-WRAP-001 — `white-space:pre-line` (was `nowrap`) so a
+   manual line break the user typed into the Label/Sub-label textareas
+   (Enter, in the properties panel) actually renders as one — per direct
+   user request: a long unbroken label used to only ever grow sideways,
+   extending far enough to visually obscure wiring elsewhere on the
+   diagram, with no way to control where it wrapped. This does NOT
+   auto-wrap an unbroken long word/line on its own (no width constraint
+   here) — wrapping is exactly where the user put it, nothing more. */
+.mod-label{position:absolute;font-size:7px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;white-space:pre-line;color:var(--card-tlbl);text-align:center;line-height:1.3;pointer-events:none;}
+.mod-label.lp-top{top:0;left:50%;transform:translate(-50%,-100%);padding-bottom:2px;}
+.mod-label.lp-bottom{bottom:0;left:50%;transform:translate(-50%,100%);padding-top:2px;}
+.mod-label.lp-left{top:50%;right:100%;transform:translateY(-50%);padding-right:4px;}
+.mod-label.lp-right{top:50%;left:100%;transform:translateY(-50%);padding-left:4px;}
+/* Justify (`m.labelJustify`) controls how a WRAPPED (multi-line) label's
+   lines align relative to each other — independent of `lp-*` above,
+   which only positions the label's block relative to the card. Default
+   (no class needed) stays 'center', unchanged from before this task. */
+.mod-label.lj-left{text-align:left}
+.mod-label.lj-right{text-align:right}
 .mod-sub{font-size:6px;color:var(--card-sub);font-weight:600}
-.t-strip{display:flex;flex-direction:row;align-items:center;padding:2px}
-.t-strip.bot{padding-bottom:3px;padding-top:6px;align-items:flex-end}
-.t-strip.top{padding-top:3px;padding-bottom:6px;align-items:flex-start}
-.t-cell{display:flex;flex-direction:column;align-items:center;padding:0 3px;min-width:14px}
-.t-lbl{font-size:5.5px;font-weight:800;color:#444;letter-spacing:.03em;text-transform:uppercase;margin-bottom:2px;white-space:nowrap}
-.t-dot{width:7px;height:7px;border-radius:50%;border:1.5px solid #0d0d0d;flex-shrink:0;transition:transform .1s,box-shadow .1s;pointer-events:auto;cursor:crosshair;}
+/* AP-WIRE-GRID-ALIGN-001 — every terminal on a card now sits at an
+   EXACT, fixed pixel offset from the card's own anchor (`positions[id]`,
+   card top-left) — `i * GRID` along whichever axis the strip runs,
+   computed directly in JS (buildStdCard/buildConnCard/buildBulbCard,
+   renderer.js), not derived from flexbox flow/padding/font metrics.
+   That's what makes grid-snapping the card's own anchor (module-editor.
+   js's drag/add/splice-placement code, all snapping to the same `GRID`)
+   actually land EVERY one of its terminals on a canvas grid intersection
+   — snapping only the first terminal was tried and rejected (per direct
+   user feedback): the remaining pins' spacing wasn't itself a grid
+   multiple, so they'd still land off-grid regardless of where the first
+   one was corrected to. `.t-strip` is now just a plain positioning
+   context (`position:relative`, sized by JS to enclose its cells); each
+   `.t-cell` is absolutely placed at its own computed `(left,top)` and
+   centered on that point via `transform`, instead of flex order/gap
+   determining position indirectly. */
+.t-strip{position:relative}
+/* AP-MODULE-LAYOUT-001 — a 3x3 grid around the dot (center cell) so a
+   pin can carry its pin-NUMBER label AND an optional per-pin sub-label
+   (`t.showLabel`, the terminal's own `n` field) on two DIFFERENT sides
+   at once (`m.pinLabelPos`/`m.subLabelPos`, each 'top'/'bottom'/'left'/
+   'right') — a plain flex row/column (the previous approach) can only
+   ever place one label relative to the dot, not two independently. */
+/* AP-WIRE-GRID-ALIGN-001 — the outer rows/columns (label slots) are a
+   FIXED size, not `auto` — confirmed live: with `auto` tracks, a cell
+   with a label on only ONE side (e.g. a pin number above, no sub-label
+   below — the common case) sized its empty far-side track to 0, which
+   shifts the CENTER track (row 2/col 2, where the dot itself lives) off
+   the cell's own geometric center by several px. `translate(-50%,-50%)`
+   only centers the CELL's bounding box on its computed (left,top) point
+   — if the grid inside isn't itself symmetric, the dot (not the cell
+   box) ends up off that point, which is the one thing that actually has
+   to land exactly on the canvas grid. Fixed, EQUAL-on-both-sides track
+   sizes guarantee the center track — and therefore the dot — sits at
+   the cell's exact geometric center regardless of which sides carry a
+   label, so centering the cell on (left,top) now also centers the dot
+   on it. A label that overflows its fixed slot just overflows visually
+   (no clipping) rather than breaking this guarantee. */
+.t-cell{position:absolute;transform:translate(-50%,-50%);display:grid;grid-template-columns:14px auto 14px;grid-template-rows:9px auto 9px;align-items:center;justify-items:center;gap:1px}
+.t-cell .t-dot{grid-column:2;grid-row:2}
+.t-cell .t-lbl.pos-top{grid-column:2;grid-row:1}
+.t-cell .t-lbl.pos-bottom{grid-column:2;grid-row:3}
+.t-cell .t-lbl.pos-left{grid-column:1;grid-row:2}
+.t-cell .t-lbl.pos-right{grid-column:3;grid-row:2}
+.t-lbl{font-size:5.5px;font-weight:800;color:#444;letter-spacing:.03em;text-transform:uppercase;white-space:nowrap}
+/* The optional per-pin sub-label reads as secondary information (the
+   pin NUMBER — always present — is still the primary identity), so it's
+   visually lighter/smaller rather than competing with it. */
+.t-lbl.sub{font-weight:600;font-size:5px;color:#777;text-transform:none;letter-spacing:0}
+/* AP-DIODE-SYMBOL-001 — bumped up from 7px per direct request ("make the
+   terminals a little bigger"). */
+.t-dot{width:9px;height:9px;border-radius:50%;border:1.5px solid #0d0d0d;flex-shrink:0;transition:transform .1s,box-shadow .1s;pointer-events:auto;cursor:crosshair;}
 .t-dot:hover{transform:scale(1.5)}
+/* AP-POWER-POST-001 — heavy-gauge terminal posts (battery/solenoid/
+   starter motor main power studs, per direct request/reference photo:
+   "bolt-head" ring terminals, distinct from an ordinary small pin dot).
+   Bigger, with an inset ring to read as a real lug/stud rather than a
+   flat color dot; still carries its own wire color via the same
+   swatchBg background every other terminal uses. */
+.t-dot.post{width:13px;height:13px;border-width:2px;box-shadow:inset 0 0 0 2.5px rgba(255,255,255,.5),inset 0 0 0 3.5px rgba(0,0,0,.35);}
+.t-dot.post:hover{transform:scale(1.35)}
 .t-dot.lead-r{box-shadow:0 0 0 2.5px #dc2626,0 0 0 5px rgba(220,38,38,.3);transform:scale(1.4)}
 .t-dot.lead-b{box-shadow:0 0 0 2.5px #111,0 0 0 5px rgba(0,0,0,.25);transform:scale(1.4)}
 .t-dot.wf{box-shadow:0 0 0 2.5px #0891b2,0 0 0 5px rgba(8,145,178,.4);transform:scale(1.6)}
@@ -347,6 +471,22 @@ body{font-size:10px}
 .swpack-btn.swpack-on{background:#0c2231!important;color:#67e8f9!important;}
 
 /* ── Switch Pack Panel — draggable + resizable like other panels ── */
+#sim-panel{
+  display:none;position:fixed;top:130px;left:50%;transform:translateX(-50%);
+  width:420px;min-width:320px;min-height:120px;max-height:70vh;max-width:96vw;
+  background:#0f172a;border:1px solid #1e3a4a;border-radius:5px;
+  box-shadow:0 8px 32px rgba(0,0,0,.7);z-index:600;
+  flex-direction:column;overflow:hidden;
+}
+#sim-panel.open{display:flex;}
+#sim-panel-hd{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:8px 12px;background:#0c1829;border-bottom:1px solid #1e3a4a;cursor:move;
+}
+#sim-panel-body{display:flex;flex-direction:column;gap:0;overflow-y:auto;flex:1;min-height:0;}
+.sim-empty{padding:14px;font-size:9px;color:#64748b;font-style:italic;text-align:center;}
+.sim-trip{font-size:7.5px;color:#8a97ab;margin-top:2px;}
+
 #swpack-panel{
   display:none;position:fixed;top:90px;left:50%;transform:translateX(-50%);
   width:540px;min-width:380px;min-height:340px;max-width:96vw;

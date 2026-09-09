@@ -148,6 +148,14 @@ class _LegacyV2AndroidWebViewPageState
     _didInitialSeed = true;
     unawaited(adapter.initializeFromDocument().then((_) async {
       await _transport.interceptV2Save();
+      // AP-OEP-DIAGRAM-BOOT-UNTITLED-001 companion fix — see the
+      // Windows host's own doc comment on this same call for why: V2's
+      // own demo-vehicle boot is hidden from first paint by an injected
+      // style rule (legacy_v2_bridge_script.dart, shared byte-for-byte
+      // with this platform), revealed only once the real document has
+      // actually been seeded.
+      await _transport.executeRawScript(
+          'if (typeof window.__oepBridgeRevealCanvas === "function") { window.__oepBridgeRevealCanvas(); }');
       if (mounted) setState(() {});
     }));
   }

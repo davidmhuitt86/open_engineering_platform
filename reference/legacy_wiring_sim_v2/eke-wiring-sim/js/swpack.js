@@ -188,6 +188,22 @@ window.SWPACK = (function(){
     if(typeof drawWires === 'function') drawWires();
   }
 
+  // ── LIVE SIM BRIDGE ──────────────────────────────────────────
+  // AP-MULTI-SWITCH-001 — per direct request: SWPACK's own rockers
+  // should actually control the real simulation (lamp lighting via the
+  // electrical solver), not just the static per-wire meter overrides
+  // above. Finds whichever REAL module on the CURRENT diagram matches a
+  // switch definition that has this group (knowledge/behaviors/
+  // multi-switch.js — the user's own bundled Left Handlebar Switch, or
+  // 4 separate single-group modules, matched by terminal name, never a
+  // hardcoded module id) and forwards this rocker's position to it.
+  // Harmless no-op if no such module exists yet.
+  function _bridgeLiveSim(group, value){
+    if(typeof MultiSwitchBehavior==='undefined'||typeof MODULES==='undefined'||typeof LiveSim==='undefined')return;
+    const mod = MODULES.find(m => { const def = MultiSwitchBehavior.match(m); return def && def.groups[group]; });
+    if(mod) LiveSim.setMultiSwitchGroup(mod.id, group, value);
+  }
+
   // ── PUBLIC API ───────────────────────────────────────────────
   return {
     state,
@@ -211,6 +227,9 @@ window.SWPACK = (function(){
       const desc = document.getElementById('sw-'+sw+'-desc');
       if(desc && DESCS[sw]) desc.textContent = DESCS[sw][val] || '';
       update();
+      if(sw==='lights') _bridgeLiveSim('lights', val);
+      else if(sw==='beam') _bridgeLiveSim('dimmer', val);
+      else if(sw==='kill') _bridgeLiveSim('engineStop', val==='stop' ? 'off' : 'run');
     },
 
     startPress(){
@@ -218,6 +237,7 @@ window.SWPACK = (function(){
       const desc = document.getElementById('sw-start-desc');
       if(desc) desc.textContent = DESCS.start.closed;
       update();
+      _bridgeLiveSim('starter', 'push');
     },
 
     startRelease(){
@@ -225,6 +245,7 @@ window.SWPACK = (function(){
       const desc = document.getElementById('sw-start-desc');
       if(desc) desc.textContent = DESCS.start.open;
       update();
+      _bridgeLiveSim('starter', 'free');
     },
 
     // Called by app.js updateMeter to get overridden reading for a wire

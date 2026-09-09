@@ -23,11 +23,23 @@ const SwitchBehavior = {
 
   /**
    * Is this node a switch-type component?
+   *
+   * AP-GENERIC-SWITCH-SIM-001 — also recognizes `groundedSwitch`/
+   * `thermistor` (renderer.js's card-dispatch flags) regardless of
+   * category, so a user-placed Switch or Temp Sensor module participates
+   * in simulation without needing its category changed to the literal
+   * string 'switch' first. A thermistor-flagged module is electrically
+   * just a switch here too — per direct correction, an oil-temp sender
+   * "isn't really a sensor, it's a switch that only fully closes at a
+   * set temperature," so it gates continuity exactly like any other
+   * on/off switch; the actual temperature is not simulated, only
+   * whether the switch is open or closed (§ `sensorSwitchClosed` below).
    * @param {GraphNode} node
    * @returns {boolean}
    */
   isSwitch(node) {
-    return node && node.module && node.module.cat === 'switch';
+    return !!(node && node.module &&
+      (node.module.cat === 'switch' || node.module.groundedSwitch === true || node.module.thermistor === true));
   },
 
   /**

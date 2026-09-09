@@ -47,25 +47,47 @@
     </div>
   </div>
   <button id="swpack-btn" class="tb-btn swpack-btn" onclick="SWPACK.toggle()">🕹 Switches</button>
+  <!-- AP-LIVE-SIM-001 — any switch the user places on their own diagram
+       (Switch/Chassis Grounded, Temp Sensor/Thermistor, or anything else
+       recognized by LiveSim.isSwitchModule, live-runner.js) gets a
+       toggle here — distinct from the panel above, which is the fixed,
+       hand-authored LH handlebar switch pack for the bundled TRX300
+       demo specifically. -->
+  <button id="sim-panel-btn" class="tb-btn swpack-btn" onclick="toggleSimPanel()">🎮 Simulate</button>
   <div class="sep"></div>
-  <div id="edit-badge">✦ LAYOUT EDIT</div>
+  <div id="edit-badge">✦ EDIT MODE</div>
   <div id="wire-badge">⚡ WIRE MODE</div>
 </div>
 <div id="topbar-actions">
-    <span id="zoom-display">100%</span>
+    <input id="zoom-display" class="pct-input" value="100%" title="Type a zoom % and press Enter" onkeydown="if(event.key==='Enter')this.blur()" onblur="setZoomPctFromInput(this)"/>
     <button class="tb-btn" onclick="zBy(-.15)">−</button>
     <button class="tb-btn" onclick="zBy(.15)">+</button>
     <button class="tb-btn" onclick="zReset()">Fit</button>
     <div class="sep"></div>
-    <button class="tb-btn" id="edit-btn" onclick="toggleEdit()">✦ Layout</button>
+    <input id="ui-scale-display" class="pct-input" value="130%" title="Overall UI scale — type a % and press Enter" onkeydown="if(event.key==='Enter')this.blur()" onblur="setUiScalePctFromInput(this)"/>
+    <button class="tb-btn" title="Shrink UI" onclick="uiScaleBy(-.1)">Aa−</button>
+    <button class="tb-btn" title="Enlarge UI" onclick="uiScaleBy(.1)">Aa+</button>
+    <button class="tb-btn" title="Default zoom/scale settings" onclick="openViewSettings()">⚙</button>
+    <div class="sep"></div>
+    <button class="tb-btn" id="edit-btn" onclick="toggleEdit()" title="Reposition modules, drag wire route segments, and click either to inspect it — all in one mode">✦ Edit</button>
     <button class="tb-btn" id="wire-btn" onclick="toggleWireMode()">⚡ Wire</button>
     <button class="tb-btn" onclick="openModPanel()">＋ Module</button>
     <button class="tb-btn" onclick="toggleSearch()">⌕ Find</button>
     <button class="tb-btn" onclick="toggleLegend()">☰ Legend</button>
     <div class="sep"></div>
-    <button class="tb-btn save-btn" onclick="saveLayout()">⬇ Save</button>
-    <button class="tb-btn" onclick="loadLayoutFile()">⬆ Load</button>
-    <input type="file" id="lfi" accept=".json" style="display:none" onchange="onLayoutFile(event)">
+    <!-- AP-MODULE-KIND-002 — V2's own in-page Save/Load buttons removed
+         per direct request: redundant now that the platform's own
+         Save (toolbar/Ctrl+S/Command Palette) is the one real save path
+         (it already routes through the same flush/reconciliation V2's
+         own button used, via `saveLayout()`'s Dart-side interception —
+         see `__oepBridgeInterceptSave`, legacy_v2_bridge_script.dart),
+         and V2's raw-JSON Load bypassed the OEP document model entirely.
+         `saveLayout` is left defined and still overridden by the Dart
+         bridge's `__oepBridgeInterceptSave` — other code (e.g.
+         routing-editor.js) still calls it directly. `loadLayoutFile`/
+         `onLayoutFile` are left defined too but now have no UI entry
+         point at all (their `#lfi` file-picker input is removed below),
+         matching "unnecessary." -->
     <button class="tb-btn" onclick="exportSVG()">Export SVG</button>
     <div class="sep"></div>
     <button id="theme-toggle" onclick="toggleTheme()" title="Switch light/dark theme"><span id="theme-toggle-icon">☾</span> <span id="theme-toggle-lbl">Dark</span></button>
@@ -435,6 +457,26 @@
   </div>
 </div><!-- /swpack-panel -->
 
+<!-- AP-LIVE-SIM-001 — generic simulation control panel: one row per
+     switch-type module currently on the diagram (any module
+     LiveSim.isSwitchModule recognizes — Switch/Chassis Grounded, Temp
+     Sensor/Thermistor, or any future one), rebuilt from MODULES every
+     time this panel opens (renderSimPanel(), js/ui/sim-panel.js) rather
+     than hand-authored per switch like #swpack-panel above. -->
+<div id="sim-panel">
+  <div id="sim-panel-hd">
+    <div style="display:flex;align-items:center;gap:6px">
+      <span style="font-size:10px;font-weight:800;letter-spacing:.1em;color:#22d3ee">SIMULATE SWITCHES</span>
+      <span style="font-size:8px;color:#8a97ab;font-weight:600">Every switch on this diagram</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:2px;position:relative">
+      <button class="panel-menu-btn" onclick="panelMenuOpen('sim-panel',this)" title="Panel options">⋮</button>
+      <button onclick="toggleSimPanel()" style="background:none;border:none;color:#64748b;cursor:pointer;font-size:12px;padding:2px 5px;line-height:1">✕</button>
+    </div>
+  </div>
+  <div id="sim-panel-body"></div>
+</div><!-- /sim-panel -->
+
 
 <!-- MODULE INFO PANEL -->
 <div id="mip">
@@ -463,13 +505,21 @@
       <input type="hidden" id="mpm-id"/>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <div class="form-row" style="flex:1;min-width:140px">
-          <div class="form-lbl">Label</div>
-          <input class="fi" id="mpm-label" placeholder="Module label"/>
+          <div class="form-lbl">Label <span style="color:var(--text-faint);font-weight:600;font-size:8px">(press Enter to break the line wherever you want)</span></div>
+          <textarea class="fi" id="mpm-label" placeholder="Module label" rows="2" style="resize:vertical;font-family:inherit"></textarea>
         </div>
         <div class="form-row" style="flex:1;min-width:120px">
-          <div class="form-lbl">Sub-label</div>
-          <input class="fi" id="mpm-sub" placeholder="e.g. 12V 30A"/>
+          <div class="form-lbl">Sub-label <span style="color:var(--text-faint);font-weight:600;font-size:8px">(Enter to break the line)</span></div>
+          <textarea class="fi" id="mpm-sub" placeholder="e.g. 12V 30A" rows="2" style="resize:vertical;font-family:inherit"></textarea>
         </div>
+      </div>
+      <div class="form-row" style="max-width:220px">
+        <div class="form-lbl">Label Text Justify</div>
+        <select class="fs" id="mpm-label-justify">
+          <option value="">Center (default)</option>
+          <option value="left">Left</option>
+          <option value="right">Right</option>
+        </select>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <div class="form-row" style="flex:1">
@@ -505,7 +555,62 @@
       </div>
       <div class="form-row" id="mpm-vertical-row" style="display:none;flex-direction:row;align-items:center;gap:8px;margin-bottom:6px">
         <input type="checkbox" id="mpm-vertical" style="accent-color:#0e7490">
-        <div class="form-lbl" style="margin:0">Stand Vertical (pins top-to-bottom, IN from left / OUT to right)</div>
+        <div class="form-lbl" style="margin:0">Vertical Pin Layout (pins stacked top-to-bottom instead of side-by-side)</div>
+      </div>
+      <!-- AP-BULB-GENERIC-001 — bulb-only controls, per direct request:
+           flip which side the terminals sit on ("terminals reversable"),
+           and pick the lit color ("a few colors to choose from") or fall
+           back to the plain incandescent white-to-amber glow. -->
+      <div class="form-row" id="mpm-bulb-row" style="display:none;flex-direction:row;align-items:center;gap:8px;margin-bottom:6px">
+        <input type="checkbox" id="mpm-flipped" style="accent-color:#0e7490">
+        <div class="form-lbl" style="margin:0">Flip Terminal Side (mirror which side the pins sit on)</div>
+      </div>
+      <div class="form-row" id="mpm-bulb-color-row" style="display:none">
+        <div class="form-lbl">Bulb Color <span style="color:var(--text-faint);font-weight:600;font-size:8px">(when lit)</span></div>
+        <select class="fs" id="mpm-bulb-color">
+          <option value="">Incandescent (white → amber)</option>
+          <option value="red">Red</option>
+          <option value="green">Green</option>
+          <option value="amber">Amber</option>
+          <option value="blue">Blue</option>
+          <option value="white">White</option>
+          <option value="yellow">Yellow</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap" id="mpm-layout-section">
+        <div class="form-row" style="flex:1">
+          <div class="form-lbl">Module Label Position</div>
+          <select class="fs" id="mpm-label-pos">
+            <option value="">Auto (top, or left if vertical)</option>
+            <option value="top">Top</option>
+            <option value="bottom">Bottom</option>
+            <option value="left">Left</option>
+            <option value="right">Right</option>
+          </select>
+        </div>
+        <div class="form-row" style="flex:1">
+          <div class="form-lbl">Pin Number Position</div>
+          <select class="fs" id="mpm-pin-label-pos">
+            <option value="">Auto (top, or left if vertical)</option>
+            <option value="top">Top</option>
+            <option value="bottom">Bottom</option>
+            <option value="left">Left</option>
+            <option value="right">Right</option>
+          </select>
+        </div>
+        <div class="form-row" style="align-items:flex-end;flex:0 0 auto;padding-bottom:2px">
+          <button id="mpm-swap-labels" onclick="swapMpmPinSubLabelPos()" title="Swap Pin Number / Sub-Label positions" style="padding:4px 7px">⇄</button>
+        </div>
+        <div class="form-row" style="flex:1">
+          <div class="form-lbl">Sub-Label Position <span style="color:var(--text-faint);font-weight:600;font-size:8px">(per-pin, see below)</span></div>
+          <select class="fs" id="mpm-sub-label-pos">
+            <option value="">Auto (opposite of Pin Number)</option>
+            <option value="top">Top</option>
+            <option value="bottom">Bottom</option>
+            <option value="left">Left</option>
+            <option value="right">Right</option>
+          </select>
+        </div>
       </div>
       <div id="mpm-terms-section">
         <div class="form-lbl">Terminals / Pins <span style="color:var(--text-faint);font-weight:600;font-size:8px">(rename or recolor — color dot updates live)</span></div>
@@ -527,8 +632,9 @@ document.getElementById('mpm-is-conn').addEventListener('change',function(){
   const isConn=this.checked;
   document.getElementById('mpm-add-term').style.display=isConn?'none':'';
   document.getElementById('mpm-add-pin').style.display=isConn?'':'none';
-  document.getElementById('mpm-vertical-row').style.display=isConn?'flex':'none';
-  if(!isConn)document.getElementById('mpm-vertical').checked=false;
+  // AP-MODULE-LAYOUT-001 — Vertical Pin Layout is no longer connector-
+  // only (any module can stand vertical now), so toggling "Inline
+  // Connector" no longer shows/hides or resets it.
 });
 </script>
 
@@ -597,6 +703,8 @@ document.getElementById('mpm-is-conn').addEventListener('change',function(){
     <button class="fp-act" onclick="editWireProps()">✎ Edit</button>
     <button class="fp-act" onclick="traceCircuit()">◎ Trace</button>
     <button id="route-edit-btn" class="fp-act" onclick="toggleRouteEditMode()">↔ Route</button>
+    <button class="fp-act" onclick="startReconnectWireEnd('from')">⇄ From</button>
+    <button class="fp-act" onclick="startReconnectWireEnd('to')">⇄ To</button>
     <button class="fp-act del" onclick="deleteSelectedWire()">✕ Del</button>
   </div>
   <div id="fp-hint" style="padding:4px 10px 6px;font-size:7.5px;color:var(--text-faint);letter-spacing:.06em;text-transform:uppercase;border-top:1px solid var(--border-0);text-align:center">Lead mode auto-places probes · Manual mode: click any terminal</div>
@@ -620,6 +728,33 @@ document.getElementById('mpm-is-conn').addEventListener('change',function(){
 </div>
 
 <!-- ADD MODULE MODAL -->
+<!-- AP-VIEW-SETTINGS-001 — default zoom % / UI scale % used to only ever
+     exist as hardcoded constants (VIEWPORT fit-to-content, UI_SCALE_DEFAULT
+     = 1.3) with no way to see or change them, and the actual "remembered
+     last view" was being silently overwritten on every document open
+     anyway (legacy_v2_webview.dart's own fix for that, this same task).
+     This gives both a real settings surface: view/change the values used
+     as the STARTING point whenever nothing has been remembered yet (a
+     first-ever launch, or after "Reset to these now"), and a one-click way
+     to snap the CURRENT view back to them without waiting for that. -->
+<div id="view-settings-modal" class="modal-bg">
+  <div class="modal-box" style="width:320px">
+    <div class="modal-hd"><span class="modal-ht" style="color:var(--amber)">Zoom &amp; Scale Defaults</span><button class="modal-xb" onclick="closeViewSettings()">✕</button></div>
+    <div class="modal-body">
+      <div class="form-row"><div class="form-lbl">Default Zoom %</div><input class="fi" id="vs-zoom" placeholder="e.g. 100"/></div>
+      <div class="form-row"><div class="form-lbl">Default UI Scale %</div><input class="fi" id="vs-ui-scale" placeholder="e.g. 130"/></div>
+      <div style="color:var(--text-faint);font-size:8px;line-height:1.5;margin-top:2px">
+        These are only the STARTING point — the app otherwise remembers
+        whatever zoom/scale you were last at. "Reset to these now" jumps
+        the current view back to them immediately.
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button class="mbtn" onclick="resetViewToDefaults()">↺ Reset to these now</button>
+      <button class="mbtn pri" onclick="saveViewSettings()">Save</button>
+    </div>
+  </div>
+</div>
 <div id="add-modal" class="modal-bg">
   <div class="modal-box" style="width:380px;max-height:82vh">
     <div class="modal-hd"><span class="modal-ht" id="add-modal-title" style="color:var(--purple)">Add Module</span><button class="modal-xb" onclick="closeAddModal()">✕</button></div>
@@ -685,10 +820,24 @@ document.getElementById('am-is-conn').addEventListener('change',function(){
         <div class="form-row" style="flex:1"><div class="form-lbl">Label</div><input class="fi" id="wpm-label" placeholder="Short label"/></div>
       </div>
       <div class="form-row"><div class="form-lbl">Description</div><input class="fi" id="wpm-desc" placeholder="Circuit description"/></div>
+      <div class="form-row" style="flex-direction:row;align-items:center;gap:8px;margin-bottom:6px">
+        <input type="checkbox" id="wpm-cable" style="accent-color:#0e7490" onchange="onWpmCableChange()">
+        <div class="form-lbl" style="margin:0">⚡ Battery Cable (thick, Red or Black only)</div>
+      </div>
+      <div class="form-row" style="max-width:220px">
+        <div class="form-lbl">Exit Side (this wire only)</div>
+        <select class="fi" id="wpm-exit">
+          <option value="">Auto (module default)</option>
+          <option value="up">Up</option>
+          <option value="down">Down</option>
+          <option value="left">Left</option>
+          <option value="right">Right</option>
+        </select>
+      </div>
       <div class="form-lbl" style="margin-top:4px">Diagnostic Data per Key Position</div>
       <table id="wpm-tbl"><thead><tr><th>Key Pos</th><th>VDC</th><th>VAC</th><th>CONT</th><th>RES</th><th>DIODE</th><th>Note</th></tr></thead><tbody id="wpm-body"></tbody></table>
     </div>
-    <div class="modal-ft"><button class="mbtn" onclick="closeWPM()">Cancel</button><button class="mbtn pri" onclick="saveWireProps()">Save</button></div>
+    <div class="modal-ft"><button class="mbtn" onclick="wpmEditRoute()" title="Drag any wire's route segments — closes this panel, no separate Done step needed">↔ Edit Route</button><button class="mbtn" onclick="closeWPM()">Cancel</button><button class="mbtn pri" onclick="saveWireProps()">Save</button></div>
   </div>
 </div>
 
@@ -700,10 +849,13 @@ document.getElementById('am-is-conn').addEventListener('change',function(){
 
 <!-- CONTEXT MENU -->
 <div id="ctx">
+  <div class="ctx-i" id="ctx-add-module" style="display:none" onclick="ctxAddModule()">＋ Add Module</div>
+  <div class="ctx-i" id="ctx-add-splice" style="display:none" onclick="ctxAddSplice()">＋ Add Splice</div>
+  <div class="ctx-i" id="ctx-add-diode" style="display:none" onclick="ctxAddDiode()">＋ Add Diode</div>
   <div class="ctx-i" id="ctx-edit" onclick="ctxEdit()">✎ Edit Wire Props</div>
   <div class="ctx-i" id="ctx-trace" onclick="ctxTrace()">◎ Trace Circuit</div>
   <div class="ctx-i" id="ctx-route" onclick="ctxRoute()">↔ Edit Route</div>
-  <div class="ctx-i" id="ctx-rotate" style="display:none" onclick="ctxRotate()">⟳ Rotate Connector</div>
+  <div class="ctx-i" id="ctx-rotate" style="display:none" onclick="ctxRotate()">⟳ Toggle Vertical/Horizontal</div>
   <div class="ctx-sep"></div>
   <div class="ctx-i danger" id="ctx-del" onclick="ctxDelete()">✕ Delete</div>
 </div>
@@ -809,6 +961,10 @@ document.getElementById('am-is-conn').addEventListener('change',function(){
 <script src="js/knowledge/behaviors/diode.js"></script>
 <script src="js/knowledge/behaviors/lamp.js"></script>
 <script src="js/knowledge/behaviors/motor.js"></script>
+<!-- AP-MULTI-SWITCH-001 — real, multi-position switch continuity
+     (Ignition/Lighting/Dimmer/Engine Stop/Starter), consulted directly
+     by the propagators (js/simulation/*.js), same as lamp.js. -->
+<script src="js/knowledge/behaviors/multi-switch.js"></script>
 <script src="js/knowledge/behaviors/index.js"></script>
 <script src="js/knowledge/failure-modes/index.js"></script>
 <script src="js/knowledge/rules/index.js"></script>
@@ -818,6 +974,9 @@ document.getElementById('am-is-conn').addEventListener('change',function(){
 <script src="js/simulation/ground-propagator.js"></script>
 <script src="js/simulation/continuity-solver.js"></script>
 <script src="js/simulation/electrical-solver.js"></script>
+<!-- AP-LIVE-SIM-001 — actually calls the above (previously dead-code)
+     solver on every key/switch change and drives real per-bulb glow. -->
+<script src="js/simulation/live-runner.js"></script>
 
 <!-- Storage -->
 <script src="js/storage/vehicle-loader.js"></script>
@@ -839,6 +998,7 @@ document.getElementById('am-is-conn').addEventListener('change',function(){
 <script src="js/ui/inspector.js"></script>
 <script src="js/ui/meter-panel.js"></script>
 <script src="js/ui/graph-inspector.js"></script>
+<script src="js/ui/sim-panel.js"></script>
 <script src="js/ui/sidebar.js"></script>
 
 <!-- Diagram tools (depend on diagnostics) -->

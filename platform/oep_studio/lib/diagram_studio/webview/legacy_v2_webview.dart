@@ -139,6 +139,29 @@ class _WindowsLegacyV2WebViewPageState
   /// [build] doesn't re-trigger it on every rebuild.
   bool _didInitialSeed = false;
 
+  /// AP-OEP-DIAGRAM-OPEN-RACE-001 — serializes every seed operation
+  /// (the very first one, and every later document switch) onto one
+  /// chain, so they can never run concurrently. `_didInitialSeed` being
+  /// set synchronously and immediately (right above, at the *start* of
+  /// `_triggerInitialSeed`, before any of its own `await`s) means a
+  /// document switch — "Open...", "Load Previous Diagram" — arriving
+  /// while that first seed is still mid-flight (its own
+  /// `_waitForV2Ready()` + `initializeFromDocument()` chain can easily
+  /// still be running: V2 hasn't finished loading yet, which is
+  /// precisely the scenario `_waitForV2Ready` exists to wait out) used
+  /// to start a SECOND, fully independent seed operation right on top of
+  /// the first, each with its own concurrent `executeScript` calls
+  /// against V2's still-loading page. Confirmed as the actual mechanism
+  /// behind "the diagram I opened right after launch never loads, no
+  /// error, but works after restarting the app": whichever seed's calls
+  /// happened to land last silently won, and if that was the *original*
+  /// (blank/previous) document's seed rather than the one just
+  /// requested, the diagram the user asked to open never visibly
+  /// appeared — with nothing to show as an error, since both operations
+  /// "succeeded" from Dart's point of view. Chaining every seed through
+  /// this future makes them provably sequential instead.
+  Future<void> _seedChain = Future<void>.value();
+
   /// Resolves the legacy V2 entry point's `file://` URI by walking
   /// upward from this process's own directory looking for the monorepo
   /// marker path `reference/legacy_wiring_sim_v2/eke-wiring-sim/index.html`.
@@ -233,6 +256,79 @@ class _WindowsLegacyV2WebViewPageState
     return adapter;
   }
 
+  /// AP-DIAGRAM-V2-BRIDGE-SAVE-008 — `_ready` (this widget's own flag,
+  /// flipped right after `loadUrl()` returns) is NOT "V2's page has
+  /// loaded" — `loadUrl()` resolves as soon as WebView2's `Navigate()`
+  /// call is dispatched (§ `legacy_v2_bridge_script.dart`'s own doc
+  /// comment on this exact gap), well before V2's own `<script src>`
+  /// tags have actually executed. Calling [initializeFromDocument]'s
+  /// `clearAllSurfaces()` at that point is a silent no-op (`MODULES`
+  /// doesn't exist yet in V2's page) — and since nothing clears again
+  /// afterward, V2's `Bootstrap.run('trx300')` demo-vehicle bootstrap
+  /// (`js/app.js`) loads moments later completely uncontested. This is
+  /// what made a genuinely blank document still show the trx300 demo:
+  /// the clear ran, but too early to have anything to clear.
+  ///
+  /// A single readiness signal isn't enough here, though: V2's own
+  /// `app.js` declares `MODULES`/`WIRES` (and every other runtime global,
+  /// including `selM`, which the 400ms status poller elsewhere in this
+  /// injected script waits on before it starts posting) synchronously, at
+  /// the very top of the file — **before** it `await`s
+  /// `Bootstrap.run('trx300')`, the actual (asynchronous, e.g. fetching
+  /// vehicle JSON) population of those arrays. So "V2's globals exist" is
+  /// true well before "V2's bootstrap vehicle has actually loaded" — a
+  /// single status ping would race Bootstrap the same way the original
+  /// one-shot clear did. Instead this polls `MODULES.length` directly
+  /// until it reads the same value twice in a row (two consecutive
+  /// ~250ms samples) — the same "stability" idea `legacy_v2_bridge_script
+  /// .dart`'s own live poller already uses for module-move detection
+  /// (`stableCount === 2`), applied here to "has the bootstrap fetch
+  /// settled" instead of "has a drag stopped." Bounded by an overall
+  /// timeout so a V2 load failure can never hang initial seeding forever.
+  Future<void> _waitForV2Ready() async {
+    const pollInterval = Duration(milliseconds: 250);
+    const overallTimeout = Duration(seconds: 8);
+    final deadline = DateTime.now().add(overallTimeout);
+    int? lastCount;
+    while (DateTime.now().isBefore(deadline)) {
+      final result = await _transport.executeRawScript(
+          "typeof MODULES !== 'undefined' ? MODULES.length : -1");
+      final count = result is num ? result.toInt() : -1;
+      if (count >= 0 && lastCount == count) return;
+      lastCount = count;
+      await Future<void>.delayed(pollInterval);
+    }
+  }
+
+  /// AP-OEP-DIAGRAM-OPEN-RACE-001 companion — every `restoreModule` call
+  /// [LegacyV2StateAdapter.initializeFromDocument] makes is a
+  /// fire-and-forget `window.__oepBridgeX && window.__oepBridgeX(...)`:
+  /// if V2's page can't actually accept it yet for any reason (bridge
+  /// script not injected, a mid-loop JS exception, `bridgeEnabled` false,
+  /// anything else), that call silently no-ops — no thrown exception, so
+  /// nothing here would otherwise notice. That is precisely the reported
+  /// symptom: "opened a diagram, no error, but it looks like it never
+  /// loaded." This closes the gap by reading V2's own live `MODULES.length`
+  /// right after a seed and comparing it to how many modules the adapter
+  /// just attempted to restore ([LegacyV2StateAdapter.bridgedModuleCount])
+  /// — a mismatch throws, which the caller's own `.catchError` turns into
+  /// the existing visible "Failed to load legacy V2" error screen instead
+  /// of a diagram that quietly shows nothing.
+  Future<void> _verifySeedLanded(LegacyV2StateAdapter adapter) async {
+    final expected = adapter.bridgedModuleCount;
+    if (expected == 0) return;
+    final result = await _transport.executeRawScript(
+        "typeof MODULES !== 'undefined' ? MODULES.length : -1");
+    final actual = result is num ? result.toInt() : -1;
+    if (actual != expected) {
+      throw StateError(
+          'Diagram did not load into the wiring editor: expected $expected '
+          'module(s) to appear but the editor shows $actual. The wiring '
+          'editor page likely was not ready to receive the diagram — try '
+          'reopening it.');
+    }
+  }
+
   /// AP-DIAGRAM-V2-BRIDGE-002, Phase 7 — the very first seeding, once
   /// (WebView ready, adapter constructed). Deliberately not awaited by
   /// the caller (`build`) — `initializeFromDocument` itself is what
@@ -242,14 +338,50 @@ class _WindowsLegacyV2WebViewPageState
   void _triggerInitialSeed(LegacyV2StateAdapter adapter) {
     if (_didInitialSeed) return;
     _didInitialSeed = true;
-    unawaited(adapter.initializeFromDocument().then((_) async {
+    _seedChain = _seedChain.then((_) => _waitForV2Ready()).then((_) async {
+      await adapter.initializeFromDocument();
+      await _verifySeedLanded(adapter);
       // AP-DIAGRAM-V2-BRIDGE-003, Phase 4 — applied after seeding
       // (i.e. after V2's own page has fully loaded and defined its own
       // `saveLayout`), not before — see `interceptV2Save`'s own doc
       // comment for why order matters here.
       await _transport.interceptV2Save();
+      // AP-DIAGRAM-V2-BRIDGE-SAVE-008 — V2's own bootstrap already ran
+      // one Fit View (`zReset()`) against ITS content (e.g. the trx300
+      // demo vehicle's own bounding box), before `initializeFromDocument`
+      // just replaced that content with the real OEP document's — whose
+      // bounding box is generally different (a different vehicle, a
+      // different subset of modules, different saved positions). Nothing
+      // else re-fits after a content swap like this one (only an actual
+      // *widget resize* re-triggers `_fitV2ViewFromOep` — see
+      // `_lastFitSize`'s own doc comment), so the pan/zoom stayed
+      // calibrated to content that no longer exists — read by the user as
+      // "the canvas is shifted down and to the right" after opening a
+      // saved diagram. Re-fitting here, against the now-final content,
+      // fixes it.
+      await _fitV2ViewFromOep();
+      // AP-OEP-DIAGRAM-BOOT-UNTITLED-001 companion fix — V2's own boot
+      // (its unconditional demo-vehicle load) is hidden from first paint
+      // by an injected style rule (legacy_v2_bridge_script.dart's own
+      // doc comment on this), revealed only now that the real document
+      // has actually been seeded and fitted — so a fresh Studio launch
+      // shows the diagram the user actually has open, never V2's own
+      // unrelated placeholder content, regardless of how long V2's own
+      // bootstrap took.
+      await _transport.executeRawScript(
+          'if (typeof window.__oepBridgeRevealCanvas === "function") { window.__oepBridgeRevealCanvas(); }');
       if (mounted) setState(() {});
-    }));
+      // Caught, not left to propagate: an unguarded exception here would
+      // leave `_seedChain` itself rejected, and every `.then()` any LATER
+      // document switch chains onto an already-rejected future skips
+      // straight to rejection too — silently breaking every subsequent
+      // "Open" for the rest of the session over one failed seed, which
+      // is worse than the race this chain exists to fix in the first
+      // place.
+    }).catchError((Object e) {
+      if (mounted) setState(() => _error = e.toString());
+    });
+    unawaited(_seedChain);
   }
 
   /// AP-DIAGRAM-V2-BRIDGE-002, Phase 8 — the active OEP document
@@ -258,13 +390,70 @@ class _WindowsLegacyV2WebViewPageState
   /// arriving, not a real switch).
   void _onDocumentChanged(LegacyV2StateAdapter adapter) {
     if (!_didInitialSeed) return;
-    unawaited(adapter.reinitializeForDocument().then((_) {
+    // `_triggerInitialSeed` waits for V2's own bootstrap to settle
+    // (`_waitForV2Ready`) before its first `initializeFromDocument()` —
+    // this one didn't, on the assumption that by the time a user
+    // switches documents, V2 must already be fully loaded from that
+    // first seed. That assumption breaks exactly when someone opens a
+    // different diagram (the toolbar's "Open..."/"Load Previous
+    // Diagram") quickly after Diagram Studio itself first appears,
+    // before V2's own script bootstrap has actually finished: every
+    // bridge call below is a fire-and-forget `window.__oepBridgeX &&
+    // window.__oepBridgeX(...)` (legacy_v2_bridge_transport.dart) that
+    // silently no-ops if that function isn't defined yet — no error, no
+    // retry, and `reinitializeForDocument()` still marks itself
+    // complete regardless, so the diagram you tried to open never
+    // actually loads and nothing about the app's state indicates why.
+    // The only way to recover was a full app restart, which gives V2's
+    // bootstrap more real time to finish before the next attempt.
+    // Waiting here the same way the first seed already does closes that
+    // race for every subsequent document switch too, not just the
+    // first one.
+    // Chained onto _seedChain (AP-OEP-DIAGRAM-OPEN-RACE-001, this
+    // field's own doc comment) rather than started independently, so a
+    // document switch requested while the first seed — or a PREVIOUS
+    // document switch — is still mid-flight waits its turn instead of
+    // running concurrently against V2's page.
+    _seedChain = _seedChain
+        .then((_) => _waitForV2Ready())
+        .then((_) => adapter.reinitializeForDocument())
+        .then((_) => _verifySeedLanded(adapter))
+        .then((_) async {
+      // § the initial-seed completion's own comment above — the same
+      // "content just changed, pan/zoom is now stale" reasoning applies
+      // to every genuine document switch, not just the first load.
+      await _fitV2ViewFromOep();
       if (mounted) setState(() {});
-    }));
+      // § _triggerInitialSeed's own catchError on this same chain for why
+      // an exception here must not propagate to `_seedChain` itself.
+    }).catchError((Object e) {
+      if (mounted) setState(() => _error = e.toString());
+    });
+    unawaited(_seedChain);
   }
 
+  /// AP-OEP-DIAGRAM-VIEWPORT-PERSIST-001 — used to unconditionally call
+  /// V2's own `zReset()` (a hard fit-to-content recompute) here, on every
+  /// initial seed, every later document switch, AND every widget resize
+  /// (`_lastFitSize`'s own doc comment). That flattened V2's own
+  /// `initViewport()` mechanism (renderer.js) — which already restores
+  /// whatever pan/zoom the user last had, from `localStorage`, and only
+  /// computes a fresh fit when nothing was ever saved — every single time
+  /// this ran, which is why the user's own chosen zoom never survived
+  /// past the very first moment a document displayed: reported directly
+  /// as "it does not default to the last state the app was closed in, i
+  /// have to zoom in every time i open a diagram." `initViewport()` is
+  /// the one already-correct mechanism for "what should the view be right
+  /// now" — this just defers to it instead of duplicating/overriding its
+  /// own logic. The original bug this function was written for (V2's own
+  /// bootstrap fit-to-ITS-content, stale once the real document replaced
+  /// it) is still covered: `initViewport()` computes a fresh fit under
+  /// the exact same "nothing saved yet" condition. `zReset` is kept as a
+  /// defensive fallback only for an unexpectedly old V2 build that
+  /// predates `initViewport` — never the normal path anymore.
   Future<void> _fitV2ViewFromOep() => _transport.executeRawScript(
-        'if (typeof zReset === "function") { zReset(); }',
+        'if (typeof initViewport === "function") { initViewport(); } '
+        'else if (typeof zReset === "function") { zReset(); }',
       );
 
   @override
@@ -442,6 +631,8 @@ class _WindowsLegacyV2WebViewPageState
                     hasPath: documentPath != null,
                     onPressed: () => _saveDocument(context, documentPath),
                   ),
+                  const SizedBox(width: 8),
+                  _SaveAsButton(onPressed: () => _saveDocumentAs(context)),
                 ],
               ),
             ),
@@ -552,21 +743,33 @@ class _WindowsLegacyV2WebViewPageState
     }
   }
 
-  /// AP-OEP-DIAGRAM-TAB-SYNC-001 — the Save-As branch goes through
-  /// `DiagramStudioController.saveDocumentAs` (not the notifier directly)
-  /// for the same reason `_openDocument` does — see that method's own
-  /// doc comment. The already-has-a-path branch doesn't need this: the
-  /// tab's path was already set correctly whenever it was first assigned.
+  /// Overwrites the document's current path if it has one; otherwise
+  /// this is the first save, so it's really a Save As — delegates to
+  /// [_saveDocumentAs] rather than duplicating that flow.
   Future<void> _saveDocument(BuildContext context, String? documentPath) async {
-    if (documentPath != null) {
-      await ref
-          .read(engineeringProjectServiceFamily(_instanceId).notifier)
-          .saveDocument();
-      if (context.mounted) {
-        PlatformNotificationService.success(context, 'Diagram saved.');
-      }
+    if (documentPath == null) {
+      await _saveDocumentAs(context);
       return;
     }
+    await ref
+        .read(engineeringProjectServiceFamily(_instanceId).notifier)
+        .saveDocument();
+    if (context.mounted) {
+      PlatformNotificationService.success(context, 'Diagram saved.');
+    }
+  }
+
+  /// AP-OEP-DIAGRAM-SAVE-AS-002 — always prompts for a location and
+  /// writes there, regardless of whether the document already has a
+  /// path — the explicit "save a modified copy without overwriting the
+  /// original" action, reachable on its own (not only as the
+  /// never-saved-yet fallback [_saveDocument] uses).
+  ///
+  /// AP-OEP-DIAGRAM-TAB-SYNC-001 — goes through
+  /// `DiagramStudioController.saveDocumentAs` (not the notifier directly)
+  /// for the same reason `_openDocument` does — see that method's own
+  /// doc comment.
+  Future<void> _saveDocumentAs(BuildContext context) async {
     final location = await getSaveLocation(
       suggestedName: 'diagram.json',
       acceptedTypeGroups: const [
@@ -684,6 +887,49 @@ class _SaveButton extends StatelessWidget {
               Text(
                 hasPath ? 'Save' : 'Save As…',
                 style: const TextStyle(
+                    fontSize: 12,
+                    color: StudioColors.textPrimary,
+                    fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// AP-OEP-DIAGRAM-SAVE-AS-002 — always-visible companion to [_SaveButton]:
+/// "save a modified copy without overwriting the original file" needs to
+/// be reachable regardless of whether the document already has a path
+/// (§ [_saveDocumentAs]'s own doc comment) — [_SaveButton] alone can't
+/// offer this once a document has a path, since it always overwrites
+/// that path at that point.
+class _SaveAsButton extends StatelessWidget {
+  const _SaveAsButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: StudioColors.surfaceRaised,
+      borderRadius: BorderRadius.circular(4),
+      elevation: 2,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(4),
+        onTap: onPressed,
+        child: const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.save_as_outlined,
+                  size: 14, color: StudioColors.textPrimary),
+              SizedBox(width: 6),
+              Text(
+                'Save As…',
+                style: TextStyle(
                     fontSize: 12,
                     color: StudioColors.textPrimary,
                     fontWeight: FontWeight.w600),

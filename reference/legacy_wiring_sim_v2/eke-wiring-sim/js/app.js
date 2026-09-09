@@ -35,10 +35,36 @@ let wireRoutes   = {};
 let scale = 1, tx = 20, ty = 20;
 let editMode = false, wireMode = false, routeEditMode = false;
 let wireSrc = null, selW = null, selSeg = null;
+// AP-WIRE-EXIT-OVERRIDE-001 — while in Wire mode (before the destination
+// terminal is clicked), the arrow keys set which side the new wire's
+// first bend should leave the SOURCE terminal from, overriding that
+// module/splice's own fixed `exit` side for this one wire only (see
+// route() in renderer.js). Reset to null every time a wire is finalized
+// or wire mode is cancelled — an override is a one-shot, per-wire choice,
+// not a standing change to the module's own exit side.
+let pendingWireExit = null;
+// Reconnect-an-existing-wire-endpoint mode (§ startReconnectWireEnd in
+// wire-editor.js): { wireId, end: 'from'|'to' } while active, else null.
+// Reuses wireMode's own visuals/badge/cancel — see handleWireTerm's own
+// short-circuit for this.
+let reconnectTarget = null;
 let keyPos = 0, meterMode = 'VDC';
 let leadR = null, leadB = null, leadPlaceMode = null, leadMode = 'ends';
 let panActive = false, panSX = 0, panSY = 0, panOX = 0, panOY = 0;
 let pinch = { active:false, d0:0, cx:0, cy:0, s0:0, tx0:0, ty0:0 };
+// Right-click-canvas "Add Module" — the canvas point (module-editor.js's
+// own coordinate space, matching `positions[id]`) a module should be
+// placed at next, set by the background context menu and consumed (then
+// cleared) by whichever add path actually runs next (commitAddModule/
+// openAddSplice) instead of their own viewport-center default.
+let pendingAddPosition = null;
+// The world-space (canvas coordinate, matching `positions[id]`) point a
+// right-click's "+ Add Splice" should place/insert relative to — set by
+// whichever contextmenu handler opened #ctx (background canvas, a wire,
+// or a terminal dot — module-editor.js/renderer.js/wire-editor.js) right
+// alongside `ctxTarget`, and read by ctxAddSplice() (wire-editor.js) to
+// decide which of its three placement modes applies.
+let ctxClickPoint = null;
 let tracedWires = new Set(), ctxTarget = null, mcX = 0, mcY = 0;
 let kbhOpen = false, mpOpen = false, srchOpen = false, legOpen = false;
 let selM = null;
@@ -130,10 +156,56 @@ function renderTracerPanel(wires) {
 }
 function closeTracer() { $('tracer').classList.remove('open'); tracedWires.clear(); drawWires(); }
 
-function hideCtx() { $('ctx').classList.remove('open'); $('ctx-edit').style.display = ''; $('ctx-edit').textContent = '✎ Edit Wire Props'; $('ctx-trace').style.display = ''; $('ctx-route').style.display = ''; $('ctx-rotate').style.display = 'none'; $('ctx-del').textContent = '✕ Delete Wire'; ctxTarget = null; }
+// Opens #ctx (the right-click context menu) anchored at (x, y), clamped
+// to stay fully on screen instead of running off whichever edge is
+// closest — a right-click low in the window used to always anchor the
+// menu's TOP at the cursor, so a menu taller than the remaining space
+// below just extended past the bottom edge and got clipped/obscured
+// with no way to reach its lower items. #ctx has to actually be visible
+// (`.open` added) before its real size can be measured (getBoundingClientRect
+// on a `display:none` element is always 0×0), so this opens it
+// provisionally at the click point first, measures it, then repositions
+// only if it would overflow — flipping to anchor the opposite edge at
+// the cursor (menu appears above/left of the click) rather than
+// sliding to an arbitrary on-screen spot, so it still reads as "the
+// menu for what you clicked," just growing the other direction.
+function openCtxAt(x, y) {
+  const m = $('ctx');
+  m.style.left = x + 'px'; m.style.top = y + 'px';
+  m.classList.add('open');
+  const r = m.getBoundingClientRect();
+  // The actual "menu opens in the wrong place" cause turned out to be
+  // #ctx having UI-scale `zoom` applied to itself while being positioned
+  // via raw `style.left`/`top` from a click coordinate — see main.css's
+  // own comment on why #ctx is excluded from that now. `document
+  // .documentElement.clientWidth/clientHeight` (falling back to
+  // `window.innerWidth/innerHeight`, and skipping the overflow check
+  // entirely if even that comes back non-positive) is kept here anyway
+  // as the more robust of the two viewport-size reads, independent of
+  // that fix — no reason to prefer the less reliable one now that both
+  // are known.
+  const vw = document.documentElement.clientWidth || window.innerWidth;
+  const vh = document.documentElement.clientHeight || window.innerHeight;
+  let left = x, top = y;
+  if (vw > 0 && r.right > vw) left = Math.max(4, x - r.width);
+  if (vh > 0 && r.bottom > vh) top = Math.max(4, y - r.height);
+  m.style.left = left + 'px'; m.style.top = top + 'px';
+}
+function hideCtx() { $('ctx').classList.remove('open'); $('ctx-add-module').style.display = 'none'; $('ctx-add-splice').style.display = 'none'; $('ctx-add-diode').style.display = 'none'; $('ctx-edit').style.display = ''; $('ctx-edit').textContent = '✎ Edit Wire Props'; $('ctx-trace').style.display = ''; $('ctx-route').style.display = ''; $('ctx-rotate').style.display = 'none'; $('ctx-del').style.display = ''; $('ctx-del').textContent = '✕ Delete Wire'; ctxTarget = null; ctxClickPoint = null; }
 function ctxEdit()   { if (!ctxTarget) return; if (ctxTarget._mid) editModProps(ctxTarget._mid); else { selW = ctxTarget; editWireProps(); } hideCtx(); }
 function ctxTrace()  { if (ctxTarget && !ctxTarget._mid) { selW = ctxTarget; traceCircuit(); } hideCtx(); }
 function ctxRoute()  { if (ctxTarget && !ctxTarget._mid) { selW = ctxTarget; if (!routeEditMode) toggleRouteEditMode(); else drawWires(); } hideCtx(); }
+// Right-click on empty canvas -> "+ Add Module": stashes the clicked
+// point (§ `pendingAddPosition`'s own doc comment) and opens the same
+// module panel the toolbar's own "+" button already uses, so every
+// existing preset/custom/connector/splice add path is reused verbatim —
+// only where the result gets placed changes.
+function ctxAddModule() {
+  if (!ctxTarget || !ctxTarget._bg) { hideCtx(); return; }
+  pendingAddPosition = { x: ctxTarget.x, y: ctxTarget.y };
+  hideCtx();
+  openModPanel();
+}
 function ctxRotate() { if (ctxTarget && ctxTarget._mid) { rotateModule(ctxTarget._mid); } hideCtx(); }
 function ctxDelete() { if (!ctxTarget) return; if (ctxTarget._mid) { const mid = ctxTarget._mid; hideCtx(); delModule(mid); } else { selW = ctxTarget; hideCtx(); deleteSelectedWire(); } }
 document.addEventListener('click', e => { if (!e.target.closest('#ctx')) hideCtx(); });
@@ -146,7 +218,23 @@ window.addEventListener('keydown', e => {
   if (routeEditMode && selSeg) {
     if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) {
       e.preventDefault();
-      const step = e.shiftKey ? NUDGE * 4 : NUDGE;
+      // AP-WIRE-GRID-ALIGN-001 — the step is now GRID itself (20px, not
+      // the old 6px NUDGE), and the result is snapped to the nearest
+      // grid multiple rather than just added — so a segment that starts
+      // already grid-aligned (the common case after this whole fix)
+      // moves in clean, exact grid steps, and one that doesn't (an older
+      // saved diagram) gets corrected onto the grid by its very first
+      // nudge instead of drifting further off it. Mirrors the same
+      // mouse/touch-drag snap in renderer.js's setupTermClicks-adjacent
+      // segment-drag handlers — either input method lands on the same
+      // grid.
+      const step = e.shiftKey ? GRID * 2 : GRID;
+      const w = WIRES.find(x => x.id === selSeg.wid);
+      const rt = w && route(w);
+      if (!rt) return;
+      const seg = getMovableSegs(rt.pts)[selSeg.segIdx];
+      if (!seg) return;
+      const p = rt.pts[seg.i1];
       if (!wireRoutes[selSeg.wid]) wireRoutes[selSeg.wid] = {};
       const cur = wireRoutes[selSeg.wid][selSeg.segIdx] || 0;
       let delta = 0;
@@ -154,9 +242,28 @@ window.addEventListener('keydown', e => {
       if (selSeg.axis === 'y' && e.key === 'ArrowDown')  delta =  step;
       if (selSeg.axis === 'x' && e.key === 'ArrowLeft')  delta = -step;
       if (selSeg.axis === 'x' && e.key === 'ArrowRight') delta =  step;
-      if (delta !== 0) { wireRoutes[selSeg.wid][selSeg.segIdx] = cur + delta; drawWires(); }
+      if (delta !== 0) {
+        const natural = (selSeg.axis === 'y' ? p.y : p.x) - cur;
+        const rawAbs = natural + cur + delta;
+        wireRoutes[selSeg.wid][selSeg.segIdx] = Math.round(rawAbs / GRID) * GRID - natural;
+        drawWires();
+      }
       return;
     }
+  }
+  // AP-WIRE-EXIT-OVERRIDE-001 — arrow keys while actively drawing a wire
+  // (source picked, destination not clicked yet) set/override the exit
+  // side for just this wire, so a wire whose module/splice's own default
+  // exit side would route it behind another module can be pointed the
+  // other way on the fly instead of needing a manual route drag after
+  // the fact. Deliberately gated on `wireSrc` (not just `wireMode`) so
+  // arrow keys still do nothing until a source is actually chosen.
+  if (wireMode && !reconnectTarget &&
+      ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+    e.preventDefault();
+    pendingWireExit = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right' }[e.key];
+    updateWireExitStatus();
+    return;
   }
   if (routeEditMode && (e.key === 'r' || e.key === 'R')) { resetWireRoute(); return; }
   if (e.key === 'e' || e.key === 'E') { toggleEdit();     return; }
@@ -172,6 +279,7 @@ window.addEventListener('keydown', e => {
     if ($('mpm').classList.contains('open'))       { closeMpm();      return; }
     if ($('add-modal').classList.contains('open')) { closeAddModal(); return; }
     if ($('wpm').classList.contains('open'))       { closeWPM();      return; }
+    if ($('view-settings-modal').classList.contains('open')) { closeViewSettings(); return; }
     if (srchOpen)  { toggleSearch(); return; }
     if (selM)      { closeModInfo(); drawWires(); return; }
     if (selW)      { selW = null; closePanel(); leadR = null; leadB = null; clearLeadDots(); tracedWires.clear(); drawWires(); }
@@ -179,6 +287,129 @@ window.addEventListener('keydown', e => {
   if (e.key === 'Delete' && selW && !editMode) deleteSelectedWire();
   if (e.key >= '0' && e.key <= '3' && !e.ctrlKey && !e.metaKey) setKey(+e.key);
 });
+
+// ── Viewport persistence ──────────────────────────────────────────
+// Remembers the diagram's pan/zoom across sessions (renderer.js's
+// initViewport/applyT), so opening the app doesn't always land on a
+// full-diagram fit-to-view that's too small to read — see initViewport's
+// own doc comment for why that used to happen on every load.
+
+const VIEWPORT_KEY = 'wiring-sim-viewport';
+let _viewportSaveTimer = null;
+function loadViewportState() {
+  try { return JSON.parse(localStorage.getItem(VIEWPORT_KEY) || 'null'); } catch { return null; }
+}
+function persistViewportState() {
+  clearTimeout(_viewportSaveTimer);
+  _viewportSaveTimer = setTimeout(() => {
+    localStorage.setItem(VIEWPORT_KEY, JSON.stringify({ scale, tx, ty }));
+  }, 250);
+}
+
+// ── UI scale ──────────────────────────────────────────────────────
+// The chrome (topbar, panels, modals, labels) is a very dense, small
+// technical UI by design (see main.css) — legible at arm's length on a
+// large monitor, but too small to read comfortably in most day-to-day
+// use. Rather than rewriting every hardcoded font-size/padding value,
+// `zoom` uniformly rescales layout, text and hit-testing together (this
+// app only ever runs inside a Chromium-based WebView2 host, where `zoom`
+// is fully supported), and click coordinates (clientX/clientY,
+// getBoundingClientRect) stay internally consistent since they're all
+// expressed in the same already-zoomed CSS pixel space.
+const UI_SCALE_KEY = 'wiring-sim-ui-scale';
+const UI_SCALE_MIN = 0.9, UI_SCALE_MAX = 2, UI_SCALE_DEFAULT = 1.3;
+// AP-VIEW-SETTINGS-001 — "nothing remembered yet" used to always fall
+// back to the hardcoded UI_SCALE_DEFAULT (1.3). A user-configured
+// default (⚙ Zoom & Scale Defaults panel, saveViewSettings() below) now
+// takes priority over that constant, same idea as initViewport()'s own
+// default-zoom fallback (renderer.js).
+function loadUiScale() {
+  const v = parseFloat(localStorage.getItem(UI_SCALE_KEY));
+  if (Number.isFinite(v)) return v;
+  const def = loadDefaultUiScalePct();
+  return def != null ? def / 100 : UI_SCALE_DEFAULT;
+}
+function setUiScale(v) {
+  const clamped = Math.min(UI_SCALE_MAX, Math.max(UI_SCALE_MIN, v));
+  // Sets --ui-zoom, which main.css applies (zoom:var(--ui-zoom)) only to
+  // the named chrome elements — never to <html>/<body> or #viewport. See
+  // the comment above that CSS rule for why: zoom on an ancestor of
+  // #viewport, even when mathematically cancelled back out on #viewport
+  // itself, broke real-mouse wire selection in the WebView2 host.
+  document.documentElement.style.setProperty('--ui-zoom', String(clamped));
+  localStorage.setItem(UI_SCALE_KEY, String(clamped));
+  // AP-VIEW-SETTINGS-001 — `#ui-scale-display` went from a read-only
+  // <span> to an editable <input> (per direct user request); `.value`,
+  // not `.textContent`, is what changes an <input>'s displayed text.
+  const disp = document.getElementById('ui-scale-display');
+  if (disp) disp.value = Math.round(clamped * 100) + '%';
+}
+// AP-VIEW-SETTINGS-001 — the topbar's UI-scale % input's own onblur
+// handler (index.html) — mirrors setZoomPctFromInput (renderer.js).
+function setUiScalePctFromInput(input) {
+  const n = parseFloat(input.value);
+  if (Number.isFinite(n)) setUiScale(n / 100);
+  else input.value = Math.round(loadUiScale() * 100) + '%';
+}
+
+// ── Default zoom / UI-scale settings ────────────────────────────────
+// The "remembered last view" above (VIEWPORT_KEY/UI_SCALE_KEY) is what
+// applies on an ordinary reopen. These are a SEPARATE, explicit starting
+// point the user configures once via the ⚙ Zoom & Scale Defaults panel
+// — used only when nothing has been remembered yet (a genuinely first
+// launch, or right after "Reset to these now" clears the remembered
+// state) — reported directly as a real gap: no way to see or set what
+// that starting point actually was, short of reading source constants.
+const DEFAULT_ZOOM_KEY = 'wiring-sim-default-zoom-pct';
+const DEFAULT_UI_SCALE_KEY = 'wiring-sim-default-ui-scale-pct';
+function loadDefaultZoomPct() {
+  const v = parseFloat(localStorage.getItem(DEFAULT_ZOOM_KEY));
+  return Number.isFinite(v) ? v : null;
+}
+function loadDefaultUiScalePct() {
+  const v = parseFloat(localStorage.getItem(DEFAULT_UI_SCALE_KEY));
+  return Number.isFinite(v) ? v : null;
+}
+function openViewSettings() {
+  const zoomPct = loadDefaultZoomPct();
+  const uiPct = loadDefaultUiScalePct();
+  $('vs-zoom').value = zoomPct != null ? Math.round(zoomPct) : '';
+  $('vs-ui-scale').value = uiPct != null ? Math.round(uiPct) : '';
+  $('view-settings-modal').classList.add('open');
+}
+function closeViewSettings() { $('view-settings-modal').classList.remove('open'); }
+// Shared by both modal actions — writes whatever's currently typed into
+// the two fields, without any toast/close side effect of its own, so
+// resetViewToDefaults() below can reuse it without producing two toasts.
+function _storeViewSettingsFields() {
+  const zoomPct = parseFloat($('vs-zoom').value);
+  const uiPct = parseFloat($('vs-ui-scale').value);
+  if (Number.isFinite(zoomPct)) localStorage.setItem(DEFAULT_ZOOM_KEY, String(Math.min(300, Math.max(15, zoomPct))));
+  else localStorage.removeItem(DEFAULT_ZOOM_KEY);
+  if (Number.isFinite(uiPct)) localStorage.setItem(DEFAULT_UI_SCALE_KEY, String(Math.min(UI_SCALE_MAX * 100, Math.max(UI_SCALE_MIN * 100, uiPct))));
+  else localStorage.removeItem(DEFAULT_UI_SCALE_KEY);
+}
+function saveViewSettings() {
+  _storeViewSettingsFields();
+  closeViewSettings();
+  showToast('Zoom & scale defaults saved');
+}
+// Jumps the CURRENT view to the configured defaults right now, without
+// waiting for the next fresh launch — the direct "get back to my usual
+// view" action, since typing something into the settings fields alone
+// doesn't otherwise change anything until "nothing is remembered" is
+// true again.
+function resetViewToDefaults() {
+  _storeViewSettingsFields();
+  const zoomPct = loadDefaultZoomPct();
+  const uiPct = loadDefaultUiScalePct();
+  if (zoomPct != null) setZoomPct(zoomPct);
+  if (uiPct != null) setUiScale(uiPct / 100);
+  closeViewSettings();
+  showToast('View reset to defaults');
+}
+function uiScaleBy(delta) { setUiScale(loadUiScale() + delta); }
+setUiScale(loadUiScale());
 
 // ── Theme ─────────────────────────────────────────────────────────
 
@@ -206,7 +437,7 @@ window.addEventListener('keydown', e => {
 
 (function () {
   const STORE_PREFIX = 'wiring-panel-';
-  const DRAG_MAP = { 'fp':'fp-drag', 'mip':'mip-drag', 'swpack-panel':'swpack-hd', 'tracer':'tr-hd' };
+  const DRAG_MAP = { 'fp':'fp-drag', 'mip':'mip-drag', 'swpack-panel':'swpack-hd', 'tracer':'tr-hd', 'sim-panel':'sim-panel-hd' };
   const RESIZABLE_IDS = Object.keys(DRAG_MAP);
 
   function saved(id) { try { return JSON.parse(localStorage.getItem(STORE_PREFIX + id) || 'null'); } catch { return null; } }
@@ -217,7 +448,7 @@ window.addEventListener('keydown', e => {
     if (s.top   != null) el.style.top    = s.top   + 'px';
     if (s.width != null) el.style.width  = s.width + 'px';
     if (s.height!= null) el.style.height = s.height+ 'px';
-    if (id === 'swpack-panel' && s.left != null) el.style.transform = 'none';
+    if ((id === 'swpack-panel' || id === 'sim-panel') && s.left != null) el.style.transform = 'none';
   }
   function getState(el) { return { left:el.offsetLeft, top:el.offsetTop, width:el.offsetWidth, height:el.offsetHeight }; }
   function clamp(el) {
@@ -279,7 +510,7 @@ window.addEventListener('keydown', e => {
     menuEl.classList.remove('open');
     const panel = document.getElementById(menuPanelId); if (!panel) return;
     if (cmd === 'default')   { save(menuPanelId, getState(panel)); showToast('Default position saved'); }
-    else if (cmd === 'reset')    { localStorage.removeItem(STORE_PREFIX + menuPanelId); panel.style.cssText = ''; if (menuPanelId === 'swpack-panel') panel.style.transform = 'translateX(-50%)'; showToast('Position reset'); }
+    else if (cmd === 'reset')    { localStorage.removeItem(STORE_PREFIX + menuPanelId); panel.style.cssText = ''; if (menuPanelId === 'swpack-panel' || menuPanelId === 'sim-panel') panel.style.transform = 'translateX(-50%)'; showToast('Position reset'); }
     else if (cmd === 'center')   { panel.style.left = ((window.innerWidth - panel.offsetWidth) / 2) + 'px'; panel.style.top = ((window.innerHeight - panel.offsetHeight) / 2) + 'px'; panel.style.transform = 'none'; }
     else if (cmd === 'resetSize'){ panel.style.width = ''; panel.style.height = ''; showToast('Size reset'); }
   };
@@ -300,5 +531,10 @@ window.addEventListener('keydown', e => {
 
 // ── Start ─────────────────────────────────────────────────────────
 
-window.addEventListener('resize', () => { zReset(); drawWires(); updateMinimap(); });
+// Deliberately NOT re-fitting the whole diagram on resize anymore — that
+// silently discarded the user's own zoom/pan (and the whole point of
+// initViewport() above is to stop resetting their view unexpectedly).
+// Wires/minimap still need to redraw since the viewport's pixel size and
+// scroll clamping can change.
+window.addEventListener('resize', () => { drawWires(); updateMinimap(); });
 bootstrap();

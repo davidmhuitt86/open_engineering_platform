@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -92,7 +94,39 @@ String openDiagramTab(WorkspaceTabsController tabsController) {
 /// the same testability reason as [openDiagramTab]: a plain
 /// `List<WorkspaceTab>` in, an `int` out, no widget tree required.
 int diagramOrdinalFor(List<WorkspaceTab> tabs, int index) =>
-    tabs[index].isDiagram ? tabs.take(index + 1).where((t) => t.isDiagram).length : 0;
+    tabs[index].isDiagram
+        ? tabs.take(index + 1).where((t) => t.isDiagram).length
+        : 0;
+
+/// AP-OEP-DIAGRAM-PRIMARY-TAB-CLOSE-001 — closing the primary Diagram
+/// tab (`id == primaryDiagramInstanceId`) does not tear down its
+/// document the way closing a *secondary* Diagram tab does
+/// (`_DiagramInstanceTabState.dispose`'s own doc comment: the primary
+/// instance is deliberately never invalidated, since it is meant to
+/// outlive any single tab/route for the whole app session). Left as-is,
+/// that meant reopening a fresh Diagram tab after closing the primary
+/// one silently showed whatever document the primary instance still had
+/// live in memory — reading as "the tab remembers the diagram I just
+/// closed" from the user's side, since the tab strip itself gives no
+/// visual cue that it's the same underlying document. Explicitly
+/// requested fix: closing the primary Diagram tab now also resets its
+/// document to a blank Untitled one (the exact same reset
+/// [DiagramStudioController.newDocument] already performs for the
+/// toolbar/Command-Palette "New Diagram" action — no new reset
+/// mechanism), so the *next* time a Diagram tab is opened, it is
+/// genuinely blank. The primary instance's family-provider entries
+/// themselves are still never invalidated (that part of the design is
+/// unchanged) — only its document content is reset.
+void _closeTab(
+    WidgetRef ref, WorkspaceTabsController tabsController, String id) {
+  tabsController.close(id);
+  if (id != primaryDiagramInstanceId) return;
+  final controller = ref
+      .read(diagramStudioControllerFamily(primaryDiagramInstanceId))
+      .valueOrNull;
+  if (controller == null) return;
+  unawaited(controller.newDocument());
+}
 
 class EngineeringWorkspacePage extends ConsumerWidget {
   const EngineeringWorkspacePage({super.key});
@@ -118,7 +152,8 @@ class EngineeringWorkspacePage extends ConsumerWidget {
   /// `_buildTabContent` itself is untouched, per this package's own
   /// scope boundary.
   Widget _keyedTabContent(BuildContext context, WorkspaceTab tab) =>
-      KeyedSubtree(key: GlobalObjectKey(tab.id), child: _buildTabContent(context, tab));
+      KeyedSubtree(
+          key: GlobalObjectKey(tab.id), child: _buildTabContent(context, tab));
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -135,16 +170,18 @@ class EngineeringWorkspacePage extends ConsumerWidget {
             tabs: tabs,
             activeId: activeId,
             onActivate: tabsController.activate,
-            onClose: tabsController.close,
+            onClose: (id) => _closeTab(ref, tabsController, id),
             onOpenDiagram: () => openDiagramTab(tabsController),
-            onOpenBrowser: () => tabsController.openNewInstance(SurfaceRegistry.browserSurfaceId),
+            onOpenBrowser: () => tabsController
+                .openNewInstance(SurfaceRegistry.browserSurfaceId),
             onOpenSurface: (surface) => tabsController.openSurface(surface.id),
             onSplitWith: tabsController.splitWith,
           ),
           Expanded(
             child: tabs.isEmpty
                 ? const Center(
-                    child: Text('No tabs open — press "+" to open a Surface', style: TextStyle(color: StudioColors.textDisabled)),
+                    child: Text('No tabs open — press "+" to open a Surface',
+                        style: TextStyle(color: StudioColors.textDisabled)),
                   )
                 : _WorkspaceContent(
                     tabs: tabs,
@@ -195,7 +232,9 @@ class EngineeringWorkspacePage extends ConsumerWidget {
         // `SurfaceRegistry` are untouched by this — it remains exactly one
         // Workspace tab; the split is purely a rendering decision inside
         // this tab's own content area.
-        return const KeyedSubtree(key: ValueKey('workspace-tab-diagram'), child: DiagramWithComparePane());
+        return const KeyedSubtree(
+            key: ValueKey('workspace-tab-diagram'),
+            child: DiagramWithComparePane());
       }
       return _DiagramInstanceTab(key: ValueKey(tab.id), instanceId: tab.id);
     }
@@ -203,7 +242,8 @@ class EngineeringWorkspacePage extends ConsumerWidget {
     if (surface == null) {
       // Not expected in practice (Surfaces are a static list) — an
       // honest empty state rather than a crash if it ever happens.
-      return KeyedSubtree(key: ValueKey(tab.id), child: const SizedBox.shrink());
+      return KeyedSubtree(
+          key: ValueKey(tab.id), child: const SizedBox.shrink());
     }
     return KeyedSubtree(key: ValueKey(tab.id), child: surface.build(context));
   }
@@ -252,12 +292,19 @@ class _WorkspaceContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final activeTab = activeId == null ? null : tabs.where((t) => t.id == activeId).firstOrNull;
-    final secondTab = (secondTabId == null || secondTabId == activeId) ? null : tabs.where((t) => t.id == secondTabId).firstOrNull;
+    final activeTab = activeId == null
+        ? null
+        : tabs.where((t) => t.id == activeId).firstOrNull;
+    final secondTab = (secondTabId == null || secondTabId == activeId)
+        ? null
+        : tabs.where((t) => t.id == secondTabId).firstOrNull;
 
     if (activeTab != null && secondTab != null) {
       final paneIds = {activeTab.id, secondTab.id};
-      final hiddenTabs = [for (final tab in tabs) if (!paneIds.contains(tab.id)) tab];
+      final hiddenTabs = [
+        for (final tab in tabs)
+          if (!paneIds.contains(tab.id)) tab
+      ];
       return LayoutBuilder(
         builder: (context, constraints) => Row(
           children: [
@@ -268,7 +315,9 @@ class _WorkspaceContent extends StatelessWidget {
               Offstage(
                 child: SizedBox.fromSize(
                   size: constraints.biggest,
-                  child: IndexedStack(children: [for (final tab in hiddenTabs) buildTabContent(context, tab)]),
+                  child: IndexedStack(children: [
+                    for (final tab in hiddenTabs) buildTabContent(context, tab)
+                  ]),
                 ),
               ),
           ],
@@ -277,7 +326,9 @@ class _WorkspaceContent extends StatelessWidget {
     }
 
     return IndexedStack(
-      index: activeId == null ? 0 : tabs.indexWhere((t) => t.id == activeId).clamp(0, tabs.length - 1),
+      index: activeId == null
+          ? 0
+          : tabs.indexWhere((t) => t.id == activeId).clamp(0, tabs.length - 1),
       children: [for (final tab in tabs) buildTabContent(context, tab)],
     );
   }
@@ -311,7 +362,8 @@ class _DiagramInstanceTab extends ConsumerStatefulWidget {
   final String instanceId;
 
   @override
-  ConsumerState<_DiagramInstanceTab> createState() => _DiagramInstanceTabState();
+  ConsumerState<_DiagramInstanceTab> createState() =>
+      _DiagramInstanceTabState();
 }
 
 class _DiagramInstanceTabState extends ConsumerState<_DiagramInstanceTab> {
@@ -324,7 +376,8 @@ class _DiagramInstanceTabState extends ConsumerState<_DiagramInstanceTab> {
   }
 
   @override
-  Widget build(BuildContext context) => LegacyV2WebViewPage(instanceId: widget.instanceId);
+  Widget build(BuildContext context) =>
+      LegacyV2WebViewPage(instanceId: widget.instanceId);
 }
 
 class _WorkspaceTabStrip extends StatelessWidget {
@@ -385,12 +438,14 @@ class _WorkspaceTabStrip extends StatelessWidget {
             tooltip: 'New tab',
             splashRadius: 15,
             padding: EdgeInsets.zero,
-            icon: const Icon(Icons.add, size: 16, color: StudioColors.textSecondary),
+            icon: const Icon(Icons.add,
+                size: 16, color: StudioColors.textSecondary),
             iconSize: 16,
             itemBuilder: (context) => [
               PopupMenuItem<void>(
                 onTap: onOpenDiagram,
-                child: const _MenuRow(icon: Icons.polyline, label: 'Diagram Studio'),
+                child: const _MenuRow(
+                    icon: Icons.polyline, label: 'Diagram Studio'),
               ),
               // AP-OEP-WORKSPACE-BROWSER-001 — a dedicated entry, not
               // folded into the generic `SurfaceRegistry.all` loop below:
@@ -445,7 +500,8 @@ class _MenuRow extends StatelessWidget {
           child: Text(
             label,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 13, color: StudioColors.textPrimary),
+            style:
+                const TextStyle(fontSize: 13, color: StudioColors.textPrimary),
           ),
         ),
       ],
@@ -481,14 +537,17 @@ class _WorkspaceTabChip extends ConsumerWidget {
   /// method's own doc comment for why a context menu was chosen.
   final VoidCallback onSplit;
 
-  Future<void> _showContextMenu(BuildContext context, Offset globalPosition) async {
+  Future<void> _showContextMenu(
+      BuildContext context, Offset globalPosition) async {
     await showMenu<void>(
       context: context,
-      position: RelativeRect.fromLTRB(globalPosition.dx, globalPosition.dy, globalPosition.dx, globalPosition.dy),
+      position: RelativeRect.fromLTRB(globalPosition.dx, globalPosition.dy,
+          globalPosition.dx, globalPosition.dy),
       items: [
         PopupMenuItem<void>(
           onTap: onSplit,
-          child: const _MenuRow(icon: Icons.vertical_split, label: 'Open in Split'),
+          child: const _MenuRow(
+              icon: Icons.vertical_split, label: 'Open in Split'),
         ),
       ],
     );
@@ -520,23 +579,37 @@ class _WorkspaceTabChip extends ConsumerWidget {
     // Studio 2"/"3"/... for each one after, by open order) — computed
     // fresh from live tab order and provider state every build, per the
     // task's own "do not persist presentation titles" requirement.
-    final liveTitle = tab.isDiagram ? ref.watch(diagramStudioControllerFamily(tab.id)).valueOrNull?.document.metadata.title : null;
+    final liveTitle = tab.isDiagram
+        ? ref
+            .watch(diagramStudioControllerFamily(tab.id))
+            .valueOrNull
+            ?.document
+            .metadata
+            .title
+        : null;
     final displayTitle = !tab.isDiagram
         ? tab.title
         : (liveTitle != null && liveTitle != _untitledDiagramTitle)
             ? liveTitle
-            : (diagramOrdinal <= 1 ? 'Diagram Studio' : 'Diagram Studio $diagramOrdinal');
+            : (diagramOrdinal <= 1
+                ? 'Diagram Studio'
+                : 'Diagram Studio $diagramOrdinal');
     return GestureDetector(
-      onSecondaryTapDown: (details) => _showContextMenu(context, details.globalPosition),
+      onSecondaryTapDown: (details) =>
+          _showContextMenu(context, details.globalPosition),
       child: InkWell(
         onTap: onTap,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10),
           decoration: BoxDecoration(
-            color: active ? StudioColors.selectedRowBackground : Colors.transparent,
+            color: active
+                ? StudioColors.selectedRowBackground
+                : Colors.transparent,
             border: Border(
               right: const BorderSide(color: StudioColors.border),
-              bottom: BorderSide(color: active ? StudioColors.selection : Colors.transparent, width: 2),
+              bottom: BorderSide(
+                  color: active ? StudioColors.selection : Colors.transparent,
+                  width: 2),
             ),
           ),
           child: Row(
@@ -547,7 +620,9 @@ class _WorkspaceTabChip extends ConsumerWidget {
               Text(
                 displayTitle,
                 style: TextStyle(
-                  color: active ? StudioColors.textPrimary : StudioColors.textSecondary,
+                  color: active
+                      ? StudioColors.textPrimary
+                      : StudioColors.textSecondary,
                   fontSize: 12,
                   fontWeight: active ? FontWeight.w600 : FontWeight.w400,
                 ),
@@ -555,7 +630,8 @@ class _WorkspaceTabChip extends ConsumerWidget {
               const SizedBox(width: 6),
               InkWell(
                 onTap: onClose,
-                child: const Icon(Icons.close, size: 14, color: StudioColors.textDisabled),
+                child: const Icon(Icons.close,
+                    size: 14, color: StudioColors.textDisabled),
               ),
             ],
           ),

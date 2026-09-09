@@ -118,6 +118,42 @@ const String _kRawBridgeScript = r'''
     // a theme-injection failure.
   }
 
+  // AP-OEP-DIAGRAM-BOOT-UNTITLED-001 companion fix — V2 is a fully
+  // separate legacy app that always loads its own hardcoded demo
+  // vehicle ('trx300') the moment its own page bootstrap runs
+  // (js/app.js's own unconditional `Bootstrap.run('trx300')`),
+  // completely independent of whatever OEP document is actually active.
+  // The "blank canvas on a fresh Studio launch" feature only ever reset
+  // OEP's own document state -- it never had any way to stop V2 from
+  // rendering its own unrelated demo diagram first, so a fresh launch
+  // showed that demo full-size for however long V2's own bootstrap
+  // (parsing every script, fetching the demo vehicle, building every
+  // module/wire card) took, before `initializeFromDocument()` finally
+  // caught up and cleared it back to the real (blank) document -- read
+  // by the user as "a diagram flashes briefly then goes away." Hiding
+  // #canvas/#wire-layer from the very first paint (this script runs at
+  // `addScriptToExecuteOnDocumentCreated` time, before V2's own
+  // `<script>` tags -- let alone the demo vehicle's fetch -- have even
+  // started, so the rule is already in the stylesheet before there's
+  // anything to flash) and only revealing them once Dart confirms the
+  // REAL document has been seeded (`__oepBridgeRevealCanvas`, called
+  // once from `_triggerInitialSeed`'s completion in
+  // legacy_v2_webview.dart) means the user only ever sees the diagram
+  // they actually opened, never V2's own unrelated placeholder content.
+  try {
+    var oepBootHideStyle = document.createElement('style');
+    oepBootHideStyle.id = 'oep-v2-boot-hide';
+    oepBootHideStyle.textContent = '#canvas, #wire-layer { visibility: hidden !important; }';
+    (document.head || document.documentElement).appendChild(oepBootHideStyle);
+    window.__oepBridgeRevealCanvas = function () {
+      var el = document.getElementById('oep-v2-boot-hide');
+      if (el) el.remove();
+    };
+  } catch (e) {
+    // Visual-only, non-fatal -- never block the functional bridge over
+    // a boot-hide injection failure (worst case: the old flash comes back).
+  }
+
   var lastStatusSnapshot = null;
   var lastSeen = {};   // id -> { x, y, stableCount }
   var synced = {};     // id -> { x, y } most recent OEP-authoritative value
@@ -205,9 +241,26 @@ const String _kRawBridgeScript = r'''
   // module/wire's fields in place, or creating one that's genuinely
   // missing — rather than treating "already present" as "already
   // correct."
-  window.__oepBridgeRestoreModule = function (id, label, category, x, y, notes, terminals) {
+  window.__oepBridgeRestoreModule = function (id, label, category, x, y, notes, terminals, exitDirection, connector, vertical, labelPos, pinLabelPos, subLabelPos, sub, labelJustify, kind, bulbStyle, bulbColor, flipped) {
     if (typeof MODULES === 'undefined') return;
     var m = MODULES.find(function (existing) { return existing.id === id; });
+    // AP-MODULE-KIND-001 — `kind` (`m.bulb`/`m.diode`/`m.battery`/
+    // `m.starterMotor`/`m.solenoid`/`m.groundedSwitch`/`m.thermistor` —
+    // whichever special-glyph flag `buildCard`, renderer.js, dispatches
+    // on) was never round-tripped at all before this fix: every one of
+    // these module types rendered correctly live in V2 (set once at
+    // creation via a PRESETS entry) but silently fell back to a plain
+    // `buildStdCard` on the next document reopen through the real Studio
+    // app, since this function had no way to know which flag to
+    // reapply — discovered while adding the `groundedSwitch`/`thermistor`
+    // types, but it was already latent for `battery`/`starterMotor`/
+    // `solenoid`/`diode`/`bulb` too. A single string (empty = "no special
+    // kind") round-trips the same way `category` does; the flags array
+    // is cleared and only the matching one re-set, so this is also safe
+    // to call on an existing module (idempotent, and correct if a
+    // document somehow changes a module's kind).
+    var _kindFlags = ['bulb', 'diode', 'battery', 'starterMotor', 'solenoid', 'groundedSwitch', 'thermistor', 'pulseGenerator', 'alternator'];
+    var resolvedKind = kind || '';
     // AP-DIAGRAM-V2-BRIDGE-SAVE-007 — `terminals` is the OEP-authoritative
     // list (round-tripped through the saved document's node metadata);
     // only overwrite an existing module's terminals when the caller
@@ -215,16 +268,125 @@ const String _kRawBridgeScript = r'''
     // resync (undo/redo path, which does not carry terminal data) never
     // wipes terminals V2's own bootstrap already populated.
     var hasTerminals = terminals && terminals.length > 0;
+    // AP-DIAGRAM-V2-BRIDGE-SAVE-009 — `exitDirection` (which side of the
+    // card its wires leave from — up/down/left/right), same "only
+    // overwrite when the caller actually has real data" guard as
+    // `terminals` above and for the same reason: an empty/absent value
+    // here means "this document never recorded a real exit direction"
+    // (e.g. an older save from before this field existed), not "this
+    // module's exit is empty" — applying it anyway would silently
+    // overwrite an existing module's already-correct exit (from V2's own
+    // bootstrap) with the wrong hardcoded fallback on every resync.
+    var hasExit = exitDirection && exitDirection.length > 0;
+    // AP-DIAGRAM-V2-BRIDGE-SAVE-010 — `connector`/`vertical` (whether
+    // this card renders as a connector's stacked-pin layout at all, and
+    // if so, standing up vertically) round-trip the same way: `null`/
+    // `undefined` (Dart sends this whenever the document has no recorded
+    // value for a module, e.g. an older save) means "unknown, don't
+    // touch" — `!= null` catches both null and undefined — while `true`/
+    // `false` are real, always-apply values once known. Without this, a
+    // reconstructed connector rendered as a plain module (losing its
+    // whole IN/OUT pin-stack layout, since `buildCard` gates on
+    // `m.connector`) or, if `connector` alone survived some other way,
+    // silently reverted to horizontal on every reopen (`buildConnCard`
+    // gates its vertical layout on `m.vertical`).
+    var hasConnector = connector != null;
+    var hasVertical = vertical != null;
+    // AP-MODULE-LAYOUT-001 — `labelPos`/`pinLabelPos` ('top'/'bottom'/
+    // 'left'/'right', or '' meaning "use the auto default" — see
+    // buildCard/buildStdCard, renderer.js) round-trip the same "only
+    // overwrite when the caller actually has real data" way `exitDirection`
+    // does above: an empty string here means "this document never
+    // recorded an explicit choice," not "explicitly reset to auto" — but
+    // '' IS itself a valid, meaningful value to apply once known (it's
+    // exactly what clears an override back to auto from the properties
+    // panel), so the guard here is "was this argument passed at all"
+    // (`!= null`), not "is it non-empty" like `hasExit`.
+    var hasLabelPos = labelPos != null;
+    var hasPinLabelPos = pinLabelPos != null;
+    var hasSubLabelPos = subLabelPos != null;
+    // AP-MODULE-LABEL-WRAP-001 — `sub` (the module's own subtitle text,
+    // e.g. "12V 30A" — a PRE-EXISTING field that, until now, was never
+    // actually threaded through this bridge at all: every restore always
+    // hardcoded `sub: ''` below, so any subtitle set via the properties
+    // panel rendered correctly live in V2 but silently vanished on the
+    // next Save-through-the-Studio-app + reopen, independent of and
+    // predating this task's own label-wrap/justify work) and
+    // `labelJustify` (new, this task) round-trip the same `!= null` way
+    // `labelPos` does above.
+    var hasSub = sub != null;
+    var hasLabelJustify = labelJustify != null;
+    // AP-BULB-GENERIC-001 — `bulbStyle`/`bulbColor` ('' meaning "no
+    // explicit choice yet," same empty-clears convention as `sub`/
+    // `labelJustify` above) and `flipped` (nullable bool, same "unknown,
+    // don't touch" convention as `connector`/`vertical` above) — a bulb's
+    // own lit-color/incandescent choice and which side its terminals sit
+    // on, none of which existed before this task.
+    var hasBulbStyle = bulbStyle != null;
+    var hasBulbColor = bulbColor != null;
+    var hasFlipped = flipped != null;
+    // AP-OEP-DIAGRAM-SPLICE-RESTORE-001 — `splice` (buildCard's gate,
+    // renderer.js, for the bare-circle-dot rendering a splice actually
+    // needs instead of a full bordered module card) was never
+    // reconstructed here at all — a saved splice's `category` field
+    // ('splice', openAddSplice's own hardcoded value, unique to
+    // splices — nothing else ever uses that category string) round-
+    // tripped fine, but the separate boolean flag buildCard actually
+    // checks did not, so every splice fell through to buildStdCard() on
+    // reopen: still functionally a splice (one "SPLICE" terminal, same
+    // wires), just rendered as a full labeled card instead of its own
+    // small dot. Deriving it from category, which IS already carried
+    // through faithfully, needs no new bridge field or Dart-side change.
+    var isSplice = category === 'splice';
     if (m) {
       m.label = label;
       m.cat = category;
       m.notes = notes || '';
+      m.splice = isSplice || undefined;
+      _kindFlags.forEach(function (f) { m[f] = undefined; });
+      if (resolvedKind) { m[resolvedKind] = true; }
+      if (hasExit) { m.exit = exitDirection; }
       if (hasTerminals) { m.terminals = terminals; }
+      if (hasConnector) { m.connector = connector || undefined; }
+      if (hasVertical) { m.vertical = vertical || undefined; }
+      if (hasLabelPos) { m.labelPos = labelPos || undefined; }
+      if (hasPinLabelPos) { m.pinLabelPos = pinLabelPos || undefined; }
+      if (hasSubLabelPos) { m.subLabelPos = subLabelPos || undefined; }
+      if (hasSub) { m.sub = sub; }
+      if (hasLabelJustify) { m.labelJustify = labelJustify || undefined; }
+      if (hasBulbStyle) { m.bulbStyle = bulbStyle || undefined; }
+      if (hasBulbColor) { m.bulbColor = bulbColor || undefined; }
+      if (hasFlipped) { m.flipped = flipped || undefined; }
     } else {
-      m = { id: id, label: label, sub: '', cat: category, notes: notes || '', exit: 'down', terminals: hasTerminals ? terminals : [], _user: true };
+      m = {
+        id: id, label: label, sub: hasSub ? sub : '', cat: category, notes: notes || '',
+        splice: isSplice || undefined,
+        exit: hasExit ? exitDirection : 'down',
+        terminals: hasTerminals ? terminals : [],
+        connector: hasConnector ? (connector || undefined) : undefined,
+        vertical: hasVertical ? (vertical || undefined) : undefined,
+        labelPos: hasLabelPos ? (labelPos || undefined) : undefined,
+        pinLabelPos: hasPinLabelPos ? (pinLabelPos || undefined) : undefined,
+        subLabelPos: hasSubLabelPos ? (subLabelPos || undefined) : undefined,
+        labelJustify: hasLabelJustify ? (labelJustify || undefined) : undefined,
+        bulbStyle: hasBulbStyle ? (bulbStyle || undefined) : undefined,
+        bulbColor: hasBulbColor ? (bulbColor || undefined) : undefined,
+        flipped: hasFlipped ? (flipped || undefined) : undefined,
+        _user: true,
+      };
+      if (resolvedKind) { m[resolvedKind] = true; }
       MODULES.push(m);
     }
-    if (typeof positions !== 'undefined') { positions[id] = { x: x, y: y }; }
+    // AP-WIRE-GRID-ALIGN-001 — a document saved before every module/
+    // splice placed its terminals at a fixed GRID-multiple offset from
+    // this anchor (renderer.js) won't have grid-exact positions of its
+    // own; snapping here (this is the real reopen path for the Studio
+    // app — restoreModule, not V2's own native raw-JSON Load button) is
+    // idempotent, so it's safe to run unconditionally on every restore.
+    var _snapGrid = (typeof GRID !== 'undefined') ? GRID : 20;
+    if (typeof positions !== 'undefined') {
+      positions[id] = { x: Math.round(x / _snapGrid) * _snapGrid, y: Math.round(y / _snapGrid) * _snapGrid };
+    }
     if (typeof placeCards === 'function') { placeCards(); }
     if (typeof rebuildCard === 'function') { rebuildCard(m); }
     if (typeof drawWires === 'function') { drawWires(); }
@@ -234,14 +396,31 @@ const String _kRawBridgeScript = r'''
     lastSeen[id] = { x: x, y: y, stableCount: 99 };
   };
 
-  window.__oepBridgeRestoreWire = function (id, fromModuleId, toModuleId, label, color, fromTerminal, toTerminal) {
+  window.__oepBridgeRestoreWire = function (id, fromModuleId, toModuleId, label, color, fromTerminal, toTerminal, fromExit, toExit, cable) {
     if (typeof WIRES === 'undefined') return;
     var w = WIRES.find(function (existing) { return existing.id === id; });
+    // AP-WIRE-EXIT-OVERRIDE-001 — `fromExit` (which side this specific
+    // wire's first bend leaves its source terminal from, overriding the
+    // module/splice's own default) round-trips the same way `label`/
+    // `color` already do: captured live by the poller above, restored
+    // here on reopen. `|| undefined` (not `''`) so route() (renderer.js)
+    // falls back to the module's own exit() side when nothing was saved.
+    // AP-SPLICE-INSPECTOR-001 — `toExit` is the same idea for the
+    // DESTINATION end (§ route()'s own doc comment for why both ends
+    // need this, not just `fromExit`).
+    // AP-BATTERY-CABLE-001 — `cable` (thick Red/Black battery-cable
+    // rendering, renderer.js) same round-trip treatment.
+    var restoredFromExit = fromExit || undefined;
+    var restoredToExit = toExit || undefined;
+    var restoredCable = cable || undefined;
     if (w) {
       w.lbl = label;
       w.c = color;
       w.from = { m: fromModuleId, t: fromTerminal || '' };
       w.to = { m: toModuleId, t: toTerminal || '' };
+      w.fromExit = restoredFromExit;
+      w.toExit = restoredToExit;
+      w.cable = restoredCable;
     } else {
       w = {
         id: id,
@@ -249,6 +428,9 @@ const String _kRawBridgeScript = r'''
         lbl: label,
         from: { m: fromModuleId, t: fromTerminal || '' },
         to: { m: toModuleId, t: toTerminal || '' },
+        fromExit: restoredFromExit,
+        toExit: restoredToExit,
+        cable: restoredCable,
         desc: '',
         R: Array.from({ length: 4 }, function () {
           return { VDC: '0.00', VAC: '0.00', CONT: 'OPN', RES: 'OL', DIODE: 'OL', note: '' };
@@ -258,8 +440,8 @@ const String _kRawBridgeScript = r'''
     }
     if (typeof drawWires === 'function') { drawWires(); }
     lastWires[id] = true;
-    lastWireProps[id] = { lbl: label, c: color };
-    syncedWireProps[id] = { lbl: label, c: color };
+    lastWireProps[id] = { lbl: label, c: color, fromExit: fromExit || '', toExit: toExit || '', cable: cable || '' };
+    syncedWireProps[id] = { lbl: label, c: color, fromExit: fromExit || '', toExit: toExit || '', cable: cable || '' };
   };
 
   window.__oepBridgeClearAll = function () {
@@ -317,7 +499,7 @@ const String _kRawBridgeScript = r'''
     if (typeof MODULES !== 'undefined') {
       MODULES.forEach(function (m) {
         var pos = (typeof positions !== 'undefined' && positions[m.id]) ? positions[m.id] : { x: 0, y: 0 };
-        modules[m.id] = { label: m.label || '', category: m.cat || '', notes: m.notes || '', x: pos.x, y: pos.y, terminals: m.terminals || [] };
+        modules[m.id] = { label: m.label || '', category: m.cat || '', notes: m.notes || '', x: pos.x, y: pos.y, terminals: m.terminals || [], exit: m.exit || 'down', connector: !!m.connector, vertical: !!m.vertical, labelPos: m.labelPos || '', pinLabelPos: m.pinLabelPos || '', subLabelPos: m.subLabelPos || '', sub: m.sub || '', labelJustify: m.labelJustify || '', kind: m.bulb ? 'bulb' : m.diode ? 'diode' : m.battery ? 'battery' : m.starterMotor ? 'starterMotor' : m.solenoid ? 'solenoid' : m.groundedSwitch ? 'groundedSwitch' : m.thermistor ? 'thermistor' : m.pulseGenerator ? 'pulseGenerator' : m.alternator ? 'alternator' : '', bulbStyle: m.bulbStyle || '', bulbColor: m.bulbColor || '', flipped: !!m.flipped };
       });
     }
     var wires = {};
@@ -327,6 +509,8 @@ const String _kRawBridgeScript = r'''
           fromModuleId: w.from.m, fromTerminal: w.from.t || '',
           toModuleId: w.to.m, toTerminal: w.to.t || '',
           label: w.lbl || '', color: w.c || '',
+          fromExit: w.fromExit || '', toExit: w.toExit || '',
+          cable: !!w.cable,
         };
       });
     }
@@ -446,7 +630,7 @@ const String _kRawBridgeScript = r'''
       if (typeof MODULES !== 'undefined') {
         var current = {};
         MODULES.forEach(function (m) {
-          current[m.id] = { label: m.label, cat: m.cat, notes: m.notes || '', terminals: m.terminals || [] };
+          current[m.id] = { label: m.label, cat: m.cat, notes: m.notes || '', terminals: m.terminals || [], exit: m.exit || 'down', connector: !!m.connector, vertical: !!m.vertical, labelPos: m.labelPos || '', pinLabelPos: m.pinLabelPos || '', subLabelPos: m.subLabelPos || '', sub: m.sub || '', labelJustify: m.labelJustify || '', kind: m.bulb ? 'bulb' : m.diode ? 'diode' : m.battery ? 'battery' : m.starterMotor ? 'starterMotor' : m.solenoid ? 'solenoid' : m.groundedSwitch ? 'groundedSwitch' : m.thermistor ? 'thermistor' : m.pulseGenerator ? 'pulseGenerator' : m.alternator ? 'alternator' : '', bulbStyle: m.bulbStyle || '', bulbColor: m.bulbColor || '', flipped: !!m.flipped };
         });
 
         // Created: an id present now that wasn't present last poll.
@@ -455,7 +639,7 @@ const String _kRawBridgeScript = r'''
             var pos = (typeof positions !== 'undefined' && positions[newId]) ? positions[newId] : { x: 0, y: 0 };
             pending.push({
               type: 'moduleCreated',
-              payload: { id: newId, label: current[newId].label, category: current[newId].cat, x: pos.x, y: pos.y, terminals: current[newId].terminals },
+              payload: { id: newId, label: current[newId].label, category: current[newId].cat, x: pos.x, y: pos.y, terminals: current[newId].terminals, exit: current[newId].exit, connector: current[newId].connector, vertical: current[newId].vertical, labelPos: current[newId].labelPos, pinLabelPos: current[newId].pinLabelPos, subLabelPos: current[newId].subLabelPos, sub: current[newId].sub, labelJustify: current[newId].labelJustify, kind: current[newId].kind, bulbStyle: current[newId].bulbStyle, bulbColor: current[newId].bulbColor, flipped: current[newId].flipped },
             });
           }
         }
@@ -468,20 +652,46 @@ const String _kRawBridgeScript = r'''
           }
         }
 
-        // Properties changed: label/category/notes differ from last poll
-        // AND from whatever this bridge itself most recently applied as
-        // authoritative (loop prevention, same pattern as position sync,
-        // extended to `notes` -- AP-DIAGRAM-V2-BRIDGE-011).
+        // Properties changed: label/category/notes/terminals/exit/
+        // connector/vertical differ from last poll. label/notes are also
+        // checked against whatever this bridge itself most recently
+        // applied as authoritative (loop prevention, same pattern as
+        // position sync -- AP-DIAGRAM-V2-BRIDGE-011) -- terminals/exit/
+        // connector/vertical have no such loop risk since nothing on the
+        // Dart side ever writes them back into V2 authoritatively (only
+        // reads them once, at document load/restoreModule), so they're
+        // compared directly against the last poll with no gate.
+        //
+        // Terminal edits used to be invisible to this bridge entirely:
+        // adding/renaming/reordering a pin on an EXISTING module (as
+        // opposed to a brand-new module, which IS captured once at
+        // creation via 'moduleCreated') changed none of label/cat/notes,
+        // so no event ever fired for it -- the edit rendered correctly
+        // live in V2, then silently reverted to whatever the module's
+        // terminals were at creation time on the next document
+        // save-and-reopen, since OEP's authoritative metadata was never
+        // updated to match. Comparing the JSON-stringified terminal list
+        // (order and content both matter for pin-number identity, so a
+        // plain string compare is the right amount of precision here) is
+        // what actually catches that case.
         for (var existingId in current) {
           if (!(existingId in lastModules)) continue;
           var prevProps = lastModules[existingId];
           var curProps = current[existingId];
-          if (prevProps.label !== curProps.label || prevProps.cat !== curProps.cat || prevProps.notes !== curProps.notes) {
+          var prevTermsJson = JSON.stringify(prevProps.terminals || []);
+          var curTermsJson = JSON.stringify(curProps.terminals || []);
+          var labelCatNotesChanged = prevProps.label !== curProps.label || prevProps.cat !== curProps.cat || prevProps.notes !== curProps.notes;
+          var pinLayoutChanged = prevTermsJson !== curTermsJson || prevProps.exit !== curProps.exit || prevProps.connector !== curProps.connector || prevProps.vertical !== curProps.vertical
+            || prevProps.labelPos !== curProps.labelPos || prevProps.pinLabelPos !== curProps.pinLabelPos || prevProps.subLabelPos !== curProps.subLabelPos
+            || prevProps.sub !== curProps.sub || prevProps.labelJustify !== curProps.labelJustify || prevProps.kind !== curProps.kind
+            || prevProps.bulbStyle !== curProps.bulbStyle || prevProps.bulbColor !== curProps.bulbColor || prevProps.flipped !== curProps.flipped;
+          if (labelCatNotesChanged || pinLayoutChanged) {
             var syncedProps = syncedModuleProps[existingId];
-            if (!syncedProps || syncedProps.label !== curProps.label || syncedProps.notes !== curProps.notes) {
+            var labelNotesAlreadySynced = syncedProps && syncedProps.label === curProps.label && syncedProps.notes === curProps.notes;
+            if (pinLayoutChanged || !labelNotesAlreadySynced) {
               pending.push({
                 type: 'modulePropertiesChanged',
-                payload: { id: existingId, label: curProps.label, category: curProps.cat, notes: curProps.notes },
+                payload: { id: existingId, label: curProps.label, category: curProps.cat, notes: curProps.notes, terminals: curProps.terminals, exit: curProps.exit, connector: curProps.connector, vertical: curProps.vertical, labelPos: curProps.labelPos, pinLabelPos: curProps.pinLabelPos, subLabelPos: curProps.subLabelPos, sub: curProps.sub, labelJustify: curProps.labelJustify, kind: curProps.kind, bulbStyle: curProps.bulbStyle, bulbColor: curProps.bulbColor, flipped: curProps.flipped },
               });
             }
           }
@@ -513,9 +723,12 @@ const String _kRawBridgeScript = r'''
                 toTerminal: w.to.t,
                 label: w.lbl || '',
                 color: w.c || '',
+                fromExit: w.fromExit || '',
+                toExit: w.toExit || '',
+                cable: !!w.cable,
               },
             });
-            lastWireProps[wireId] = { lbl: w.lbl || '', c: w.c || '' };
+            lastWireProps[wireId] = { lbl: w.lbl || '', c: w.c || '', fromExit: w.fromExit || '', toExit: w.toExit || '', cable: !!w.cable };
           }
         }
         for (var goneWireId in lastWires) {
@@ -537,15 +750,18 @@ const String _kRawBridgeScript = r'''
           if (!prevProps) return;
           var curLbl = w.lbl || '';
           var curColor = w.c || '';
-          if (prevProps.lbl !== curLbl || prevProps.c !== curColor) {
+          var curFromExit = w.fromExit || '';
+          var curToExit = w.toExit || '';
+          var curCable = !!w.cable;
+          if (prevProps.lbl !== curLbl || prevProps.c !== curColor || prevProps.fromExit !== curFromExit || prevProps.toExit !== curToExit || prevProps.cable !== curCable) {
             var syncedProps = syncedWireProps[w.id];
-            if (!syncedProps || syncedProps.lbl !== curLbl || syncedProps.c !== curColor) {
+            if (!syncedProps || syncedProps.lbl !== curLbl || syncedProps.c !== curColor || syncedProps.fromExit !== curFromExit || syncedProps.toExit !== curToExit || syncedProps.cable !== curCable) {
               pending.push({
                 type: 'wirePropertiesChanged',
-                payload: { id: w.id, label: curLbl, color: curColor },
+                payload: { id: w.id, label: curLbl, color: curColor, fromExit: curFromExit, toExit: curToExit, cable: curCable },
               });
             }
-            lastWireProps[w.id] = { lbl: curLbl, c: curColor };
+            lastWireProps[w.id] = { lbl: curLbl, c: curColor, fromExit: curFromExit, toExit: curToExit, cable: curCable };
           }
         });
       }

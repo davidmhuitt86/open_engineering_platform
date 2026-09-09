@@ -1018,82 +1018,35 @@
         ]
       },
       {
-        "id": "node_hlzghbravr_9hnk67",
-        "category": "component",
-        "displayName": "Connector 4P",
-        "symbolId": "connector",
-        "repositoryObjectId": null,
-        "metadata": {
-          "v2ModuleId": "mod-connector-4p-1788541193301",
-          "v2Category": "connector"
-        },
-        "evidenceLinks": [],
-        "properties": {},
-        "ports": []
-      },
-      {
-        "id": "node_hlznd95afn_ri0lhl",
+        "id": "node_hlzz7d8xvu_wn2xzq",
         "category": "component",
         "displayName": "Connector 4P Vertical",
         "symbolId": "connector",
         "repositoryObjectId": null,
         "metadata": {
-          "v2ModuleId": "mod-connector-4p-vertical-1788556184458",
+          "v2ModuleId": "mod-connector-4p-vertical-1788581949683",
           "v2Category": "connector",
           "v2Terminals": [
             {
               "n": "A",
-              "c": "R|R"
+              "c": "Lg/R|G/R"
             },
             {
               "n": "B",
-              "c": "W|W"
+              "c": "Bl|Bl"
             },
             {
               "n": "C",
-              "c": "G|G"
+              "c": "Gr|Gr"
             },
             {
               "n": "D",
-              "c": "Y|Y"
-            }
-          ],
-          "v2Exit": "down"
-        },
-        "evidenceLinks": [],
-        "properties": {},
-        "ports": []
-      },
-      {
-        "id": "node_hlzp00wj80_1kln2ya",
-        "category": "component",
-        "displayName": "Connector 4P",
-        "symbolId": "connector",
-        "repositoryObjectId": null,
-        "metadata": {
-          "v2ModuleId": "mod-connector-4p-1788559738222",
-          "v2Category": "connector",
-          "v2Terminals": [
-            {
-              "n": "A",
-              "c": "R|R"
-            },
-            {
-              "n": "B",
-              "c": "W|W"
-            },
-            {
-              "n": "C",
-              "c": "G|G"
-            },
-            {
-              "n": "D",
-              "c": "Y|Y"
+              "c": "Br/R|Br/R"
             }
           ],
           "v2Exit": "down",
           "v2Connector": true,
-          "v2Vertical": false
+          "v2Vertical": true
         },
         "evidenceLinks": [],
         "properties": {},
@@ -1598,22 +1551,6 @@
         "evidenceLinks": []
       },
       {
-        "id": "oil-sw-ind",
-        "relationshipType": "connectedTo",
-        "sourceNode": "oil-temp-switch",
-        "targetNode": "indicator-lights",
-        "repositoryRelationshipId": null,
-        "metadata": {
-          "v2WireId": "oil-sw-ind",
-          "label": "Oil Temp Sw Ind",
-          "wireColor": "Bl",
-          "sourcePort": "OUT",
-          "targetPort": "OIL",
-          "v2Description": "Oil temp switch → indicator"
-        },
-        "evidenceLinks": []
-      },
-      {
         "id": "tail-pw",
         "relationshipType": "connectedTo",
         "sourceNode": "ignition-switch",
@@ -1642,6 +1579,66 @@
           "sourcePort": "B+(R)",
           "targetPort": "R",
           "v2Description": "Battery B+(R) → tail light (Red)"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm057puua1_1bpn0os",
+        "relationshipType": "connectedTo",
+        "sourceNode": "indicator-lights",
+        "targetNode": "node_hlzz7d8xvu_wn2xzq",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788595031589",
+          "label": "Reverse Switch Indicator Switch Ground",
+          "wireColor": "Gr",
+          "sourcePort": "3",
+          "targetPort": "3_IN"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm059bqc55_1mc032q",
+        "relationshipType": "connectedTo",
+        "sourceNode": "indicator-lights",
+        "targetNode": "node_hlzz7d8xvu_wn2xzq",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788595129125",
+          "label": "Oil Temp Switch Ground Feed",
+          "wireColor": "Br/R",
+          "sourcePort": "2",
+          "targetPort": "4_IN"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm05aj2cdr_vwsss1",
+        "relationshipType": "connectedTo",
+        "sourceNode": "indicator-lights",
+        "targetNode": "node_hlzz7d8xvu_wn2xzq",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788595201804",
+          "label": "Neutral Indicator Light Switch Ground Feed",
+          "wireColor": "Lg/R",
+          "sourcePort": "6",
+          "targetPort": "1_IN"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm0u9zs2it_bnk20c",
+        "relationshipType": "connectedTo",
+        "sourceNode": "indicator-lights",
+        "targetNode": "node_hlzz7d8xvu_wn2xzq",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788649589040",
+          "label": "12v+ Feed To Indicator Lights",
+          "wireColor": "Bl",
+          "sourcePort": "5",
+          "targetPort": "2_IN"
         },
         "evidenceLinks": []
       }
@@ -1739,17 +1736,9 @@
         "dx": 1460.0,
         "dy": 390.0
       },
-      "node_hlzghbravr_9hnk67": {
-        "dx": 550.0,
-        "dy": 210.0
-      },
-      "node_hlznd95afn_ri0lhl": {
-        "dx": 800.0,
-        "dy": 490.0
-      },
-      "node_hlzp00wj80_1kln2ya": {
-        "dx": 800.0,
-        "dy": 490.0
+      "node_hlzz7d8xvu_wn2xzq": {
+        "dx": 360.0,
+        "dy": 230.0
       }
     },
     "wireOverrides": {},
@@ -1767,12 +1756,99 @@
       },
       "oil-sw-ind": {
         "2": -34.433285509325685
+      },
+      "rel_hlzq2p4n1v_gai8cq": {
+        "0": 80.92485549132948,
+        "1": -210.12131874157512
+      },
+      "rel_hlzq49374u_vodcfs": {
+        "1": -198.84393063583818
+      },
+      "rel_hlzq52mavt_pc92i9": {
+        "1": -194.21965317919077
+      },
+      "rel_hlzrrzo0ox_1spaowf": {
+        "0": -3.886010362694301,
+        "1": -229.92227979274614
+      },
+      "rel_hlzsibqlfa_1bzpjdh": {
+        "1": 19.430051813471504
+      },
+      "rel_hlztdpilrr_zix51e": {
+        "0": -179.40414507772022
+      },
+      "rel_hlztelo2nv_5zjzfy": {
+        "3": -72.53886010362694,
+        "4": 14.248704663212436
+      },
+      "rel_hlztelo2nv_1697yvk": {
+        "0": 176.8134715025907,
+        "1": 14.248704663212438
+      },
+      "rel_hlztelo2nv_bqg79a": {
+        "0": 8.419689119170986,
+        "1": -5.829015544041452,
+        "2": -68.00518134715027
+      },
+      "rel_hlzthcz6gy_1my5gbg": {
+        "1": 1.9430051813471505,
+        "3": -47.279792746114,
+        "4": -66.7098445595855
+      },
+      "rel_hlztj1y28i_18j2u82": {
+        "0": 25.259067357512958,
+        "1": -196.89119170984458
+      },
+      "bat-ign-pw": {
+        "0": 139.89637305699483
+      },
+      "bat-ign-r": {
+        "0": 13.471502590673573
+      },
+      "ign-alarm": {
+        "0": 31.0880829015544
+      },
+      "ign-consent": {
+        "0": 52.84974093264248
+      },
+      "lh-gnd-spl": {
+        "0": 21.761658031088082
+      },
+      "lh-lo-spl": {
+        "0": 56.99481865284974
+      },
+      "pulser-cdi": {
+        "0": 44.55958549222798
+      },
+      "relay-cdi": {
+        "0": 73.57512953367875
+      },
+      "stator-ac1": {
+        "0": 117.09844559585491
+      },
+      "stator-ac2": {
+        "0": 94.30051813471502
+      },
+      "stator-ac3": {
+        "0": 75.64766839378238
+      },
+      "stator-gnd": {
+        "0": 59.067357512953365
+      },
+      "rel_hm05bveu07_q7e7ew": {
+        "0": 13.06122448979592
+      },
+      "rel_hm05bvet85_7grgpm": {
+        "0": 13.877551020408164
+      },
+      "rel_hm05dfdjl3_1ape54o": {
+        "0": 13.877551020408164
       }
     }
   },
   "metadata": {
     "title": "TRX300",
     "createdAt": "2026-09-04T00:38:20.171480",
-    "modifiedAt": "2026-09-04T17:09:03.019663"
+    "modifiedAt": "2026-09-05T18:09:28.336323"
   }
 }

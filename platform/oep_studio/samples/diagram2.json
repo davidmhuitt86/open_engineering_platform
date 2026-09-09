@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
-  "documentId": "4b6f21439037ce0f",
+  "documentId": "7604568fa25fa79b",
   "graph": {
-    "id": "graph_hlzkexnf4n_2vgt7z",
+    "id": "graph_hlzl1qdglo_1wfsps",
     "nodes": [
       {
-        "id": "node_hlzkey9sjk_1m2whrj",
+        "id": "node_hlzl1r27c1_yba4st",
         "category": "component",
         "displayName": "Indicator Lights",
         "symbolId": "generic_module",
@@ -33,7 +33,7 @@
         "ports": []
       },
       {
-        "id": "node_hlzkey9vmm_1ommirp",
+        "id": "node_hlzl1r2aey_e6jboo",
         "category": "component",
         "displayName": "CDI Unit",
         "symbolId": "generic_module",
@@ -73,7 +73,7 @@
         "ports": []
       },
       {
-        "id": "node_hlzkey9vmm_1w3qmr0",
+        "id": "node_hlzl1r2b6s_155lxfy",
         "category": "component",
         "displayName": "Alarm Unit",
         "symbolId": "generic_module",
@@ -109,7 +109,7 @@
         "ports": []
       },
       {
-        "id": "node_hlzkey9wef_1loaphe",
+        "id": "node_hlzl1r2b6s_18ee9p1",
         "category": "component",
         "displayName": "Ignition Switch",
         "symbolId": "generic_module",
@@ -141,7 +141,7 @@
         "ports": []
       },
       {
-        "id": "node_hlzkey9wef_jebsf0",
+        "id": "node_hlzl1r2byk_127b1qc",
         "category": "component",
         "displayName": "DC Consent",
         "symbolId": "generic_module",
@@ -165,7 +165,7 @@
         "ports": []
       },
       {
-        "id": "node_hlzkey9wef_150zdd6",
+        "id": "node_hlzl1r2byk_1jthv1h",
         "category": "component",
         "displayName": "Rectifier",
         "symbolId": "generic_module",
@@ -189,7 +189,7 @@
         "ports": []
       },
       {
-        "id": "node_hlzkey9wef_gh2pji",
+        "id": "node_hlzl1r2cqf_jo9c3z",
         "category": "component",
         "displayName": "Reg/Rect",
         "symbolId": "generic_module",
@@ -229,7 +229,7 @@
         "ports": []
       },
       {
-        "id": "node_hlzkey9wef_6ri8o",
+        "id": "node_hlzl1r2cqf_1w4xziu",
         "category": "component",
         "displayName": "LH Handlebar Sw",
         "symbolId": "generic_module",
@@ -273,7 +273,7 @@
         "ports": []
       },
       {
-        "id": "node_hlzkey9wef_17avgi2",
+        "id": "node_hlzl1r2cqf_1yw32cg",
         "category": "component",
         "displayName": "Chassis GND",
         "symbolId": "ground",
@@ -297,7 +297,7 @@
         "ports": []
       },
       {
-        "id": "node_hlzkey9x67_18lxpwt",
+        "id": "node_hlzl1r2cqf_11cl86b",
         "category": "component",
         "displayName": "Ignition Coil",
         "symbolId": "generic_module",
@@ -321,7 +321,7 @@
         "ports": []
       },
       {
-        "id": "node_hlzkey9x67_bmvf7q",
+        "id": "node_hlzl1r2di6_twbbp",
         "category": "component",
         "displayName": "Spark Plug",
         "symbolId": "generic_module",
@@ -341,7 +341,7 @@
         "ports": []
       },
       {
-        "id": "node_hlzkey9x67_1n2gfpi",
+        "id": "node_hlzl1r2di6_jtwa0x",
         "category": "component",
         "displayName": "Reverse Switch",
         "symbolId": "generic_module",
@@ -365,7 +365,7 @@
         "ports": []
       },
       {
-        "id": "node_hlzkey9x67_1uis8kt",
+        "id": "node_hlzl1r2ea0_1ohuab5",
         "category": "component",
         "displayName": "Neutral Switch",
         "symbolId": "generic_module",
@@ -389,7 +389,7 @@
         "ports": []
       },
       {
-        "id": "node_hlzkey9x67_o482f7",
+        "id": "node_hlzl1r2ea0_19se8hv",
         "category": "component",
         "displayName": "Oil Temp Switch",
         "symbolId": "generic_module",
@@ -413,7 +413,7 @@
         "ports": []
       },
       {
-        "id": "node_hlzkey9x67_1olc4rn",
+        "id": "node_hlzl1r2f1p_1q1af4p",
         "category": "component",
         "displayName": "Pulser Coil",
         "symbolId": "generic_module",
@@ -437,7 +437,7 @@
         "ports": []
       },
       {
-        "id": "node_hlzkey9x67_1ht7je3",
+        "id": "node_hlzl1r2f1p_140wki3",
         "category": "component",
         "displayName": "Stator/Alt",
         "symbolId": "generic_module",
@@ -473,7 +473,7 @@
         "ports": []
       },
       {
-        "id": "node_hlzkey9xxy_1syxe5y",
+        "id": "node_hlzl1r2f1p_1ptib48",
         "category": "component",
         "displayName": "Starter Motor",
         "symbolId": "generic_module",
@@ -497,7 +497,7 @@
         "ports": []
       },
       {
-        "id": "node_hlzkey9xxy_1m34obe",
+        "id": "node_hlzl1r2f1p_1chrywq",
         "category": "component",
         "displayName": "Starter Relay",
         "symbolId": "generic_module",
@@ -529,7 +529,7 @@
         "ports": []
       },
       {
-        "id": "node_hlzkey9xxy_8lra0d",
+        "id": "node_hlzl1r2fti_1vttep3",
         "category": "component",
         "displayName": "Battery + Fuses",
         "symbolId": "generic_module",
@@ -561,7 +561,7 @@
         "ports": []
       },
       {
-        "id": "node_hlzkey9xxy_90ipu6",
+        "id": "node_hlzl1r2fti_zp0fxw",
         "category": "component",
         "displayName": "RH Headlight",
         "symbolId": "generic_module",
@@ -589,7 +589,7 @@
         "ports": []
       },
       {
-        "id": "node_hlzkey9xxy_guvkl",
+        "id": "node_hlzl1r2fti_ze3rqr",
         "category": "component",
         "displayName": "LH Headlight",
         "symbolId": "generic_module",
@@ -617,7 +617,7 @@
         "ports": []
       },
       {
-        "id": "node_hlzkey9xxy_919fat",
+        "id": "node_hlzl1r2gl8_1bxbkb5",
         "category": "component",
         "displayName": "Tail Light",
         "symbolId": "generic_module",
@@ -641,13 +641,13 @@
         "ports": []
       },
       {
-        "id": "node_hlzkf7jod7_10befro",
+        "id": "node_hlzl22h2or_19ljkm6",
         "category": "component",
         "displayName": "Connector 4P Vertical",
         "symbolId": "connector",
         "repositoryObjectId": null,
         "metadata": {
-          "v2ModuleId": "mod-connector-4p-vertical-1788549772219",
+          "v2ModuleId": "mod-connector-4p-vertical-1788551154468",
           "v2Category": "connector",
           "v2Terminals": [
             {
@@ -671,14 +671,34 @@
         "evidenceLinks": [],
         "properties": {},
         "ports": []
+      },
+      {
+        "id": "node_hlzlvqgnb0_1nk87uk",
+        "category": "component",
+        "displayName": "Splice",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "splice-1788552948446",
+          "v2Category": "splice",
+          "v2Terminals": [
+            {
+              "n": "SPLICE",
+              "c": "Bl"
+            }
+          ]
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
       }
     ],
     "relationships": [
       {
-        "id": "rel_hlzkey9ypr_yj1x9u",
+        "id": "rel_hlzl1r2iiy_gnbryc",
         "relationshipType": "connectedTo",
-        "sourceNode": "node_hlzkey9x67_1ht7je3",
-        "targetNode": "node_hlzkey9wef_gh2pji",
+        "sourceNode": "node_hlzl1r2f1p_140wki3",
+        "targetNode": "node_hlzl1r2cqf_jo9c3z",
         "repositoryRelationshipId": null,
         "metadata": {
           "v2WireId": "stator-ac1",
@@ -690,10 +710,10 @@
         "evidenceLinks": []
       },
       {
-        "id": "rel_hlzkeya09b_1cr244c",
+        "id": "rel_hlzl1r2kuk_nc2lew",
         "relationshipType": "connectedTo",
-        "sourceNode": "node_hlzkey9x67_1ht7je3",
-        "targetNode": "node_hlzkey9wef_gh2pji",
+        "sourceNode": "node_hlzl1r2f1p_140wki3",
+        "targetNode": "node_hlzl1r2cqf_jo9c3z",
         "repositoryRelationshipId": null,
         "metadata": {
           "v2WireId": "stator-ac2",
@@ -705,10 +725,10 @@
         "evidenceLinks": []
       },
       {
-        "id": "rel_hlzkeya09b_qtbdv6",
+        "id": "rel_hlzl1r2kuk_ei72rh",
         "relationshipType": "connectedTo",
-        "sourceNode": "node_hlzkey9x67_1ht7je3",
-        "targetNode": "node_hlzkey9wef_gh2pji",
+        "sourceNode": "node_hlzl1r2f1p_140wki3",
+        "targetNode": "node_hlzl1r2cqf_jo9c3z",
         "repositoryRelationshipId": null,
         "metadata": {
           "v2WireId": "stator-ac3",
@@ -720,10 +740,10 @@
         "evidenceLinks": []
       },
       {
-        "id": "rel_hlzkeya09b_1qpwvz5",
+        "id": "rel_hlzl1r2lmg_umlbby",
         "relationshipType": "connectedTo",
-        "sourceNode": "node_hlzkey9x67_1ht7je3",
-        "targetNode": "node_hlzkey9wef_gh2pji",
+        "sourceNode": "node_hlzl1r2f1p_140wki3",
+        "targetNode": "node_hlzl1r2cqf_jo9c3z",
         "repositoryRelationshipId": null,
         "metadata": {
           "v2WireId": "stator-gnd",
@@ -735,10 +755,10 @@
         "evidenceLinks": []
       },
       {
-        "id": "rel_hlzkeya114_1k38nk1",
+        "id": "rel_hlzl1r2lmg_1eenauo",
         "relationshipType": "connectedTo",
-        "sourceNode": "node_hlzkey9wef_gh2pji",
-        "targetNode": "node_hlzkey9xxy_8lra0d",
+        "sourceNode": "node_hlzl1r2cqf_jo9c3z",
+        "targetNode": "node_hlzl1r2fti_1vttep3",
         "repositoryRelationshipId": null,
         "metadata": {
           "v2WireId": "reg-bat",
@@ -750,10 +770,10 @@
         "evidenceLinks": []
       },
       {
-        "id": "rel_hlzkeya114_n1uphh",
+        "id": "rel_hlzl1r2me3_npwodu",
         "relationshipType": "connectedTo",
-        "sourceNode": "node_hlzkey9x67_1olc4rn",
-        "targetNode": "node_hlzkey9vmm_1ommirp",
+        "sourceNode": "node_hlzl1r2f1p_1q1af4p",
+        "targetNode": "node_hlzl1r2aey_e6jboo",
         "repositoryRelationshipId": null,
         "metadata": {
           "v2WireId": "pulser-cdi",
@@ -765,10 +785,10 @@
         "evidenceLinks": []
       },
       {
-        "id": "rel_hlzkeya1sz_uiclp3",
+        "id": "rel_hlzl1r2me3_1lipme2",
         "relationshipType": "connectedTo",
-        "sourceNode": "node_hlzkey9x67_1olc4rn",
-        "targetNode": "node_hlzkey9wef_17avgi2",
+        "sourceNode": "node_hlzl1r2f1p_1q1af4p",
+        "targetNode": "node_hlzl1r2cqf_1yw32cg",
         "repositoryRelationshipId": null,
         "metadata": {
           "v2WireId": "pulser-gnd",
@@ -780,10 +800,10 @@
         "evidenceLinks": []
       },
       {
-        "id": "rel_hlzkeya1sz_17o6vva",
+        "id": "rel_hlzl1r2n5z_1jyh92p",
         "relationshipType": "connectedTo",
-        "sourceNode": "node_hlzkey9vmm_1ommirp",
-        "targetNode": "node_hlzkey9x67_18lxpwt",
+        "sourceNode": "node_hlzl1r2aey_e6jboo",
+        "targetNode": "node_hlzl1r2cqf_11cl86b",
         "repositoryRelationshipId": null,
         "metadata": {
           "v2WireId": "cdi-coil",
@@ -795,10 +815,10 @@
         "evidenceLinks": []
       },
       {
-        "id": "rel_hlzkeya2ky_bj5992",
+        "id": "rel_hlzl1r2n5z_1sg52t9",
         "relationshipType": "connectedTo",
-        "sourceNode": "node_hlzkey9x67_18lxpwt",
-        "targetNode": "node_hlzkey9wef_17avgi2",
+        "sourceNode": "node_hlzl1r2cqf_11cl86b",
+        "targetNode": "node_hlzl1r2cqf_1yw32cg",
         "repositoryRelationshipId": null,
         "metadata": {
           "v2WireId": "coil-gnd",
@@ -810,10 +830,10 @@
         "evidenceLinks": []
       },
       {
-        "id": "rel_hlzkeya2ky_1jyemfb",
+        "id": "rel_hlzl1r2nxp_1ds1lab",
         "relationshipType": "connectedTo",
-        "sourceNode": "node_hlzkey9vmm_1ommirp",
-        "targetNode": "node_hlzkey9wef_17avgi2",
+        "sourceNode": "node_hlzl1r2aey_e6jboo",
+        "targetNode": "node_hlzl1r2cqf_1yw32cg",
         "repositoryRelationshipId": null,
         "metadata": {
           "v2WireId": "cdi-gnd",
@@ -825,10 +845,10 @@
         "evidenceLinks": []
       },
       {
-        "id": "rel_hlzkeya2ky_sku44p",
+        "id": "rel_hlzl1r2nxp_1y226gx",
         "relationshipType": "connectedTo",
-        "sourceNode": "node_hlzkey9sjk_1m2whrj",
-        "targetNode": "node_hlzkey9vmm_1w3qmr0",
+        "sourceNode": "node_hlzl1r27c1_yba4st",
+        "targetNode": "node_hlzl1r2b6s_155lxfy",
         "repositoryRelationshipId": null,
         "metadata": {
           "v2WireId": "oil-alarm",
@@ -840,10 +860,10 @@
         "evidenceLinks": []
       },
       {
-        "id": "rel_hlzkeya2ky_13gvfpn",
+        "id": "rel_hlzl1r2opq_wbhxlx",
         "relationshipType": "connectedTo",
-        "sourceNode": "node_hlzkey9x67_1n2gfpi",
-        "targetNode": "node_hlzkey9sjk_1m2whrj",
+        "sourceNode": "node_hlzl1r2di6_jtwa0x",
+        "targetNode": "node_hlzl1r27c1_yba4st",
         "repositoryRelationshipId": null,
         "metadata": {
           "v2WireId": "rev-ind",
@@ -855,10 +875,10 @@
         "evidenceLinks": []
       },
       {
-        "id": "rel_hlzkeya3cj_1fz1u2w",
+        "id": "rel_hlzl1r2opq_qf2m04",
         "relationshipType": "connectedTo",
-        "sourceNode": "node_hlzkey9x67_1n2gfpi",
-        "targetNode": "node_hlzkey9wef_17avgi2",
+        "sourceNode": "node_hlzl1r2di6_jtwa0x",
+        "targetNode": "node_hlzl1r2cqf_1yw32cg",
         "repositoryRelationshipId": null,
         "metadata": {
           "v2WireId": "rev-gnd",
@@ -870,10 +890,10 @@
         "evidenceLinks": []
       },
       {
-        "id": "rel_hlzkeya3cj_xgawgr",
+        "id": "rel_hlzl1r2opq_173m943",
         "relationshipType": "connectedTo",
-        "sourceNode": "node_hlzkey9x67_1uis8kt",
-        "targetNode": "node_hlzkey9wef_17avgi2",
+        "sourceNode": "node_hlzl1r2ea0_1ohuab5",
+        "targetNode": "node_hlzl1r2cqf_1yw32cg",
         "repositoryRelationshipId": null,
         "metadata": {
           "v2WireId": "neu-gnd",
@@ -885,10 +905,10 @@
         "evidenceLinks": []
       },
       {
-        "id": "rel_hlzkeya3cj_1gna7if",
+        "id": "rel_hlzl1r2phi_rfgaxx",
         "relationshipType": "connectedTo",
-        "sourceNode": "node_hlzkey9x67_o482f7",
-        "targetNode": "node_hlzkey9wef_17avgi2",
+        "sourceNode": "node_hlzl1r2ea0_19se8hv",
+        "targetNode": "node_hlzl1r2cqf_1yw32cg",
         "repositoryRelationshipId": null,
         "metadata": {
           "v2WireId": "oilsw-gnd",
@@ -900,10 +920,10 @@
         "evidenceLinks": []
       },
       {
-        "id": "rel_hlzkeya3cj_4yp8ta",
+        "id": "rel_hlzl1r2phi_1er9t1k",
         "relationshipType": "connectedTo",
-        "sourceNode": "node_hlzkey9sjk_1m2whrj",
-        "targetNode": "node_hlzkey9wef_150zdd6",
+        "sourceNode": "node_hlzl1r27c1_yba4st",
+        "targetNode": "node_hlzl1r2byk_1jthv1h",
         "repositoryRelationshipId": null,
         "metadata": {
           "v2WireId": "neu-ind",
@@ -915,10 +935,10 @@
         "evidenceLinks": []
       },
       {
-        "id": "rel_hlzkeya3cj_5uj28b",
+        "id": "rel_hlzl1r2q9f_16kayel",
         "relationshipType": "connectedTo",
-        "sourceNode": "node_hlzkey9xxy_8lra0d",
-        "targetNode": "node_hlzkey9wef_1loaphe",
+        "sourceNode": "node_hlzl1r2fti_1vttep3",
+        "targetNode": "node_hlzl1r2b6s_18ee9p1",
         "repositoryRelationshipId": null,
         "metadata": {
           "v2WireId": "bat-ign-r",
@@ -930,10 +950,10 @@
         "evidenceLinks": []
       },
       {
-        "id": "rel_hlzkeya44i_fostet",
+        "id": "rel_hlzl1r2q9f_1v0au70",
         "relationshipType": "connectedTo",
-        "sourceNode": "node_hlzkey9xxy_8lra0d",
-        "targetNode": "node_hlzkey9wef_1loaphe",
+        "sourceNode": "node_hlzl1r2fti_1vttep3",
+        "targetNode": "node_hlzl1r2b6s_18ee9p1",
         "repositoryRelationshipId": null,
         "metadata": {
           "v2WireId": "bat-ign-pw",
@@ -945,10 +965,10 @@
         "evidenceLinks": []
       },
       {
-        "id": "rel_hlzkeya44i_6k93pz",
+        "id": "rel_hlzl1r2r15_1wykzdb",
         "relationshipType": "connectedTo",
-        "sourceNode": "node_hlzkey9wef_1loaphe",
-        "targetNode": "node_hlzkey9wef_jebsf0",
+        "sourceNode": "node_hlzl1r2b6s_18ee9p1",
+        "targetNode": "node_hlzl1r2byk_127b1qc",
         "repositoryRelationshipId": null,
         "metadata": {
           "v2WireId": "ign-consent",
@@ -960,10 +980,10 @@
         "evidenceLinks": []
       },
       {
-        "id": "rel_hlzkeya44i_cac09o",
+        "id": "rel_hlzl1r2r15_1hdrpt",
         "relationshipType": "connectedTo",
-        "sourceNode": "node_hlzkey9wef_1loaphe",
-        "targetNode": "node_hlzkey9vmm_1w3qmr0",
+        "sourceNode": "node_hlzl1r2b6s_18ee9p1",
+        "targetNode": "node_hlzl1r2b6s_155lxfy",
         "repositoryRelationshipId": null,
         "metadata": {
           "v2WireId": "ign-alarm",
@@ -975,10 +995,10 @@
         "evidenceLinks": []
       },
       {
-        "id": "rel_hlzkeya4w9_1cjhhcf",
+        "id": "rel_hlzl1r2rsv_ktwu9w",
         "relationshipType": "connectedTo",
-        "sourceNode": "node_hlzkey9wef_jebsf0",
-        "targetNode": "node_hlzkey9wef_17avgi2",
+        "sourceNode": "node_hlzl1r2byk_127b1qc",
+        "targetNode": "node_hlzl1r2cqf_1yw32cg",
         "repositoryRelationshipId": null,
         "metadata": {
           "v2WireId": "jack-gnd",
@@ -990,10 +1010,10 @@
         "evidenceLinks": []
       },
       {
-        "id": "rel_hlzkeya4w9_18pznd",
+        "id": "rel_hlzl1r2rsv_a3m1si",
         "relationshipType": "connectedTo",
-        "sourceNode": "node_hlzkey9wef_6ri8o",
-        "targetNode": "node_hlzkey9vmm_1ommirp",
+        "sourceNode": "node_hlzl1r2cqf_1w4xziu",
+        "targetNode": "node_hlzl1r2aey_e6jboo",
         "repositoryRelationshipId": null,
         "metadata": {
           "v2WireId": "kill-cdi",
@@ -1005,10 +1025,10 @@
         "evidenceLinks": []
       },
       {
-        "id": "rel_hlzkeya4w9_3tv6e5",
+        "id": "rel_hlzl1r2rsv_1mxvj3s",
         "relationshipType": "connectedTo",
-        "sourceNode": "node_hlzkey9wef_6ri8o",
-        "targetNode": "node_hlzkey9xxy_1m34obe",
+        "sourceNode": "node_hlzl1r2cqf_1w4xziu",
+        "targetNode": "node_hlzl1r2f1p_1chrywq",
         "repositoryRelationshipId": null,
         "metadata": {
           "v2WireId": "start-relay",
@@ -1020,10 +1040,10 @@
         "evidenceLinks": []
       },
       {
-        "id": "rel_hlzkeya5nt_2pkcfl",
+        "id": "rel_hlzl1r2sko_jbwj1p",
         "relationshipType": "connectedTo",
-        "sourceNode": "node_hlzkey9xxy_1m34obe",
-        "targetNode": "node_hlzkey9vmm_1ommirp",
+        "sourceNode": "node_hlzl1r2f1p_1chrywq",
+        "targetNode": "node_hlzl1r2aey_e6jboo",
         "repositoryRelationshipId": null,
         "metadata": {
           "v2WireId": "relay-cdi",
@@ -1035,10 +1055,10 @@
         "evidenceLinks": []
       },
       {
-        "id": "rel_hlzkeya5nt_1hvghqk",
+        "id": "rel_hlzl1r2sko_9kxzl9",
         "relationshipType": "connectedTo",
-        "sourceNode": "node_hlzkey9xxy_8lra0d",
-        "targetNode": "node_hlzkey9xxy_1m34obe",
+        "sourceNode": "node_hlzl1r2fti_1vttep3",
+        "targetNode": "node_hlzl1r2f1p_1chrywq",
         "repositoryRelationshipId": null,
         "metadata": {
           "v2WireId": "bat-relay",
@@ -1050,10 +1070,10 @@
         "evidenceLinks": []
       },
       {
-        "id": "rel_hlzkeya5nt_imerkz",
+        "id": "rel_hlzl1r2tcf_z10nnf",
         "relationshipType": "connectedTo",
-        "sourceNode": "node_hlzkey9xxy_1m34obe",
-        "targetNode": "node_hlzkey9xxy_1syxe5y",
+        "sourceNode": "node_hlzl1r2f1p_1chrywq",
+        "targetNode": "node_hlzl1r2f1p_1ptib48",
         "repositoryRelationshipId": null,
         "metadata": {
           "v2WireId": "relay-motor",
@@ -1065,10 +1085,10 @@
         "evidenceLinks": []
       },
       {
-        "id": "rel_hlzkeya5nt_p71snl",
+        "id": "rel_hlzl1r2tcf_vdez83",
         "relationshipType": "connectedTo",
-        "sourceNode": "node_hlzkey9xxy_1syxe5y",
-        "targetNode": "node_hlzkey9wef_17avgi2",
+        "sourceNode": "node_hlzl1r2f1p_1ptib48",
+        "targetNode": "node_hlzl1r2cqf_1yw32cg",
         "repositoryRelationshipId": null,
         "metadata": {
           "v2WireId": "motor-gnd",
@@ -1080,10 +1100,10 @@
         "evidenceLinks": []
       },
       {
-        "id": "rel_hlzkeya5nt_zncz83",
+        "id": "rel_hlzl1r2u47_kp1ktv",
         "relationshipType": "connectedTo",
-        "sourceNode": "node_hlzkey9xxy_8lra0d",
-        "targetNode": "node_hlzkey9wef_17avgi2",
+        "sourceNode": "node_hlzl1r2fti_1vttep3",
+        "targetNode": "node_hlzl1r2cqf_1yw32cg",
         "repositoryRelationshipId": null,
         "metadata": {
           "v2WireId": "bat-neg",
@@ -1095,10 +1115,10 @@
         "evidenceLinks": []
       },
       {
-        "id": "rel_hlzkeya6fk_f7e2zc",
+        "id": "rel_hlzl1r2uvz_vs25nr",
         "relationshipType": "connectedTo",
-        "sourceNode": "node_hlzkey9wef_6ri8o",
-        "targetNode": "node_hlzkey9xxy_90ipu6",
+        "sourceNode": "node_hlzl1r2cqf_1w4xziu",
+        "targetNode": "node_hlzl1r2fti_zp0fxw",
         "repositoryRelationshipId": null,
         "metadata": {
           "v2WireId": "hlsw-lo",
@@ -1110,10 +1130,10 @@
         "evidenceLinks": []
       },
       {
-        "id": "rel_hlzkeya6fk_1j801as",
+        "id": "rel_hlzl1r2vnr_1b0ir1o",
         "relationshipType": "connectedTo",
-        "sourceNode": "node_hlzkey9wef_6ri8o",
-        "targetNode": "node_hlzkey9xxy_90ipu6",
+        "sourceNode": "node_hlzl1r2cqf_1w4xziu",
+        "targetNode": "node_hlzl1r2fti_zp0fxw",
         "repositoryRelationshipId": null,
         "metadata": {
           "v2WireId": "hlsw-hi",
@@ -1125,10 +1145,10 @@
         "evidenceLinks": []
       },
       {
-        "id": "rel_hlzkeya6fk_fprjnm",
+        "id": "rel_hlzl1r2wfh_eb76qm",
         "relationshipType": "connectedTo",
-        "sourceNode": "node_hlzkey9xxy_90ipu6",
-        "targetNode": "node_hlzkey9wef_17avgi2",
+        "sourceNode": "node_hlzl1r2fti_zp0fxw",
+        "targetNode": "node_hlzl1r2cqf_1yw32cg",
         "repositoryRelationshipId": null,
         "metadata": {
           "v2WireId": "rh-gnd",
@@ -1140,10 +1160,10 @@
         "evidenceLinks": []
       },
       {
-        "id": "rel_hlzkeya6fk_1pow9kv",
+        "id": "rel_hlzl1r2wfh_1wub8r5",
         "relationshipType": "connectedTo",
-        "sourceNode": "node_hlzkey9xxy_90ipu6",
-        "targetNode": "node_hlzkey9xxy_guvkl",
+        "sourceNode": "node_hlzl1r2fti_zp0fxw",
+        "targetNode": "node_hlzl1r2fti_ze3rqr",
         "repositoryRelationshipId": null,
         "metadata": {
           "v2WireId": "lh-hi-spl",
@@ -1155,10 +1175,10 @@
         "evidenceLinks": []
       },
       {
-        "id": "rel_hlzkeya6fk_cqm4vp",
+        "id": "rel_hlzl1r2x7d_1536qhe",
         "relationshipType": "connectedTo",
-        "sourceNode": "node_hlzkey9xxy_90ipu6",
-        "targetNode": "node_hlzkey9xxy_guvkl",
+        "sourceNode": "node_hlzl1r2fti_zp0fxw",
+        "targetNode": "node_hlzl1r2fti_ze3rqr",
         "repositoryRelationshipId": null,
         "metadata": {
           "v2WireId": "lh-lo-spl",
@@ -1170,10 +1190,10 @@
         "evidenceLinks": []
       },
       {
-        "id": "rel_hlzkeya77d_sx8h9u",
+        "id": "rel_hlzl1r2xz2_1gsp2or",
         "relationshipType": "connectedTo",
-        "sourceNode": "node_hlzkey9xxy_90ipu6",
-        "targetNode": "node_hlzkey9xxy_guvkl",
+        "sourceNode": "node_hlzl1r2fti_zp0fxw",
+        "targetNode": "node_hlzl1r2fti_ze3rqr",
         "repositoryRelationshipId": null,
         "metadata": {
           "v2WireId": "lh-gnd-spl",
@@ -1185,10 +1205,10 @@
         "evidenceLinks": []
       },
       {
-        "id": "rel_hlzkeya77d_6tiqyi",
+        "id": "rel_hlzl1r2yqw_1dyci8c",
         "relationshipType": "connectedTo",
-        "sourceNode": "node_hlzkey9x67_1uis8kt",
-        "targetNode": "node_hlzkey9sjk_1m2whrj",
+        "sourceNode": "node_hlzl1r2ea0_1ohuab5",
+        "targetNode": "node_hlzl1r27c1_yba4st",
         "repositoryRelationshipId": null,
         "metadata": {
           "v2WireId": "neu-sw-ind",
@@ -1200,25 +1220,10 @@
         "evidenceLinks": []
       },
       {
-        "id": "rel_hlzkeya77d_xu2boi",
+        "id": "rel_hlzl1r2ziu_97mgy0",
         "relationshipType": "connectedTo",
-        "sourceNode": "node_hlzkey9x67_o482f7",
-        "targetNode": "node_hlzkey9sjk_1m2whrj",
-        "repositoryRelationshipId": null,
-        "metadata": {
-          "v2WireId": "oil-sw-ind",
-          "label": "Oil Temp Sw Ind",
-          "wireColor": "Bl",
-          "sourcePort": "OUT",
-          "targetPort": "OIL"
-        },
-        "evidenceLinks": []
-      },
-      {
-        "id": "rel_hlzkeya77d_s3nvpf",
-        "relationshipType": "connectedTo",
-        "sourceNode": "node_hlzkey9wef_1loaphe",
-        "targetNode": "node_hlzkey9xxy_919fat",
+        "sourceNode": "node_hlzl1r2b6s_18ee9p1",
+        "targetNode": "node_hlzl1r2gl8_1bxbkb5",
         "repositoryRelationshipId": null,
         "metadata": {
           "v2WireId": "tail-pw",
@@ -1230,10 +1235,10 @@
         "evidenceLinks": []
       },
       {
-        "id": "rel_hlzkeya77d_1m96f8d",
+        "id": "rel_hlzl1r2ziu_16wdpkj",
         "relationshipType": "connectedTo",
-        "sourceNode": "node_hlzkey9xxy_8lra0d",
-        "targetNode": "node_hlzkey9xxy_919fat",
+        "sourceNode": "node_hlzl1r2fti_1vttep3",
+        "targetNode": "node_hlzl1r2gl8_1bxbkb5",
         "repositoryRelationshipId": null,
         "metadata": {
           "v2WireId": "tail-r",
@@ -1243,6 +1248,51 @@
           "targetPort": "R"
         },
         "evidenceLinks": []
+      },
+      {
+        "id": "rel_hlzlvqgr5m_1plairj",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hlzl1r2ea0_19se8hv",
+        "targetNode": "node_hlzlvqgnb0_1nk87uk",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788552948447-a",
+          "label": "Oil Temp Sw Ind",
+          "wireColor": "Bl",
+          "sourcePort": "OUT",
+          "targetPort": "SPLICE"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hlzlvqgtwa_h9ijux",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hlzlvqgnb0_1nk87uk",
+        "targetNode": "node_hlzl1r27c1_yba4st",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788552948447-b",
+          "label": "Oil Temp Sw Ind",
+          "wireColor": "Bl",
+          "sourcePort": "SPLICE",
+          "targetPort": "OIL"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hlzlvqguoo_13l6zfn",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hlzl1r2b6s_18ee9p1",
+        "targetNode": "node_hlzlvqgnb0_1nk87uk",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788552948447",
+          "label": "New Wire",
+          "wireColor": "W",
+          "sourcePort": "BAT1",
+          "targetPort": "SPLICE"
+        },
+        "evidenceLinks": []
       }
     ],
     "groups": [],
@@ -1250,97 +1300,101 @@
   },
   "layout": {
     "positions": {
-      "node_hlzkey9sjk_1m2whrj": {
+      "node_hlzl1r27c1_yba4st": {
         "dx": 20.0,
         "dy": 30.0
       },
-      "node_hlzkey9vmm_1ommirp": {
+      "node_hlzl1r2aey_e6jboo": {
         "dx": 130.0,
         "dy": 30.0
       },
-      "node_hlzkey9vmm_1w3qmr0": {
+      "node_hlzl1r2b6s_155lxfy": {
         "dx": 255.0,
         "dy": 30.0
       },
-      "node_hlzkey9wef_1loaphe": {
+      "node_hlzl1r2b6s_18ee9p1": {
         "dx": 380.0,
         "dy": 30.0
       },
-      "node_hlzkey9wef_jebsf0": {
+      "node_hlzl1r2byk_127b1qc": {
         "dx": 500.0,
         "dy": 30.0
       },
-      "node_hlzkey9wef_150zdd6": {
+      "node_hlzl1r2byk_1jthv1h": {
         "dx": 590.0,
         "dy": 30.0
       },
-      "node_hlzkey9wef_gh2pji": {
+      "node_hlzl1r2cqf_jo9c3z": {
         "dx": 668.0,
         "dy": 30.0
       },
-      "node_hlzkey9wef_6ri8o": {
+      "node_hlzl1r2cqf_1w4xziu": {
         "dx": 155.0,
         "dy": 580.0
       },
-      "node_hlzkey9wef_17avgi2": {
+      "node_hlzl1r2cqf_1yw32cg": {
         "dx": 320.0,
         "dy": 580.0
       },
-      "node_hlzkey9x67_18lxpwt": {
+      "node_hlzl1r2cqf_11cl86b": {
         "dx": 400.0,
         "dy": 580.0
       },
-      "node_hlzkey9x67_bmvf7q": {
+      "node_hlzl1r2di6_twbbp": {
         "dx": 480.0,
         "dy": 580.0
       },
-      "node_hlzkey9x67_1n2gfpi": {
+      "node_hlzl1r2di6_jtwa0x": {
         "dx": 540.0,
         "dy": 580.0
       },
-      "node_hlzkey9x67_1uis8kt": {
+      "node_hlzl1r2ea0_1ohuab5": {
         "dx": 610.0,
         "dy": 580.0
       },
-      "node_hlzkey9x67_o482f7": {
+      "node_hlzl1r2ea0_19se8hv": {
         "dx": 680.0,
         "dy": 580.0
       },
-      "node_hlzkey9x67_1olc4rn": {
+      "node_hlzl1r2f1p_1q1af4p": {
         "dx": 750.0,
         "dy": 580.0
       },
-      "node_hlzkey9x67_1ht7je3": {
+      "node_hlzl1r2f1p_140wki3": {
         "dx": 820.0,
         "dy": 580.0
       },
-      "node_hlzkey9xxy_1syxe5y": {
+      "node_hlzl1r2f1p_1ptib48": {
         "dx": 940.0,
         "dy": 580.0
       },
-      "node_hlzkey9xxy_1m34obe": {
+      "node_hlzl1r2f1p_1chrywq": {
         "dx": 1020.0,
         "dy": 580.0
       },
-      "node_hlzkey9xxy_8lra0d": {
+      "node_hlzl1r2fti_1vttep3": {
         "dx": 1130.0,
         "dy": 580.0
       },
-      "node_hlzkey9xxy_90ipu6": {
+      "node_hlzl1r2fti_zp0fxw": {
         "dx": 20.0,
         "dy": 390.0
       },
-      "node_hlzkey9xxy_guvkl": {
+      "node_hlzl1r2fti_ze3rqr": {
         "dx": 20.0,
         "dy": 470.0
       },
-      "node_hlzkey9xxy_919fat": {
+      "node_hlzl1r2gl8_1bxbkb5": {
         "dx": 1460.0,
         "dy": 390.0
       },
-      "node_hlzkf7jod7_10befro": {
-        "dx": 580.0,
-        "dy": 180.0
+      "node_hlzl22h2or_19ljkm6": {
+        "dx": 800.0,
+        "dy": 490.0
+      },
+      "node_hlzlvqgnb0_1nk87uk": {
+        "dx": 390.0,
+        "dy": 115.0
       }
     },
     "wireOverrides": {},
@@ -1349,11 +1403,19 @@
     "layerAssignments": {},
     "transforms": {},
     "sizes": {},
-    "wireSegmentOffsets": {}
+    "wireSegmentOffsets": {
+      "rel_hlzl1r2rsv_a3m1si": {
+        "0": 145.96273291925465
+      },
+      "rel_hlzlvqguoo_13l6zfn": {
+        "3": -93.2475884244373,
+        "4": 8.038585209003216
+      }
+    }
   },
   "metadata": {
     "title": "diagram2",
-    "createdAt": "2026-09-04T14:22:25.006022",
-    "modifiedAt": "2026-09-04T14:23:45.910411"
+    "createdAt": "2026-09-04T14:45:27.976586",
+    "modifiedAt": "2026-09-04T15:16:20.406671"
   }
 }

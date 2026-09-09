@@ -217,6 +217,19 @@ class LegacyV2StateAdapter {
 
   String? oepNodeIdFor(String v2ModuleId) => _v2ToOepNodeId[v2ModuleId];
 
+  /// AP-OEP-DIAGRAM-OPEN-RACE-001 companion — how many modules the most
+  /// recent [initializeFromDocument]/[reinitializeForDocument] *attempted*
+  /// to seed into V2 (i.e. how many graph nodes carried a `v2ModuleId` to
+  /// restore). Every [LegacyV2Channel.restoreModule] call is a
+  /// fire-and-forget `window.__oepBridgeX && window.__oepBridgeX(...)`
+  /// that silently no-ops if V2's page isn't ready to receive it yet — so
+  /// this count on its own does NOT prove V2 actually rendered anything;
+  /// it exists so the caller (`legacy_v2_webview.dart`) can compare it
+  /// against V2's own live `MODULES.length` right after seeding and turn
+  /// a mismatch into a visible error instead of a diagram that looks like
+  /// it "loaded" (no exception, no error state) while showing nothing.
+  int get bridgedModuleCount => _v2ToOepNodeId.length;
+
   /// Reads back [_handleModuleCreated]'s stashed `metadata['v2Terminals']`
   /// — typed `List<Map<String, String>>` in-memory, but `List<dynamic>` of
   /// `Map<String, dynamic>` once it has round-tripped through a saved
@@ -229,6 +242,41 @@ class LegacyV2StateAdapter {
         .whereType<Map>()
         .map(
             (t) => t.map((k, v) => MapEntry(k.toString(), v?.toString() ?? '')))
+        .toList();
+  }
+
+  /// AP-DIAGRAM-V2-BRIDGE-SAVE-009 — [_terminalsFromMetadata] only has
+  /// something to read for a node created (or flushed) through THIS
+  /// bridge's own live create/save path, going forward from
+  /// AP-DIAGRAM-V2-BRIDGE-SAVE-007. It has nothing for a node from any
+  /// other producer of `v2ModuleId`-bearing nodes — most notably
+  /// `tool/import_trx300_vehicle.dart`'s standalone batch import, which
+  /// predates this metadata convention entirely and instead gives each
+  /// node a real `EngineeringNode.ports` list (with each port's V2 wire
+  /// color code stashed at `port.metadata['v2Color']` — confirmed by
+  /// reading the importer and a sample imported document directly). Both
+  /// are genuine, already-existing sources for the same information V2's
+  /// `restoreModule` needs (a terminal name + color code pair); this
+  /// falls back to deriving it from `ports` rather than leaving a module
+  /// with zero terminals — which is what silently broke, for EVERY
+  /// existing document, the moment [initializeFromDocument] started
+  /// unconditionally clearing V2's display first (AP-DIAGRAM-V2-BRIDGE-
+  /// SAVE-008): previously, a module already present in V2 (from its own
+  /// bootstrap) kept its bootstrap-provided terminals no matter what
+  /// `restoreModule` sent, because `restoreModule` never overwrote an
+  /// existing module's terminals unless it was actually given some.
+  /// Clearing first means every module now has to be reconstructed from
+  /// scratch, so `restoreModule` needs a real answer for every document,
+  /// not just ones saved after AP-DIAGRAM-BRIDGE-SAVE-007 landed.
+  static List<Map<String, String>> _terminalsForNode(EngineeringNode node) {
+    final fromMetadata = _terminalsFromMetadata(node.metadata['v2Terminals']);
+    if (fromMetadata.isNotEmpty) return fromMetadata;
+    if (node.ports.isEmpty) return const [];
+    return node.ports
+        .map((port) => {
+              'n': port.name,
+              'c': port.metadata['v2Color'] as String? ?? '',
+            })
         .toList();
   }
 
@@ -267,9 +315,41 @@ class LegacyV2StateAdapter {
   /// [unbridgedV2ModuleIds] is effectively legacy at this point (kept for
   /// the host UI's display purposes and the theoretical case of a truly
   /// empty category string, rather than removed outright).
+  /// AP-DIAGRAM-V2-BRIDGE-SAVE-011 — a defense-in-depth guard against
+  /// duplicate-creation. [_v2ToOepNodeId] is deliberately in-memory/
+  /// session-scoped only (§ class doc comment) — a fresh
+  /// `LegacyV2StateAdapter` (a new WebView widget instance, e.g. after
+  /// its Diagram tab was closed and reopened) starts with an empty map
+  /// regardless of what the graph itself already durably records via
+  /// `metadata['v2ModuleId']`. [initializeFromDocument] is meant to be
+  /// the ONE place that rebuilds the map from that durable source before
+  /// anything else can run — but if a create event ever reaches
+  /// [_handleModuleCreated] while the map is out of sync with the graph
+  /// for any reason (a gap this task could not fully trace to one single
+  /// root cause; confirmed symptom: a re-saved document ends up with a
+  /// SECOND node for the same V2 module — a fresh generated id, the
+  /// wrong `generic_module` fallback symbol instead of the original
+  /// richer one, and none of the original node's other data), this
+  /// check makes duplicate-creation structurally impossible rather than
+  /// relying on the map alone: before creating, look for a node the
+  /// graph ITSELF already durably identifies as this V2 module, and if
+  /// one exists, adopt it (re-populate the map entry) instead of
+  /// fabricating a second one.
+  String? _existingNodeIdForV2Module(String v2ModuleId) {
+    for (final node in controller.engine.editing.session.graph.nodes.values) {
+      if (node.metadata['v2ModuleId'] == v2ModuleId) return node.id;
+    }
+    return null;
+  }
+
   void _handleModuleCreated(V2ModuleCreatedMessage message) {
     if (!_ready) return;
     if (_v2ToOepNodeId.containsKey(message.v2ModuleId)) return;
+    final existingNodeId = _existingNodeIdForV2Module(message.v2ModuleId);
+    if (existingNodeId != null) {
+      _v2ToOepNodeId[message.v2ModuleId] = existingNodeId;
+      return;
+    }
     final symbolId = _symbolIdForCategory(message.category);
     final position = Point2D(message.x, message.y);
     final before = controller.engine.editing.session.graph.nodes.keys.toSet();
@@ -284,6 +364,49 @@ class LegacyV2StateAdapter {
         // later `restoreModule` (document reopen, undo-of-delete) can
         // reconstruct a module V2 actually renders with terminal dots.
         if (message.terminals.isNotEmpty) 'v2Terminals': message.terminals,
+        // AP-DIAGRAM-V2-BRIDGE-SAVE-009 — V2's own exit side ('up'/
+        // 'down'/'left'/'right'), so a later `restoreModule` reconstructs
+        // a module with its real wire-exit side instead of the hardcoded
+        // 'down' default.
+        if (message.exit.isNotEmpty) 'v2Exit': message.exit,
+        // AP-DIAGRAM-V2-BRIDGE-SAVE-010 — V2's own connector/vertical
+        // flags, so a later `restoreModule` reconstructs a connector
+        // module with its real stacked-pin layout and orientation
+        // instead of falling back to a plain card / horizontal.
+        if (message.connector != null) 'v2Connector': message.connector,
+        if (message.vertical != null) 'v2Vertical': message.vertical,
+        // AP-MODULE-LAYOUT-001 — V2's own label/pin label position
+        // overrides, same stash-for-`restoreModule`-to-rebuild treatment
+        // as `v2Exit` above.
+        if (message.labelPos.isNotEmpty) 'v2LabelPos': message.labelPos,
+        if (message.pinLabelPos.isNotEmpty)
+          'v2PinLabelPos': message.pinLabelPos,
+        if (message.subLabelPos.isNotEmpty)
+          'v2SubLabelPos': message.subLabelPos,
+        // AP-MODULE-LABEL-WRAP-001 — V2's own module subtitle (`m.sub`)
+        // and label-justify choice, same stash-for-`restoreModule`-to-
+        // rebuild treatment as `v2Exit` above. `sub` is a genuinely
+        // pre-existing V2 field this bridge never captured before this
+        // fix (§ `restoreModule`'s own doc comment on `hasSub`).
+        if (message.sub.isNotEmpty) 'v2Sub': message.sub,
+        if (message.labelJustify.isNotEmpty)
+          'v2LabelJustify': message.labelJustify,
+        // AP-MODULE-KIND-001 — V2's own special-render flag (`m.bulb`/
+        // `m.diode`/`m.battery`/`m.starterMotor`/`m.solenoid`/
+        // `m.groundedSwitch`/`m.thermistor`, collapsed to one string by
+        // the bridge script), same stash-for-`restoreModule`-to-rebuild
+        // treatment as `v2Exit` above — without it, a reopened Battery/
+        // Starter Motor/Solenoid/Diode/Bulb/grounded-Switch/Thermistor
+        // module silently fell back to a plain `buildStdCard` card,
+        // losing its whole special glyph despite otherwise-correct
+        // terminals/position/wires.
+        if (message.kind.isNotEmpty) 'v2Kind': message.kind,
+        // AP-BULB-GENERIC-001 — same stash-for-`restoreModule`-to-rebuild
+        // treatment as `v2Kind` above, for a bulb's own lit-color/style/
+        // flip-side choice.
+        if (message.bulbStyle.isNotEmpty) 'v2BulbStyle': message.bulbStyle,
+        if (message.bulbColor.isNotEmpty) 'v2BulbColor': message.bulbColor,
+        if (message.flipped != null) 'v2Flipped': message.flipped,
       },
     );
     final after = controller.engine.editing.session.graph.nodes.keys.toSet();
@@ -353,6 +476,109 @@ class LegacyV2StateAdapter {
           nodeId, {'notes': message.notes.isEmpty ? null : message.notes});
       bridgedSomething = true;
     }
+    // Terminal-list/exit/connector/vertical edits on an already-bridged
+    // module (adding/renaming/reordering a pin via V2's own Edit Module
+    // modal) used to have nowhere to go: only a brand-new module's
+    // terminals were ever captured, once, via _handleModuleCreated — so
+    // an edit here rendered correctly live in V2, then silently reverted
+    // to the module's original terminal list on the next document
+    // save-and-reopen, since restoreModule() had nothing but that stale
+    // metadata to reconstruct from. The bridge script only sends this
+    // message with updated terminals/exit/connector/vertical when at
+    // least one of them actually changed (see its own doc comment), so
+    // this always applies what it's given rather than re-diffing.
+    if (message.terminals.isNotEmpty) {
+      controller.updateNodeMetadata(nodeId, {'v2Terminals': message.terminals});
+      bridgedSomething = true;
+    }
+    if (message.exit.isNotEmpty &&
+        currentNode.metadata['v2Exit'] != message.exit) {
+      controller.updateNodeMetadata(nodeId, {'v2Exit': message.exit});
+      bridgedSomething = true;
+    }
+    if (message.connector != null &&
+        currentNode.metadata['v2Connector'] != message.connector) {
+      controller.updateNodeMetadata(nodeId, {'v2Connector': message.connector});
+      bridgedSomething = true;
+    }
+    if (message.vertical != null &&
+        currentNode.metadata['v2Vertical'] != message.vertical) {
+      controller.updateNodeMetadata(nodeId, {'v2Vertical': message.vertical});
+      bridgedSomething = true;
+    }
+    // AP-MODULE-LAYOUT-001 — unlike `exit` above, an empty `labelPos`/
+    // `pinLabelPos` IS a meaningful, real value here (clearing an
+    // override back to "Auto" from the properties panel), so this
+    // compares against the current metadata value directly (not just
+    // `isNotEmpty`) and patches `null` (removes the key) for empty,
+    // matching this bridge's existing empty-string-clears convention
+    // (§ `notes` above) rather than the "empty means untouched" gate
+    // `exit`/`terminals` use.
+    final currentLabelPos = currentNode.metadata['v2LabelPos'] as String? ?? '';
+    if (currentLabelPos != message.labelPos) {
+      controller.updateNodeMetadata(nodeId,
+          {'v2LabelPos': message.labelPos.isEmpty ? null : message.labelPos});
+      bridgedSomething = true;
+    }
+    final currentPinLabelPos =
+        currentNode.metadata['v2PinLabelPos'] as String? ?? '';
+    if (currentPinLabelPos != message.pinLabelPos) {
+      controller.updateNodeMetadata(nodeId, {
+        'v2PinLabelPos': message.pinLabelPos.isEmpty ? null : message.pinLabelPos
+      });
+      bridgedSomething = true;
+    }
+    final currentSubLabelPos =
+        currentNode.metadata['v2SubLabelPos'] as String? ?? '';
+    if (currentSubLabelPos != message.subLabelPos) {
+      controller.updateNodeMetadata(nodeId, {
+        'v2SubLabelPos':
+            message.subLabelPos.isEmpty ? null : message.subLabelPos
+      });
+      bridgedSomething = true;
+    }
+    final currentSub = currentNode.metadata['v2Sub'] as String? ?? '';
+    if (currentSub != message.sub) {
+      controller.updateNodeMetadata(
+          nodeId, {'v2Sub': message.sub.isEmpty ? null : message.sub});
+      bridgedSomething = true;
+    }
+    final currentLabelJustify =
+        currentNode.metadata['v2LabelJustify'] as String? ?? '';
+    if (currentLabelJustify != message.labelJustify) {
+      controller.updateNodeMetadata(nodeId, {
+        'v2LabelJustify':
+            message.labelJustify.isEmpty ? null : message.labelJustify
+      });
+      bridgedSomething = true;
+    }
+    final currentKind = currentNode.metadata['v2Kind'] as String? ?? '';
+    if (currentKind != message.kind) {
+      controller.updateNodeMetadata(
+          nodeId, {'v2Kind': message.kind.isEmpty ? null : message.kind});
+      bridgedSomething = true;
+    }
+    final currentBulbStyle =
+        currentNode.metadata['v2BulbStyle'] as String? ?? '';
+    if (currentBulbStyle != message.bulbStyle) {
+      controller.updateNodeMetadata(nodeId, {
+        'v2BulbStyle': message.bulbStyle.isEmpty ? null : message.bulbStyle
+      });
+      bridgedSomething = true;
+    }
+    final currentBulbColor =
+        currentNode.metadata['v2BulbColor'] as String? ?? '';
+    if (currentBulbColor != message.bulbColor) {
+      controller.updateNodeMetadata(nodeId, {
+        'v2BulbColor': message.bulbColor.isEmpty ? null : message.bulbColor
+      });
+      bridgedSomething = true;
+    }
+    if (message.flipped != null &&
+        currentNode.metadata['v2Flipped'] != message.flipped) {
+      controller.updateNodeMetadata(nodeId, {'v2Flipped': message.flipped});
+      bridgedSomething = true;
+    }
     if (!bridgedSomething) return;
     lastBridgedV2ModuleId = message.v2ModuleId;
     _lastBridgedKind = _BridgedKind.module;
@@ -414,6 +640,18 @@ class LegacyV2StateAdapter {
       'wireColor': message.color,
       if (message.fromTerminal.isNotEmpty) 'sourcePort': message.fromTerminal,
       if (message.toTerminal.isNotEmpty) 'targetPort': message.toTerminal,
+      // AP-WIRE-EXIT-OVERRIDE-001 — V2's own `w.fromExit` (this wire's
+      // per-instance override of which side it leaves its source
+      // terminal from — arrow keys during creation, or the wire
+      // properties panel's "Exit Side" dropdown), same
+      // stash-for-`initializeFromDocument`-to-rebuild treatment as
+      // `v2WireId` above.
+      if (message.fromExit.isNotEmpty) 'v2FromExit': message.fromExit,
+      // AP-SPLICE-INSPECTOR-001 — same idea for the DESTINATION end.
+      if (message.toExit.isNotEmpty) 'v2ToExit': message.toExit,
+      // AP-BATTERY-CABLE-001 — V2's own `w.cable` (thick Red/Black
+      // battery-cable rendering), same stash-for-restore treatment.
+      if (message.cable) 'v2Cable': true,
     });
     _v2ToOepRelationshipId[message.v2WireId] = relationshipId;
     lastBridgedV2WireId = message.v2WireId;
@@ -536,13 +774,32 @@ class LegacyV2StateAdapter {
     final current =
         controller.engine.editing.session.graph.relationships[relationshipId];
     if (current == null) return;
+    final currentFromExit = current.metadata['v2FromExit'] as String? ?? '';
+    final currentToExit = current.metadata['v2ToExit'] as String? ?? '';
+    final currentCable = current.metadata['v2Cable'] as bool? ?? false;
     if (current.metadata['label'] == message.label &&
-        current.metadata['wireColor'] == message.color) {
+        current.metadata['wireColor'] == message.color &&
+        currentFromExit == message.fromExit &&
+        currentToExit == message.toExit &&
+        currentCable == message.cable) {
       return;
     }
     controller.updateRelationshipMetadata(relationshipId, {
       'label': message.label,
       'wireColor': message.color,
+      // AP-WIRE-EXIT-OVERRIDE-001 — `null` (removes the key), not `''`,
+      // when the dropdown was set back to "Auto" — matches this bridge's
+      // existing null-means-absent convention (§ `sourcePort`/`targetPort`
+      // above), so `initializeFromDocument` correctly omits `fromExit`
+      // when restoring rather than passing a literal empty string through
+      // to `restoreWire` (harmless either way, but this keeps the
+      // document's own metadata clean once an override is cleared).
+      'v2FromExit': message.fromExit.isNotEmpty ? message.fromExit : null,
+      // AP-SPLICE-INSPECTOR-001 — same idea for the DESTINATION end.
+      'v2ToExit': message.toExit.isNotEmpty ? message.toExit : null,
+      // AP-BATTERY-CABLE-001 — `null` when unchecked, matching the same
+      // null-means-absent convention above.
+      'v2Cable': message.cable ? true : null,
     });
     lastBridgedV2WireId = message.v2WireId;
     _lastBridgedKind = _BridgedKind.wire;
@@ -760,7 +1017,19 @@ class LegacyV2StateAdapter {
     channel.restoreModule(
         v2Id, node.displayName, category, position.dx, position.dy,
         notes: node.metadata['notes'] as String? ?? '',
-        terminals: _terminalsFromMetadata(node.metadata['v2Terminals']));
+        terminals: _terminalsForNode(node),
+        exit: node.metadata['v2Exit'] as String? ?? '',
+        connector: node.metadata['v2Connector'] as bool?,
+        vertical: node.metadata['v2Vertical'] as bool?,
+        labelPos: node.metadata['v2LabelPos'] as String?,
+        pinLabelPos: node.metadata['v2PinLabelPos'] as String?,
+        subLabelPos: node.metadata['v2SubLabelPos'] as String?,
+        sub: node.metadata['v2Sub'] as String?,
+        labelJustify: node.metadata['v2LabelJustify'] as String?,
+        kind: node.metadata['v2Kind'] as String?,
+        bulbStyle: node.metadata['v2BulbStyle'] as String?,
+        bulbColor: node.metadata['v2BulbColor'] as String?,
+        flipped: node.metadata['v2Flipped'] as bool?);
     _syncPositionToV2(v2Id, nodeId);
     _syncLabelToV2(v2Id, nodeId);
   }
@@ -883,7 +1152,19 @@ class LegacyV2StateAdapter {
       await channel.restoreModule(
           v2Id, node.displayName, category, position.dx, position.dy,
           notes: node.metadata['notes'] as String? ?? '',
-          terminals: _terminalsFromMetadata(node.metadata['v2Terminals']));
+          terminals: _terminalsForNode(node),
+          exit: node.metadata['v2Exit'] as String? ?? '',
+          connector: node.metadata['v2Connector'] as bool?,
+          vertical: node.metadata['v2Vertical'] as bool?,
+          labelPos: node.metadata['v2LabelPos'] as String?,
+          pinLabelPos: node.metadata['v2PinLabelPos'] as String?,
+          subLabelPos: node.metadata['v2SubLabelPos'] as String?,
+          sub: node.metadata['v2Sub'] as String?,
+          labelJustify: node.metadata['v2LabelJustify'] as String?,
+          kind: node.metadata['v2Kind'] as String?,
+          bulbStyle: node.metadata['v2BulbStyle'] as String?,
+          bulbColor: node.metadata['v2BulbColor'] as String?,
+          flipped: node.metadata['v2Flipped'] as bool?);
     }
 
     // Rebuild the relationship-id index and seed V2's WIRES — only for
@@ -904,6 +1185,9 @@ class LegacyV2StateAdapter {
         relationship.metadata['wireColor'] as String? ?? '',
         fromTerminal: relationship.metadata['sourcePort'] as String? ?? '',
         toTerminal: relationship.metadata['targetPort'] as String? ?? '',
+        fromExit: relationship.metadata['v2FromExit'] as String? ?? '',
+        toExit: relationship.metadata['v2ToExit'] as String? ?? '',
+        cable: relationship.metadata['v2Cable'] as bool? ?? false,
       );
       // AP-DIAGRAM-V2-BRIDGE-SAVE-001 — reseed V2's own `wireRoutes[id]`
       // from whatever manual route offsets this relationship carries, so
@@ -1002,6 +1286,18 @@ class LegacyV2StateAdapter {
         x: entry.value.x,
         y: entry.value.y,
         terminals: entry.value.terminals,
+        exit: entry.value.exit,
+        connector: entry.value.connector,
+        vertical: entry.value.vertical,
+        labelPos: entry.value.labelPos,
+        pinLabelPos: entry.value.pinLabelPos,
+        subLabelPos: entry.value.subLabelPos,
+        sub: entry.value.sub,
+        labelJustify: entry.value.labelJustify,
+        kind: entry.value.kind,
+        bulbStyle: entry.value.bulbStyle,
+        bulbColor: entry.value.bulbColor,
+        flipped: entry.value.flipped,
       ));
     }
     for (final v2Id in _v2ToOepNodeId.keys.toList()) {
@@ -1015,11 +1311,39 @@ class LegacyV2StateAdapter {
       if (controller.engine.editing.session.graph.nodes[nodeId] == null) {
         continue;
       }
+      // AP-MODULE-KIND-002 — this used to synthesize only label/category/
+      // notes, leaving every other field (terminals/exit/connector/
+      // vertical/labelPos/pinLabelPos/subLabelPos/sub/labelJustify/kind)
+      // at its default. `_handleModulePropertiesChanged` treats a default
+      // empty string/null for most of those as "explicitly cleared" (the
+      // same convention that lets the properties panel reset an override
+      // back to Auto) — so pressing V2's own Save button erased an
+      // already-bridged module's `v2Kind` (and `v2Sub`/`v2LabelJustify`/
+      // etc.) metadata on EVERY save, before the file was ever written to
+      // disk: a Battery/Starter Motor/Solenoid/Diode/Bulb/grounded-Switch/
+      // Thermistor module rendered correctly live, then reverted to a
+      // plain card on the very next reopen, because Save itself destroyed
+      // the data. Passing the full snapshot entry (matching the
+      // moduleCreated synthesis just above, for a not-yet-bridged module)
+      // fixes this the same way for every one of these fields at once.
       _handleModulePropertiesChanged(V2ModulePropertiesChangedMessage(
         v2ModuleId: entry.key,
         label: entry.value.label,
         category: entry.value.category,
         notes: entry.value.notes,
+        terminals: entry.value.terminals,
+        exit: entry.value.exit,
+        connector: entry.value.connector,
+        vertical: entry.value.vertical,
+        labelPos: entry.value.labelPos,
+        pinLabelPos: entry.value.pinLabelPos,
+        subLabelPos: entry.value.subLabelPos,
+        sub: entry.value.sub,
+        labelJustify: entry.value.labelJustify,
+        kind: entry.value.kind,
+        bulbStyle: entry.value.bulbStyle,
+        bulbColor: entry.value.bulbColor,
+        flipped: entry.value.flipped,
       ));
       final currentPosition =
           controller.engine.editing.session.layout.positionOf(nodeId);
@@ -1046,6 +1370,9 @@ class LegacyV2StateAdapter {
         toTerminal: entry.value.toTerminal,
         label: entry.value.label,
         color: entry.value.color,
+        fromExit: entry.value.fromExit,
+        toExit: entry.value.toExit,
+        cable: entry.value.cable,
       ));
     }
     for (final v2Id in _v2ToOepRelationshipId.keys.toList()) {
@@ -1059,12 +1386,22 @@ class LegacyV2StateAdapter {
       final relationship =
           controller.engine.editing.session.graph.relationships[relationshipId];
       if (relationship == null) continue;
+      final currentFromExit =
+          relationship.metadata['v2FromExit'] as String? ?? '';
+      final currentToExit = relationship.metadata['v2ToExit'] as String? ?? '';
+      final currentCable = relationship.metadata['v2Cable'] as bool? ?? false;
       if (relationship.metadata['label'] != entry.value.label ||
-          relationship.metadata['wireColor'] != entry.value.color) {
+          relationship.metadata['wireColor'] != entry.value.color ||
+          currentFromExit != entry.value.fromExit ||
+          currentToExit != entry.value.toExit ||
+          currentCable != entry.value.cable) {
         _handleWirePropertiesChanged(V2WirePropertiesChangedMessage(
           v2WireId: entry.key,
           label: entry.value.label,
           color: entry.value.color,
+          fromExit: entry.value.fromExit,
+          toExit: entry.value.toExit,
+          cable: entry.value.cable,
         ));
       }
       final currentOffsets = controller.engine.editing.session.layout

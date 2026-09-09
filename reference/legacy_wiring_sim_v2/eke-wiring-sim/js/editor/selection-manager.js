@@ -8,8 +8,17 @@
  * Writes to:  selW, selM, leadR, leadB, tracedWires globals.
  */
 
+// AP-MASTER-EDIT-001 — used to also refuse while `editMode` was on, back
+// when Layout Edit mode was ONLY ever about dragging modules and wires
+// were simply untouchable/uninspectable there. Per direct request, Edit
+// Mode is now the one merged mode that covers module reposition, wire
+// route editing, AND clicking to inspect either — so a wire click has to
+// actually work while it's on. `wireMode` alone is excluded here still:
+// clicking a wire in Wire mode means something else entirely (insert a
+// splice on it via handleWireClickOnExistingWire, wire-editor.js), never
+// "select this wire."
 function selWire(w, evt) {
-  if (editMode || wireMode) return;
+  if (wireMode) return;
   const same = selW && selW.id === w.id;
   selW = same ? null : w;
   document.querySelectorAll('.mod-card').forEach(c => c.classList.remove('wire-selected'));

@@ -30,16 +30,13 @@ function updatePanel(w) {
   if (!w) return;
   const fM = MODULES.find(m => m.id === w.from.m);
   const tM = MODULES.find(m => m.id === w.to.m);
-  const sc = h(w.c), tc = trH(w.c);
-  const sw = tc
-    ? `background:linear-gradient(180deg,${sc} 50%,${tc} 50%)`
-    : `background:${sc}`;
+  const sw = `background:${swatchBg(w.c)}`;
   $('fp-info').innerHTML = `
     <div class="fpr"><span class="fpk">Property Type</span><span class="fpv">Wire</span></div>
     <div class="fpr"><span class="fpk">Wire</span><span class="fpv"><span class="fpsw" style="${sw}"></span>${w.c} — ${cn(w.c)}</span></div>
     <div class="fpr"><span class="fpk">Label</span><span class="fpv">${w.lbl}</span></div>
-    <div class="fpr"><span class="fpk">From</span><span class="fpv">${fM?.label || w.from.m} · ${w.from.t}</span></div>
-    <div class="fpr"><span class="fpk">To</span><span class="fpv">${tM?.label || w.to.m} · ${w.to.t}</span></div>
+    <div class="fpr"><span class="fpk">From</span><span class="fpv">${fM?.label || w.from.m} · ${pinLabel(w.from.m, w.from.t)}</span></div>
+    <div class="fpr"><span class="fpk">To</span><span class="fpv">${tM?.label || w.to.m} · ${pinLabel(w.to.m, w.to.t)}</span></div>
     <div class="fpr" style="margin-top:2px"><span class="fpk">Desc</span><span class="fpv" style="font-size:8px;line-height:1.4">${w.desc || '—'}</span></div>`;
   updateMeter();
 }
@@ -95,24 +92,37 @@ function renderModInfo(m) {
   if (m.location) html += `<div class="fpr"><span class="fpk">Location</span><span class="fpv" style="font-size:7.5px;line-height:1.5;white-space:pre-wrap">${m.location}</span></div>`;
   if (m.notes) html += `<div class="fpr"><span class="fpk">Notes</span><span class="fpv" style="font-size:7.5px;line-height:1.5;white-space:pre-wrap">${m.notes}</span></div>`;
   html += `<div class="mip-section-hd">Terminals</div><div class="mip-terms">`;
-  m.terminals.forEach(t => {
+  m.terminals.forEach((t, i) => {
     const parts     = t.c.split('|');
     const cIn       = parts[0], cOut = parts[1];
-    const connWires = wires.filter(w => (w.from.m === m.id && w.from.t === t.n) || (w.to.m === m.id && w.to.t === t.n));
+    // Wires are keyed by pin number (pinKey(i)), not by `t.n` — `n` is a
+    // free-text label that routinely repeats across pins (see pinKey's
+    // own doc comment in renderer.js), so it can't identify which
+    // terminal a wire is attached to. A connector's pins carry the
+    // `_IN`/`_OUT` suffix on top of the pin number.
+    const pk = pinKey(i);
+    // AP-SPLICE-INSPECTOR-001 — a splice's own (and only) terminal is
+    // wired up by the literal string 'SPLICE' (insertSpliceOnWire/
+    // openAddSplice, wire-editor.js/module-editor.js — never renumbered
+    // like every other module's pins), not the pin-number convention
+    // `pinKey(i)` assumes here — without this, `connWires` below never
+    // matched anything for a splice, showing "no connections" regardless
+    // of how many wires actually terminate there.
+    const pins = m.splice ? ['SPLICE'] : (m.connector ? [pk + '_IN', pk + '_OUT'] : [pk]);
+    const connWires = wires.filter(w => (w.from.m === m.id && pins.includes(w.from.t)) || (w.to.m === m.id && pins.includes(w.to.t)));
     html += `<div class="mip-term">
-      <div class="mip-term-dot" style="background:${h(cIn)}"></div>
+      <div class="mip-term-dot" style="background:${swatchBg(cIn)}"></div>
       <div class="mip-term-body">
-        <div class="mip-term-name">${t.n}${cOut ? ` <span style="color:var(--text-lo)">→</span> <span style="color:${h(cOut)}">${cOut}</span>` : ''}</div>
+        <div class="mip-term-name">Pin ${pk} — ${t.n}${cOut ? ` <span style="color:var(--text-lo)">→</span> <span style="color:${h(cOut)}">${cOut}</span>` : ''}</div>
         <div class="mip-term-color">${cn(cIn)}${cOut && cOut !== cIn ? ` → ${cn(cOut)}` : ''}</div>
         ${connWires.map(w => {
           const other  = w.from.m === m.id ? MODULES.find(x => x.id === w.to.m) : MODULES.find(x => x.id === w.from.m);
           const otherT = w.from.m === m.id ? w.to.t : w.from.t;
-          const wsc = h(w.c), wtc = trH(w.c);
-          const wsw = wtc ? `background:linear-gradient(90deg,${wsc} 50%,${wtc} 50%)` : `background:${wsc}`;
+          const wsw = `background:${swatchBg(w.c)}`;
           return `<div class="mip-wire-link" onclick="selWire(WIRES.find(x=>x.id==='${w.id}'),{clientX:parseInt($('mip').style.left)+260,clientY:parseInt($('mip').style.top)+60});closeModInfo();">
             <span class="mip-wire-sw" style="${wsw}"></span>
             <span class="mip-wire-lbl">${w.lbl}</span>
-            <span class="mip-wire-dest">→ ${other?.label || '?'} · ${otherT}</span>
+            <span class="mip-wire-dest">→ ${other?.label || '?'} · Pin ${otherT}</span>
           </div>`;
         }).join('')}
         ${!connWires.length ? `<div class="mip-wire-link" style="color:var(--text-faint);font-style:italic">no connections</div>` : ''}

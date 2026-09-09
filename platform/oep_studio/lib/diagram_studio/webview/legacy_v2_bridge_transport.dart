@@ -255,13 +255,43 @@ class LegacyV2BridgeTransport implements LegacyV2Channel {
   /// omission: without it, every module reconstructed by this call
   /// rendered with zero terminal dots, which is what made a reopened
   /// document look like its modules had lost their pins entirely.
+  ///
+  /// AP-DIAGRAM-V2-BRIDGE-SAVE-009 — [exit] (§
+  /// [V2ModuleCreatedMessage.exit]) closes a second, related gap: this
+  /// call used to always reconstruct a module with a hardcoded `'down'`
+  /// exit side regardless of its real one, silently rerouting every wire
+  /// on any module that wasn't already 'down' the moment it was
+  /// reconstructed — which, combined with clearing V2's display before
+  /// every reseed, made a reopened document's wiring look wrong even
+  /// though every module's *position* was correct.
+  ///
+  /// AP-DIAGRAM-V2-BRIDGE-SAVE-010 — [connector]/[vertical] (§
+  /// [V2ModuleCreatedMessage.connector]) close a third gap: a
+  /// reconstructed connector module lost its whole stacked-pin layout
+  /// (falling back to a plain module card), or — if it happened to keep
+  /// rendering as a connector some other way — silently reverted from a
+  /// vertical connector back to horizontal on every reopen, since neither
+  /// flag was ever part of this call before.
   @override
   Future<void> restoreModule(
       String v2ModuleId, String label, String category, double x, double y,
-      {String notes = '', List<Map<String, String>> terminals = const []}) {
+      {String notes = '',
+      List<Map<String, String>> terminals = const [],
+      String exit = '',
+      bool? connector,
+      bool? vertical,
+      String? labelPos,
+      String? pinLabelPos,
+      String? subLabelPos,
+      String? sub,
+      String? labelJustify,
+      String? kind,
+      String? bulbStyle,
+      String? bulbColor,
+      bool? flipped}) {
     return _executeIfEnabled(
       'window.__oepBridgeRestoreModule && window.__oepBridgeRestoreModule('
-      '${jsonEncode(v2ModuleId)}, ${jsonEncode(label)}, ${jsonEncode(category)}, $x, $y, ${jsonEncode(notes)}, ${jsonEncode(terminals)})',
+      '${jsonEncode(v2ModuleId)}, ${jsonEncode(label)}, ${jsonEncode(category)}, $x, $y, ${jsonEncode(notes)}, ${jsonEncode(terminals)}, ${jsonEncode(exit)}, ${jsonEncode(connector)}, ${jsonEncode(vertical)}, ${jsonEncode(labelPos)}, ${jsonEncode(pinLabelPos)}, ${jsonEncode(subLabelPos)}, ${jsonEncode(sub)}, ${jsonEncode(labelJustify)}, ${jsonEncode(kind)}, ${jsonEncode(bulbStyle)}, ${jsonEncode(bulbColor)}, ${jsonEncode(flipped)})',
     );
   }
 
@@ -320,11 +350,15 @@ class LegacyV2BridgeTransport implements LegacyV2Channel {
     String color, {
     String fromTerminal = '',
     String toTerminal = '',
+    String fromExit = '',
+    String toExit = '',
+    bool cable = false,
   }) {
     return _executeIfEnabled(
       'window.__oepBridgeRestoreWire && window.__oepBridgeRestoreWire('
       '${jsonEncode(v2WireId)}, ${jsonEncode(fromModuleId)}, ${jsonEncode(toModuleId)}, '
-      '${jsonEncode(label)}, ${jsonEncode(color)}, ${jsonEncode(fromTerminal)}, ${jsonEncode(toTerminal)})',
+      '${jsonEncode(label)}, ${jsonEncode(color)}, ${jsonEncode(fromTerminal)}, ${jsonEncode(toTerminal)}, '
+      '${jsonEncode(fromExit)}, ${jsonEncode(toExit)}, ${jsonEncode(cable)})',
     );
   }
 
@@ -425,11 +459,13 @@ class LegacyV2BridgeTransport implements LegacyV2Channel {
   }
 
   /// Transport-level escape hatch for one-off, non-mutating V2 calls that
-  /// don't warrant their own message type — used today only for
-  /// "Fit view" (`zReset()`), proven in POC-002. Not a general-purpose
+  /// don't warrant their own message type — used for "Fit view"
+  /// (`zReset()`, proven in POC-002, return value ignored) and for
+  /// polling a plain expression's value (AP-DIAGRAM-V2-BRIDGE-SAVE-008's
+  /// `_waitForV2Ready`, which reads it as a number). Not a general-purpose
   /// command channel: nothing above the transport should reach for this
   /// to implement new bridged operations.
-  Future<void> executeRawScript(String script) =>
+  Future<dynamic> executeRawScript(String script) =>
       _controller.executeScript(script);
 
   Future<void> dispose() async {
@@ -465,7 +501,20 @@ abstract class LegacyV2Channel {
   Future<void> sendAuthoritativeModuleLabel(String v2ModuleId, String label);
   Future<void> restoreModule(
       String v2ModuleId, String label, String category, double x, double y,
-      {String notes, List<Map<String, String>> terminals});
+      {String notes,
+      List<Map<String, String>> terminals,
+      String exit,
+      bool? connector,
+      bool? vertical,
+      String? labelPos,
+      String? pinLabelPos,
+      String? subLabelPos,
+      String? sub,
+      String? labelJustify,
+      String? kind,
+      String? bulbStyle,
+      String? bulbColor,
+      bool? flipped});
   Future<void> removeModuleFromV2(String v2ModuleId);
   Future<void> confirmWireCreated(String v2WireId, String label, String color);
   Future<void> removeWireFromV2(String v2WireId);
@@ -477,6 +526,9 @@ abstract class LegacyV2Channel {
     String color, {
     String fromTerminal,
     String toTerminal,
+    String fromExit,
+    String toExit,
+    bool cable,
   });
   Future<void> clearAllSurfaces();
   Future<void> interceptV2Save();
@@ -546,7 +598,19 @@ class V2SnapshotModule {
       required this.notes,
       required this.x,
       required this.y,
-      this.terminals = const []});
+      this.terminals = const [],
+      this.exit = '',
+      this.connector,
+      this.vertical,
+      this.labelPos = '',
+      this.pinLabelPos = '',
+      this.subLabelPos = '',
+      this.sub = '',
+      this.labelJustify = '',
+      this.kind = '',
+      this.bulbStyle = '',
+      this.bulbColor = '',
+      this.flipped = false});
 
   factory V2SnapshotModule.fromJson(Map<String, dynamic> json) =>
       V2SnapshotModule(
@@ -556,6 +620,18 @@ class V2SnapshotModule {
         x: (json['x'] as num?)?.toDouble() ?? 0,
         y: (json['y'] as num?)?.toDouble() ?? 0,
         terminals: _parseTerminals(json['terminals']),
+        exit: json['exit'] as String? ?? '',
+        connector: json['connector'] as bool?,
+        vertical: json['vertical'] as bool?,
+        labelPos: json['labelPos'] as String? ?? '',
+        pinLabelPos: json['pinLabelPos'] as String? ?? '',
+        subLabelPos: json['subLabelPos'] as String? ?? '',
+        sub: json['sub'] as String? ?? '',
+        labelJustify: json['labelJustify'] as String? ?? '',
+        kind: json['kind'] as String? ?? '',
+        bulbStyle: json['bulbStyle'] as String? ?? '',
+        bulbColor: json['bulbColor'] as String? ?? '',
+        flipped: json['flipped'] as bool? ?? false,
       );
 
   final String label;
@@ -564,9 +640,57 @@ class V2SnapshotModule {
   final double x;
   final double y;
 
+  /// AP-MODULE-LAYOUT-001 — V2's own `m.labelPos`/`m.pinLabelPos`
+  /// ('top'/'bottom'/'left'/'right', or '' for "use the auto default" —
+  /// buildCard/buildStdCard, renderer.js) verbatim, same shape/rationale
+  /// as [exit].
+  final String labelPos;
+  final String pinLabelPos;
+  final String subLabelPos;
+
+  /// AP-MODULE-LABEL-WRAP-001 — V2's own `m.sub` (a subtitle shown under
+  /// the module's main label, e.g. "12V 30A") verbatim. Pre-existing
+  /// field, never actually threaded through this bridge before — see
+  /// `__oepBridgeRestoreModule`'s own doc comment on `hasSub` for why
+  /// this was a genuine, silent-data-loss gap independent of this task's
+  /// own label-wrap/justify work.
+  final String sub;
+
+  /// AP-MODULE-LABEL-WRAP-001 — V2's own `m.labelJustify` ('left'/
+  /// 'right', or '' for the default 'center' — buildCard, renderer.js),
+  /// same shape/rationale as [labelPos].
+  final String labelJustify;
+
+  /// AP-MODULE-KIND-001 — V2's own special-render flag (`m.bulb`/
+  /// `m.diode`/`m.battery`/`m.starterMotor`/`m.solenoid`/
+  /// `m.groundedSwitch`/`m.thermistor` — whichever one `buildCard`,
+  /// renderer.js, dispatches on), collapsed to a single string (empty
+  /// means "no special kind, plain card"). Same shape/rationale as
+  /// [labelPos].
+  final String kind;
+
+  /// AP-BULB-GENERIC-001 — a bulb's own lit-color choice (`m.bulbColor`)
+  /// and incandescent-vs-color style (`m.bulbStyle`), same shape/
+  /// rationale as [labelPos]; empty means "not set" (incandescent
+  /// default, no color chosen).
+  final String bulbStyle;
+  final String bulbColor;
+
+  /// AP-BULB-GENERIC-001 — which side a bulb's terminals sit on
+  /// (`m.flipped`), same shape/rationale as [connector]/[vertical].
+  final bool flipped;
+
+  /// § [V2ModuleCreatedMessage.exit] — same shape, captured via the Save
+  /// flush barrier's snapshot instead of the live poller.
+  final String exit;
+
   /// § [V2ModuleCreatedMessage.terminals] — same shape, captured via the
   /// Save flush barrier's snapshot instead of the live poller.
   final List<Map<String, String>> terminals;
+
+  /// § [V2ModuleCreatedMessage.connector]/[V2ModuleCreatedMessage.vertical].
+  final bool? connector;
+  final bool? vertical;
 }
 
 class V2SnapshotWire {
@@ -577,6 +701,9 @@ class V2SnapshotWire {
     required this.toTerminal,
     required this.label,
     required this.color,
+    this.fromExit = '',
+    this.toExit = '',
+    this.cable = false,
   });
 
   factory V2SnapshotWire.fromJson(Map<String, dynamic> json) => V2SnapshotWire(
@@ -586,6 +713,9 @@ class V2SnapshotWire {
         toTerminal: json['toTerminal'] as String? ?? '',
         label: json['label'] as String? ?? '',
         color: json['color'] as String? ?? '',
+        fromExit: json['fromExit'] as String? ?? '',
+        toExit: json['toExit'] as String? ?? '',
+        cable: json['cable'] as bool? ?? false,
       );
 
   final String fromModuleId;
@@ -594,6 +724,21 @@ class V2SnapshotWire {
   final String toTerminal;
   final String label;
   final String color;
+
+  /// AP-WIRE-EXIT-OVERRIDE-001 — V2's own `w.fromExit` (which side this
+  /// specific wire's first bend leaves its source terminal from,
+  /// overriding the module/splice's own default `exit` side) verbatim,
+  /// same shape/rationale as [V2ModuleCreatedMessage.exit] — captured via
+  /// the Save flush barrier's snapshot instead of the live poller.
+  final String fromExit;
+
+  /// AP-SPLICE-INSPECTOR-001 — same idea for the DESTINATION end (§
+  /// route()'s own doc comment, renderer.js, for why both ends need this).
+  final String toExit;
+
+  /// AP-BATTERY-CABLE-001 — V2's own `w.cable` (thick Red/Black
+  /// battery-cable rendering, renderer.js) verbatim.
+  final bool cable;
 }
 
 class V2ModuleMovedMessage {
@@ -620,6 +765,18 @@ class V2ModuleCreatedMessage {
     required this.x,
     required this.y,
     this.terminals = const [],
+    this.exit = '',
+    this.connector,
+    this.vertical,
+    this.labelPos = '',
+    this.pinLabelPos = '',
+    this.subLabelPos = '',
+    this.sub = '',
+    this.labelJustify = '',
+    this.kind = '',
+    this.bulbStyle = '',
+    this.bulbColor = '',
+    this.flipped,
   });
 
   factory V2ModuleCreatedMessage.fromJson(Map<String, dynamic> json) =>
@@ -630,6 +787,18 @@ class V2ModuleCreatedMessage {
         x: (json['x'] as num?)?.toDouble() ?? 0,
         y: (json['y'] as num?)?.toDouble() ?? 0,
         terminals: _parseTerminals(json['terminals']),
+        exit: json['exit'] as String? ?? '',
+        connector: json['connector'] as bool?,
+        vertical: json['vertical'] as bool?,
+        labelPos: json['labelPos'] as String? ?? '',
+        pinLabelPos: json['pinLabelPos'] as String? ?? '',
+        subLabelPos: json['subLabelPos'] as String? ?? '',
+        sub: json['sub'] as String? ?? '',
+        labelJustify: json['labelJustify'] as String? ?? '',
+        kind: json['kind'] as String? ?? '',
+        bulbStyle: json['bulbStyle'] as String? ?? '',
+        bulbColor: json['bulbColor'] as String? ?? '',
+        flipped: json['flipped'] as bool?,
       );
 
   final String v2ModuleId;
@@ -637,6 +806,18 @@ class V2ModuleCreatedMessage {
   final String category;
   final double x;
   final double y;
+
+  /// AP-DIAGRAM-V2-BRIDGE-SAVE-009 — V2's own `m.exit` (`'up'`/`'down'`/
+  /// `'left'`/`'right'` — which side of the card its wires leave from),
+  /// verbatim, at the moment this module was observed as created.
+  /// Stashed the same way [terminals] is, and for the same reason: it was
+  /// never captured anywhere before, so `restoreModule` always hardcoded
+  /// `'down'` regardless of a module's real exit side — silently
+  /// rerouting every wire on every module that wasn't already 'down' the
+  /// moment a document was reopened (or, after AP-DIAGRAM-V2-BRIDGE-
+  /// SAVE-008 started clearing V2's display before every reseed, on
+  /// *every* document open, not just a genuine undo-of-delete).
+  final String exit;
 
   /// AP-DIAGRAM-V2-BRIDGE-SAVE-007 — V2's own terminal list (`m.terminals`,
   /// each a raw `{n, c}` pair — terminal name and color code, verbatim
@@ -647,6 +828,41 @@ class V2ModuleCreatedMessage {
   /// reconstruct a module V2 actually renders with terminal dots, instead
   /// of the empty list `restoreModule` used to always default to.
   final List<Map<String, String>> terminals;
+
+  /// AP-DIAGRAM-V2-BRIDGE-SAVE-010 — V2's own `m.connector`/`m.vertical`
+  /// flags (whether this card renders as a connector's stacked-pin
+  /// layout at all, and if so, standing vertically). `null` means "V2
+  /// reported no value" — shouldn't happen for a live create event (the
+  /// poller always sends a real `true`/`false`), but kept nullable for
+  /// symmetry with how a *restored* module (§ `EngineeringNode.metadata`)
+  /// legitimately has no recorded value for an older document. Without
+  /// this, a reconstructed connector either lost its whole IN/OUT
+  /// pin-stack layout entirely, or (if `connector` alone happened to
+  /// survive) silently reverted from vertical to horizontal on every
+  /// reopen.
+  final bool? connector;
+  final bool? vertical;
+
+  /// § [V2SnapshotModule.labelPos]/[V2SnapshotModule.pinLabelPos]/
+  /// [V2SnapshotModule.subLabelPos]/[V2SnapshotModule.sub]/
+  /// [V2SnapshotModule.labelJustify] — same shape, captured via the live
+  /// change poller instead of the Save flush barrier's snapshot.
+  final String labelPos;
+  final String pinLabelPos;
+  final String subLabelPos;
+  final String sub;
+  final String labelJustify;
+
+  /// § [V2SnapshotModule.kind] — same shape, captured via the live change
+  /// poller instead of the Save flush barrier's snapshot.
+  final String kind;
+
+  /// § [V2SnapshotModule.bulbStyle]/[V2SnapshotModule.bulbColor]/
+  /// [V2SnapshotModule.flipped] — same shape, captured via the live
+  /// change poller instead of the Save flush barrier's snapshot.
+  final String bulbStyle;
+  final String bulbColor;
+  final bool? flipped;
 }
 
 List<Map<String, String>> _parseTerminals(Object? raw) {
@@ -672,6 +888,19 @@ class V2ModulePropertiesChangedMessage {
     required this.label,
     required this.category,
     this.notes = '',
+    this.terminals = const [],
+    this.exit = '',
+    this.connector,
+    this.vertical,
+    this.labelPos = '',
+    this.pinLabelPos = '',
+    this.subLabelPos = '',
+    this.sub = '',
+    this.labelJustify = '',
+    this.kind = '',
+    this.bulbStyle = '',
+    this.bulbColor = '',
+    this.flipped,
   });
 
   factory V2ModulePropertiesChangedMessage.fromJson(
@@ -681,6 +910,19 @@ class V2ModulePropertiesChangedMessage {
         label: json['label'] as String? ?? '',
         category: json['category'] as String? ?? '',
         notes: json['notes'] as String? ?? '',
+        terminals: _parseTerminals(json['terminals']),
+        exit: json['exit'] as String? ?? '',
+        connector: json['connector'] as bool?,
+        vertical: json['vertical'] as bool?,
+        labelPos: json['labelPos'] as String? ?? '',
+        pinLabelPos: json['pinLabelPos'] as String? ?? '',
+        subLabelPos: json['subLabelPos'] as String? ?? '',
+        sub: json['sub'] as String? ?? '',
+        labelJustify: json['labelJustify'] as String? ?? '',
+        kind: json['kind'] as String? ?? '',
+        bulbStyle: json['bulbStyle'] as String? ?? '',
+        bulbColor: json['bulbColor'] as String? ?? '',
+        flipped: json['flipped'] as bool?,
       );
 
   final String v2ModuleId;
@@ -690,6 +932,42 @@ class V2ModulePropertiesChangedMessage {
   /// (`js/models/module.js`'s `notes`, edited via `saveModProps()`).
   final String notes;
   final String category;
+
+  /// V2's own terminal list at the moment this change was observed —
+  /// same shape/rationale as [V2ModuleCreatedMessage.terminals]. Editing
+  /// terminals on an already-bridged module (as opposed to a brand-new
+  /// one, which only ever gets this data once via 'moduleCreated') used
+  /// to have nowhere to go: OEP's authoritative metadata kept whatever
+  /// terminal list the module was created with, so an edited module
+  /// rendered correctly live in V2 but silently reverted on the next
+  /// document save-and-reopen. This is what closes that gap.
+  final List<Map<String, String>> terminals;
+
+  /// Same rationale as [terminals], for V2's own `m.exit`.
+  final String exit;
+
+  /// Same rationale as [terminals], for V2's own `m.connector`/`m.vertical`.
+  final bool? connector;
+  final bool? vertical;
+
+  /// Same rationale as [terminals], for V2's own `m.labelPos`/
+  /// `m.pinLabelPos`/`m.subLabelPos`/`m.sub`/`m.labelJustify`.
+  final String labelPos;
+  final String pinLabelPos;
+  final String subLabelPos;
+  final String sub;
+  final String labelJustify;
+
+  /// Same rationale as [terminals], for V2's own special-render flag —
+  /// § [V2SnapshotModule.kind].
+  final String kind;
+
+  /// Same rationale as [terminals], for V2's own bulb color/style/flip —
+  /// § [V2SnapshotModule.bulbStyle]/[V2SnapshotModule.bulbColor]/
+  /// [V2SnapshotModule.flipped].
+  final String bulbStyle;
+  final String bulbColor;
+  final bool? flipped;
 }
 
 class V2WireCreatedMessage {
@@ -701,6 +979,9 @@ class V2WireCreatedMessage {
     required this.toTerminal,
     required this.label,
     required this.color,
+    this.fromExit = '',
+    this.toExit = '',
+    this.cable = false,
   });
 
   factory V2WireCreatedMessage.fromJson(Map<String, dynamic> json) =>
@@ -712,6 +993,9 @@ class V2WireCreatedMessage {
         toTerminal: json['toTerminal'] as String? ?? '',
         label: json['label'] as String? ?? '',
         color: json['color'] as String? ?? '',
+        fromExit: json['fromExit'] as String? ?? '',
+        toExit: json['toExit'] as String? ?? '',
+        cable: json['cable'] as bool? ?? false,
       );
 
   final String v2WireId;
@@ -721,6 +1005,18 @@ class V2WireCreatedMessage {
   final String toTerminal;
   final String label;
   final String color;
+
+  /// § [V2SnapshotWire.fromExit] — same shape, captured via the live
+  /// change poller instead of the Save flush barrier's snapshot.
+  final String fromExit;
+
+  /// § [V2SnapshotWire.toExit] — same shape, captured via the live
+  /// change poller instead of the Save flush barrier's snapshot.
+  final String toExit;
+
+  /// § [V2SnapshotWire.cable] — same shape, captured via the live change
+  /// poller instead of the Save flush barrier's snapshot.
+  final bool cable;
 }
 
 class V2WireDeletedMessage {
@@ -761,19 +1057,42 @@ class V2ModuleSelectionChangedMessage {
 /// there is no "blank means remove this metadata key" case to handle for
 /// bridge-originated edits.
 class V2WirePropertiesChangedMessage {
-  const V2WirePropertiesChangedMessage(
-      {required this.v2WireId, required this.label, required this.color});
+  const V2WirePropertiesChangedMessage({
+    required this.v2WireId,
+    required this.label,
+    required this.color,
+    this.fromExit = '',
+    this.toExit = '',
+    this.cable = false,
+  });
 
   factory V2WirePropertiesChangedMessage.fromJson(Map<String, dynamic> json) =>
       V2WirePropertiesChangedMessage(
         v2WireId: json['id'] as String,
         label: json['label'] as String? ?? '',
         color: json['color'] as String? ?? '',
+        fromExit: json['fromExit'] as String? ?? '',
+        toExit: json['toExit'] as String? ?? '',
+        cable: json['cable'] as bool? ?? false,
       );
 
   final String v2WireId;
   final String label;
   final String color;
+
+  /// § [V2SnapshotWire.fromExit] — set when the wire properties panel's
+  /// "Exit Side" dropdown (or an arrow-key override during creation, once
+  /// it lands via the poller) changed this wire's `fromExit`.
+  final String fromExit;
+
+  /// § [V2SnapshotWire.toExit] — set when a splice's own inspector
+  /// (sidebar.js's `_renderModInfoInSidebar`, via setSpliceWireExit())
+  /// changed this wire's `toExit`.
+  final String toExit;
+
+  /// § [V2SnapshotWire.cable] — set when the wire properties panel's
+  /// "Battery Cable" checkbox changed this wire's `cable`.
+  final bool cable;
 }
 
 /// AP-DIAGRAM-V2-BRIDGE-006 — `mode` is one of V2's own 5 meter-mode

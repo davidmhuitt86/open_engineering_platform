@@ -68,9 +68,24 @@ const Bootstrap = {
     MODULES.forEach(m => {
       positions[m.id] = Object.assign({}, DEFAULT_POS[m.id] || { x: 50, y: 50 });
     });
+    // AP-WIRE-GRID-ALIGN-001 — the bundled vehicle's own authored
+    // positions (and any already-saved diagram's positions, restored the
+    // same way — § project-loader.js) predate every module/splice
+    // placing its terminals at a fixed GRID-multiple offset from this
+    // anchor, so they're very unlikely to already BE grid-aligned
+    // themselves. Without this one-time correction, only NEWLY placed/
+    // dragged modules would actually land on the grid — exactly the
+    // "some wires align, some don't" inconsistency this whole fix exists
+    // to remove. Snapping is idempotent (a position already on the grid
+    // is unchanged), so this is safe to run unconditionally on every
+    // load, not just the first.
+    Object.keys(positions).forEach(id => {
+      positions[id].x = Math.round(positions[id].x / GRID) * GRID;
+      positions[id].y = Math.round(positions[id].y / GRID) * GRID;
+    });
     placeCards();
     requestAnimationFrame(() => {
-      zReset(); drawWires(); initMinimap(); buildLegend();
+      initViewport(); drawWires(); initMinimap(); buildLegend();
       const tw = document.getElementById('topbar-wrap');
       const mp = document.getElementById('mod-panel');
       if (tw && mp) mp.style.top = tw.offsetHeight + 'px';

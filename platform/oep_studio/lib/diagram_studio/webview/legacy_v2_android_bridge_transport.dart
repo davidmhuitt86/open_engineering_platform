@@ -145,10 +145,23 @@ class LegacyV2AndroidBridgeTransport implements LegacyV2Channel {
   @override
   Future<void> restoreModule(
       String v2ModuleId, String label, String category, double x, double y,
-      {String notes = '', List<Map<String, String>> terminals = const []}) {
+      {String notes = '',
+      List<Map<String, String>> terminals = const [],
+      String exit = '',
+      bool? connector,
+      bool? vertical,
+      String? labelPos,
+      String? pinLabelPos,
+      String? subLabelPos,
+      String? sub,
+      String? labelJustify,
+      String? kind,
+      String? bulbStyle,
+      String? bulbColor,
+      bool? flipped}) {
     return _executeIfEnabled(
       'window.__oepBridgeRestoreModule && window.__oepBridgeRestoreModule('
-      '${jsonEncode(v2ModuleId)}, ${jsonEncode(label)}, ${jsonEncode(category)}, $x, $y, ${jsonEncode(notes)}, ${jsonEncode(terminals)})',
+      '${jsonEncode(v2ModuleId)}, ${jsonEncode(label)}, ${jsonEncode(category)}, $x, $y, ${jsonEncode(notes)}, ${jsonEncode(terminals)}, ${jsonEncode(exit)}, ${jsonEncode(connector)}, ${jsonEncode(vertical)}, ${jsonEncode(labelPos)}, ${jsonEncode(pinLabelPos)}, ${jsonEncode(subLabelPos)}, ${jsonEncode(sub)}, ${jsonEncode(labelJustify)}, ${jsonEncode(kind)}, ${jsonEncode(bulbStyle)}, ${jsonEncode(bulbColor)}, ${jsonEncode(flipped)})',
     );
   }
 
@@ -183,11 +196,15 @@ class LegacyV2AndroidBridgeTransport implements LegacyV2Channel {
     String color, {
     String fromTerminal = '',
     String toTerminal = '',
+    String fromExit = '',
+    String toExit = '',
+    bool cable = false,
   }) {
     return _executeIfEnabled(
       'window.__oepBridgeRestoreWire && window.__oepBridgeRestoreWire('
       '${jsonEncode(v2WireId)}, ${jsonEncode(fromModuleId)}, ${jsonEncode(toModuleId)}, '
-      '${jsonEncode(label)}, ${jsonEncode(color)}, ${jsonEncode(fromTerminal)}, ${jsonEncode(toTerminal)})',
+      '${jsonEncode(label)}, ${jsonEncode(color)}, ${jsonEncode(fromTerminal)}, ${jsonEncode(toTerminal)}, '
+      '${jsonEncode(fromExit)}, ${jsonEncode(toExit)}, ${jsonEncode(cable)})',
     );
   }
 

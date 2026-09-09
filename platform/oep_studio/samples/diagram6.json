@@ -14,7 +14,35 @@
           "v2ModuleId": "indicator-lights",
           "v2Category": "indicator",
           "v2Sublabel": "Oil/Rev/Neutral",
-          "v2Exit": "down"
+          "v2Exit": "down",
+          "v2Terminals": [
+            {
+              "n": "OIL +",
+              "c": "Bl"
+            },
+            {
+              "n": "OIL -",
+              "c": "Br/R"
+            },
+            {
+              "n": "REV +",
+              "c": "Gr"
+            },
+            {
+              "n": "REV -",
+              "c": "Bl"
+            },
+            {
+              "n": "NEU +",
+              "c": "Bl"
+            },
+            {
+              "n": "NEU -",
+              "c": "Lg/R"
+            }
+          ],
+          "v2Connector": false,
+          "v2Vertical": false
         },
         "evidenceLinks": [],
         "properties": {},
@@ -58,7 +86,35 @@
           "v2ModuleId": "cdi-unit",
           "v2Category": "ignition",
           "v2Sublabel": "DC-CDI Igniter",
-          "v2Exit": "down"
+          "v2Exit": "down",
+          "v2Terminals": [
+            {
+              "n": "P1",
+              "c": "Bl/Y"
+            },
+            {
+              "n": "P2",
+              "c": "G"
+            },
+            {
+              "n": "P3",
+              "c": "Blu/Y"
+            },
+            {
+              "n": "P4",
+              "c": "Y/W"
+            },
+            {
+              "n": "P5",
+              "c": "Bl/W"
+            },
+            {
+              "n": "P6",
+              "c": "Lg/R"
+            }
+          ],
+          "v2Connector": false,
+          "v2Vertical": false
         },
         "evidenceLinks": [],
         "properties": {},
@@ -191,7 +247,31 @@
           "v2ModuleId": "ignition-switch",
           "v2Category": "control",
           "v2Sublabel": "Key Cylinder",
-          "v2Exit": "down"
+          "v2Exit": "down",
+          "v2Terminals": [
+            {
+              "n": "BAT1",
+              "c": "R",
+              "showLabel": "1"
+            },
+            {
+              "n": "BAT2",
+              "c": "Bl",
+              "showLabel": "1"
+            },
+            {
+              "n": "IG1",
+              "c": "P",
+              "showLabel": "1"
+            },
+            {
+              "n": "BAT3",
+              "c": "P/W",
+              "showLabel": "1"
+            }
+          ],
+          "v2Connector": false,
+          "v2Vertical": false
         },
         "evidenceLinks": [],
         "properties": {},
@@ -272,14 +352,26 @@
       {
         "id": "rectifier-diode",
         "category": "component",
-        "displayName": "Rectifier",
+        "displayName": "Rectifier Diode",
         "symbolId": "generic_module",
         "repositoryObjectId": null,
         "metadata": {
           "v2ModuleId": "rectifier-diode",
           "v2Category": "charging",
           "v2Sublabel": "Diode",
-          "v2Exit": "down"
+          "v2Exit": "down",
+          "v2Terminals": [
+            {
+              "n": "A",
+              "c": "Lg/R"
+            },
+            {
+              "n": "K",
+              "c": "G/R"
+            }
+          ],
+          "v2Connector": false,
+          "v2Vertical": false
         },
         "evidenceLinks": [],
         "properties": {},
@@ -385,7 +477,46 @@
           "v2ModuleId": "left-handlebar-switch",
           "v2Category": "control",
           "v2Sublabel": "Light/Stop/Start",
-          "v2Exit": "up"
+          "v2Exit": "up",
+          "v2Terminals": [
+            {
+              "n": "BAT2",
+              "c": "Bl",
+              "showLabel": "1"
+            },
+            {
+              "n": "IG1",
+              "c": "Bl",
+              "showLabel": "1"
+            },
+            {
+              "n": "TL",
+              "c": "Br",
+              "showLabel": "1"
+            },
+            {
+              "n": "ST",
+              "c": "Y/R",
+              "showLabel": "1"
+            },
+            {
+              "n": "IG2",
+              "c": "Bl/W",
+              "showLabel": "1"
+            },
+            {
+              "n": "LO",
+              "c": "W",
+              "showLabel": "1"
+            },
+            {
+              "n": "HI",
+              "c": "Blu",
+              "showLabel": "1"
+            }
+          ],
+          "v2Connector": false,
+          "v2Vertical": false
         },
         "evidenceLinks": [],
         "properties": {},
@@ -465,7 +596,19 @@
           "v2ModuleId": "chassis-ground",
           "v2Category": "ground",
           "v2Sublabel": "Engine Bolt",
-          "v2Exit": "up"
+          "v2Exit": "up",
+          "v2Terminals": [
+            {
+              "n": "A",
+              "c": "G"
+            },
+            {
+              "n": "B",
+              "c": "G"
+            }
+          ],
+          "v2Connector": false,
+          "v2Vertical": false
         },
         "evidenceLinks": [],
         "properties": {},
@@ -500,7 +643,19 @@
           "v2ModuleId": "ignition-coil",
           "v2Category": "ignition",
           "v2Sublabel": "Primary",
-          "v2Exit": "up"
+          "v2Exit": "up",
+          "v2Terminals": [
+            {
+              "n": "PRI+",
+              "c": "Bl/Y"
+            },
+            {
+              "n": "GND",
+              "c": "G"
+            }
+          ],
+          "v2Connector": false,
+          "v2Vertical": false
         },
         "evidenceLinks": [],
         "properties": {},
@@ -535,7 +690,15 @@
           "v2ModuleId": "spark-plug",
           "v2Category": "ignition",
           "v2Sublabel": "HT Lead",
-          "v2Exit": "up"
+          "v2Exit": "up",
+          "v2Terminals": [
+            {
+              "n": "HT",
+              "c": "—"
+            }
+          ],
+          "v2Connector": false,
+          "v2Vertical": false
         },
         "evidenceLinks": [],
         "properties": {},
@@ -561,7 +724,19 @@
           "v2ModuleId": "reverse-switch",
           "v2Category": "switch",
           "v2Sublabel": "Gear Position",
-          "v2Exit": "up"
+          "v2Exit": "up",
+          "v2Terminals": [
+            {
+              "n": "OUT",
+              "c": "Gr"
+            },
+            {
+              "n": "BODY",
+              "c": "G"
+            }
+          ],
+          "v2Connector": false,
+          "v2Vertical": false
         },
         "evidenceLinks": [],
         "properties": {},
@@ -596,7 +771,19 @@
           "v2ModuleId": "neutral-switch",
           "v2Category": "switch",
           "v2Sublabel": "Gear Position",
-          "v2Exit": "up"
+          "v2Exit": "up",
+          "v2Terminals": [
+            {
+              "n": "OUT",
+              "c": "Lg"
+            },
+            {
+              "n": "BODY",
+              "c": "G"
+            }
+          ],
+          "v2Connector": false,
+          "v2Vertical": false
         },
         "evidenceLinks": [],
         "properties": {},
@@ -631,7 +818,19 @@
           "v2ModuleId": "oil-temp-switch",
           "v2Category": "switch",
           "v2Sublabel": "Thermo Switch",
-          "v2Exit": "up"
+          "v2Exit": "up",
+          "v2Terminals": [
+            {
+              "n": "OUT",
+              "c": "Bl"
+            },
+            {
+              "n": "BODY",
+              "c": "G"
+            }
+          ],
+          "v2Connector": false,
+          "v2Vertical": false
         },
         "evidenceLinks": [],
         "properties": {},
@@ -666,7 +865,19 @@
           "v2ModuleId": "pulser-coil",
           "v2Category": "ignition",
           "v2Sublabel": "Timing Pickup",
-          "v2Exit": "up"
+          "v2Exit": "up",
+          "v2Terminals": [
+            {
+              "n": "OUT",
+              "c": "Blu/Y"
+            },
+            {
+              "n": "BODY",
+              "c": "G"
+            }
+          ],
+          "v2Connector": false,
+          "v2Vertical": false
         },
         "evidenceLinks": [],
         "properties": {},
@@ -701,7 +912,31 @@
           "v2ModuleId": "alternator-stator",
           "v2Category": "charging",
           "v2Sublabel": "Charging",
-          "v2Exit": "up"
+          "v2Exit": "up",
+          "v2Terminals": [
+            {
+              "n": "GND",
+              "c": "G"
+            },
+            {
+              "n": "LIT",
+              "c": "Y/W"
+            },
+            {
+              "n": "AC1",
+              "c": "Y"
+            },
+            {
+              "n": "AC2",
+              "c": "Y"
+            },
+            {
+              "n": "AC3",
+              "c": "Y"
+            }
+          ],
+          "v2Connector": false,
+          "v2Vertical": false
         },
         "evidenceLinks": [],
         "properties": {},
@@ -754,157 +989,32 @@
         ]
       },
       {
-        "id": "starter-motor",
-        "category": "component",
-        "displayName": "Starter Motor",
-        "symbolId": "generic_module",
-        "repositoryObjectId": null,
-        "metadata": {
-          "v2ModuleId": "starter-motor",
-          "v2Category": "starter",
-          "v2Sublabel": "DC Motor",
-          "v2Exit": "up"
-        },
-        "evidenceLinks": [],
-        "properties": {},
-        "ports": [
-          {
-            "id": "B+",
-            "name": "B+",
-            "direction": "unspecified",
-            "type": "electrical",
-            "metadata": {
-              "v2Color": "Bl"
-            }
-          },
-          {
-            "id": "BODY",
-            "name": "BODY",
-            "direction": "unspecified",
-            "type": "electrical",
-            "metadata": {
-              "v2Color": "G"
-            }
-          }
-        ]
-      },
-      {
-        "id": "starter-relay",
-        "category": "component",
-        "displayName": "Starter Relay",
-        "symbolId": "generic_module",
-        "repositoryObjectId": null,
-        "metadata": {
-          "v2ModuleId": "starter-relay",
-          "v2Category": "starter",
-          "v2Sublabel": "Solenoid",
-          "v2Exit": "up"
-        },
-        "evidenceLinks": [],
-        "properties": {},
-        "ports": [
-          {
-            "id": "C+",
-            "name": "C+",
-            "direction": "unspecified",
-            "type": "electrical",
-            "metadata": {
-              "v2Color": "Y/R"
-            }
-          },
-          {
-            "id": "C-",
-            "name": "C-",
-            "direction": "unspecified",
-            "type": "electrical",
-            "metadata": {
-              "v2Color": "Lg/R"
-            }
-          },
-          {
-            "id": "MB+",
-            "name": "MB+",
-            "direction": "unspecified",
-            "type": "electrical",
-            "metadata": {
-              "v2Color": "Bl"
-            }
-          },
-          {
-            "id": "MO",
-            "name": "MO",
-            "direction": "unspecified",
-            "type": "electrical",
-            "metadata": {
-              "v2Color": "Bl"
-            }
-          }
-        ]
-      },
-      {
-        "id": "battery-fuses",
-        "category": "component",
-        "displayName": "Battery + Fuses",
-        "symbolId": "battery",
-        "repositoryObjectId": null,
-        "metadata": {
-          "v2ModuleId": "battery-fuses",
-          "v2Category": "power",
-          "v2Sublabel": "12V",
-          "v2Exit": "up"
-        },
-        "evidenceLinks": [],
-        "properties": {},
-        "ports": [
-          {
-            "id": "B+(R)",
-            "name": "B+(R)",
-            "direction": "unspecified",
-            "type": "electrical",
-            "metadata": {
-              "v2Color": "R"
-            }
-          },
-          {
-            "id": "B+(PW)",
-            "name": "B+(PW)",
-            "direction": "unspecified",
-            "type": "electrical",
-            "metadata": {
-              "v2Color": "P/W"
-            }
-          },
-          {
-            "id": "MB+",
-            "name": "MB+",
-            "direction": "unspecified",
-            "type": "electrical",
-            "metadata": {
-              "v2Color": "Bl"
-            }
-          },
-          {
-            "id": "B-",
-            "name": "B-",
-            "direction": "unspecified",
-            "type": "electrical",
-            "metadata": {
-              "v2Color": "Bl"
-            }
-          }
-        ]
-      },
-      {
         "id": "rh-headlight",
         "category": "component",
-        "displayName": "RH Headlight",
+        "displayName": "R HL",
         "symbolId": "lamp",
         "repositoryObjectId": null,
         "metadata": {
           "v2ModuleId": "rh-headlight",
           "v2Category": "lighting",
           "v2Sublabel": "12V 25/25W",
-          "v2Exit": "right"
+          "v2Exit": "right",
+          "v2Terminals": [
+            {
+              "n": "HI",
+              "c": "Bu"
+            },
+            {
+              "n": "LO",
+              "c": "W"
+            },
+            {
+              "n": "GND",
+              "c": "G"
+            }
+          ],
+          "v2Connector": false,
+          "v2Vertical": true
         },
         "evidenceLinks": [],
         "properties": {},
@@ -941,14 +1051,30 @@
       {
         "id": "lh-headlight",
         "category": "component",
-        "displayName": "LH Headlight",
+        "displayName": "L HL",
         "symbolId": "lamp",
         "repositoryObjectId": null,
         "metadata": {
           "v2ModuleId": "lh-headlight",
           "v2Category": "lighting",
           "v2Sublabel": "12V 25/25W",
-          "v2Exit": "right"
+          "v2Exit": "right",
+          "v2Terminals": [
+            {
+              "n": "HI",
+              "c": "G"
+            },
+            {
+              "n": "LO",
+              "c": "W"
+            },
+            {
+              "n": "GND",
+              "c": "Blu"
+            }
+          ],
+          "v2Connector": false,
+          "v2Vertical": true
         },
         "evidenceLinks": [],
         "properties": {},
@@ -992,7 +1118,19 @@
           "v2ModuleId": "tail-light",
           "v2Category": "lighting",
           "v2Sublabel": "12V 5W",
-          "v2Exit": "left"
+          "v2Exit": "left",
+          "v2Terminals": [
+            {
+              "n": "P/W",
+              "c": "P/W"
+            },
+            {
+              "n": "R",
+              "c": "R"
+            }
+          ],
+          "v2Connector": false,
+          "v2Vertical": false
         },
         "evidenceLinks": [],
         "properties": {},
@@ -1018,81 +1156,263 @@
         ]
       },
       {
-        "id": "node_hlzghbravr_9hnk67",
+        "id": "node_hlzz7d8xvu_wn2xzq",
         "category": "component",
-        "displayName": "Connector 4P",
+        "displayName": "Indicator Light Connector",
         "symbolId": "connector",
         "repositoryObjectId": null,
         "metadata": {
-          "v2ModuleId": "mod-connector-4p-1788541193301",
-          "v2Category": "connector"
-        },
-        "evidenceLinks": [],
-        "properties": {},
-        "ports": []
-      },
-      {
-        "id": "node_hlznd95afn_ri0lhl",
-        "category": "component",
-        "displayName": "Connector 4P Vertical",
-        "symbolId": "connector",
-        "repositoryObjectId": null,
-        "metadata": {
-          "v2ModuleId": "mod-connector-4p-vertical-1788556184458",
+          "v2ModuleId": "mod-connector-4p-vertical-1788581949683",
           "v2Category": "connector",
           "v2Terminals": [
             {
               "n": "A",
-              "c": "R|R"
+              "c": "Lg/R|G/R"
             },
             {
               "n": "B",
-              "c": "W|W"
+              "c": "Bl|Bl"
             },
             {
               "n": "C",
-              "c": "G|G"
+              "c": "Gr|Gr"
             },
             {
               "n": "D",
-              "c": "Y|Y"
+              "c": "Br/R|Br/R"
             }
           ],
-          "v2Exit": "down"
+          "v2Exit": "right",
+          "v2Connector": true,
+          "v2Vertical": true
         },
         "evidenceLinks": [],
         "properties": {},
         "ports": []
       },
       {
-        "id": "node_hlzp00wj80_1kln2ya",
+        "id": "node_hm11a90flg_4abwqs",
         "category": "component",
-        "displayName": "Connector 4P",
+        "displayName": "Left Handlebar Switch Connector",
         "symbolId": "connector",
         "repositoryObjectId": null,
         "metadata": {
-          "v2ModuleId": "mod-connector-4p-1788559738222",
+          "v2ModuleId": "mod-left-handlebar-switch-connector-1788664841749",
           "v2Category": "connector",
           "v2Terminals": [
             {
-              "n": "A",
-              "c": "R|R"
-            },
-            {
-              "n": "B",
-              "c": "W|W"
-            },
-            {
-              "n": "C",
+              "n": "1",
               "c": "G|G"
             },
             {
-              "n": "D",
-              "c": "Y|Y"
+              "n": "2",
+              "c": "Br|Br"
+            },
+            {
+              "n": "3",
+              "c": "Y/R|Y/R"
             }
           ],
           "v2Exit": "down",
           "v2Connector": true,
+          "v2Vertical": true
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hm13fzhpd7_1yhimgb",
+        "category": "component",
+        "displayName": "Regulator\nRectifier \nConnector",
+        "symbolId": "connector",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "mod-connector-3p-1788669542226",
+          "v2Category": "connector",
+          "v2Terminals": [
+            {
+              "n": "1",
+              "c": "Bl|Bl",
+              "showLabel": "1"
+            },
+            {
+              "n": "2",
+              "c": "R|R",
+              "showLabel": "1"
+            },
+            {
+              "n": "3",
+              "c": "G|G",
+              "showLabel": "1"
+            }
+          ],
+          "v2Exit": "down",
+          "v2Connector": true,
+          "v2Vertical": false
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hm164wtx8d_1xmrbio",
+        "category": "component",
+        "displayName": "Splice",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "splice-1788675403095",
+          "v2Category": "splice",
+          "v2Terminals": [
+            {
+              "n": "SPLICE",
+              "c": "Bl"
+            }
+          ],
+          "v2Exit": "down",
+          "v2Connector": false,
+          "v2Vertical": false
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hm235oce1b_4wm62u",
+        "category": "component",
+        "displayName": "Msin Battery Chassis Ground",
+        "symbolId": "ground",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "mod-msin-battery-chassis-ground-1788747283091",
+          "v2Category": "ground",
+          "v2Terminals": [
+            {
+              "n": "GND",
+              "c": "Bl"
+            }
+          ],
+          "v2Exit": "up",
+          "v2Connector": false,
+          "v2Vertical": false
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hm23gjt5jp_1ggnicu",
+        "category": "component",
+        "displayName": "Starter Solenoid",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "mod-starter-solenoid-1788747940551",
+          "v2Category": "control",
+          "v2Terminals": [
+            {
+              "n": "BAT",
+              "c": "R",
+              "post": "true"
+            },
+            {
+              "n": "C1",
+              "c": "Y/R"
+            },
+            {
+              "n": "C2",
+              "c": "G/R"
+            },
+            {
+              "n": "MTR",
+              "c": "R",
+              "post": "true"
+            }
+          ],
+          "v2Exit": "up",
+          "v2Connector": false,
+          "v2Vertical": false
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hm23gqprgh_5po75u",
+        "category": "component",
+        "displayName": "Starter Motor",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "mod-starter-motor-1788747952264",
+          "v2Category": "starter",
+          "v2Terminals": [
+            {
+              "n": "B+",
+              "c": "R",
+              "post": "true"
+            },
+            {
+              "n": "GND",
+              "c": "Bl",
+              "post": "true"
+            }
+          ],
+          "v2Exit": "up",
+          "v2Connector": false,
+          "v2Vertical": false
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hm23gxma29_ztff51",
+        "category": "component",
+        "displayName": "Battery",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "mod-battery-1788747963615",
+          "v2Category": "power",
+          "v2Terminals": [
+            {
+              "n": "+",
+              "c": "R",
+              "post": "true"
+            },
+            {
+              "n": "−",
+              "c": "Bl",
+              "post": "true"
+            }
+          ],
+          "v2Exit": "up",
+          "v2Connector": false,
+          "v2Vertical": false
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hm23ll1e30_4qv2pv",
+        "category": "component",
+        "displayName": "Splice",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "splice-1788748244794",
+          "v2Category": "splice",
+          "v2Terminals": [
+            {
+              "n": "SPLICE",
+              "c": "G/R"
+            }
+          ],
+          "v2Exit": "right",
+          "v2Connector": false,
           "v2Vertical": false
         },
         "evidenceLinks": [],
@@ -1150,70 +1470,6 @@
         "evidenceLinks": []
       },
       {
-        "id": "stator-gnd",
-        "relationshipType": "connectedTo",
-        "sourceNode": "alternator-stator",
-        "targetNode": "regulator-rectifier",
-        "repositoryRelationshipId": null,
-        "metadata": {
-          "v2WireId": "stator-gnd",
-          "label": "Stator GND",
-          "wireColor": "G",
-          "sourcePort": "GND",
-          "targetPort": "REG",
-          "v2Description": "Stator ground → regulator"
-        },
-        "evidenceLinks": []
-      },
-      {
-        "id": "reg-bat",
-        "relationshipType": "connectedTo",
-        "sourceNode": "regulator-rectifier",
-        "targetNode": "battery-fuses",
-        "repositoryRelationshipId": null,
-        "metadata": {
-          "v2WireId": "reg-bat",
-          "label": "Charge Out",
-          "wireColor": "R",
-          "sourcePort": "B+",
-          "targetPort": "B+(R)",
-          "v2Description": "Regulated DC charge → battery"
-        },
-        "evidenceLinks": []
-      },
-      {
-        "id": "pulser-cdi",
-        "relationshipType": "connectedTo",
-        "sourceNode": "pulser-coil",
-        "targetNode": "cdi-unit",
-        "repositoryRelationshipId": null,
-        "metadata": {
-          "v2WireId": "pulser-cdi",
-          "label": "Pulser Signal",
-          "wireColor": "Blu/Y",
-          "sourcePort": "OUT",
-          "targetPort": "P3",
-          "v2Description": "Timing pulse → CDI"
-        },
-        "evidenceLinks": []
-      },
-      {
-        "id": "pulser-gnd",
-        "relationshipType": "connectedTo",
-        "sourceNode": "pulser-coil",
-        "targetNode": "chassis-ground",
-        "repositoryRelationshipId": null,
-        "metadata": {
-          "v2WireId": "pulser-gnd",
-          "label": "Pulser GND",
-          "wireColor": "G",
-          "sourcePort": "BODY",
-          "targetPort": "A",
-          "v2Description": "Pulser body ground"
-        },
-        "evidenceLinks": []
-      },
-      {
         "id": "cdi-coil",
         "relationshipType": "connectedTo",
         "sourceNode": "cdi-unit",
@@ -1226,118 +1482,6 @@
           "sourcePort": "P1",
           "targetPort": "PRI+",
           "v2Description": "CDI primary drive → ignition coil"
-        },
-        "evidenceLinks": []
-      },
-      {
-        "id": "coil-gnd",
-        "relationshipType": "connectedTo",
-        "sourceNode": "ignition-coil",
-        "targetNode": "chassis-ground",
-        "repositoryRelationshipId": null,
-        "metadata": {
-          "v2WireId": "coil-gnd",
-          "label": "Coil GND",
-          "wireColor": "G",
-          "sourcePort": "GND",
-          "targetPort": "A",
-          "v2Description": "Ignition coil primary ground"
-        },
-        "evidenceLinks": []
-      },
-      {
-        "id": "cdi-gnd",
-        "relationshipType": "connectedTo",
-        "sourceNode": "cdi-unit",
-        "targetNode": "chassis-ground",
-        "repositoryRelationshipId": null,
-        "metadata": {
-          "v2WireId": "cdi-gnd",
-          "label": "CDI GND",
-          "wireColor": "G",
-          "sourcePort": "P2",
-          "targetPort": "B",
-          "v2Description": "CDI unit ground"
-        },
-        "evidenceLinks": []
-      },
-      {
-        "id": "rev-gnd",
-        "relationshipType": "connectedTo",
-        "sourceNode": "reverse-switch",
-        "targetNode": "chassis-ground",
-        "repositoryRelationshipId": null,
-        "metadata": {
-          "v2WireId": "rev-gnd",
-          "label": "Rev SW GND",
-          "wireColor": "G",
-          "sourcePort": "BODY",
-          "targetPort": "A",
-          "v2Description": "Reverse switch body ground"
-        },
-        "evidenceLinks": []
-      },
-      {
-        "id": "neu-gnd",
-        "relationshipType": "connectedTo",
-        "sourceNode": "neutral-switch",
-        "targetNode": "chassis-ground",
-        "repositoryRelationshipId": null,
-        "metadata": {
-          "v2WireId": "neu-gnd",
-          "label": "Neu SW GND",
-          "wireColor": "G",
-          "sourcePort": "BODY",
-          "targetPort": "A",
-          "v2Description": "Neutral switch body ground"
-        },
-        "evidenceLinks": []
-      },
-      {
-        "id": "oilsw-gnd",
-        "relationshipType": "connectedTo",
-        "sourceNode": "oil-temp-switch",
-        "targetNode": "chassis-ground",
-        "repositoryRelationshipId": null,
-        "metadata": {
-          "v2WireId": "oilsw-gnd",
-          "label": "Oil SW GND",
-          "wireColor": "G",
-          "sourcePort": "BODY",
-          "targetPort": "A",
-          "v2Description": "Oil temp switch body ground"
-        },
-        "evidenceLinks": []
-      },
-      {
-        "id": "bat-ign-r",
-        "relationshipType": "connectedTo",
-        "sourceNode": "battery-fuses",
-        "targetNode": "ignition-switch",
-        "repositoryRelationshipId": null,
-        "metadata": {
-          "v2WireId": "bat-ign-r",
-          "label": "Batt to Ign R",
-          "wireColor": "R",
-          "sourcePort": "B+(R)",
-          "targetPort": "BAT1",
-          "v2Description": "Battery B+ → ignition switch (Red)"
-        },
-        "evidenceLinks": []
-      },
-      {
-        "id": "bat-ign-pw",
-        "relationshipType": "connectedTo",
-        "sourceNode": "battery-fuses",
-        "targetNode": "ignition-switch",
-        "repositoryRelationshipId": null,
-        "metadata": {
-          "v2WireId": "bat-ign-pw",
-          "label": "Batt to Ign PW",
-          "wireColor": "P/W",
-          "sourcePort": "B+(PW)",
-          "targetPort": "BAT3",
-          "v2Description": "Battery B+ → ignition switch (Pink/White)"
         },
         "evidenceLinks": []
       },
@@ -1374,22 +1518,6 @@
         "evidenceLinks": []
       },
       {
-        "id": "jack-gnd",
-        "relationshipType": "connectedTo",
-        "sourceNode": "dc-consent-jack",
-        "targetNode": "chassis-ground",
-        "repositoryRelationshipId": null,
-        "metadata": {
-          "v2WireId": "jack-gnd",
-          "label": "Jack GND",
-          "wireColor": "G",
-          "sourcePort": "GND",
-          "targetPort": "A",
-          "v2Description": "DC jack ground"
-        },
-        "evidenceLinks": []
-      },
-      {
         "id": "kill-cdi",
         "relationshipType": "connectedTo",
         "sourceNode": "left-handlebar-switch",
@@ -1402,102 +1530,6 @@
           "sourcePort": "IG2",
           "targetPort": "P5",
           "v2Description": "Kill switch → CDI unit"
-        },
-        "evidenceLinks": []
-      },
-      {
-        "id": "start-relay",
-        "relationshipType": "connectedTo",
-        "sourceNode": "left-handlebar-switch",
-        "targetNode": "starter-relay",
-        "repositoryRelationshipId": null,
-        "metadata": {
-          "v2WireId": "start-relay",
-          "label": "Start Button",
-          "wireColor": "Y/R",
-          "sourcePort": "ST",
-          "targetPort": "C+",
-          "v2Description": "Start button → relay coil positive"
-        },
-        "evidenceLinks": []
-      },
-      {
-        "id": "relay-cdi",
-        "relationshipType": "connectedTo",
-        "sourceNode": "starter-relay",
-        "targetNode": "cdi-unit",
-        "repositoryRelationshipId": null,
-        "metadata": {
-          "v2WireId": "relay-cdi",
-          "label": "Relay C- CDI",
-          "wireColor": "Gr",
-          "sourcePort": "C-",
-          "targetPort": "P6",
-          "v2Description": "Starter relay coil negative → CDI"
-        },
-        "evidenceLinks": []
-      },
-      {
-        "id": "bat-relay",
-        "relationshipType": "connectedTo",
-        "sourceNode": "battery-fuses",
-        "targetNode": "starter-relay",
-        "repositoryRelationshipId": null,
-        "metadata": {
-          "v2WireId": "bat-relay",
-          "label": "Batt to Relay",
-          "wireColor": "Bl",
-          "sourcePort": "MB+",
-          "targetPort": "MB+",
-          "v2Description": "Battery B+ → relay main lug"
-        },
-        "evidenceLinks": []
-      },
-      {
-        "id": "relay-motor",
-        "relationshipType": "connectedTo",
-        "sourceNode": "starter-relay",
-        "targetNode": "starter-motor",
-        "repositoryRelationshipId": null,
-        "metadata": {
-          "v2WireId": "relay-motor",
-          "label": "Relay to Motor",
-          "wireColor": "Bl",
-          "sourcePort": "MO",
-          "targetPort": "B+",
-          "v2Description": "Relay output → starter motor"
-        },
-        "evidenceLinks": []
-      },
-      {
-        "id": "motor-gnd",
-        "relationshipType": "connectedTo",
-        "sourceNode": "starter-motor",
-        "targetNode": "chassis-ground",
-        "repositoryRelationshipId": null,
-        "metadata": {
-          "v2WireId": "motor-gnd",
-          "label": "Motor GND",
-          "wireColor": "G",
-          "sourcePort": "BODY",
-          "targetPort": "B",
-          "v2Description": "Starter motor body ground"
-        },
-        "evidenceLinks": []
-      },
-      {
-        "id": "bat-neg",
-        "relationshipType": "connectedTo",
-        "sourceNode": "battery-fuses",
-        "targetNode": "chassis-ground",
-        "repositoryRelationshipId": null,
-        "metadata": {
-          "v2WireId": "bat-neg",
-          "label": "Battery GND",
-          "wireColor": "Bl",
-          "sourcePort": "B-",
-          "targetPort": "B",
-          "v2Description": "Battery negative → chassis ground"
         },
         "evidenceLinks": []
       },
@@ -1534,38 +1566,6 @@
         "evidenceLinks": []
       },
       {
-        "id": "rh-gnd",
-        "relationshipType": "connectedTo",
-        "sourceNode": "rh-headlight",
-        "targetNode": "chassis-ground",
-        "repositoryRelationshipId": null,
-        "metadata": {
-          "v2WireId": "rh-gnd",
-          "label": "RH HL GND",
-          "wireColor": "G",
-          "sourcePort": "GND",
-          "targetPort": "B",
-          "v2Description": "Right headlight ground"
-        },
-        "evidenceLinks": []
-      },
-      {
-        "id": "lh-hi-spl",
-        "relationshipType": "connectedTo",
-        "sourceNode": "rh-headlight",
-        "targetNode": "lh-headlight",
-        "repositoryRelationshipId": null,
-        "metadata": {
-          "v2WireId": "lh-hi-spl",
-          "label": "LH HI Splice",
-          "wireColor": "Bu",
-          "sourcePort": "HI",
-          "targetPort": "HI",
-          "v2Description": "Splice: RH/LH high beam shared"
-        },
-        "evidenceLinks": []
-      },
-      {
         "id": "lh-lo-spl",
         "relationshipType": "connectedTo",
         "sourceNode": "rh-headlight",
@@ -1578,38 +1578,6 @@
           "sourcePort": "LO",
           "targetPort": "LO",
           "v2Description": "Splice: RH/LH low beam shared"
-        },
-        "evidenceLinks": []
-      },
-      {
-        "id": "lh-gnd-spl",
-        "relationshipType": "connectedTo",
-        "sourceNode": "rh-headlight",
-        "targetNode": "lh-headlight",
-        "repositoryRelationshipId": null,
-        "metadata": {
-          "v2WireId": "lh-gnd-spl",
-          "label": "LH GND Splice",
-          "wireColor": "G",
-          "sourcePort": "GND",
-          "targetPort": "GND",
-          "v2Description": "Splice: RH/LH headlight grounds shared"
-        },
-        "evidenceLinks": []
-      },
-      {
-        "id": "oil-sw-ind",
-        "relationshipType": "connectedTo",
-        "sourceNode": "oil-temp-switch",
-        "targetNode": "indicator-lights",
-        "repositoryRelationshipId": null,
-        "metadata": {
-          "v2WireId": "oil-sw-ind",
-          "label": "Oil Temp Sw Ind",
-          "wireColor": "Bl",
-          "sourcePort": "OUT",
-          "targetPort": "OIL",
-          "v2Description": "Oil temp switch → indicator"
         },
         "evidenceLinks": []
       },
@@ -1630,18 +1598,354 @@
         "evidenceLinks": []
       },
       {
-        "id": "tail-r",
+        "id": "rel_hm057puua1_1bpn0os",
         "relationshipType": "connectedTo",
-        "sourceNode": "battery-fuses",
-        "targetNode": "tail-light",
+        "sourceNode": "indicator-lights",
+        "targetNode": "node_hlzz7d8xvu_wn2xzq",
         "repositoryRelationshipId": null,
         "metadata": {
-          "v2WireId": "tail-r",
-          "label": "Tail R",
+          "v2WireId": "wire-1788595031589",
+          "label": "Reverse Switch Indicator Switch Ground",
+          "wireColor": "Gr",
+          "sourcePort": "3",
+          "targetPort": "3_IN"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm059bqc55_1mc032q",
+        "relationshipType": "connectedTo",
+        "sourceNode": "indicator-lights",
+        "targetNode": "node_hlzz7d8xvu_wn2xzq",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788595129125",
+          "label": "Oil Temp Switch Ground Feed",
+          "wireColor": "Br/R",
+          "sourcePort": "2",
+          "targetPort": "4_IN"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm05aj2cdr_vwsss1",
+        "relationshipType": "connectedTo",
+        "sourceNode": "indicator-lights",
+        "targetNode": "node_hlzz7d8xvu_wn2xzq",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788595201804",
+          "label": "Neutral Indicator Light Switch Ground Feed",
+          "wireColor": "Lg/R",
+          "sourcePort": "6",
+          "targetPort": "1_IN"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm11j61f3f_3p35ng",
+        "relationshipType": "connectedTo",
+        "sourceNode": "chassis-ground",
+        "targetNode": "ignition-coil",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788665381095",
+          "label": "Ignition Coil Ground",
+          "wireColor": "G",
+          "sourcePort": "2",
+          "targetPort": "2",
+          "v2FromExit": "down"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm13hpw074_jeutuf",
+        "relationshipType": "connectedTo",
+        "sourceNode": "regulator-rectifier",
+        "targetNode": "node_hm13fzhpd7_1yhimgb",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788669646893",
+          "label": "12v+ Ignition Feed",
+          "wireColor": "Bl",
+          "sourcePort": "1",
+          "targetPort": "1_IN",
+          "v2FromExit": "down"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm13jcy480_1u3ujq",
+        "relationshipType": "connectedTo",
+        "sourceNode": "regulator-rectifier",
+        "targetNode": "node_hm13fzhpd7_1yhimgb",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788669746204",
+          "label": "Voltage Regulator/Rectifier Ground",
+          "wireColor": "G",
+          "sourcePort": "3",
+          "targetPort": "3_IN"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm16539drd_85briq",
+        "relationshipType": "connectedTo",
+        "sourceNode": "indicator-lights",
+        "targetNode": "node_hm164wtx8d_1xmrbio",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788675413882",
+          "label": "Oil Temp Light 12v+",
+          "wireColor": "Bl",
+          "sourcePort": "1",
+          "targetPort": "SPLICE"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm18bgchsi_1mw5cg0",
+        "relationshipType": "connectedTo",
+        "sourceNode": "indicator-lights",
+        "targetNode": "node_hlzz7d8xvu_wn2xzq",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788680152157",
+          "label": "Neutral Indicator Light 12v+",
+          "wireColor": "Bl",
+          "sourcePort": "5",
+          "targetPort": "2_IN"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm18cion4c_1vcb0ns",
+        "relationshipType": "connectedTo",
+        "sourceNode": "indicator-lights",
+        "targetNode": "node_hm164wtx8d_1xmrbio",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788680216539",
+          "label": "Reverse Indicator Light 12v+",
+          "wireColor": "Bl",
+          "sourcePort": "4",
+          "targetPort": "SPLICE"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm18od2h0z_6wah4f",
+        "relationshipType": "connectedTo",
+        "sourceNode": "lh-headlight",
+        "targetNode": "rh-headlight",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788680932586",
+          "label": "Headlight Hi Beam From Switch",
+          "wireColor": "Blu",
+          "sourcePort": "3",
+          "targetPort": "1",
+          "v2FromExit": "right"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm1zemwzkv_epkhem",
+        "relationshipType": "connectedTo",
+        "sourceNode": "alarm-unit",
+        "targetNode": "node_hlzz7d8xvu_wn2xzq",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788739117843",
+          "label": "Oil Temp Indicator Light Signal From Alarm Unit",
+          "wireColor": "Br/R",
+          "sourcePort": "1",
+          "targetPort": "4_OUT"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm1zkw79ly_1rlk8nh",
+        "relationshipType": "connectedTo",
+        "sourceNode": "lh-headlight",
+        "targetNode": "rh-headlight",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788739495937",
+          "label": "Head Light Ground",
+          "wireColor": "G",
+          "sourcePort": "1",
+          "targetPort": "3"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm1zlvot5v_143abx2",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hm11a90flg_4abwqs",
+        "targetNode": "rh-headlight",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788739555598",
+          "label": "Headlight Chassis Ground",
+          "wireColor": "G",
+          "sourcePort": "1_IN",
+          "targetPort": "3"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm1zo6bo9w_1e1iaqa",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hm11a90flg_4abwqs",
+        "targetNode": "left-handlebar-switch",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788739694634",
+          "label": "Tailight 12v+ Feed",
+          "wireColor": "Br",
+          "sourcePort": "2_IN",
+          "targetPort": "3"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm1zpakimm_1fnm5rv",
+        "relationshipType": "connectedTo",
+        "sourceNode": "left-handlebar-switch",
+        "targetNode": "left-handlebar-switch",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788739762089",
+          "label": "BAT2 to IG1 Jumper Inside Switch",
+          "wireColor": "Bl",
+          "sourcePort": "2",
+          "targetPort": "1"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm1zqzavev_1v2s0tj",
+        "relationshipType": "connectedTo",
+        "sourceNode": "left-handlebar-switch",
+        "targetNode": "node_hlzz7d8xvu_wn2xzq",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788739863908",
+          "label": "New Wire",
+          "wireColor": "Bl",
+          "sourcePort": "1",
+          "targetPort": "2_OUT",
+          "v2FromExit": "right"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm23h33k6d_hc17wr",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hm23gqprgh_5po75u",
+        "targetNode": "node_hm23gjt5jp_1ggnicu",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788747973061",
+          "label": "Solenoid to Starter Motor 12v+",
+          "wireColor": "Bl",
+          "sourcePort": "1",
+          "targetPort": "1",
+          "v2Cable": true
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm23ie0mfj_8i3gj8",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hm23gjt5jp_1ggnicu",
+        "targetNode": "node_hm23gxma29_ztff51",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788748051575",
+          "label": "Battery 12v+ to Starter Solenoid",
           "wireColor": "R",
-          "sourcePort": "B+(R)",
-          "targetPort": "R",
-          "v2Description": "Battery B+(R) → tail light (Red)"
+          "sourcePort": "4",
+          "targetPort": "1",
+          "v2Cable": true
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm23j7jhgr_16wae5x",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hm23gxma29_ztff51",
+        "targetNode": "node_hm235oce1b_4wm62u",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788748101444",
+          "label": "Battery Chassis Ground",
+          "wireColor": "Bl",
+          "sourcePort": "2",
+          "targetPort": "1",
+          "v2Cable": true
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm23ll1e30_xon7e5",
+        "relationshipType": "connectedTo",
+        "sourceNode": "rectifier-diode",
+        "targetNode": "node_hm23ll1e30_4qv2pv",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788748244795-a",
+          "label": "Indicator Light 12v+ Feed From Recitifier Diode",
+          "wireColor": "G/R",
+          "sourcePort": "2",
+          "targetPort": "SPLICE"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm23ll1esq_1uauq5p",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hm23ll1e30_4qv2pv",
+        "targetNode": "node_hlzz7d8xvu_wn2xzq",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788748244795-b",
+          "label": "Indicator Light 12v+ Feed From Recitifier Diode",
+          "wireColor": "G/R",
+          "sourcePort": "SPLICE",
+          "targetPort": "1_OUT"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm23lt59pq_smyu4d",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hm23ll1e30_4qv2pv",
+        "targetNode": "node_hm23gjt5jp_1ggnicu",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788748258728",
+          "label": "Starter Solenoid Coil",
+          "wireColor": "G/R",
+          "sourcePort": "SPLICE",
+          "targetPort": "3"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm23p39gqx_1ifxxsa",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hm11a90flg_4abwqs",
+        "targetNode": "node_hm23gjt5jp_1ggnicu",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788748457120",
+          "label": "Starter Solenoid Signal From Handlebar Switch",
+          "wireColor": "Y/R",
+          "sourcePort": "3_OUT",
+          "targetPort": "2"
         },
         "evidenceLinks": []
       }
@@ -1652,55 +1956,55 @@
   "layout": {
     "positions": {
       "indicator-lights": {
-        "dx": 20.0,
-        "dy": 30.0
+        "dx": 60.0,
+        "dy": 40.0
       },
       "cdi-unit": {
-        "dx": 130.0,
-        "dy": 30.0
+        "dx": 240.0,
+        "dy": 40.0
       },
       "alarm-unit": {
-        "dx": 255.0,
-        "dy": 30.0
+        "dx": 400.0,
+        "dy": 40.0
       },
       "ignition-switch": {
-        "dx": 380.0,
-        "dy": 30.0
+        "dx": 540.0,
+        "dy": 40.0
       },
       "dc-consent-jack": {
-        "dx": 500.0,
-        "dy": 30.0
+        "dx": 660.0,
+        "dy": 40.0
       },
       "rectifier-diode": {
-        "dx": 590.0,
-        "dy": 30.0
+        "dx": 740.0,
+        "dy": 40.0
       },
       "regulator-rectifier": {
-        "dx": 668.0,
-        "dy": 30.0
+        "dx": 820.0,
+        "dy": 40.0
       },
       "left-handlebar-switch": {
-        "dx": 155.0,
+        "dx": 100.0,
         "dy": 580.0
       },
       "chassis-ground": {
-        "dx": 320.0,
+        "dx": 300.0,
         "dy": 580.0
       },
       "ignition-coil": {
-        "dx": 400.0,
+        "dx": 380.0,
         "dy": 580.0
       },
       "spark-plug": {
-        "dx": 480.0,
+        "dx": 460.0,
         "dy": 580.0
       },
       "reverse-switch": {
-        "dx": 540.0,
+        "dx": 520.0,
         "dy": 580.0
       },
       "neutral-switch": {
-        "dx": 610.0,
+        "dx": 600.0,
         "dy": 580.0
       },
       "oil-temp-switch": {
@@ -1708,48 +2012,60 @@
         "dy": 580.0
       },
       "pulser-coil": {
-        "dx": 750.0,
+        "dx": 760.0,
         "dy": 580.0
       },
       "alternator-stator": {
-        "dx": 820.0,
-        "dy": 580.0
-      },
-      "starter-motor": {
-        "dx": 940.0,
-        "dy": 580.0
-      },
-      "starter-relay": {
-        "dx": 1020.0,
-        "dy": 580.0
-      },
-      "battery-fuses": {
-        "dx": 1130.0,
+        "dx": 840.0,
         "dy": 580.0
       },
       "rh-headlight": {
         "dx": 20.0,
-        "dy": 390.0
+        "dy": 300.0
       },
       "lh-headlight": {
         "dx": 20.0,
-        "dy": 470.0
+        "dy": 400.0
       },
       "tail-light": {
-        "dx": 1460.0,
-        "dy": 390.0
+        "dx": 1260.0,
+        "dy": 300.0
       },
-      "node_hlzghbravr_9hnk67": {
-        "dx": 550.0,
-        "dy": 210.0
+      "node_hlzz7d8xvu_wn2xzq": {
+        "dx": 320.0,
+        "dy": 180.0
       },
-      "node_hlznd95afn_ri0lhl": {
-        "dx": 800.0,
-        "dy": 490.0
+      "node_hm11a90flg_4abwqs": {
+        "dx": 360.0,
+        "dy": 340.0
       },
-      "node_hlzp00wj80_1kln2ya": {
-        "dx": 800.0,
-        "dy": 490.0
+      "node_hm13fzhpd7_1yhimgb": {
+        "dx": 820.0,
+        "dy": 200.0
+      },
+      "node_hm164wtx8d_1xmrbio": {
+        "dx": 120.0,
+        "dy": 220.0
+      },
+      "node_hm235oce1b_4wm62u": {
+        "dx": 1300.0,
+        "dy": 580.0
+      },
+      "node_hm23gjt5jp_1ggnicu": {
+        "dx": 1080.0,
+        "dy": 580.0
+      },
+      "node_hm23gqprgh_5po75u": {
+        "dx": 980.0,
+        "dy": 580.0
+      },
+      "node_hm23gxma29_ztff51": {
+        "dx": 1200.0,
+        "dy": 580.0
+      },
+      "node_hm23ll1e30_4qv2pv": {
+        "dx": 780.0,
+        "dy": 200.0
       }
     },
     "wireOverrides": {},
@@ -1767,12 +2083,187 @@
       },
       "oil-sw-ind": {
         "2": -34.433285509325685
+      },
+      "rel_hlzq2p4n1v_gai8cq": {
+        "0": 80.92485549132948,
+        "1": -210.12131874157512
+      },
+      "rel_hlzq49374u_vodcfs": {
+        "1": -198.84393063583818
+      },
+      "rel_hlzq52mavt_pc92i9": {
+        "1": -194.21965317919077
+      },
+      "rel_hlzrrzo0ox_1spaowf": {
+        "0": -3.886010362694301,
+        "1": -229.92227979274614
+      },
+      "rel_hlzsibqlfa_1bzpjdh": {
+        "1": 19.430051813471504
+      },
+      "rel_hlztdpilrr_zix51e": {
+        "0": -179.40414507772022
+      },
+      "rel_hlztelo2nv_5zjzfy": {
+        "3": -72.53886010362694,
+        "4": 14.248704663212436
+      },
+      "rel_hlztelo2nv_1697yvk": {
+        "0": 176.8134715025907,
+        "1": 14.248704663212438
+      },
+      "rel_hlztelo2nv_bqg79a": {
+        "0": 8.419689119170986,
+        "1": -5.829015544041452,
+        "2": -68.00518134715027
+      },
+      "rel_hlzthcz6gy_1my5gbg": {
+        "1": 1.9430051813471505,
+        "3": -47.279792746114,
+        "4": -66.7098445595855
+      },
+      "rel_hlztj1y28i_18j2u82": {
+        "0": 25.259067357512958,
+        "1": -196.89119170984458
+      },
+      "bat-ign-pw": {
+        "0": 139.89637305699483
+      },
+      "bat-ign-r": {
+        "0": 13.471502590673573,
+        "1": 44.399998863022034
+      },
+      "ign-alarm": {
+        "0": 24.399997005214928
+      },
+      "ign-consent": {
+        "0": 24.399997005214928
+      },
+      "lh-gnd-spl": {
+        "0": 21.761658031088082
+      },
+      "lh-lo-spl": {
+        "0": 44.399994133492186
+      },
+      "pulser-cdi": {
+        "0": 44.55958549222798
+      },
+      "relay-cdi": {
+        "0": 64.39999886302205
+      },
+      "stator-ac1": {
+        "0": 117.09844559585491
+      },
+      "stator-ac2": {
+        "0": 94.30051813471502
+      },
+      "stator-ac3": {
+        "0": 75.64766839378238
+      },
+      "stator-gnd": {
+        "0": 59.067357512953365
+      },
+      "rel_hm05bveu07_q7e7ew": {
+        "0": 13.06122448979592
+      },
+      "rel_hm05bvet85_7grgpm": {
+        "0": 13.877551020408164
+      },
+      "rel_hm05dfdjl3_1ape54o": {
+        "0": 13.877551020408164
+      },
+      "rel_hm0vl02st4_cdgcgq": {
+        "0": -15.810276679841898
+      },
+      "rel_hm0vl02v6r_xqcjho": {
+        "0": -15.019762845849803
+      },
+      "rel_hm0vlwgj7j_9ajs1i": {
+        "0": -15.810276679841898
+      },
+      "cdi-coil": {
+        "0": -147.59996732488867
+      },
+      "start-relay": {
+        "0": -43.73177842565599
+      },
+      "rel_hm113cuyzt_1x2wgv2": {
+        "0": -37.09090909090909
+      },
+      "bat-neg": {
+        "0": -24.48979591836735
+      },
+      "rel_hm117785xd_13synub": {
+        "0": 13.877551020408164
+      },
+      "rel_hm11j61f3f_3p35ng": {
+        "0": -97.40863787375417
+      },
+      "rel_hm11kg07ee_p3k0fp": {
+        "0": -114.2857142857143
+      },
+      "lh-hi-spl": {
+        "0": 18.775510204081634
+      },
+      "reg-bat": {
+        "0": 9.237875288683604
+      },
+      "rel_hm13hpw074_jeutuf": {
+        "0": 7.390300230946884
+      },
+      "rel_hm13jcy480_1u3ujq": {
+        "0": 18.013856812933028
+      },
+      "rel_hm11h061a9_2jw2ep": {
+        "0": 14.218009478672988
+      },
+      "rel_hm16539drd_85briq": {
+        "0": -11.926605504587155
+      },
+      "rel_hm18cion4c_1vcb0ns": {
+        "0": -14.800000374470272
+      },
+      "rel_hm18bgchsi_1mw5cg0": {
+        "0": -34.80000037447027
+      },
+      "rel_hm18od2h0z_6wah4f": {
+        "0": 64.39997886063216
+      },
+      "kill-cdi": {
+        "0": 44.399995576351074
+      },
+      "rel_hm1zkw79ly_1rlk8nh": {
+        "0": 24.399994961627115
+      },
+      "rel_hm1zqzavev_1v2s0tj": {
+        "0": 64.40000715187125
+      },
+      "rel_hm232d1b2q_1dhqav1": {
+        "0": -27.60002170070527
+      },
+      "rel_hm2346j5mo_98u8gl": {
+        "0": -27.60002170070527
+      },
+      "rel_hm235xe5ez_7y5vzx": {
+        "0": -27.600012087052846
+      },
+      "rel_hm23h33k6d_hc17wr": {
+        "0": -27.600017086152093
+      },
+      "rel_hm23ie0mfj_8i3gj8": {
+        "0": -27.60002170070527
+      },
+      "rel_hm23j7jhgr_16wae5x": {
+        "0": -27.60002439252787
+      },
+      "rel_hm23lt59pq_smyu4d": {
+        "0": -6.800000083061946
       }
     }
   },
   "metadata": {
     "title": "TRX300",
     "createdAt": "2026-09-04T00:38:20.171480",
-    "modifiedAt": "2026-09-04T17:09:03.019663"
+    "modifiedAt": "2026-09-06T21:35:18.059003"
   }
 }

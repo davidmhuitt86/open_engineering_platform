@@ -9,27 +9,38 @@ import '../../core/services/engineering_project_service.dart'
 import '../../settings/services/settings_storage.dart';
 import '../controller/diagram_studio_controller_provider.dart';
 import 'analysis_ui_state.dart';
+import 'knowledge_package_source.dart';
+
+/// AP-EK-020 (packaging finalization) — swap the source
+/// [electricalCoreRuntimeProvider] activates without touching the
+/// provider itself; production overrides this in `main.dart` only if a
+/// non-default source is ever needed (today it isn't — the default
+/// already is [AssetKnowledgePackageSource]), and tests override it to
+/// avoid Flutter asset-loading machinery entirely.
+final knowledgePackageSourceProvider = Provider<KnowledgePackageSource>(
+  (ref) => const AssetKnowledgePackageSource(),
+);
 
 /// The activated Knowledge Runtime Diagram Studio's analysis panel
 /// requests analysis through — one shared, immutable snapshot per app
 /// session (AP-EK-013 §11), not rebuilt per analysis call.
 ///
-/// **Disclosed scope boundary:** this activates the Dart
-/// `electrical-core` fixture package
-/// (`engineering_engine`'s `buildElectricalCorePackage()`), not a
-/// `.oerp` read through `OerpReader`. The real Reference Library →
-/// Compiler → `.oerp` → `OerpReader` → `KnowledgeRuntime` path is fully
-/// implemented and verified (`platform/oep_engine/tool/
-/// verify_oerp_reader.dart`), but shipping a compiled `.oerp` as a
-/// Studio application asset is a packaging/distribution decision (build
-/// config, asset bundling, update strategy) outside this presentation
-/// task's scope — see the AP-EK-020 final report. Swapping this
-/// provider's body for `OerpReader().readFile(bundledAsset)` is the
-/// entire migration once that packaging decision is made; nothing else
-/// in this file (or the panel) depends on which source produced the
-/// [KnowledgePackage].
-final electricalCoreRuntimeProvider = Provider<KnowledgeRuntime>((ref) {
-  return KnowledgeRuntime.activate(buildElectricalCorePackage(),
+/// Reads the real compiled `.oerp` Knowledge Package through
+/// [KnowledgePackageSource]/[OerpReader] — never
+/// `buildElectricalCorePackage()` (`engineering_engine`'s Dart fixture),
+/// which is test infrastructure only (see that function's own updated
+/// doc comment) and must never be reachable from this production
+/// startup path. A [FutureProvider] rather than a plain [Provider]
+/// because asset loading is inherently async (`rootBundle.load`); if the
+/// asset is missing or malformed, this provider's `AsyncValue` carries
+/// the real [KnowledgeRuntimeException] instead of a package silently
+/// falling back to fixture data — see [AssetKnowledgePackageSource]'s
+/// own doc comment for why that fallback is deliberately not offered.
+final electricalCoreRuntimeProvider =
+    FutureProvider<KnowledgeRuntime>((ref) async {
+  final source = ref.read(knowledgePackageSourceProvider);
+  final package = await source.loadElectricalCorePackage();
+  return KnowledgeRuntime.activate(package,
       allowUnsignedDevelopmentPackages: true);
 });
 
@@ -86,7 +97,16 @@ class AnalysisNotifier extends FamilyNotifier<AnalysisUiState, String> {
     final documentVersion = sha256Hex(utf8.encode(jsonEncode(graph.toJson())));
     state = state.copyWith(currentDocumentVersion: documentVersion);
 
-    final runtime = ref.read(electricalCoreRuntimeProvider);
+    final KnowledgeRuntime runtime;
+    try {
+      runtime = await ref.read(electricalCoreRuntimeProvider.future);
+    } on KnowledgeRuntimeException catch (error) {
+      state = state.copyWith(
+        phase: AnalysisUiPhase.failure,
+        errorMessage: 'Knowledge package unavailable: ${error.message}',
+      );
+      return;
+    }
     final request = AnalysisRequest(
       requestId: 'req-${DateTime.now().microsecondsSinceEpoch}',
       documentId: graph.id,

@@ -80,20 +80,21 @@ const Sidebar = {
       <button class="fp-act" onclick="editWireProps()">✎ Edit</button>
       <button class="fp-act" onclick="traceCircuit()">◎ Trace</button>
       <button id="si-route-btn" class="fp-act" onclick="toggleRouteEditMode()">↔ Route</button>
+      <button class="fp-act" onclick="startReconnectWireEnd('from')">⇄ From</button>
+      <button class="fp-act" onclick="startReconnectWireEnd('to')">⇄ To</button>
       <button class="fp-act del" onclick="deleteSelectedWire()">✕ Del</button>
     `;
 
     if (info) {
       const fM = MODULES.find(m => m.id === w.from.m);
       const tM = MODULES.find(m => m.id === w.to.m);
-      const sc = h(w.c), tc = trH(w.c);
-      const sw = tc ? `background:linear-gradient(180deg,${sc} 50%,${tc} 50%)` : `background:${sc}`;
+      const sw = `background:${swatchBg(w.c)}`;
       info.innerHTML = `
         <div class="fpr"><span class="fpk">Property Type</span><span class="fpv">Wire</span></div>
         <div class="fpr"><span class="fpk">Wire</span><span class="fpv"><span class="fpsw" style="${sw}"></span>${w.c} — ${cn(w.c)}</span></div>
         <div class="fpr"><span class="fpk">Label</span><span class="fpv">${w.lbl}</span></div>
-        <div class="fpr"><span class="fpk">From</span><span class="fpv">${fM ? fM.label : w.from.m} · ${w.from.t}</span></div>
-        <div class="fpr"><span class="fpk">To</span><span class="fpv">${tM ? tM.label : w.to.m} · ${w.to.t}</span></div>
+        <div class="fpr"><span class="fpk">From</span><span class="fpv">${fM ? fM.label : w.from.m} · ${pinLabel(w.from.m, w.from.t)}</span></div>
+        <div class="fpr"><span class="fpk">To</span><span class="fpv">${tM ? tM.label : w.to.m} · ${pinLabel(w.to.m, w.to.t)}</span></div>
         ${w.desc ? `<div class="fpr"><span class="fpk">Desc</span><span class="fpv" style="font-size:8px;line-height:1.4">${w.desc}</span></div>` : ''}
       `;
     }
@@ -119,7 +120,55 @@ const Sidebar = {
 
     const catColor = CAT_CLR[m.cat] || '#888';
     const wires    = WIRES.filter(w => w.from.m === m.id || w.to.m === m.id);
-
+    // AP-SPLICE-INSPECTOR-001 — Location/Notes were asked for at
+    // creation time (editModProps) but never actually SHOWN back once a
+    // module/splice was already placed — reported directly ("i know all
+    // those fields were asked when creating a splice but there is no way
+    // to edit one"). They're still edited via the ✎ Edit button below
+    // (editModProps already handles both fields for every module type,
+    // splices included) — this just makes them visible here too, same
+    // as the older floating-panel #mip inspector (inspector.js's
+    // renderModInfo) already did.
+    const locNotes = `
+      ${m.location ? `<div class="fpr"><span class="fpk">Location</span><span class="fpv" style="font-size:7.5px;line-height:1.5;white-space:pre-wrap">${m.location}</span></div>` : ''}
+      ${m.notes ? `<div class="fpr"><span class="fpk">Notes</span><span class="fpv" style="font-size:7.5px;line-height:1.5;white-space:pre-wrap">${m.notes}</span></div>` : ''}`;
+    // AP-TERMINAL-EXIT-001 — every non-splice module's connected wires
+    // get an Exit Side dropdown right here, writing to the TERMINAL's
+    // own `t.exit` (effectiveExitFor(), renderer.js) via setTerminalExit()
+    // (wire-editor.js), rather than requiring a trip through that wire's
+    // own separate Wire Properties modal first. Originally per-WIRE
+    // (AP-SPLICE-INSPECTOR-001/AP-MODULE-WIRE-EXIT-001) — corrected per
+    // direct feedback: which side a wire leaves from is a fixed property
+    // of the physical terminal, not something an individual wire gets to
+    // choose. A per-wire override meant re-wiring a pin (delete + redraw
+    // a new wire on the same terminal) silently lost whatever exit side
+    // had been set, which is exactly the "ambiguous" behavior reported.
+    //
+    // A SPLICE is the one deliberate exception, reported directly as
+    // having no effect there: every wire on a splice shares the exact
+    // same literal `"SPLICE"` terminal ref (buildSpliceCard, renderer.js)
+    // — which `terminalIdxForRef` can't resolve to a real terminal at
+    // all (setTerminalExit silently no-ops) — and even if it could, a
+    // splice's whole job is being the one point several DIFFERENT wires
+    // converge on, each needing its OWN side, never all forced to the
+    // same one. So for a splice this still writes to the WIRE itself
+    // (`w.fromExit`/`w.toExit`, setSpliceWireExit(), wire-editor.js) —
+    // the original, correct mechanism for exactly this case.
+    const EXIT_OPTS = ['', 'up', 'down', 'left', 'right'];
+    const exitSelect = (w, ownPin) => {
+      if (m.splice) {
+        const cur = (w.from.m === m.id ? w.fromExit : w.toExit) || '';
+        return `<select class="fs" style="font-size:7px;padding:1px 2px;margin-left:6px" onclick="event.stopPropagation()" onchange="setSpliceWireExit('${w.id}','${m.id}',this.value)" title="Which side THIS wire leaves/enters the splice from">
+          ${EXIT_OPTS.map(o => `<option value="${o}" ${o === cur ? 'selected' : ''}>${o ? o[0].toUpperCase() + o.slice(1) : 'Auto'}</option>`).join('')}
+        </select>`;
+      }
+      const idx = terminalIdxForRef(ownPin);
+      const t = idx >= 0 ? (m.terminals && m.terminals[idx]) : null;
+      const cur = (t && t.exit) || '';
+      return `<select class="fs" style="font-size:7px;padding:1px 2px;margin-left:6px" onclick="event.stopPropagation()" onchange="setTerminalExit('${m.id}','${ownPin}',this.value)" title="Which side this terminal's wire leaves/enters from">
+        ${EXIT_OPTS.map(o => `<option value="${o}" ${o === cur ? 'selected' : ''}>${o ? o[0].toUpperCase() + o.slice(1) : 'Auto'}</option>`).join('')}
+      </select>`;
+    };
     info.innerHTML = `
       <div class="fpr"><span class="fpk">Property Type</span><span class="fpv">${capitalizeCat(m.cat)}</span></div>
       <div class="fpr" style="margin-bottom:4px">
@@ -128,17 +177,21 @@ const Sidebar = {
         ${m.sub ? `<span style="color:var(--text-lo);font-size:8px;margin-left:4px">${m.sub}</span>` : ''}
       </div>
       <div class="fpr"><span class="fpk">Category</span><span class="fpv">${m.cat}</span></div>
+      ${locNotes}
       <div style="font-size:8px;color:var(--text-lo);letter-spacing:.06em;text-transform:uppercase;margin:6px 0 3px;font-weight:700">Wires (${wires.length})</div>
-      ${wires.slice(0,6).map(w => {
+      ${wires.map(w => {
         const other = w.from.m === m.id ? MODULES.find(x => x.id === w.to.m) : MODULES.find(x => x.id === w.from.m);
+        const ownPin = w.from.m === m.id ? w.from.t : w.to.t;
         const sc = h(w.c);
         return `<div style="display:flex;align-items:center;gap:5px;padding:2px 0;border-bottom:1px solid var(--border-0);cursor:pointer" onclick="selWire(WIRES.find(x=>x.id==='${w.id}'),null)">
           <div style="width:8px;height:8px;border-radius:50%;background:${sc};flex-shrink:0"></div>
+          <span style="font-size:7px;color:var(--text-faint)">${pinLabel(m.id, ownPin)}</span>
           <span style="font-size:8px;color:var(--text-md)">${w.lbl}</span>
           <span style="font-size:7.5px;color:var(--text-lo);margin-left:auto">${other ? other.label : '?'}</span>
+          ${exitSelect(w, ownPin)}
         </div>`;
       }).join('')}
-      ${wires.length > 6 ? `<div style="font-size:8px;color:var(--text-faint);padding-top:3px">+${wires.length-6} more</div>` : ''}
+      ${!wires.length ? `<div style="font-size:8px;color:var(--text-faint);font-style:italic">no connections</div>` : ''}
     `;
 
     // Hide the action buttons that are wire-specific, show module-appropriate ones

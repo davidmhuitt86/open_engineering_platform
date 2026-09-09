@@ -104,15 +104,30 @@ class LegacyV2PersistenceFakeChannel implements LegacyV2Channel {
   Future<void> restoreModule(
       String v2ModuleId, String label, String category, double x, double y,
       {String notes = '',
-      List<Map<String, String>> terminals = const []}) async {
+      List<Map<String, String>> terminals = const [],
+      String exit = '',
+      bool? connector,
+      bool? vertical,
+      String? labelPos,
+      String? pinLabelPos,
+      String? subLabelPos,
+      String? sub,
+      String? labelJustify,
+      String? kind,
+      String? bulbStyle,
+      String? bulbColor,
+      bool? flipped}) async {
     restoredModuleIds.add(v2ModuleId);
     restoredModules.add((v2ModuleId, label, category, x, y));
+    restoredModuleKinds[v2ModuleId] = kind;
   }
+
+  final Map<String, String?> restoredModuleKinds = {};
 
   @override
   Future<void> restoreWire(String v2WireId, String fromModuleId,
       String toModuleId, String label, String color,
-      {String fromTerminal = '', String toTerminal = ''}) async {
+      {String fromTerminal = '', String toTerminal = '', String fromExit = '', String toExit = '', bool cable = false}) async {
     restoredWireIds.add(v2WireId);
     restoredWires.add((v2WireId, fromModuleId, toModuleId, label, color));
   }
@@ -140,13 +155,15 @@ class LegacyV2PersistenceFakeChannel implements LegacyV2Channel {
   }
 
   void simulateCreate(String v2ModuleId, String label, String category,
-          double x, double y) =>
+          double x, double y,
+          {String kind = ''}) =>
       _onModuleCreated?.call(V2ModuleCreatedMessage(
           v2ModuleId: v2ModuleId,
           label: label,
           category: category,
           x: x,
-          y: y));
+          y: y,
+          kind: kind));
 
   void simulateWireCreated(
     String v2WireId,

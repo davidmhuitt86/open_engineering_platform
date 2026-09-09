@@ -72,18 +72,33 @@ class _FakeChannel implements LegacyV2Channel {
   Future<void> applyMeasurementResult(String v2WireId, String mode,
       String displayValue, String unit, String note) async {}
 
+  final Map<String, List<Map<String, String>>> restoredModuleTerminals = {};
+
   @override
   Future<void> restoreModule(
       String v2ModuleId, String label, String category, double x, double y,
       {String notes = '',
-      List<Map<String, String>> terminals = const []}) async {
+      List<Map<String, String>> terminals = const [],
+      String exit = '',
+      bool? connector,
+      bool? vertical,
+      String? labelPos,
+      String? pinLabelPos,
+      String? subLabelPos,
+      String? sub,
+      String? labelJustify,
+      String? kind,
+      String? bulbStyle,
+      String? bulbColor,
+      bool? flipped}) async {
     restoredModuleIds.add(v2ModuleId);
+    restoredModuleTerminals[v2ModuleId] = terminals;
   }
 
   @override
   Future<void> restoreWire(String v2WireId, String fromModuleId,
       String toModuleId, String label, String color,
-      {String fromTerminal = '', String toTerminal = ''}) async {
+      {String fromTerminal = '', String toTerminal = '', String fromExit = '', String toExit = '', bool cable = false}) async {
     restoredWireIds.add(v2WireId);
   }
 
@@ -200,8 +215,12 @@ void main() {
 
       // --- Phase 8: reinitializeForDocument clears V2 and cannot leave
       //     the old identity map able to mutate anything -----------------
+      // AP-DIAGRAM-V2-BRIDGE-SAVE-008 — `initializeFromDocument` itself
+      // now always clears first (including its very first call, at line
+      // 163 above), so this channel has cleared twice by this point: once
+      // for that initial seed, once for this reinitialize.
       await adapter.reinitializeForDocument();
-      expect(channel.clearAllSurfacesCallCount, 1);
+      expect(channel.clearAllSurfacesCallCount, 2);
       expect(adapter.isReady, isTrue);
       // The mapping still resolves (same document, re-scanned) — this is
       // "document B is actually the same document" reloading cleanly,

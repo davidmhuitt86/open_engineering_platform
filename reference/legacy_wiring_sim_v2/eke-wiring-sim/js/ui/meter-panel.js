@@ -23,7 +23,25 @@ function setKey(k) {
   keyPos = k;
   document.querySelectorAll('.key-btn,.fp-kb').forEach(b => b.classList.toggle('active', +b.dataset.key === k));
   if (selW) { autoPlaceLeads(selW); updateMeter(); }
+  // AP-LIVE-SIM-001 — updateBulbs()'s own blanket "any key on = every
+  // bulb glows" is superseded by LiveSim.refresh(), which computes each
+  // lamp's REAL powered+grounded status from the actual wiring/switches
+  // via the electrical solver. Left in place first so a page that
+  // somehow loads without live-runner.js (script error, etc.) still gets
+  // the old, cruder behavior rather than every bulb staying dark.
   updateBulbs();
+  // AP-MULTI-SWITCH-001 — the key position IS the ignition switch's own
+  // `power` group (knowledge/behaviors/multi-switch.js): key ON/CRANK/
+  // RUN closes its BAT1-BAT2/BAT3-IG1 pairs, key OFF opens them. Bridged
+  // here the same way SWPACK's own rockers bridge to their matching
+  // groups (js/swpack.js's `_bridgeLiveSim`) — finds whichever REAL
+  // module matches the ignition-switch terminal set, never a hardcoded
+  // module id.
+  if (typeof MultiSwitchBehavior !== 'undefined' && typeof MODULES !== 'undefined' && typeof LiveSim !== 'undefined') {
+    const ignMod = MODULES.find(m => { const def = MultiSwitchBehavior.match(m); return def && def.groups.power; });
+    if (ignMod) LiveSim.setMultiSwitchGroup(ignMod.id, 'power', k >= 1 ? 'on' : 'off');
+  }
+  if (typeof LiveSim !== 'undefined') LiveSim.refresh();
   drawWires();
   if (typeof Sidebar !== 'undefined') Sidebar.onMeterChange();
 }
@@ -61,10 +79,16 @@ function autoPlaceLeads(w) {
   } else if (leadMode === 'gnd') {
     leadR = { m: w.from.m, t: w.from.t };
     const gndMod = MODULES.find(m => m.cat === 'ground');
-    leadB = (gndMod && gndMod.terminals.length) ? { m: gndMod.id, t: gndMod.terminals[0].n } : null;
+    // `t` is a pin number (see renderer.js's pinKey doc comment), never
+    // the free-text terminal label — pinKey(0) is pin 1, gndMod's first
+    // terminal by position.
+    leadB = (gndMod && gndMod.terminals.length) ? { m: gndMod.id, t: pinKey(0) } : null;
   } else if (leadMode === 'pwr') {
     const batMod = MODULES.find(m => m.cat === 'power' && m.terminals.some(t => t.n === 'B+'));
-    if (batMod) { const bt = batMod.terminals.find(t => t.n === 'B+') || batMod.terminals[0]; leadR = { m: batMod.id, t: bt.n }; }
+    if (batMod) {
+      const idx = batMod.terminals.findIndex(t => t.n === 'B+');
+      leadR = { m: batMod.id, t: pinKey(idx === -1 ? 0 : idx) };
+    }
     else leadR = null;
     leadB = { m: w.to.m, t: w.to.t };
   }

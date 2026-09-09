@@ -5,7 +5,7 @@
  * and route-edit segment handles.
  *
  * Phase 1: logic lives in renderer.js (route, drawWires, addFlowOverlay,
- *          startFlowAnim, stopFlowAnim, allocX, allocY, cleanPts, getMovableSegs).
+ *          startFlowAnim, stopFlowAnim, cleanPts, getMovableSegs).
  *
  * Phase 2 goal: extract those functions here.
  *

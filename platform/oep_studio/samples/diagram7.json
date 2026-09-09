@@ -1,0 +1,3547 @@
+{
+  "schemaVersion": 1,
+  "documentId": "trx300-imported-0001",
+  "graph": {
+    "id": "trx300",
+    "nodes": [
+      {
+        "id": "cdi-unit",
+        "category": "component",
+        "displayName": "CDI Unit",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "cdi-unit",
+          "v2Category": "ignition",
+          "v2Sublabel": "DC-CDI Igniter",
+          "v2Exit": "down",
+          "v2Terminals": [
+            {
+              "c": "Bl/Y",
+              "n": "P1"
+            },
+            {
+              "c": "G",
+              "n": "P2"
+            },
+            {
+              "c": "Blu/Y",
+              "n": "P3"
+            },
+            {
+              "c": "Y/W",
+              "n": "P4"
+            },
+            {
+              "c": "Bl/W",
+              "n": "P5"
+            },
+            {
+              "c": "Lg/R",
+              "n": "P6"
+            }
+          ],
+          "v2Connector": false,
+          "v2Vertical": false,
+          "v2Flipped": false
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": [
+          {
+            "id": "P1",
+            "name": "P1",
+            "direction": "unspecified",
+            "type": "electrical",
+            "metadata": {
+              "v2Color": "Bl/Y"
+            }
+          },
+          {
+            "id": "P2",
+            "name": "P2",
+            "direction": "unspecified",
+            "type": "electrical",
+            "metadata": {
+              "v2Color": "G"
+            }
+          },
+          {
+            "id": "P3",
+            "name": "P3",
+            "direction": "unspecified",
+            "type": "electrical",
+            "metadata": {
+              "v2Color": "Blu/Y"
+            }
+          },
+          {
+            "id": "P4",
+            "name": "P4",
+            "direction": "unspecified",
+            "type": "electrical",
+            "metadata": {
+              "v2Color": "Y/W"
+            }
+          },
+          {
+            "id": "P5",
+            "name": "P5",
+            "direction": "unspecified",
+            "type": "electrical",
+            "metadata": {
+              "v2Color": "Bl/W"
+            }
+          },
+          {
+            "id": "P6",
+            "name": "P6",
+            "direction": "unspecified",
+            "type": "electrical",
+            "metadata": {
+              "v2Color": "Gr"
+            }
+          }
+        ]
+      },
+      {
+        "id": "alarm-unit",
+        "category": "component",
+        "displayName": "Alarm Unit",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "alarm-unit",
+          "v2Category": "control",
+          "v2Sublabel": "Rev/Oil Buzzer",
+          "v2Exit": "down",
+          "v2Terminals": [
+            {
+              "c": "Br/R",
+              "n": "A1"
+            },
+            {
+              "c": "Bl",
+              "n": "A2"
+            },
+            {
+              "c": "G",
+              "n": "A3"
+            },
+            {
+              "c": "P",
+              "n": "A5"
+            },
+            {
+              "c": "Blu/R",
+              "n": "A6"
+            }
+          ],
+          "v2Connector": false,
+          "v2Vertical": false,
+          "v2Flipped": false
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": [
+          {
+            "id": "A1",
+            "name": "A1",
+            "direction": "unspecified",
+            "type": "electrical",
+            "metadata": {
+              "v2Color": "Br/R"
+            }
+          },
+          {
+            "id": "A2",
+            "name": "A2",
+            "direction": "unspecified",
+            "type": "electrical",
+            "metadata": {
+              "v2Color": "Bl"
+            }
+          },
+          {
+            "id": "A3",
+            "name": "A3",
+            "direction": "unspecified",
+            "type": "electrical",
+            "metadata": {
+              "v2Color": "G"
+            }
+          },
+          {
+            "id": "A5",
+            "name": "A5",
+            "direction": "unspecified",
+            "type": "electrical",
+            "metadata": {
+              "v2Color": "P"
+            }
+          },
+          {
+            "id": "A6",
+            "name": "A6",
+            "direction": "unspecified",
+            "type": "electrical",
+            "metadata": {
+              "v2Color": "Blu/R"
+            }
+          }
+        ]
+      },
+      {
+        "id": "ignition-switch",
+        "category": "component",
+        "displayName": "Ignition Switch",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "ignition-switch",
+          "v2Category": "control",
+          "v2Sublabel": "Key Cylinder",
+          "v2Exit": "down",
+          "v2Terminals": [
+            {
+              "c": "R",
+              "n": "BAT1",
+              "showLabel": "1"
+            },
+            {
+              "c": "Bl",
+              "n": "BAT2",
+              "showLabel": "1"
+            },
+            {
+              "c": "P",
+              "n": "IG1",
+              "showLabel": "1"
+            },
+            {
+              "c": "P/W",
+              "n": "BAT3",
+              "showLabel": "1"
+            }
+          ],
+          "v2Connector": false,
+          "v2Vertical": false,
+          "v2Flipped": false
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": [
+          {
+            "id": "BAT1",
+            "name": "BAT1",
+            "direction": "unspecified",
+            "type": "electrical",
+            "metadata": {
+              "v2Color": "R"
+            }
+          },
+          {
+            "id": "BAT2",
+            "name": "BAT2",
+            "direction": "unspecified",
+            "type": "electrical",
+            "metadata": {
+              "v2Color": "Bl"
+            }
+          },
+          {
+            "id": "IG1",
+            "name": "IG1",
+            "direction": "unspecified",
+            "type": "electrical",
+            "metadata": {
+              "v2Color": "P"
+            }
+          },
+          {
+            "id": "BAT3",
+            "name": "BAT3",
+            "direction": "unspecified",
+            "type": "electrical",
+            "metadata": {
+              "v2Color": "P/W"
+            }
+          }
+        ]
+      },
+      {
+        "id": "dc-consent-jack",
+        "category": "component",
+        "displayName": "DC Consent",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "dc-consent-jack",
+          "v2Category": "accessory",
+          "v2Sublabel": "Accessory Jack",
+          "v2Exit": "down",
+          "v2Terminals": [
+            {
+              "c": "P",
+              "n": "+12V"
+            },
+            {
+              "c": "G",
+              "n": "GND"
+            }
+          ],
+          "v2Connector": false,
+          "v2Vertical": false,
+          "v2Flipped": false
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": [
+          {
+            "id": "+12V",
+            "name": "+12V",
+            "direction": "unspecified",
+            "type": "electrical",
+            "metadata": {
+              "v2Color": "P"
+            }
+          },
+          {
+            "id": "GND",
+            "name": "GND",
+            "direction": "unspecified",
+            "type": "electrical",
+            "metadata": {
+              "v2Color": "G"
+            }
+          }
+        ]
+      },
+      {
+        "id": "rectifier-diode",
+        "category": "component",
+        "displayName": "Rectifier Diode",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "rectifier-diode",
+          "v2Category": "charging",
+          "v2Sublabel": "Diode",
+          "v2Exit": "down",
+          "v2Terminals": [
+            {
+              "c": "Lg/R",
+              "n": "A"
+            },
+            {
+              "c": "G/R",
+              "n": "K"
+            }
+          ],
+          "v2Connector": false,
+          "v2Vertical": false,
+          "v2Flipped": false
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": [
+          {
+            "id": "A",
+            "name": "A",
+            "direction": "unspecified",
+            "type": "electrical",
+            "metadata": {
+              "v2Color": "Lg/R"
+            }
+          },
+          {
+            "id": "K",
+            "name": "K",
+            "direction": "unspecified",
+            "type": "electrical",
+            "metadata": {
+              "v2Color": "G/R"
+            }
+          }
+        ]
+      },
+      {
+        "id": "regulator-rectifier",
+        "category": "component",
+        "displayName": "Reg/Rect",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "regulator-rectifier",
+          "v2Category": "charging",
+          "v2Sublabel": "Charge Regulator",
+          "v2Exit": "down",
+          "v2Terminals": [
+            {
+              "c": "Bl",
+              "n": "GND"
+            },
+            {
+              "c": "R",
+              "n": "B+"
+            },
+            {
+              "c": "G",
+              "n": "REG"
+            },
+            {
+              "c": "Y",
+              "n": "AC1"
+            },
+            {
+              "c": "Y",
+              "n": "AC2"
+            },
+            {
+              "c": "Y",
+              "n": "AC3"
+            }
+          ],
+          "v2Connector": false,
+          "v2Vertical": false,
+          "v2Flipped": false
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": [
+          {
+            "id": "GND",
+            "name": "GND",
+            "direction": "unspecified",
+            "type": "electrical",
+            "metadata": {
+              "v2Color": "Bl"
+            }
+          },
+          {
+            "id": "B+",
+            "name": "B+",
+            "direction": "unspecified",
+            "type": "electrical",
+            "metadata": {
+              "v2Color": "R"
+            }
+          },
+          {
+            "id": "REG",
+            "name": "REG",
+            "direction": "unspecified",
+            "type": "electrical",
+            "metadata": {
+              "v2Color": "G"
+            }
+          },
+          {
+            "id": "AC1",
+            "name": "AC1",
+            "direction": "unspecified",
+            "type": "electrical",
+            "metadata": {
+              "v2Color": "Y"
+            }
+          },
+          {
+            "id": "AC2",
+            "name": "AC2",
+            "direction": "unspecified",
+            "type": "electrical",
+            "metadata": {
+              "v2Color": "Y"
+            }
+          },
+          {
+            "id": "AC3",
+            "name": "AC3",
+            "direction": "unspecified",
+            "type": "electrical",
+            "metadata": {
+              "v2Color": "Y"
+            }
+          }
+        ]
+      },
+      {
+        "id": "left-handlebar-switch",
+        "category": "component",
+        "displayName": "LH Handlebar Sw",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "left-handlebar-switch",
+          "v2Category": "control",
+          "v2Sublabel": "Light/Stop/Start",
+          "v2Exit": "up",
+          "v2Terminals": [
+            {
+              "c": "Bl",
+              "n": "BAT2",
+              "showLabel": "1"
+            },
+            {
+              "c": "Bl",
+              "n": "IG1",
+              "showLabel": "1"
+            },
+            {
+              "c": "Br",
+              "n": "TL",
+              "showLabel": "1"
+            },
+            {
+              "c": "Y/R",
+              "n": "ST",
+              "showLabel": "1"
+            },
+            {
+              "c": "Bl/W",
+              "n": "IG2",
+              "showLabel": "1"
+            },
+            {
+              "c": "W",
+              "n": "LO",
+              "showLabel": "1"
+            },
+            {
+              "c": "Blu",
+              "n": "HI",
+              "showLabel": "1"
+            }
+          ],
+          "v2Connector": false,
+          "v2Vertical": false,
+          "v2LabelPos": "bottom",
+          "v2Flipped": false
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": [
+          {
+            "id": "BAT2",
+            "name": "BAT2",
+            "direction": "unspecified",
+            "type": "electrical",
+            "metadata": {
+              "v2Color": "Bl"
+            }
+          },
+          {
+            "id": "IG1",
+            "name": "IG1",
+            "direction": "unspecified",
+            "type": "electrical",
+            "metadata": {
+              "v2Color": "Bl"
+            }
+          },
+          {
+            "id": "TL",
+            "name": "TL",
+            "direction": "unspecified",
+            "type": "electrical",
+            "metadata": {
+              "v2Color": "Br"
+            }
+          },
+          {
+            "id": "ST",
+            "name": "ST",
+            "direction": "unspecified",
+            "type": "electrical",
+            "metadata": {
+              "v2Color": "Y/R"
+            }
+          },
+          {
+            "id": "IG2",
+            "name": "IG2",
+            "direction": "unspecified",
+            "type": "electrical",
+            "metadata": {
+              "v2Color": "Bl/W"
+            }
+          },
+          {
+            "id": "LO",
+            "name": "LO",
+            "direction": "unspecified",
+            "type": "electrical",
+            "metadata": {
+              "v2Color": "W"
+            }
+          },
+          {
+            "id": "HI",
+            "name": "HI",
+            "direction": "unspecified",
+            "type": "electrical",
+            "metadata": {
+              "v2Color": "Blu"
+            }
+          }
+        ]
+      },
+      {
+        "id": "chassis-ground",
+        "category": "component",
+        "displayName": "Chassis GND",
+        "symbolId": "ground",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "chassis-ground",
+          "v2Category": "ground",
+          "v2Sublabel": "Engine Bolt",
+          "v2Exit": "up",
+          "v2Terminals": [
+            {
+              "c": "G",
+              "n": "A"
+            },
+            {
+              "c": "G",
+              "exit": "up",
+              "n": "B"
+            }
+          ],
+          "v2Connector": false,
+          "v2Vertical": false,
+          "v2LabelPos": "bottom",
+          "v2Flipped": false
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": [
+          {
+            "id": "A",
+            "name": "A",
+            "direction": "unspecified",
+            "type": "electrical",
+            "metadata": {
+              "v2Color": "G"
+            }
+          },
+          {
+            "id": "B",
+            "name": "B",
+            "direction": "unspecified",
+            "type": "electrical",
+            "metadata": {
+              "v2Color": "G"
+            }
+          }
+        ]
+      },
+      {
+        "id": "ignition-coil",
+        "category": "component",
+        "displayName": "Ignition Coil",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "ignition-coil",
+          "v2Category": "ignition",
+          "v2Sublabel": "Primary",
+          "v2Exit": "up",
+          "v2Terminals": [
+            {
+              "c": "Bl/Y",
+              "n": "PRI+"
+            },
+            {
+              "c": "G",
+              "n": "GND"
+            }
+          ],
+          "v2Connector": false,
+          "v2Vertical": false,
+          "v2LabelPos": "bottom",
+          "v2Flipped": false
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": [
+          {
+            "id": "PRI+",
+            "name": "PRI+",
+            "direction": "unspecified",
+            "type": "electrical",
+            "metadata": {
+              "v2Color": "Bl/Y"
+            }
+          },
+          {
+            "id": "GND",
+            "name": "GND",
+            "direction": "unspecified",
+            "type": "electrical",
+            "metadata": {
+              "v2Color": "G"
+            }
+          }
+        ]
+      },
+      {
+        "id": "node_hlzz7d8xvu_wn2xzq",
+        "category": "component",
+        "displayName": "Indicator Light Connector",
+        "symbolId": "connector",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "mod-connector-4p-vertical-1788581949683",
+          "v2Category": "connector",
+          "v2Terminals": [
+            {
+              "c": "Lg/R|G/R",
+              "n": "A"
+            },
+            {
+              "c": "Bl|Bl",
+              "n": "B"
+            },
+            {
+              "c": "Gr|Gr",
+              "n": "C"
+            },
+            {
+              "c": "Br/R|Br/R",
+              "n": "D"
+            }
+          ],
+          "v2Exit": "right",
+          "v2Connector": true,
+          "v2Vertical": true,
+          "v2Flipped": false
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hm11a90flg_4abwqs",
+        "category": "component",
+        "displayName": "Left Handlebar Switch Connector",
+        "symbolId": "connector",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "mod-left-handlebar-switch-connector-1788664841749",
+          "v2Category": "connector",
+          "v2Terminals": [
+            {
+              "c": "G|G",
+              "exit": "right",
+              "n": "1"
+            },
+            {
+              "c": "Br|Br",
+              "exit": "right",
+              "n": "2"
+            },
+            {
+              "c": "Y/R|Y/R",
+              "exit": "right",
+              "n": "3"
+            }
+          ],
+          "v2Exit": "right",
+          "v2Connector": true,
+          "v2Vertical": true,
+          "v2LabelPos": "bottom",
+          "v2Flipped": false
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hm13fzhpd7_1yhimgb",
+        "category": "component",
+        "displayName": "Regulator\nRectifier \nConnector",
+        "symbolId": "connector",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "mod-connector-3p-1788669542226",
+          "v2Category": "connector",
+          "v2Terminals": [
+            {
+              "c": "Bl|Bl",
+              "exit": "down",
+              "n": "1",
+              "showLabel": "1"
+            },
+            {
+              "c": "R|R",
+              "exit": "up",
+              "n": "2",
+              "showLabel": "1"
+            },
+            {
+              "c": "G|G",
+              "n": "3",
+              "showLabel": "1"
+            }
+          ],
+          "v2Exit": "down",
+          "v2Connector": true,
+          "v2Vertical": false,
+          "v2Flipped": false,
+          "v2LabelPos": "left"
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hm235oce1b_4wm62u",
+        "category": "component",
+        "displayName": "Battery Chassis Ground",
+        "symbolId": "ground",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "mod-msin-battery-chassis-ground-1788747283091",
+          "v2Category": "ground",
+          "v2Terminals": [
+            {
+              "c": "Bl",
+              "n": "GND"
+            }
+          ],
+          "v2Exit": "up",
+          "v2Connector": false,
+          "v2Vertical": false,
+          "v2LabelPos": "bottom",
+          "v2Flipped": false
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hm241o81f0_1foy2j2",
+        "category": "component",
+        "displayName": "Diode",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "diode-1788749217639",
+          "v2Category": "diode",
+          "v2Terminals": [
+            {
+              "c": "BL",
+              "n": "A"
+            },
+            {
+              "c": "BL",
+              "n": "K"
+            }
+          ],
+          "v2Exit": "right",
+          "v2Connector": false,
+          "v2Vertical": false,
+          "v2Flipped": false
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hm268oh4ab_a08ox4",
+        "category": "component",
+        "displayName": "Battery",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "mod-battery-1788753995022",
+          "v2Category": "power",
+          "v2Terminals": [
+            {
+              "c": "R",
+              "n": "+",
+              "post": "true"
+            },
+            {
+              "c": "Bl",
+              "n": "−",
+              "post": "true"
+            }
+          ],
+          "v2Exit": "up",
+          "v2Connector": false,
+          "v2Vertical": false,
+          "v2Sub": "12V Lead-Acid",
+          "v2Kind": "battery",
+          "v2LabelPos": "bottom",
+          "v2Flipped": false
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hm268qdn3o_1xhlgpy",
+        "category": "component",
+        "displayName": "Starter Solenoid",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "mod-starter-solenoid-1788753998164",
+          "v2Category": "control",
+          "v2Terminals": [
+            {
+              "c": "R",
+              "n": "BAT",
+              "post": "true"
+            },
+            {
+              "c": "Y",
+              "n": "C1"
+            },
+            {
+              "c": "Y",
+              "n": "C2"
+            },
+            {
+              "c": "R",
+              "exit": "up",
+              "n": "MTR",
+              "post": "true"
+            }
+          ],
+          "v2Exit": "up",
+          "v2Connector": false,
+          "v2Vertical": false,
+          "v2Sub": "Relay Switch",
+          "v2Kind": "solenoid",
+          "v2LabelPos": "bottom",
+          "v2Flipped": false
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hm268u6ygb_1fa6wy",
+        "category": "component",
+        "displayName": "Starter Motor",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "mod-starter-motor-1788754004556",
+          "v2Category": "starter",
+          "v2Terminals": [
+            {
+              "c": "R",
+              "n": "B+",
+              "post": "true"
+            },
+            {
+              "c": "Bl",
+              "n": "GND",
+              "post": "true"
+            }
+          ],
+          "v2Exit": "up",
+          "v2Connector": false,
+          "v2Vertical": false,
+          "v2Sub": "12V Cranking",
+          "v2Kind": "starterMotor",
+          "v2LabelPos": "bottom",
+          "v2Flipped": false
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hm268xadl2_14b9olo",
+        "category": "component",
+        "displayName": "Neutral Switch",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "mod-switch-1788754009784",
+          "v2Category": "control",
+          "v2Terminals": [
+            {
+              "c": "Lg",
+              "n": "SW"
+            },
+            {
+              "c": "Bl",
+              "n": "GND",
+              "post": "true"
+            }
+          ],
+          "v2Exit": "up",
+          "v2Connector": false,
+          "v2Vertical": false,
+          "v2Sub": "Chassis Grounded",
+          "v2Kind": "groundedSwitch",
+          "v2LabelPos": "bottom",
+          "v2Flipped": false
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hm2691c017_be7zb0",
+        "category": "component",
+        "displayName": "Oil Temp Sensor",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "mod-temp-sensor-1788754016627",
+          "v2Category": "accessory",
+          "v2Terminals": [
+            {
+              "c": "Blu",
+              "n": "SIG"
+            },
+            {
+              "c": "Bl",
+              "n": "GND",
+              "post": "true"
+            }
+          ],
+          "v2Exit": "up",
+          "v2Connector": false,
+          "v2Vertical": false,
+          "v2Sub": "Chassis Grounded",
+          "v2Kind": "thermistor",
+          "v2LabelPos": "bottom",
+          "v2Flipped": false
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hm26bcdwud_z4g4up",
+        "category": "component",
+        "displayName": "Reverse Switch",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "mod-reverse-switch-1788754156004",
+          "v2Category": "control",
+          "v2Terminals": [
+            {
+              "c": "Gr",
+              "n": "SW"
+            },
+            {
+              "c": "Bl",
+              "n": "GND",
+              "post": "true"
+            }
+          ],
+          "v2Exit": "up",
+          "v2Connector": false,
+          "v2Vertical": false,
+          "v2Sub": "Chassis Grounded",
+          "v2Kind": "groundedSwitch",
+          "v2LabelPos": "bottom",
+          "v2Flipped": false
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hm28yiides_14i8bbq",
+        "category": "component",
+        "displayName": "Reverse Indicator Light",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "mod-reverse-indicator-light-1788759910493",
+          "v2Category": "indicator",
+          "v2Terminals": [
+            {
+              "c": "Gr",
+              "n": "SIG"
+            },
+            {
+              "c": "Bl",
+              "n": "GND"
+            }
+          ],
+          "v2Exit": "down",
+          "v2Connector": false,
+          "v2Vertical": true,
+          "v2Kind": "bulb",
+          "v2BulbStyle": "color",
+          "v2BulbColor": "red",
+          "v2Flipped": false,
+          "v2LabelPos": "top"
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hm290w07v2_17b2iov",
+        "category": "component",
+        "displayName": "Neutral Indicator Light",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "mod-neutral-indicator-light-1788760054333",
+          "v2Category": "indicator",
+          "v2Terminals": [
+            {
+              "c": "Bl",
+              "n": "SIG"
+            },
+            {
+              "c": "Lg/R",
+              "n": "GND"
+            }
+          ],
+          "v2Exit": "down",
+          "v2Connector": false,
+          "v2Vertical": true,
+          "v2Kind": "bulb",
+          "v2BulbStyle": "color",
+          "v2BulbColor": "green",
+          "v2Flipped": false,
+          "v2LabelPos": "top"
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hm2920qdd8_aelkyk",
+        "category": "component",
+        "displayName": "Oil Temp Indicator Light",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "mod-oil-temp-indicator-light-1788760122816",
+          "v2Category": "indicator",
+          "v2Terminals": [
+            {
+              "c": "Bl",
+              "n": "SIG"
+            },
+            {
+              "c": "Br/R",
+              "n": "GND"
+            }
+          ],
+          "v2Exit": "up",
+          "v2Connector": false,
+          "v2Vertical": true,
+          "v2Kind": "bulb",
+          "v2BulbStyle": "color",
+          "v2BulbColor": "red",
+          "v2Flipped": false,
+          "v2LabelPos": "top"
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hm293u86wk_1siprh5",
+        "category": "component",
+        "displayName": "LH Headlight",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "mod-lh-headlight-1788760232575",
+          "v2Category": "lighting",
+          "v2Terminals": [
+            {
+              "c": "G",
+              "n": "GND"
+            },
+            {
+              "c": "W",
+              "n": "LO"
+            },
+            {
+              "c": "Blu",
+              "n": "Hi"
+            }
+          ],
+          "v2Exit": "right",
+          "v2Connector": false,
+          "v2Vertical": false,
+          "v2Kind": "bulb",
+          "v2BulbStyle": "incandescent",
+          "v2Flipped": false
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hm294pfd09_155849t",
+        "category": "component",
+        "displayName": "RH Headlight",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "mod-rh-headlight-1788760285029",
+          "v2Category": "lighting",
+          "v2Terminals": [
+            {
+              "c": "Blu",
+              "n": "HI"
+            },
+            {
+              "c": "W",
+              "n": "LO"
+            },
+            {
+              "c": "G",
+              "n": "GND"
+            }
+          ],
+          "v2Exit": "right",
+          "v2Connector": false,
+          "v2Vertical": false,
+          "v2Kind": "bulb",
+          "v2BulbStyle": "incandescent",
+          "v2Flipped": false,
+          "v2PinLabelPos": "left"
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hm29auwdot_vx4btw",
+        "category": "component",
+        "displayName": "Taillight",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "mod-headlight-1788760657228",
+          "v2Category": "lighting",
+          "v2Terminals": [
+            {
+              "c": "G",
+              "n": "GND"
+            },
+            {
+              "c": "Br",
+              "n": "TL"
+            }
+          ],
+          "v2Exit": "left",
+          "v2Connector": false,
+          "v2Vertical": false,
+          "v2Kind": "bulb",
+          "v2BulbStyle": "color",
+          "v2Flipped": true,
+          "v2BulbColor": "red"
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hm2k1s6010_1uemkl7",
+        "category": "component",
+        "displayName": "Splice",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "splice-1788784052811",
+          "v2Category": "splice",
+          "v2Terminals": [
+            {
+              "c": "W",
+              "n": "SPLICE"
+            }
+          ],
+          "v2Exit": "up",
+          "v2Connector": false,
+          "v2Vertical": false,
+          "v2Flipped": false
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hm2tnddgwy_1gwjuw8",
+        "category": "component",
+        "displayName": "Splice",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "splice-1788804949285",
+          "v2Category": "splice",
+          "v2Terminals": [
+            {
+              "c": "G",
+              "n": "SPLICE"
+            }
+          ],
+          "v2Exit": "right",
+          "v2Connector": false,
+          "v2Vertical": false,
+          "v2Flipped": false
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hm2tsj4le2_mykndm",
+        "category": "component",
+        "displayName": "Splice",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "splice-1788805261205",
+          "v2Category": "splice",
+          "v2Terminals": [
+            {
+              "c": "G",
+              "n": "SPLICE"
+            }
+          ],
+          "v2Exit": "down",
+          "v2Connector": false,
+          "v2Vertical": false,
+          "v2Flipped": false
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hm2u84gdvw_1vei0mz",
+        "category": "component",
+        "displayName": "Splice",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "splice-1788806203939",
+          "v2Category": "splice",
+          "v2Terminals": [
+            {
+              "c": "Bl",
+              "n": "SPLICE"
+            }
+          ],
+          "v2Exit": "down",
+          "v2Connector": false,
+          "v2Vertical": false,
+          "v2Flipped": false
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hm2vt79oui_1xgi8v1",
+        "category": "component",
+        "displayName": "Pulse Generator",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "mod-pulse-generator-1788809655256",
+          "v2Category": "ignition",
+          "v2Terminals": [
+            {
+              "c": "Blu/Y",
+              "n": "SIG"
+            }
+          ],
+          "v2Exit": "up",
+          "v2Connector": false,
+          "v2Vertical": false,
+          "v2Kind": "pulseGenerator",
+          "v2Flipped": false,
+          "v2LabelPos": "bottom"
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hm2vuodiqa_cqq0sf",
+        "category": "component",
+        "displayName": "Alternator",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "mod-alternator-1788809744510",
+          "v2Category": "charging",
+          "v2Terminals": [
+            {
+              "c": "G",
+              "n": "1"
+            },
+            {
+              "c": "Y/W",
+              "n": "2"
+            },
+            {
+              "c": "Y",
+              "exit": "up",
+              "n": "3"
+            },
+            {
+              "c": "Y",
+              "n": "4"
+            },
+            {
+              "c": "Y",
+              "n": "5"
+            }
+          ],
+          "v2Exit": "up",
+          "v2Connector": false,
+          "v2Vertical": false,
+          "v2Kind": "alternator",
+          "v2Flipped": false,
+          "v2LabelPos": "bottom"
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hm2vz4eunm_mfxq72",
+        "category": "component",
+        "displayName": "Alternator AC Connector",
+        "symbolId": "connector",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "mod-alternator-ac-connector-1788810013416",
+          "v2Category": "connector",
+          "v2Terminals": [
+            {
+              "c": "Y|Y",
+              "n": "P1"
+            },
+            {
+              "c": "Y|Y",
+              "n": "P2"
+            },
+            {
+              "c": "Y|Y",
+              "n": "P3"
+            }
+          ],
+          "v2Exit": "down",
+          "v2Connector": true,
+          "v2Vertical": false,
+          "v2Flipped": false,
+          "v2LabelPos": "right"
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hm2w4xzhz8_1xpw939",
+        "category": "component",
+        "displayName": "Alternator Pulse Generator Connector",
+        "symbolId": "connector",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "mod-alternator-pulse-generator-connector-1788810365443",
+          "v2Category": "connector",
+          "v2Terminals": [
+            {
+              "c": "Blu/Y|Blu/Y",
+              "n": "A"
+            },
+            {
+              "c": "G|G",
+              "n": "B"
+            },
+            {
+              "c": "Y/W|Y/W",
+              "n": "C"
+            }
+          ],
+          "v2Exit": "down",
+          "v2Connector": true,
+          "v2Vertical": false,
+          "v2Flipped": false,
+          "v2LabelPos": "left"
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hm2wkv7mtt_9hiy30",
+        "category": "component",
+        "displayName": "Ignition 12v+ Feed and Battery 12v+ Charge From Voltage Regulator",
+        "symbolId": "connector",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "mod-ignition-12v--feed-and-battery-12v--charge-from-voltage-regulator-1788811328228",
+          "v2Category": "connector",
+          "v2Terminals": [
+            {
+              "c": "P/W|P/W",
+              "n": "A"
+            },
+            {
+              "c": "R|R",
+              "exit": "down",
+              "n": "B"
+            }
+          ],
+          "v2Exit": "down",
+          "v2Connector": true,
+          "v2Vertical": false,
+          "v2Flipped": false,
+          "v2LabelPos": "right"
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hm2wr0ow30_1dvc49p",
+        "category": "component",
+        "displayName": "Splice",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "splice-1788811700280",
+          "v2Category": "splice",
+          "v2Terminals": [
+            {
+              "c": "R",
+              "n": "SPLICE"
+            }
+          ],
+          "v2Exit": "down",
+          "v2Connector": false,
+          "v2Vertical": false,
+          "v2Flipped": false
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hm2x5jwn0x_atvrws",
+        "category": "component",
+        "displayName": "Starter Solenoid Connector",
+        "symbolId": "connector",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "mod-starter-solenoid-connector-1788812579118",
+          "v2Category": "connector",
+          "v2Terminals": [
+            {
+              "c": "Y/R|Y/R",
+              "exit": "down",
+              "n": "A"
+            },
+            {
+              "c": "G/R|G/R",
+              "exit": "up",
+              "n": "B"
+            }
+          ],
+          "v2Exit": "down",
+          "v2Connector": true,
+          "v2Vertical": false,
+          "v2Flipped": false,
+          "v2LabelPos": "left"
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hm2xerewgw_1ecxfdq",
+        "category": "component",
+        "displayName": "Indicator Light Switches Connector",
+        "symbolId": "connector",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "mod-indicator-light-switches-connector-1788813135726",
+          "v2Category": "connector",
+          "v2Terminals": [
+            {
+              "c": "Gr|Gr",
+              "exit": "down",
+              "n": "A"
+            },
+            {
+              "c": "Lg/R|Lg",
+              "n": "B"
+            },
+            {
+              "c": "Blu/R|Blu",
+              "exit": "down",
+              "n": "C"
+            }
+          ],
+          "v2Exit": "down",
+          "v2Connector": true,
+          "v2Vertical": false,
+          "v2Flipped": false,
+          "v2LabelPos": "left"
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hm31gnihnl_fss4ra",
+        "category": "component",
+        "displayName": "Splice",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "splice-1788821957190",
+          "v2Category": "splice",
+          "v2Terminals": [
+            {
+              "c": "Lg/R",
+              "n": "SPLICE"
+            }
+          ],
+          "v2Exit": "right",
+          "v2Connector": false,
+          "v2Vertical": false,
+          "v2Flipped": false
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hm31rvez67_1kcwusy",
+        "category": "component",
+        "displayName": "Splice",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "splice-1788822635615",
+          "v2Category": "splice",
+          "v2Terminals": [
+            {
+              "c": "Bl",
+              "n": "SPLICE"
+            }
+          ],
+          "v2Exit": "down",
+          "v2Connector": false,
+          "v2Vertical": false,
+          "v2Flipped": false
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hm31v529lc_1kk54sz",
+        "category": "component",
+        "displayName": "Splice",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "splice-1788822833274",
+          "v2Category": "splice",
+          "v2Terminals": [
+            {
+              "c": "G",
+              "n": "SPLICE"
+            }
+          ],
+          "v2Exit": "right",
+          "v2Connector": false,
+          "v2Vertical": false,
+          "v2Flipped": false
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hm31xkp87e_zd47fh",
+        "category": "component",
+        "displayName": "Splice",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "splice-1788822980433",
+          "v2Category": "splice",
+          "v2Terminals": [
+            {
+              "c": "G/R",
+              "n": "SPLICE"
+            }
+          ],
+          "v2Exit": "right",
+          "v2Connector": false,
+          "v2Vertical": false,
+          "v2Flipped": false
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hm31z5m98a_1sakbsc",
+        "category": "component",
+        "displayName": "Splice",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "splice-1788823075978",
+          "v2Category": "splice",
+          "v2Terminals": [
+            {
+              "c": "BL",
+              "n": "SPLICE"
+            }
+          ],
+          "v2Exit": "down",
+          "v2Connector": false,
+          "v2Vertical": false,
+          "v2Flipped": false
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hm3cm4663i_nay2dv",
+        "category": "component",
+        "displayName": "Splice",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "splice-1788846232164",
+          "v2Category": "splice",
+          "v2Terminals": [
+            {
+              "c": "Bl",
+              "n": "SPLICE"
+            }
+          ],
+          "v2Exit": "down",
+          "v2Connector": false,
+          "v2Vertical": false,
+          "v2Flipped": false
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hm3ctfkcbe_16v0ks2",
+        "category": "component",
+        "displayName": "Splice",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "splice-1788846674507",
+          "v2Category": "splice",
+          "v2Terminals": [
+            {
+              "c": "G",
+              "n": "SPLICE"
+            }
+          ],
+          "v2Exit": "right",
+          "v2Connector": false,
+          "v2Vertical": false,
+          "v2Flipped": false
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hm3cunduwy_1f30jnh",
+        "category": "component",
+        "displayName": "Splice",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "splice-1788846748236",
+          "v2Category": "splice",
+          "v2Terminals": [
+            {
+              "c": "W",
+              "n": "SPLICE"
+            }
+          ],
+          "v2Exit": "right",
+          "v2Connector": false,
+          "v2Vertical": false,
+          "v2Flipped": false
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hm3cvgfy3p_1qvmzv1",
+        "category": "component",
+        "displayName": "Splice",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "splice-1788846797226",
+          "v2Category": "splice",
+          "v2Terminals": [
+            {
+              "c": "Blu",
+              "n": "SPLICE"
+            }
+          ],
+          "v2Exit": "right",
+          "v2Connector": false,
+          "v2Vertical": false,
+          "v2Flipped": false
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      }
+    ],
+    "relationships": [
+      {
+        "id": "cdi-coil",
+        "relationshipType": "connectedTo",
+        "sourceNode": "cdi-unit",
+        "targetNode": "ignition-coil",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "cdi-coil",
+          "label": "CDI→Ign Coil",
+          "wireColor": "Bl/Y",
+          "sourcePort": "P1",
+          "targetPort": "PRI+",
+          "v2Description": "CDI primary drive → ignition coil"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "ign-consent",
+        "relationshipType": "connectedTo",
+        "sourceNode": "ignition-switch",
+        "targetNode": "dc-consent-jack",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "ign-consent",
+          "label": "Ign to DC Jack",
+          "wireColor": "P",
+          "sourcePort": "IG1",
+          "targetPort": "+12V",
+          "v2Description": "Switched +12V → accessory jack"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "ign-alarm",
+        "relationshipType": "connectedTo",
+        "sourceNode": "ignition-switch",
+        "targetNode": "alarm-unit",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "ign-alarm",
+          "label": "Ign to Alarm",
+          "wireColor": "P",
+          "sourcePort": "IG1",
+          "targetPort": "A5",
+          "v2Description": "Switched +12V → alarm unit"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "kill-cdi",
+        "relationshipType": "connectedTo",
+        "sourceNode": "left-handlebar-switch",
+        "targetNode": "cdi-unit",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "kill-cdi",
+          "label": "Kill to CDI",
+          "wireColor": "Bl/W",
+          "sourcePort": "IG2",
+          "targetPort": "P5",
+          "v2Description": "Kill switch → CDI unit"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm13hpw074_jeutuf",
+        "relationshipType": "connectedTo",
+        "sourceNode": "regulator-rectifier",
+        "targetNode": "node_hm13fzhpd7_1yhimgb",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788669646893",
+          "label": "12v+ Ignition Feed",
+          "wireColor": "Bl",
+          "sourcePort": "1",
+          "targetPort": "1_IN",
+          "v2FromExit": "down"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm1zemwzkv_epkhem",
+        "relationshipType": "connectedTo",
+        "sourceNode": "alarm-unit",
+        "targetNode": "node_hlzz7d8xvu_wn2xzq",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788739117843",
+          "label": "Oil Temp Indicator Light Signal From Alarm Unit",
+          "wireColor": "Br/R",
+          "sourcePort": "1",
+          "targetPort": "4_OUT"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm1zo6bo9w_1e1iaqa",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hm11a90flg_4abwqs",
+        "targetNode": "left-handlebar-switch",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788739694634",
+          "label": "Tailight 12v+ Feed",
+          "wireColor": "Br",
+          "sourcePort": "2_IN",
+          "targetPort": "3"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm1zpakimm_1fnm5rv",
+        "relationshipType": "connectedTo",
+        "sourceNode": "left-handlebar-switch",
+        "targetNode": "left-handlebar-switch",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788739762089",
+          "label": "BAT2 to IG1 Jumper Inside Switch",
+          "wireColor": "Bl",
+          "sourcePort": "2",
+          "targetPort": "1"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm23u9932j_18rqcj7",
+        "relationshipType": "connectedTo",
+        "sourceNode": "left-handlebar-switch",
+        "targetNode": "node_hm11a90flg_4abwqs",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788748769297",
+          "label": "Starter Motor Button Signal",
+          "wireColor": "Y/R",
+          "sourcePort": "4",
+          "targetPort": "3_IN"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm29d60hn5_1o05v0i",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hm235oce1b_4wm62u",
+        "targetNode": "node_hm268oh4ab_a08ox4",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788760796602",
+          "label": "Battery Chassis Ground",
+          "wireColor": "Bl",
+          "sourcePort": "1",
+          "targetPort": "2",
+          "v2Cable": true
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm29ea0y36_bze7vw",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hm268oh4ab_a08ox4",
+        "targetNode": "node_hm268qdn3o_1xhlgpy",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788760863894",
+          "label": "Starter Solenoid 12v+",
+          "wireColor": "R",
+          "sourcePort": "1",
+          "targetPort": "4",
+          "v2Cable": true
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm29fo18sq_1ljzm19",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hm268qdn3o_1xhlgpy",
+        "targetNode": "node_hm268u6ygb_1fa6wy",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788760947687",
+          "label": "Starter Motor 12v+",
+          "wireColor": "Bl",
+          "sourcePort": "1",
+          "targetPort": "1",
+          "v2Cable": true
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm2tiw5blw_1kw3u57",
+        "relationshipType": "connectedTo",
+        "sourceNode": "chassis-ground",
+        "targetNode": "node_hm2k1s6010_1uemkl7",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788804678696",
+          "label": "Chassis Ground Tap",
+          "wireColor": "G",
+          "sourcePort": "1",
+          "targetPort": "SPLICE",
+          "v2ToExit": "down"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm2tnddhqv_1qdpx75",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hm11a90flg_4abwqs",
+        "targetNode": "node_hm2tnddgwy_1gwjuw8",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788804949285-a",
+          "label": "Headlight Chassis Ground Feed",
+          "wireColor": "G",
+          "sourcePort": "1_OUT",
+          "targetPort": "SPLICE"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm2to1fdq5_7gq96t",
+        "relationshipType": "connectedTo",
+        "sourceNode": "ignition-coil",
+        "targetNode": "node_hm2tnddgwy_1gwjuw8",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788804989534",
+          "label": "Ignition Coil Chassis Ground",
+          "wireColor": "G",
+          "sourcePort": "2",
+          "targetPort": "SPLICE",
+          "v2ToExit": "down"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm2tsj4m2z_194r588",
+        "relationshipType": "connectedTo",
+        "sourceNode": "alarm-unit",
+        "targetNode": "node_hm2tsj4le2_mykndm",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788805261205-a",
+          "label": "Alarm Unit to DC Jack CHassis Ground",
+          "wireColor": "G",
+          "sourcePort": "3",
+          "targetPort": "SPLICE",
+          "v2ToExit": "up"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm2tsj4muj_1r1l8oo",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hm2tsj4le2_mykndm",
+        "targetNode": "dc-consent-jack",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788805261205-b",
+          "label": "Alarm Unit to DC Jack CHassis Ground",
+          "wireColor": "G",
+          "sourcePort": "SPLICE",
+          "targetPort": "2",
+          "v2FromExit": "right"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm2tt5r0pl_ocyqy",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hm2tsj4le2_mykndm",
+        "targetNode": "node_hm2tnddgwy_1gwjuw8",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788805299399",
+          "label": "Alarm Unit,DC Jack Chassis Ground Feed",
+          "wireColor": "G",
+          "sourcePort": "SPLICE",
+          "targetPort": "SPLICE",
+          "v2ToExit": "up"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm2tvvvd96_1il0vjq",
+        "relationshipType": "connectedTo",
+        "sourceNode": "cdi-unit",
+        "targetNode": "node_hm2k1s6010_1uemkl7",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788805464015",
+          "label": "CDI Unit Chassis Ground",
+          "wireColor": "G",
+          "sourcePort": "2",
+          "targetPort": "SPLICE",
+          "v2ToExit": "down"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm2u84gdvw_1bjufxj",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hm290w07v2_17b2iov",
+        "targetNode": "node_hm2u84gdvw_1vei0mz",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788806203939-a",
+          "label": "Neutral Indicator Light 12v+ Feed",
+          "wireColor": "Bl",
+          "sourcePort": "1",
+          "targetPort": "SPLICE",
+          "v2ToExit": "up"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm2u84gdvw_4t0uuv",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hm2u84gdvw_1vei0mz",
+        "targetNode": "node_hlzz7d8xvu_wn2xzq",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788806203939-b",
+          "label": "Neutral Indicator Light 12v+ Feed",
+          "wireColor": "Bl",
+          "sourcePort": "SPLICE",
+          "targetPort": "2_IN",
+          "v2FromExit": "right"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm2u8lcsrn_1kekuux",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hm28yiides_14i8bbq",
+        "targetNode": "node_hm2u84gdvw_1vei0mz",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788806232533",
+          "label": "Reverse Indicator Light 12v+ Feed",
+          "wireColor": "Bl",
+          "sourcePort": "2",
+          "targetPort": "SPLICE"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm2u9ip2e3_1dn4h1j",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hm2920qdd8_aelkyk",
+        "targetNode": "node_hm2u84gdvw_1vei0mz",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788806288356",
+          "label": "Oil Temp Indicator Light 12v+ Feed",
+          "wireColor": "Bl",
+          "sourcePort": "1",
+          "targetPort": "SPLICE"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm2uat4yrz_1i6upvj",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hm2920qdd8_aelkyk",
+        "targetNode": "node_hlzz7d8xvu_wn2xzq",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788806366398",
+          "label": "Reverse Indicatior Light Ground Signal",
+          "wireColor": "Br/R",
+          "sourcePort": "2",
+          "targetPort": "4_IN"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm2uc2md5s_cg2j9b",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hm28yiides_14i8bbq",
+        "targetNode": "node_hlzz7d8xvu_wn2xzq",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788806442948",
+          "label": "Reverse Indicator Light Signal",
+          "wireColor": "Gr",
+          "sourcePort": "1",
+          "targetPort": "3_IN"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm2udctnev_nwzva1",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hm290w07v2_17b2iov",
+        "targetNode": "node_hlzz7d8xvu_wn2xzq",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788806520611",
+          "label": "Neutral Indicator Light Signal",
+          "wireColor": "Lg/R",
+          "sourcePort": "2",
+          "targetPort": "1_IN"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm2vvn5749_3c28vy",
+        "relationshipType": "connectedTo",
+        "sourceNode": "regulator-rectifier",
+        "targetNode": "node_hm2vuodiqa_cqq0sf",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788809802915",
+          "label": "Phase 3 Ac Feed",
+          "wireColor": "Y",
+          "sourcePort": "6",
+          "targetPort": "5"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm2vw9ajrc_eexqx1",
+        "relationshipType": "connectedTo",
+        "sourceNode": "regulator-rectifier",
+        "targetNode": "node_hm2vuodiqa_cqq0sf",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788809840125",
+          "label": "Phase 2 AC Feed",
+          "wireColor": "Y",
+          "sourcePort": "5",
+          "targetPort": "4"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm2vwqfyq9_hbwxq9",
+        "relationshipType": "connectedTo",
+        "sourceNode": "regulator-rectifier",
+        "targetNode": "node_hm2vuodiqa_cqq0sf",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788809869041",
+          "label": "Phase 1 AC Feed",
+          "wireColor": "Y",
+          "sourcePort": "4",
+          "targetPort": "3"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm2w5sgz3x_1veoc6m",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hm2vt79oui_1xgi8v1",
+        "targetNode": "node_hm2w4xzhz8_1xpw939",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788810416819",
+          "label": "Pulse Generator Signal",
+          "wireColor": "Blu/Y",
+          "sourcePort": "1",
+          "targetPort": "1_OUT"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm2w6hh5mq_1ab2zc",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hm2vuodiqa_cqq0sf",
+        "targetNode": "node_hm2w4xzhz8_1xpw939",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788810458604",
+          "label": "Alternator Chassis Ground",
+          "wireColor": "G",
+          "sourcePort": "1",
+          "targetPort": "2_OUT"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm2w7cwuol_17ao23g",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hm2vuodiqa_cqq0sf",
+        "targetNode": "node_hm2w4xzhz8_1xpw939",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788810511335",
+          "label": "Alternator AC P1 CDI Feed",
+          "wireColor": "Y/W",
+          "sourcePort": "3",
+          "targetPort": "3_OUT"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm2wbr9z9a_wcze59",
+        "relationshipType": "connectedTo",
+        "sourceNode": "chassis-ground",
+        "targetNode": "node_hm2w4xzhz8_1xpw939",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788810777600",
+          "label": "Alternator Chassis Grouund",
+          "wireColor": "G",
+          "sourcePort": "2",
+          "targetPort": "2_IN"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm2wdol1av_14g9pmd",
+        "relationshipType": "connectedTo",
+        "sourceNode": "cdi-unit",
+        "targetNode": "node_hm2w4xzhz8_1xpw939",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788810893787",
+          "label": "Pulse Generator Signal to CDI",
+          "wireColor": "Blu/Y",
+          "sourcePort": "3",
+          "targetPort": "1_IN"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm2wfcu4mb_15tt0ss",
+        "relationshipType": "connectedTo",
+        "sourceNode": "cdi-unit",
+        "targetNode": "node_hm2w4xzhz8_1xpw939",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788810995069",
+          "label": "Alternator AC P1 to CDI",
+          "wireColor": "Y/W",
+          "sourcePort": "4",
+          "targetPort": "3_IN"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm2wmqlvck_t7x5h",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hm268qdn3o_1xhlgpy",
+        "targetNode": "node_hm2wkv7mtt_9hiy30",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788811441442",
+          "label": "Ignition Switch 12v+ Feed",
+          "wireColor": "P/W",
+          "sourcePort": "4",
+          "targetPort": "1_OUT"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm2wokktaw_1mrnzqr",
+        "relationshipType": "connectedTo",
+        "sourceNode": "ignition-switch",
+        "targetNode": "node_hm2wkv7mtt_9hiy30",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788811552346",
+          "label": "Ignition Switch BAT2 12v+ Feed",
+          "wireColor": "P/W",
+          "sourcePort": "4",
+          "targetPort": "1_IN"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm2wr0ow30_14w70vl",
+        "relationshipType": "connectedTo",
+        "sourceNode": "ignition-switch",
+        "targetNode": "node_hm2wr0ow30_1dvc49p",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788811700280-a",
+          "label": "Ignition Switch BAT1 12v+ Feed",
+          "wireColor": "R",
+          "sourcePort": "1",
+          "targetPort": "SPLICE",
+          "v2ToExit": "left"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm2wrlnaxd_128jl0l",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hm2wr0ow30_1dvc49p",
+        "targetNode": "node_hm2wkv7mtt_9hiy30",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788811735425",
+          "label": "Ignition 12v+ Feed/Regulator to Bat Feed",
+          "wireColor": "R",
+          "sourcePort": "SPLICE",
+          "targetPort": "2_IN",
+          "v2FromExit": "right"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm2ww0q977_be2idt",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hm268qdn3o_1xhlgpy",
+        "targetNode": "node_hm2wkv7mtt_9hiy30",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788812002778",
+          "label": "12v+ Feed to Ignition Connector",
+          "wireColor": "R",
+          "sourcePort": "4",
+          "targetPort": "2_OUT"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm2xbf52ag_15r1ia2",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hm29auwdot_vx4btw",
+        "targetNode": "node_hm11a90flg_4abwqs",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788812933943",
+          "label": "Taillight 12v+ Feed",
+          "wireColor": "Br",
+          "sourcePort": "2",
+          "targetPort": "2_OUT"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm2xf7d327_8pmxgi",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hm26bcdwud_z4g4up",
+        "targetNode": "node_hm2xerewgw_1ecxfdq",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788813162551",
+          "label": "Reverse Switch Signal",
+          "wireColor": "Gr",
+          "sourcePort": "1",
+          "targetPort": "1_OUT"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm2xga6kj2_1pvacrm",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hm268xadl2_14b9olo",
+        "targetNode": "node_hm2xerewgw_1ecxfdq",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788813227703",
+          "label": "Neutral Indicator Switch Signal",
+          "wireColor": "Lg",
+          "sourcePort": "1",
+          "targetPort": "2_OUT"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm2xh38n4r_gw9mkt",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hm2691c017_be7zb0",
+        "targetNode": "node_hm2xerewgw_1ecxfdq",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788813276485",
+          "label": "Oil Temp Sensor Switch Signal",
+          "wireColor": "Blu",
+          "sourcePort": "1",
+          "targetPort": "3_OUT"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm2xi9vc1r_b5msgj",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hm2xerewgw_1ecxfdq",
+        "targetNode": "node_hlzz7d8xvu_wn2xzq",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788813348325",
+          "label": "Reverse Switch Signal From Connector",
+          "wireColor": "Gr",
+          "sourcePort": "1_IN",
+          "targetPort": "3_OUT"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm31gnij81_6aj2pw",
+        "relationshipType": "connectedTo",
+        "sourceNode": "cdi-unit",
+        "targetNode": "node_hm31gnihnl_fss4ra",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788821957191-a",
+          "label": "Rectifier Diode To CDI",
+          "wireColor": "Lg/R",
+          "sourcePort": "6",
+          "targetPort": "SPLICE",
+          "v2ToExit": "left"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm31gnij81_1le6bv7",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hm31gnihnl_fss4ra",
+        "targetNode": "rectifier-diode",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788821957191-b",
+          "label": "Rectifier Diode To CDI",
+          "wireColor": "Lg/R",
+          "sourcePort": "SPLICE",
+          "targetPort": "1"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm31gwkoe6_ae9v95",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hm31gnihnl_fss4ra",
+        "targetNode": "node_hm2xerewgw_1ecxfdq",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788821972744",
+          "label": "Neutral Indicator Switch to Rectifier Diode",
+          "wireColor": "Lg/R",
+          "sourcePort": "SPLICE",
+          "targetPort": "2_IN",
+          "v2FromExit": "down"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm31jaja05_120dvu4",
+        "relationshipType": "connectedTo",
+        "sourceNode": "alarm-unit",
+        "targetNode": "node_hm2xerewgw_1ecxfdq",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788822117093",
+          "label": "Oil Temp Indicator Sensor to Alarm Unit",
+          "wireColor": "Blu/R",
+          "sourcePort": "5",
+          "targetPort": "3_IN"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm31nu58ny_z3qfyh",
+        "relationshipType": "connectedTo",
+        "sourceNode": "regulator-rectifier",
+        "targetNode": "node_hm13fzhpd7_1yhimgb",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788822391820",
+          "label": "12v+ From Regulator to Battery +",
+          "wireColor": "R",
+          "sourcePort": "2",
+          "targetPort": "2_IN"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm31oz3xs9_1y2x1k6",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hm2wr0ow30_1dvc49p",
+        "targetNode": "node_hm13fzhpd7_1yhimgb",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788822460386",
+          "label": "12v+ From Battery + to Regulator",
+          "wireColor": "R",
+          "sourcePort": "SPLICE",
+          "targetPort": "2_OUT"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm31rvezys_tvspel",
+        "relationshipType": "connectedTo",
+        "sourceNode": "ignition-switch",
+        "targetNode": "node_hm31rvez67_1kcwusy",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788822635616-a",
+          "label": "12v+ Feed From Ignition Switch",
+          "wireColor": "Bl",
+          "sourcePort": "2",
+          "targetPort": "SPLICE",
+          "v2ToExit": "up"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm31rvezys_817t8c",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hm31rvez67_1kcwusy",
+        "targetNode": "node_hm13fzhpd7_1yhimgb",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788822635616-b",
+          "label": "12v+ Feed From Ignition Switch",
+          "wireColor": "Bl",
+          "sourcePort": "SPLICE",
+          "targetPort": "1_OUT",
+          "v2FromExit": "right"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm31s64skt_1h1fld5",
+        "relationshipType": "connectedTo",
+        "sourceNode": "alarm-unit",
+        "targetNode": "node_hm31rvez67_1kcwusy",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788822653745",
+          "label": "Alarm Unit 12v+ Feed From Ignition Switch",
+          "wireColor": "Bl",
+          "sourcePort": "2",
+          "targetPort": "SPLICE"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm31tm1z63_1ov6ion",
+        "relationshipType": "connectedTo",
+        "sourceNode": "regulator-rectifier",
+        "targetNode": "node_hm13fzhpd7_1yhimgb",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788822740803",
+          "label": "Regulator Chassis Ground",
+          "wireColor": "G",
+          "sourcePort": "3",
+          "targetPort": "3_IN"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm31v52ad6_e187m4",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hm2k1s6010_1uemkl7",
+        "targetNode": "node_hm31v529lc_1kk54sz",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788822833275-a",
+          "label": "Taillight Chassis Ground",
+          "wireColor": "G",
+          "sourcePort": "SPLICE",
+          "targetPort": "SPLICE",
+          "v2ToExit": "left",
+          "v2FromExit": "up"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm31v52ad6_kpi6s3",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hm31v529lc_1kk54sz",
+        "targetNode": "node_hm29auwdot_vx4btw",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788822833275-b",
+          "label": "Taillight Chassis Ground",
+          "wireColor": "G",
+          "sourcePort": "SPLICE",
+          "targetPort": "1",
+          "v2FromExit": "right"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm31vf2wf6_17b4rxm",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hm31v529lc_1kk54sz",
+        "targetNode": "node_hm13fzhpd7_1yhimgb",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788822850354",
+          "label": "Regulator Chassis Ground Tap",
+          "wireColor": "G",
+          "sourcePort": "SPLICE",
+          "targetPort": "3_OUT",
+          "v2FromExit": "up"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm31xkp87e_1t4h10c",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hm2x5jwn0x_atvrws",
+        "targetNode": "node_hm31xkp87e_zd47fh",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788822980433-a",
+          "label": "Starter Solenoid Coil 12v+ Feed",
+          "wireColor": "G/R",
+          "sourcePort": "2_IN",
+          "targetPort": "SPLICE"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm31xkp87e_j11veo",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hm31xkp87e_zd47fh",
+        "targetNode": "node_hlzz7d8xvu_wn2xzq",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788822980433-b",
+          "label": "Starter Solenoid Coil 12v+ Feed",
+          "wireColor": "G/R",
+          "sourcePort": "SPLICE",
+          "targetPort": "1_OUT",
+          "v2FromExit": "left"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm31xkp8yt_1gvh8ib",
+        "relationshipType": "connectedTo",
+        "sourceNode": "rectifier-diode",
+        "targetNode": "node_hm31xkp87e_zd47fh",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788822980433",
+          "label": "Rectifier Diode 12v+ Feed",
+          "wireColor": "G/R",
+          "sourcePort": "2",
+          "targetPort": "SPLICE",
+          "v2ToExit": "up"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm31z5ma0f_dh41bf",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hm241o81f0_1foy2j2",
+        "targetNode": "node_hm31z5m98a_1sakbsc",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788823075978-a",
+          "label": "Igniition 12v+ Feed to Handlebar Switch",
+          "wireColor": "Bl",
+          "sourcePort": "2",
+          "targetPort": "SPLICE",
+          "v2ToExit": "left"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm31z5ma0f_affw4s",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hm31z5m98a_1sakbsc",
+        "targetNode": "left-handlebar-switch",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788823075978-b",
+          "label": "Igniition 12v+ Feed to Handlebar Switch1",
+          "wireColor": "Bl",
+          "sourcePort": "SPLICE",
+          "targetPort": "1",
+          "v2FromExit": "down"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm31z5mas7_1nbjfty",
+        "relationshipType": "connectedTo",
+        "sourceNode": "left-handlebar-switch",
+        "targetNode": "node_hm31z5m98a_1sakbsc",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788823075979",
+          "label": "Bat and Ignition Splice In Handlebar Switch",
+          "wireColor": "Bl",
+          "sourcePort": "2",
+          "targetPort": "SPLICE",
+          "v2ToExit": "right"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm322x4nvy_i8nwc6",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hm268qdn3o_1xhlgpy",
+        "targetNode": "node_hm2x5jwn0x_atvrws",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788823303902",
+          "label": "Starter Solenoid GND",
+          "wireColor": "Y/R",
+          "sourcePort": "2",
+          "targetPort": "1_OUT"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm324wtgl0_xe1l26",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hm268qdn3o_1xhlgpy",
+        "targetNode": "node_hm2x5jwn0x_atvrws",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788823424337",
+          "label": "starter Solenoid Signal From Button",
+          "wireColor": "G/R",
+          "sourcePort": "3",
+          "targetPort": "2_OUT"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm325qc80r_38zj95",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hm2x5jwn0x_atvrws",
+        "targetNode": "node_hm11a90flg_4abwqs",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788823473572",
+          "label": "Starter Solenoid Signal from Handlebar Button",
+          "wireColor": "Y/R",
+          "sourcePort": "1_IN",
+          "targetPort": "3_OUT"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm3cm4696g_1uz7jya",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hlzz7d8xvu_wn2xzq",
+        "targetNode": "node_hm3cm4663i_nay2dv",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788846232164-a",
+          "label": "Indicator Light 12v+ Feed",
+          "wireColor": "Bl",
+          "sourcePort": "2_OUT",
+          "targetPort": "SPLICE",
+          "v2ToExit": "left"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm3cm469y4_9qip54",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hm3cm4663i_nay2dv",
+        "targetNode": "node_hm241o81f0_1foy2j2",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788846232164-b",
+          "label": "Indicator Light 12v+ Feed",
+          "wireColor": "Bl",
+          "sourcePort": "SPLICE",
+          "targetPort": "2",
+          "v2FromExit": "up"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm3cm87tno_tjebzt",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hm31rvez67_1kcwusy",
+        "targetNode": "node_hm3cm4663i_nay2dv",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788846239112",
+          "label": "12v+ Feed to Handlebar Switch",
+          "wireColor": "Bl",
+          "sourcePort": "SPLICE",
+          "targetPort": "SPLICE",
+          "v2ToExit": "right"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm3ctfkcr9_km256b",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hm293u86wk_1siprh5",
+        "targetNode": "node_hm3ctfkcbe_16v0ks2",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788846674507-a",
+          "label": "Headlight Chassis Ground",
+          "wireColor": "G",
+          "sourcePort": "1",
+          "targetPort": "SPLICE",
+          "v2ToExit": "left"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm3ctfkcr9_13ul19n",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hm3ctfkcbe_16v0ks2",
+        "targetNode": "node_hm11a90flg_4abwqs",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788846674507-b",
+          "label": "Headlight Chassis Ground",
+          "wireColor": "G",
+          "sourcePort": "SPLICE",
+          "targetPort": "1_IN"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm3ctfkdjs_1ycgzwh",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hm294pfd09_155849t",
+        "targetNode": "node_hm3ctfkcbe_16v0ks2",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788846674507",
+          "label": "RH Headlight Chassis Ground",
+          "wireColor": "G",
+          "sourcePort": "3",
+          "targetPort": "SPLICE",
+          "v2ToExit": "up"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm3cunduwy_1mmqh3g",
+        "relationshipType": "connectedTo",
+        "sourceNode": "left-handlebar-switch",
+        "targetNode": "node_hm3cunduwy_1f30jnh",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788846748236-a",
+          "label": "Headlight Lo Beam 12v+ From Handlebar Switch",
+          "wireColor": "W",
+          "sourcePort": "6",
+          "targetPort": "SPLICE"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm3cundvos_upnnyp",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hm3cunduwy_1f30jnh",
+        "targetNode": "node_hm294pfd09_155849t",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788846748236-b",
+          "label": "Headlight Lo Beam 12v+ From Handlebar Switch",
+          "wireColor": "W",
+          "sourcePort": "SPLICE",
+          "targetPort": "2",
+          "v2FromExit": "left"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm3cundvos_wg316p",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hm293u86wk_1siprh5",
+        "targetNode": "node_hm3cunduwy_1f30jnh",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788846748236",
+          "label": "RH Lo Beam Jumper",
+          "wireColor": "W",
+          "sourcePort": "2",
+          "targetPort": "SPLICE",
+          "v2ToExit": "down"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm3cvgfy3p_1vi3lmu",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hm294pfd09_155849t",
+        "targetNode": "node_hm3cvgfy3p_1qvmzv1",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788846797226-a",
+          "label": "Headlight Hi Beam 12v+ from Handlebar Switch",
+          "wireColor": "Blu",
+          "sourcePort": "1",
+          "targetPort": "SPLICE",
+          "v2ToExit": "left"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm3cvgfy3p_rlez4g",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hm3cvgfy3p_1qvmzv1",
+        "targetNode": "left-handlebar-switch",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788846797226-b",
+          "label": "Headlight Hi Beam 12v+ from Handlebar Switch",
+          "wireColor": "Blu",
+          "sourcePort": "SPLICE",
+          "targetPort": "7"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm3cvgfy3p_kjcm0l",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hm293u86wk_1siprh5",
+        "targetNode": "node_hm3cvgfy3p_1qvmzv1",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788846797226",
+          "label": "RH Headlight Hi Beam Jumper",
+          "wireColor": "Blu",
+          "sourcePort": "3",
+          "targetPort": "SPLICE",
+          "v2ToExit": "down"
+        },
+        "evidenceLinks": []
+      }
+    ],
+    "groups": [],
+    "metadata": {}
+  },
+  "layout": {
+    "positions": {
+      "cdi-unit": {
+        "dx": 320.0,
+        "dy": 80.0
+      },
+      "alarm-unit": {
+        "dx": 520.0,
+        "dy": 80.0
+      },
+      "ignition-switch": {
+        "dx": 680.0,
+        "dy": 80.0
+      },
+      "dc-consent-jack": {
+        "dx": 820.0,
+        "dy": 80.0
+      },
+      "rectifier-diode": {
+        "dx": 920.0,
+        "dy": 80.0
+      },
+      "regulator-rectifier": {
+        "dx": 1020.0,
+        "dy": 100.0
+      },
+      "left-handlebar-switch": {
+        "dx": 140.0,
+        "dy": 680.0
+      },
+      "chassis-ground": {
+        "dx": 500.0,
+        "dy": 680.0
+      },
+      "ignition-coil": {
+        "dx": 400.0,
+        "dy": 680.0
+      },
+      "node_hlzz7d8xvu_wn2xzq": {
+        "dx": 420.0,
+        "dy": 200.0
+      },
+      "node_hm11a90flg_4abwqs": {
+        "dx": 420.0,
+        "dy": 360.0
+      },
+      "node_hm13fzhpd7_1yhimgb": {
+        "dx": 1020.0,
+        "dy": 240.0
+      },
+      "node_hm235oce1b_4wm62u": {
+        "dx": 1540.0,
+        "dy": 680.0
+      },
+      "node_hm241o81f0_1foy2j2": {
+        "dx": 420.0,
+        "dy": 320.0
+      },
+      "node_hm268oh4ab_a08ox4": {
+        "dx": 1440.0,
+        "dy": 680.0
+      },
+      "node_hm268qdn3o_1xhlgpy": {
+        "dx": 1320.0,
+        "dy": 680.0
+      },
+      "node_hm268u6ygb_1fa6wy": {
+        "dx": 1220.0,
+        "dy": 680.0
+      },
+      "node_hm268xadl2_14b9olo": {
+        "dx": 760.0,
+        "dy": 680.0
+      },
+      "node_hm2691c017_be7zb0": {
+        "dx": 840.0,
+        "dy": 680.0
+      },
+      "node_hm26bcdwud_z4g4up": {
+        "dx": 680.0,
+        "dy": 680.0
+      },
+      "node_hm28yiides_14i8bbq": {
+        "dx": 140.0,
+        "dy": 40.0
+      },
+      "node_hm290w07v2_17b2iov": {
+        "dx": 240.0,
+        "dy": 40.0
+      },
+      "node_hm2920qdd8_aelkyk": {
+        "dx": 60.0,
+        "dy": 40.0
+      },
+      "node_hm293u86wk_1siprh5": {
+        "dx": 0.0,
+        "dy": 440.0
+      },
+      "node_hm294pfd09_155849t": {
+        "dx": 0.0,
+        "dy": 280.0
+      },
+      "node_hm29auwdot_vx4btw": {
+        "dx": 1500.0,
+        "dy": 360.0
+      },
+      "node_hm2k1s6010_1uemkl7": {
+        "dx": 520.0,
+        "dy": 380.0
+      },
+      "node_hm2tnddgwy_1gwjuw8": {
+        "dx": 500.0,
+        "dy": 380.0
+      },
+      "node_hm2tsj4le2_mykndm": {
+        "dx": 580.0,
+        "dy": 240.0
+      },
+      "node_hm2u84gdvw_1vei0mz": {
+        "dx": 260.0,
+        "dy": 240.0
+      },
+      "node_hm2vt79oui_1xgi8v1": {
+        "dx": 960.0,
+        "dy": 680.0
+      },
+      "node_hm2vuodiqa_cqq0sf": {
+        "dx": 1040.0,
+        "dy": 680.0
+      },
+      "node_hm2vz4eunm_mfxq72": {
+        "dx": 1080.0,
+        "dy": 520.0
+      },
+      "node_hm2w4xzhz8_1xpw939": {
+        "dx": 960.0,
+        "dy": 540.0
+      },
+      "node_hm2wkv7mtt_9hiy30": {
+        "dx": 1440.0,
+        "dy": 500.0
+      },
+      "node_hm2wr0ow30_1dvc49p": {
+        "dx": 1060.0,
+        "dy": 320.0
+      },
+      "node_hm2x5jwn0x_atvrws": {
+        "dx": 1340.0,
+        "dy": 500.0
+      },
+      "node_hm2xerewgw_1ecxfdq": {
+        "dx": 740.0,
+        "dy": 560.0
+      },
+      "node_hm31gnihnl_fss4ra": {
+        "dx": 780.0,
+        "dy": 160.0
+      },
+      "node_hm31rvez67_1kcwusy": {
+        "dx": 720.0,
+        "dy": 300.0
+      },
+      "node_hm31v529lc_1kk54sz": {
+        "dx": 1080.0,
+        "dy": 380.0
+      },
+      "node_hm31xkp87e_zd47fh": {
+        "dx": 960.0,
+        "dy": 220.0
+      },
+      "node_hm31z5m98a_1sakbsc": {
+        "dx": 160.0,
+        "dy": 580.0
+      },
+      "node_hm3cm4663i_nay2dv": {
+        "dx": 500.0,
+        "dy": 340.0
+      },
+      "node_hm3ctfkcbe_16v0ks2": {
+        "dx": 120.0,
+        "dy": 460.0
+      },
+      "node_hm3cunduwy_1f30jnh": {
+        "dx": 140.0,
+        "dy": 320.0
+      },
+      "node_hm3cvgfy3p_1qvmzv1": {
+        "dx": 180.0,
+        "dy": 300.0
+      }
+    },
+    "wireOverrides": {},
+    "annotations": {},
+    "layers": {},
+    "layerAssignments": {},
+    "transforms": {},
+    "sizes": {},
+    "wireSegmentOffsets": {
+      "neu-ind": {
+        "0": 41.96642685851319
+      },
+      "oil-alarm": {
+        "0": 64.74820143884891
+      },
+      "oil-sw-ind": {
+        "2": -34.433285509325685
+      },
+      "rel_hlzq2p4n1v_gai8cq": {
+        "0": 80.92485549132948,
+        "1": -210.12131874157512
+      },
+      "rel_hlzq49374u_vodcfs": {
+        "1": -198.84393063583818
+      },
+      "rel_hlzq52mavt_pc92i9": {
+        "1": -194.21965317919077
+      },
+      "rel_hlzrrzo0ox_1spaowf": {
+        "0": -3.886010362694301,
+        "1": -229.92227979274614
+      },
+      "rel_hlzsibqlfa_1bzpjdh": {
+        "1": 19.430051813471504
+      },
+      "rel_hlztdpilrr_zix51e": {
+        "0": -179.40414507772022
+      },
+      "rel_hlztelo2nv_5zjzfy": {
+        "3": -72.53886010362694,
+        "4": 14.248704663212436
+      },
+      "rel_hlztelo2nv_1697yvk": {
+        "0": 176.8134715025907,
+        "1": 14.248704663212438
+      },
+      "rel_hlztelo2nv_bqg79a": {
+        "0": 8.419689119170986,
+        "1": -5.829015544041452,
+        "2": -68.00518134715027
+      },
+      "rel_hlzthcz6gy_1my5gbg": {
+        "1": 1.9430051813471505,
+        "3": -47.279792746114,
+        "4": -66.7098445595855
+      },
+      "rel_hlztj1y28i_18j2u82": {
+        "0": 25.259067357512958,
+        "1": -196.89119170984458
+      },
+      "bat-ign-pw": {
+        "0": 139.89637305699483
+      },
+      "bat-ign-r": {
+        "0": 13.471502590673573,
+        "1": 44.399998863022034
+      },
+      "ign-alarm": {
+        "0": 24.399997005214928
+      },
+      "ign-consent": {
+        "0": 24.399997005214928
+      },
+      "lh-gnd-spl": {
+        "0": 21.761658031088082
+      },
+      "lh-lo-spl": {
+        "0": 44.399994133492186
+      },
+      "pulser-cdi": {
+        "0": 44.55958549222798
+      },
+      "relay-cdi": {
+        "0": 64.39999886302205
+      },
+      "stator-ac1": {
+        "0": 144.39999148186217
+      },
+      "stator-ac2": {
+        "0": 164.39999148186217
+      },
+      "stator-ac3": {
+        "0": 184.40000467097508
+      },
+      "stator-gnd": {
+        "0": 59.067357512953365
+      },
+      "rel_hm05bveu07_q7e7ew": {
+        "0": 13.06122448979592
+      },
+      "rel_hm05bvet85_7grgpm": {
+        "0": 13.877551020408164
+      },
+      "rel_hm05dfdjl3_1ape54o": {
+        "0": 13.877551020408164
+      },
+      "rel_hm0vl02st4_cdgcgq": {
+        "0": -15.810276679841898
+      },
+      "rel_hm0vl02v6r_xqcjho": {
+        "0": -15.019762845849803
+      },
+      "rel_hm0vlwgj7j_9ajs1i": {
+        "0": -15.810276679841898
+      },
+      "cdi-coil": {
+        "0": -87.59997696572157
+      },
+      "start-relay": {
+        "0": -43.73177842565599
+      },
+      "rel_hm113cuyzt_1x2wgv2": {
+        "0": -37.09090909090909
+      },
+      "bat-neg": {
+        "0": -24.48979591836735
+      },
+      "rel_hm117785xd_13synub": {
+        "0": 13.877551020408164
+      },
+      "rel_hm11j61f3f_3p35ng": {
+        "0": -47.60001439785731
+      },
+      "rel_hm11kg07ee_p3k0fp": {
+        "0": -114.2857142857143
+      },
+      "lh-hi-spl": {
+        "0": 18.775510204081634
+      },
+      "reg-bat": {
+        "0": 9.237875288683604
+      },
+      "rel_hm13hpw074_jeutuf": {
+        "0": -67.60001151105189
+      },
+      "rel_hm13jcy480_1u3ujq": {
+        "0": -27.60001151105189
+      },
+      "rel_hm11h061a9_2jw2ep": {
+        "0": 14.218009478672988
+      },
+      "rel_hm16539drd_85briq": {
+        "0": -11.926605504587155
+      },
+      "rel_hm18cion4c_1vcb0ns": {
+        "0": -14.800000374470272
+      },
+      "rel_hm18bgchsi_1mw5cg0": {
+        "0": -34.80000037447027
+      },
+      "rel_hm18od2h0z_6wah4f": {
+        "0": 64.39997886063216
+      },
+      "kill-cdi": {
+        "0": 24.40000061278647
+      },
+      "rel_hm1zkw79ly_1rlk8nh": {
+        "0": 24.399994961627115
+      },
+      "rel_hm1zqzavev_1v2s0tj": {
+        "0": 64.40000715187125
+      },
+      "rel_hm232d1b2q_1dhqav1": {
+        "0": -27.60002170070527
+      },
+      "rel_hm2346j5mo_98u8gl": {
+        "0": -27.60002170070527
+      },
+      "rel_hm235xe5ez_7y5vzx": {
+        "0": -27.600012087052846
+      },
+      "rel_hm23h33k6d_hc17wr": {
+        "0": -27.600017086152093
+      },
+      "rel_hm23ie0mfj_8i3gj8": {
+        "0": -27.60002170070527
+      },
+      "rel_hm23j7jhgr_16wae5x": {
+        "0": -27.60002439252787
+      },
+      "rel_hm23lt59pq_smyu4d": {
+        "0": -6.800000083061946
+      },
+      "rel_hm23ynmdja_78s7c1": {
+        "0": -287.6000061584034
+      },
+      "rel_hm29d60hn5_1o05v0i": {
+        "0": -27.60002839674644
+      },
+      "rel_hm29ea0y36_bze7vw": {
+        "0": -27.60002839674644
+      },
+      "rel_hm29fo18sq_1ljzm19": {
+        "0": -27.60002839674644
+      },
+      "rel_hm29hqtaay_w1v9ma": {
+        "0": 44.40000528808035
+      },
+      "rel_hm29ipl8j4_3cnwx0": {
+        "0": 24.40000528808035
+      },
+      "rel_hm2hcrxurt_ng0p0y": {
+        "0": -4.5999944159324855,
+        "1": -187.60000745286334
+      },
+      "rel_hm2h7wf3x1_15th3d3": {
+        "0": 144.3999764158371
+      },
+      "rel_hm2k2ki6h6_j4wl6e": {
+        "0": -67.59998792283079,
+        "1": -127.59998792283079
+      },
+      "rel_hm2to1fdq5_7gq96t": {
+        "0": 205.19999782075274
+      },
+      "rel_hm2tpj0l5w_h0o6el": {
+        "0": 64.39999756914506
+      },
+      "rel_hm2tt5r0pl_ocyqy": {
+        "0": -6.800030966224824
+      },
+      "rel_hm2tvvvd96_1il0vjq": {
+        "0": -186.80000217924726
+      },
+      "rel_hm2u1o91wb_c1xhg3": {
+        "0": 24.400028309923584
+      },
+      "rel_hm2u8lcsrn_1kekuux": {
+        "0": -14.799992642504094
+      },
+      "rel_hm2u9ip2e3_1dn4h1j": {
+        "0": -14.799992642504094
+      },
+      "rel_hm2w6hh5mq_1ab2zc": {
+        "0": 64.39994994349456
+      },
+      "rel_hm2w7cwuol_17ao23g": {
+        "0": 44.39994994349456,
+        "1": 64.40000553334016
+      },
+      "rel_hm2wbr9z9a_wcze59": {
+        "0": -47.59997803099611
+      },
+      "rel_hm2wdol1av_14g9pmd": {
+        "0": -27.599978030996112
+      },
+      "rel_hm2wfcu4mb_15tt0ss": {
+        "0": -67.59997803099611
+      },
+      "rel_hm2wokktaw_1mrnzqr": {
+        "0": -307.5999910171995
+      },
+      "rel_hm2wprx7r3_1oqj20x": {
+        "0": 44.39999756914506
+      },
+      "rel_hm2ww0q977_be2idt": {
+        "0": 12.400015526629659,
+        "1": 44.4000195775717
+      },
+      "rel_hm2xf7d327_8pmxgi": {
+        "0": 24.39999498204986
+      },
+      "rel_hm2xh38n4r_gw9mkt": {
+        "0": 24.39999498204986
+      },
+      "rel_hm2xkejvnf_f8oy4k": {
+        "0": -267.6000169896065
+      },
+      "rel_hm31eahtcm_crn6r0": {
+        "0": 44.399980601979735
+      },
+      "rel_hm31jaja05_120dvu4": {
+        "0": -155.59997188127932
+      },
+      "rel_hm31s64skt_1h1fld5": {
+        "0": -14.800008040207956
+      },
+      "rel_hm31v52ad6_kpi6s3": {
+        "0": -0.8000309662248242
+      },
+      "rel_hm31z5ma0f_dh41bf": {
+        "1": 13.199990146565028
+      },
+      "rel_hm2wmqlvck_t7x5h": {
+        "0": 24.400019577571697
+      },
+      "rel_hm3cm87tno_tjebzt": {
+        "0": -3.8000587967205774
+      },
+      "rel_hm3cm4696g_1uz7jya": {
+        "0": 13.19997671115334
+      }
+    }
+  },
+  "metadata": {
+    "title": "TRX300",
+    "createdAt": "2026-09-04T00:38:20.171480",
+    "modifiedAt": "2026-09-08T11:59:48.423796"
+  }
+}

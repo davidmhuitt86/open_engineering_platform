@@ -16,10 +16,16 @@ function toggleRouteEditMode() {
   const btn = $('route-edit-btn');
   if (btn) { btn.classList.toggle('route-on', routeEditMode); btn.textContent = routeEditMode ? '↔ Done Routing' : '↔ Edit Route'; }
   if (routeEditMode) {
-    if (editMode) toggleEdit();
+    // AP-MASTER-EDIT-001 — used to always exit Edit Mode on entry, back
+    // when the two were meant to be mutually exclusive. Now that Edit
+    // Mode itself can drag a selected wire's segments too
+    // (wireEditCapable, renderer.js), Route Edit is just the BROADER
+    // version of that (every wire, not just the selected one — reported
+    // directly as a real workflow need: "move any wire around not just
+    // that one") — turning it on no longer needs to turn Edit Mode off.
     if (wireMode) cancelWireMode();
     $('wep').classList.add('open');
-    $('wep-status').textContent = 'Click any wire to route it · ↑↓←→ nudge · R reset route';
+    $('wep-status').textContent = 'Drag any wire\'s segment to move it · ↑↓←→ nudge selected segment · R reset route';
     const cancelBtn = $('wep-cancel');
     if (cancelBtn) cancelBtn.textContent = '✓ Done';
     vp.classList.add('route-edit-mode');
@@ -27,6 +33,24 @@ function toggleRouteEditMode() {
     exitRouteEditMode();
   }
   drawWires();
+}
+
+// AP-MASTER-EDIT-001 — the Wire Properties modal's own "↔ Edit Route"
+// button. Closes the modal first (so it isn't sitting over the canvas
+// blocking the very segments you'd want to drag) and turns Route Edit
+// on if it wasn't already — reusing toggleRouteEditMode() rather than
+// duplicating its setup, but only calling it when actually needed so a
+// re-open of an already-active Route Edit doesn't accidentally toggle
+// it back off. No "Done" step is required to use it: dragging a segment
+// already saves live (wireRoutes is written on every move, same as
+// before), so clicking a different wire, a module, or empty canvas
+// afterward just does whatever it would normally do — there's nothing
+// left to separately confirm. The existing "✓ Done" button in the
+// bottom #wep panel still works too, for anyone who wants an explicit
+// "I'm finished" action, but it was never meant to be mandatory.
+function wpmEditRoute() {
+  closeWPM();
+  if (!routeEditMode) toggleRouteEditMode();
 }
 
 function exitRouteEditMode() {
@@ -54,22 +78,6 @@ function wepCancelClicked() {
   } else {
     cancelWireMode();
   }
-}
-
-// Lets the user click ANY wire while already in Route Edit mode and
-// immediately edit its route, without leaving and re-entering the mode.
-// Mirrors `selWire`'s own "select a wire" branch (selection-manager.js)
-// but stays in Route Edit mode throughout instead of toggling it.
-function selWireForRouteEdit(w, evt) {
-  if (!routeEditMode || (selW && selW.id === w.id)) return;
-  selW = w;
-  selSeg = null;
-  document.querySelectorAll('.mod-card').forEach(c => c.classList.remove('wire-selected'));
-  const fc = cardEls[w.from.m], tc = cardEls[w.to.m];
-  if (fc) fc.classList.add('wire-selected');
-  if (tc) tc.classList.add('wire-selected');
-  if (typeof showPanel === 'function') showPanel(w, evt);
-  drawWires();
 }
 
 function resetWireRoute() {

@@ -135,6 +135,19 @@ flutter:
   #   - assets/images/
   #   - assets/themes/
 
+  # AP-EK-020 — the compiled Knowledge Package (`.oerp`) Diagram Studio's
+  # production `electricalCoreRuntimeProvider` reads, via `OerpReader`.
+  # Not checked into git (`/assets/knowledge/` in .gitignore, SDD-R010
+  # §16) — generated at development/build time by
+  # `tool/generate_knowledge_asset.dart` from
+  # `knowledge/reference_library/`, the actual source of truth. Run that
+  # script (documented in its own header) before `flutter run`/`flutter
+  # build`; `KnowledgePackageSource.production`
+  # (`lib/diagram_studio/analysis/knowledge_package_source.dart`) fails
+  # explicitly, not silently, if this asset is missing.
+  assets:
+    - assets/knowledge/
+
   # AP-OEP-DIAGRAM-ANDROID-001: the legacy V2 wiring app's static files
   # are NOT declared here — Flutter's asset bundler silently drops any
   # entry that resolves outside this package's own directory (confirmed:
