@@ -10,6 +10,22 @@ import 'simulation_test_fixtures.dart';
 /// `dart:ffi`). No mocks/fakes: this exercises the exact same engine
 /// `EngineeringEngine.create()` registers, through the exact same
 /// `DiagramSimulationService` facade Diagram Studio's UI uses.
+///
+/// PRODUCT-READINESS-002 Phase 11.14 — this suite remains valid and is
+/// NOT being retired: `DiagramSimulationService`/`MeasurementEngine` are
+/// still the real, correct path for the standalone Dart-native
+/// `MultimeterController` (see `test/instruments/
+/// multimeter_controller_test.dart`) and the OIP host bridge for the
+/// companion Android DMM app. What changed is narrower: the
+/// `measurementRequested` bridge path specifically (a V2-embedded
+/// diagram's own meter panel) no longer routes through this engine at
+/// all — see `test/diagram_studio/webview/
+/// legacy_v2_live_measurement_bridge_test.dart`. `MeasurementEngine`
+/// itself is explicitly reachability-only (no per-component resistance,
+/// no switch continuity, no connector/splice pin isolation — see its own
+/// disclosed `notes` text) and is NOT authoritative for a live V2
+/// wiring-diagram's electrical state; it remains authoritative for
+/// documents/callers that have no V2-embedded diagram at all.
 void main() {
   late SimulationEngine engine;
   late DiagramSimulationService service;

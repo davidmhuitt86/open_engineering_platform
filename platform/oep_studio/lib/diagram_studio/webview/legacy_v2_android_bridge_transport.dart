@@ -270,6 +270,23 @@ class LegacyV2AndroidBridgeTransport implements LegacyV2Channel {
     );
   }
 
+  /// AP-DMM-BRIDGE-001 — same read/decode shape as [captureSaveSnapshot]
+  /// above (`runJavaScriptReturningResult` returns raw JSON text on
+  /// Android, unlike Windows' pre-decoded `executeScript`). Underlying JS
+  /// is the identical, shared `window.__oepBridgeQueryLiveMeasurement`.
+  @override
+  Future<V2LiveMeasurementResult?> queryLiveMeasurement(
+      String v2WireId, String v2Mode) async {
+    if (!bridgeEnabled) return null;
+    final result = await _controller.runJavaScriptReturningResult(
+      'window.__oepBridgeQueryLiveMeasurement && window.__oepBridgeQueryLiveMeasurement('
+      '${jsonEncode(v2WireId)}, ${jsonEncode(v2Mode)})',
+    );
+    if (result is! String || result.isEmpty || result == 'null') return null;
+    return V2LiveMeasurementResult.fromJson(
+        Map<String, dynamic>.from(jsonDecode(result) as Map));
+  }
+
   /// Same escape hatch as [LegacyV2BridgeTransport.executeRawScript].
   Future<void> executeRawScript(String script) =>
       _controller.runJavaScript(script);

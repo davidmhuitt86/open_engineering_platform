@@ -1,0 +1,47 @@
+{
+  "$schema": "trx300-ground-truth-manifest-v1",
+  "sourceDiagramFilename": "platform/oep_studio/samples/diagram7.json",
+  "sourceDiagramSha256": "a6b994a3030e1ba4724352421ab9a0f72a2f7b9757e08706a692242bb3f57a54",
+  "oepSchemaVersion": 1,
+  "howIdentified": {
+    "method": "Compared all 8 candidate diagram files in platform/oep_studio/samples/ (diagram2-7.json, trx300.json, trx300_profile.json, updatedtrx300,json) by both object/relationship count AND file modification time -- diagram7.json is the largest (47 nodes / 80 relationships, next-largest is diagram6.json at 28/34) AND the most recently modified (2026-09-09, days after every other candidate). Independently corroborated by structural comparison against the JS reference simulator's own bundled demo vehicle (reference/legacy_wiring_sim_v2/eke-wiring-sim/diagrams/trx300/) during an earlier work package (PRODUCT-READINESS-002): diagram7.json reuses only 9 of that demo's 22 module ids and independently authors 38 additional nodes (explicit battery, starter circuit, alternator/charging system, connectors and splices modeled as real nodes) -- confirming it is the user's own extended, independently-authored engineering work, not a copy of any bundled sample.",
+    "rejectedCandidates": {
+      "diagram2.json": "24 nodes / 40 relationships -- an earlier, smaller iteration",
+      "diagram3.json": "24 / 39 -- earlier iteration",
+      "diagram4.json": "23 / 34 -- earlier iteration",
+      "diagram5.json": "23 / 37 -- earlier iteration",
+      "diagram6.json": "28 / 34 -- earlier iteration, next-most-complete after diagram7",
+      "trx300.json": "25 / 34 -- a one-time, non-live conversion artifact of the JS app's OWN bundled demo vehicle, produced by platform/oep_studio/tool/import_trx300.dart -- not independently authored, not the user's own engineering work",
+      "trx300_profile.json": "an operating-state/input-state PROFILE (key positions, switch inputs), not a diagram -- companion metadata for trx300.json, produced by the same import tool",
+      "updatedtrx300,json": "2 nodes / 0 relationships -- an apparently abandoned, near-empty artifact from 2026-09-04, despite its filename suggesting an update; its own last-modified timestamp (09-04) predates diagram7.json by 5 days"
+    }
+  },
+  "objectCount": 47,
+  "relationshipCount": 80,
+  "componentCounts": {
+    "byCategory": {
+      "ignition": 3, "control": 6, "accessory": 2, "charging": 3, "ground": 2,
+      "connector": 8, "diode": 1, "power": 1, "starter": 1, "indicator": 3,
+      "lighting": 3, "splice": 14
+    },
+    "byKindFlag": {
+      "battery": 1, "solenoid": 1, "starterMotor": 1, "groundedSwitch": 2,
+      "thermistor": 1, "bulb": 6, "pulseGenerator": 1, "alternator": 1
+    },
+    "note": "categoryAndKindOverlap: category and kind are independent metadata dimensions on the same object -- e.g. the battery has BOTH category='power' AND kind='battery'. The two count tables above are not additive against the 47-object total. Two real multi-position switches (ignition-switch, left-handlebar-switch) carry NEITHER a groundedSwitch NOR thermistor kind flag at all -- they are recognized purely by their TERMINAL NAME SET at solve time (js/knowledge/behaviors/multi-switch.js's MultiSwitchBehavior.match), not by any static metadata flag. This is a real, load-bearing distinction for ingestion validation (see validation/validation_categories.md, category 2)."
+  },
+  "connectorCount": 8,
+  "spliceCount": 14,
+  "groundCount": 2,
+  "wireCount": 80,
+  "relationshipsWithExplicitTerminalRefsOnBothEnds": 80,
+  "relevantMetadataCategories": [
+    "v2ModuleId (stable module identity)", "v2Category", "v2Kind (special-render dispatch flag)",
+    "v2Terminals (ordered pin list, name+color)", "v2Connector (bool)", "v2Vertical",
+    "v2Exit", "v2LabelPos/v2PinLabelPos/v2SubLabelPos", "v2Sub (subtitle text)",
+    "v2BulbStyle/v2BulbColor", "v2Flipped", "sourcePort/targetPort (relationship metadata)",
+    "wireColor", "label (wire label text)"
+  ],
+  "creationNotes": "diagram7.json was built interactively by the user across multiple sessions in Diagram Studio (the Flutter app), NOT generated or modified by any automated tool, and NOT modified in the creation of this reference dataset -- this manifest and every other file in reference/ingestion/trx300/ was derived by READING diagram7.json, never by writing to it. Confirmed via git diff: this dataset's creation touched zero bytes of the original file. Two real, human-found and human-fixed correctness gaps in the diagram's OWN wiring (a missing splice on the ignition-feed-to-handlebar-switch path, and the LH Headlight's power/ground jumpers needing to be splices rather than direct lamp-to-lamp wires) were fixed by the user directly in the Studio app during the same work session that produced this dataset -- meaning the CURRENT diagram7.json already reflects the corrected topology, and it is that corrected version this dataset is built from.",
+  "provenance": "HUMAN_VERIFIED_ENGINEERING_REFERENCE"
+}

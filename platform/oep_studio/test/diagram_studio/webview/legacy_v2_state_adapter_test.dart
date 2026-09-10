@@ -1,7 +1,6 @@
 import 'package:engineering_engine/engineering_engine.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:oep_studio/diagram_studio/simulation/diagram_simulation_service.dart';
 import 'package:oep_studio/diagram_studio/webview/legacy_v2_bridge_transport.dart';
 import 'package:oep_studio/diagram_studio/webview/legacy_v2_state_adapter.dart';
 
@@ -249,6 +248,21 @@ class _FakeChannel implements LegacyV2Channel {
   Future<void> restoreWireRouteOffsets(
       String v2WireId, Map<String, double> offsets) async {
     restoredWireRouteOffsets.add((v2WireId, offsets));
+  }
+
+  /// AP-DMM-BRIDGE-001 — the canned "live V2 solver" answer
+  /// [queryLiveMeasurement] returns; `null` (the default) simulates the
+  /// bridge/WebView being unreachable. Set this to a real
+  /// [V2LiveMeasurementResult] to exercise a specific reading (open/OL,
+  /// grounded, a numeric value, etc.) without any real WebView.
+  V2LiveMeasurementResult? nextLiveMeasurement;
+  final List<(String, String)> queriedLiveMeasurements = [];
+
+  @override
+  Future<V2LiveMeasurementResult?> queryLiveMeasurement(
+      String v2WireId, String v2Mode) async {
+    queriedLiveMeasurements.add((v2WireId, v2Mode));
+    return nextLiveMeasurement;
   }
 }
 
@@ -641,74 +655,25 @@ void main() {
       expect(engine.editing.session.graph.relationships.containsKey(wire5RelId),
           isTrue);
 
-      // --- AP-DIAGRAM-V2-BRIDGE-006: measurement request, no simulation
-      //     session reachable (`adapter` above has no
-      //     simulationServiceResolver) — a real, disclosed state, not a
-      //     crash or a fabricated reading. --------------------------------
+      // --- AP-DMM-BRIDGE-001: measurement request, live solver unreachable
+      //     (`channel.nextLiveMeasurement` defaults to null, simulating the
+      //     WebView/bridge being unreachable) — a real, disclosed state,
+      //     not a crash or a fabricated reading. See
+      //     legacy_v2_live_measurement_bridge_test.dart for the full
+      //     matrix of live-solver-backed readings (open/OL, grounded,
+      //     numeric values, terminal precision, and proof this path never
+      //     falls back to the old reachability-only MeasurementEngine).
+      // ------------------------------------------------------------------
       channel.simulateMeasurementRequested('wire-5', 'RES');
       await settle(tester);
       expect(channel.appliedMeasurements.last.$1, 'wire-5');
       expect(channel.appliedMeasurements.last.$2, 'RES');
       expect(channel.appliedMeasurements.last.$3, '—',
-          reason: 'no session reachable must not fabricate a reading');
+          reason: 'an unreachable live solver must not fabricate a reading');
       expect(channel.appliedMeasurements.last.$5,
-          contains('No active OEP simulation session'));
-
-      // Unmapped wire: no-op, no crash.
-      final measurementsBefore = channel.appliedMeasurements.length;
-      channel.simulateMeasurementRequested('wire-unmapped', 'RES');
-      await settle(tester);
-      expect(channel.appliedMeasurements.length, measurementsBefore,
-          reason: 'an unbridged wire id must be a no-op');
-
-      // --- Same request, but through a second adapter/channel wired to a
-      //     REAL DiagramSimulationService/SimulationEngine (not a fake) —
-      //     verifies the bridge actually reaches OEP's real measurement
-      //     subsystem, per this task's "use the real simulation subsystem
-      //     where practical, do not fake the calculation" instruction.
-      //     Uses a fresh module/wire pair rather than wire-5 (whose
-      //     `gnd-2` endpoint was undone out of the graph earlier in this
-      //     test, at the LIFO-undo block above — `_v2ToOepNodeId` for a
-      //     brand-new adapter can only resolve nodes that currently exist,
-      //     unlike the long-lived `adapter` above, whose map still holds
-      //     that stale entry from before the undo). --------------------
-      channel.simulateCreate('gnd-4', 'Fourth Ground', 'ground', 40, 40);
-      await settle(tester);
-      channel.simulateWireCreated(
-          'wire-6', 'gnd-3', 'A', 'gnd-4', 'B', 'Measured Wire', 'W');
-      await settle(tester);
-
-      final simEngine = SimulationEngine();
-      final simService = DiagramSimulationService(engine: simEngine);
-      await simService.createSession(engine.editing.session.graph);
-
-      final measurementChannel = _FakeChannel();
-      final measurementAdapter = LegacyV2StateAdapter(
-        controller: controller,
-        channel: measurementChannel,
-        simulationServiceResolver: () => simService,
-      );
-      await measurementAdapter.initializeFromDocument();
-
-      measurementChannel.simulateMeasurementRequested('wire-6', 'CONT');
-      await tester.runAsync(() async {
-        for (var i = 0; i < 50; i++) {
-          if (measurementChannel.appliedMeasurements.isNotEmpty) return;
-          await Future.delayed(const Duration(milliseconds: 20));
-        }
-      });
-      await settle(tester);
-      expect(measurementChannel.appliedMeasurements, isNotEmpty,
-          reason:
-              'a real session must produce some applied result, not silence');
-      final realResult = measurementChannel.appliedMeasurements.last;
-      expect(realResult.$1, 'wire-6');
-      expect(realResult.$2, 'CONT');
-      expect(realResult.$3, anyOf('000', 'OPN'),
-          reason:
-              'continuity must translate to one of V2\'s own two sentinel codes, never a fabricated number');
-      expect(realResult.$5, isNot(contains('No active OEP simulation session')),
-          reason: 'a real session must not report the no-session message');
+          contains('Live solver unreachable'));
+      expect(channel.queriedLiveMeasurements.last, ('wire-5', 'RES'),
+          reason: 'the bridge must query the live V2 solver, not the old DiagramSimulationService');
 
       // ══════════════════════════════════════════════════════════════
       // AP-DIAGRAM-V2-BRIDGE-SAVE-001 — the Save flush barrier

@@ -215,6 +215,19 @@ class LegacyV2StateAdapter {
           String v2WireId, String relationshipId, String label, String color)?
       onAuthoritativeWireProperties;
 
+  /// AP-DMM-BRIDGE-001 — fired after every [_handleMeasurementRequested]
+  /// round trip completes with a real (non-null) answer from the live V2
+  /// solver, alongside (not instead of) [LegacyV2Channel.
+  /// applyMeasurementResult]'s write back into V2's own display. This is
+  /// the seam a DMM host page wires into `MultimeterController` once one
+  /// exists (Phase 15, deliberately deferred) — kept as a plain callback,
+  /// not a `MultimeterController` reference, so this adapter (webview
+  /// layer) never has to import the instruments layer. Display-only: no
+  /// document/graph mutation happens here or in any handler this fires
+  /// from.
+  void Function(String v2WireId, String v2Mode, V2LiveMeasurementResult result)?
+      onLiveMeasurement;
+
   String? oepNodeIdFor(String v2ModuleId) => _v2ToOepNodeId[v2ModuleId];
 
   /// AP-OEP-DIAGRAM-OPEN-RACE-001 companion — how many modules the most
@@ -817,141 +830,97 @@ class LegacyV2StateAdapter {
         message.v2WireId, relationshipId, label, color);
   }
 
-  /// AP-DIAGRAM-V2-BRIDGE-006 — V2's own `updateMeter()` (`meter-panel.js`)
-  /// is a synchronous local lookup into the selected wire's authored
-  /// `R[keyPos]` table; it does not know about OEP's simulation subsystem
-  /// at all. This redirects the reading to the real
-  /// `SimulationEngine.measure` (via [DiagramSimulationService]) and
-  /// pushes the authoritative result back over V2's own local one —
-  /// V2's local computed value still displays first (its own
-  /// `updateMeter()` already ran synchronously before this message even
-  /// left the WebView), then is overwritten once the async round trip
-  /// completes (§9/§11 of the simulation bridge doc: OEP is authoritative,
-  /// V2's static table is never allowed to be the last word).
+  /// AP-DMM-BRIDGE-001 — supersedes the earlier design where this redirected
+  /// to `SimulationEngine.measure` (via [DiagramSimulationService]/
+  /// [simulationServiceResolver]): that engine is reachability-only (no
+  /// per-component resistance, no switch-continuity, no connector/splice
+  /// pin isolation — see `MeasurementEngine`'s own disclosed notes) and has
+  /// no visibility into V2's live switch state at all, so it could never be
+  /// a faithful stand-in for what the diagram is actually doing. This now
+  /// queries [LegacyV2Channel.queryLiveMeasurement], which reads the SAME
+  /// live solver (`GraphBuilder`/`VoltagePropagator`/`GroundPropagator`/
+  /// `ElectricalSolver`, via `LiveSim.readWireMeasurement`) that already
+  /// drives V2's own bulb-glow simulation — the bridge no longer overrides
+  /// V2's correct local answer with a worse one; it re-fetches the SAME
+  /// authoritative answer in a structured form and pushes it back,
+  /// incidentally also fixing V2's own LCD (`meter-panel.js`'s
+  /// `updateMeter()` is itself still a static/SWPACK-only lookup — this
+  /// override is what makes the on-screen reading correct).
   ///
-  /// **Probe mapping** (§4 of the task, §3 of the doc): V2's multimeter
-  /// reading depends only on *which wire is selected*, not on
-  /// `leadR`/`leadB` (confirmed by reading `updateMeter()` directly — those
-  /// fields are cosmetic location labels, never read by the lookup). There
-  /// is therefore no terminal-precise "point A/point B" to bridge at all —
-  /// this measures across the bridged relationship's own two node
-  /// endpoints, the same node-level (not terminal-level) precision the
-  /// wire-creation bridge already established and documented as
-  /// **ADAPTER REQUIRED** (§3/§14 of the wire bridge doc). No port id is
-  /// fabricated; `ProbePoint.portId` is left `null`.
+  /// **Probe mapping**: V2's multimeter reading depends only on *which
+  /// wire is selected* (confirmed by reading `updateMeter()` directly), so
+  /// this measures across that wire's own two endpoints — but now WITH
+  /// terminal precision: [V2LiveMeasurementResult.source]/`.reference`
+  /// carry the wire's own `from.t`/`to.t` pin refs (`LiveSim.
+  /// readWireMeasurement`, reusing the exact terminal identity every other
+  /// part of this app already keys off), superseding the earlier
+  /// node-level-only "ADAPTER REQUIRED" limitation for this path.
   ///
-  /// **Key-state is intentionally NOT bridged** — see §5/§21 of the
-  /// simulation bridge doc for why V2's fixed 4-position `keyPos` has no
-  /// deterministic mapping to OEP's open-ended, document-authored
-  /// `OperatingStateDefinition` set. V2's key buttons keep controlling only
-  /// V2's own cosmetic bulb-glow display; the measurement itself reflects
-  /// whatever operating/input state is already active in OEP's own current
-  /// session (set through OEP's own Simulation Center controls, unchanged).
+  /// **Key/switch-state is still correctly NOT a separate bridge concern**:
+  /// V2's own live switch/key state is exactly what the solver being
+  /// queried already reflects (that's the whole point of asking IT instead
+  /// of the reachability engine) — there is nothing to additionally bridge.
   void _handleMeasurementRequested(V2MeasurementRequestedMessage message) {
     if (!_ready) return;
-    final relationshipId = _v2ToOepRelationshipId[message.v2WireId];
-    if (relationshipId == null) return;
-    final type = _measurementTypeForV2Mode(message.mode);
-    if (type == null) return;
-    final simulation = simulationServiceResolver?.call();
-    if (simulation == null || !simulation.hasSession) {
-      channel.applyMeasurementResult(
-        message.v2WireId,
-        message.mode,
-        '—',
-        '',
-        'No active OEP simulation session — start one from the Simulation Center.',
-      );
-      return;
-    }
-    final relationship =
-        controller.engine.editing.session.graph.relationships[relationshipId];
-    if (relationship == null) return;
-    final probeA = ProbePoint(
-        nodeId: relationship.sourceNode, relationshipId: relationshipId);
-    final probeB = ProbePoint(
-        nodeId: relationship.targetNode, relationshipId: relationshipId);
-    unawaited(_runMeasurement(
-        simulation, message.v2WireId, message.mode, type, probeA, probeB));
+    unawaited(_runLiveMeasurement(message.v2WireId, message.mode));
   }
 
-  Future<void> _runMeasurement(
-    DiagramSimulationService simulation,
-    String v2WireId,
-    String v2Mode,
-    MeasurementType type,
-    ProbePoint probeA,
-    ProbePoint probeB,
-  ) async {
+  Future<void> _runLiveMeasurement(String v2WireId, String v2Mode) async {
     try {
-      final result =
-          await simulation.measure(probeA: probeA, probeB: probeB, type: type);
-      final (display, unit, note) = _formatMeasurementForV2(v2Mode, result);
-      await channel.applyMeasurementResult(
-          v2WireId, v2Mode, display, unit, note);
+      final result = await channel.queryLiveMeasurement(v2WireId, v2Mode);
+      if (result == null) {
+        await channel.applyMeasurementResult(
+          v2WireId,
+          v2Mode,
+          '—',
+          '',
+          'Live solver unreachable — the diagram may not be fully loaded.',
+        );
+        return;
+      }
+      final (display, unit, note) = _formatLiveMeasurementForV2(v2Mode, result);
+      await channel.applyMeasurementResult(v2WireId, v2Mode, display, unit, note);
+      onLiveMeasurement?.call(v2WireId, v2Mode, result);
     } catch (e) {
       await channel.applyMeasurementResult(
           v2WireId, v2Mode, '—', '', 'Measurement failed: $e');
     }
   }
 
-  /// V2's 5 meter-mode codes verbatim (`meter-panel.js`'s `ML`/`MU` maps)
-  /// → OEP's [MeasurementType]. V2 has no current/amps mode — confirmed
-  /// by direct source read, not an oversight here.
-  static MeasurementType? _measurementTypeForV2Mode(String v2Mode) => const {
-        'VDC': MeasurementType.voltageDc,
-        'VAC': MeasurementType.voltageAc,
-        'RES': MeasurementType.resistance,
-        'CONT': MeasurementType.continuity,
-        'DIODE': MeasurementType.diode,
-      }[v2Mode];
-
-  /// Translates [MeasurementResult] semantics into V2's own display
-  /// vocabulary — a plain formatted number, or one of V2's existing
-  /// sentinel strings (`'OPN'`/`'OL'`), never a fabricated numeric
-  /// substitute for an unreachable/unavailable/errored reading (§8/§11 of
-  /// the simulation bridge doc — "do not silently display 0").
+  /// Translates [V2LiveMeasurementResult] semantics into V2's own display
+  /// vocabulary — never a fabricated numeric substitute for an
+  /// open/unreachable/unsupported reading (Phase 10/11 — "do not collapse
+  /// open → 0, unknown → 0, unsupported → 0").
   ///
-  ///  - **Continuity/diode** (`result.continuous` is the authoritative
-  ///    signal OEP provides for these two types): `true` → V2's own
-  ///    `'000'` code (which `updateMeter()`'s own display logic already
-  ///    renders as `'· · ·'`); `false`/unreachable → V2's own `'OPN'`.
-  ///  - **Voltage/resistance**: unreachable → V2's own `'OL'` (matches the
-  ///    convention V2's authored table already uses for resistance-mode
-  ///    open circuits; extended here to voltage modes for the same
-  ///    "cannot complete the measurement" reason — not a value OEP ever
-  ///    invented, since `reachable: false` is exactly what triggers it).
-  ///  - A reachable result with no `measuredValue` (a legitimate
-  ///    "this type has no numeric reading" case per [MeasurementResult]'s
-  ///    own doc comment) displays `'—'` (em dash) with the engine's own
-  ///    `notes` explaining why, rather than `0.00`.
-  (String, String, String) _formatMeasurementForV2(
-      String v2Mode, MeasurementResult result) {
-    final notes = result.notes ?? '';
-    if (v2Mode == 'CONT' || (v2Mode == 'DIODE' && result.continuous != null)) {
-      final isContinuous = result.reachable && (result.continuous ?? false);
-      return (isContinuous ? '000' : 'OPN', '', notes);
+  ///  - `status == 'error'` (unknown wire, unsupported mode): `'—'` with
+  ///    the solver's own note explaining why — never `'OL'` (that's
+  ///    reserved for a genuine open-circuit reading, a different thing
+  ///    from "this mode isn't supported here").
+  ///  - Continuity: `open == false` → V2's own `'000'` (rendered as
+  ///    `'· · ·'` by `updateMeter()`'s own display logic); `open == true`
+  ///    → V2's own `'OPN'`.
+  ///  - Voltage/resistance/diode: `open == true` → V2's own `'OL'`; a
+  ///    non-null `value` displays with the solver's own formatting
+  ///    precision (2 decimal places, matching V2's own `.toFixed(2)`
+  ///    convention throughout `electrical-solver.js`).
+  (String, String, String) _formatLiveMeasurementForV2(
+      String v2Mode, V2LiveMeasurementResult result) {
+    final note = result.note;
+    if (result.status != 'ok') {
+      return ('—', result.unit, note.isEmpty ? 'Measurement unavailable.' : note);
     }
-    if (!result.reachable) {
-      return (
-        'OL',
-        '',
-        notes.isEmpty
-            ? 'Unreachable under the current simulation state.'
-            : notes
-      );
+    if (v2Mode == 'CONT') {
+      return (result.open ? 'OPN' : '000', '', note);
     }
-    final value = result.measuredValue;
+    if (result.open) {
+      return ('OL', '', note.isEmpty ? 'Open circuit — no continuity.' : note);
+    }
+    final value = result.value;
     if (value == null) {
-      return (
-        '—',
-        result.unit,
-        notes.isEmpty
-            ? 'No numeric reading reported for this measurement.'
-            : notes
-      );
+      return ('—', result.unit,
+          note.isEmpty ? 'No numeric reading reported for this measurement.' : note);
     }
-    return (value.toStringAsFixed(2), result.unit, notes);
+    return (value.toStringAsFixed(2), result.unit, note);
   }
 
   void _syncPositionToV2(String v2ModuleId, String nodeId) {

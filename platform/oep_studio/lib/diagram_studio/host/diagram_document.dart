@@ -5,6 +5,7 @@ import 'dart:math';
 import 'package:engineering_engine/engineering_engine.dart';
 
 import '../../settings/services/settings_storage.dart';
+import '../webview/v2_terminal_port_bridge.dart';
 
 /// A Diagram Studio document — an Engineering Graph plus its Diagram
 /// Layout, persisted together as one file (WORK_PACKAGE_024,
@@ -82,7 +83,14 @@ class DiagramDocument {
     final file = File(filePath);
     final raw = await file.readAsString();
     final decoded = jsonDecode(raw) as Map<String, Object?>;
-    final graph = EngineeringGraph.fromJson(decoded['graph'] as Map<String, Object?>);
+    // PRODUCT-READINESS-006 §7/§37 — real V2-bridged documents (including
+    // every diagram saved before that fix existed) persist `ports: []`
+    // with terminal data only in `metadata['v2Terminals']`; this backfills
+    // real Ports on load so the terminal-centric electrical model has
+    // something real to work with, without needing every existing saved
+    // file re-saved first. Idempotent/non-destructive — see that
+    // function's own doc comment.
+    final graph = backfillV2TerminalPorts(EngineeringGraph.fromJson(decoded['graph'] as Map<String, Object?>));
     final layoutJson = decoded['layout'] as Map<String, Object?>?;
     final layout =
         layoutJson == null ? DiagramLayoutState.empty : DiagramLayoutState.fromJson(layoutJson);
@@ -218,7 +226,7 @@ class DiagramDocument {
   ) async {
     final file = File(candidate.autosaveFilePath);
     final decoded = jsonDecode(await file.readAsString()) as Map<String, Object?>;
-    final graph = EngineeringGraph.fromJson(decoded['graph'] as Map<String, Object?>);
+    final graph = backfillV2TerminalPorts(EngineeringGraph.fromJson(decoded['graph'] as Map<String, Object?>));
     final layoutJson = decoded['layout'] as Map<String, Object?>?;
     final layout =
         layoutJson == null ? DiagramLayoutState.empty : DiagramLayoutState.fromJson(layoutJson);

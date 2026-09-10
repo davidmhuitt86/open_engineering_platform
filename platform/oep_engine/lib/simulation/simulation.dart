@@ -31,3 +31,4 @@ export '../core/simulation/simulation_engine.dart';
 export '../core/simulation/state/domain_profile.dart';
 export '../core/simulation/state/operating_state.dart';
 export '../core/simulation/state/state_condition_resolver.dart';
+export 'electrical/electrical.dart';

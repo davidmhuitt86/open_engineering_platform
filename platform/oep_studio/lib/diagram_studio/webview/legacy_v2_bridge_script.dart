@@ -483,6 +483,27 @@ const String _kRawBridgeScript = r'''
     if (noteEl) { noteEl.textContent = note || ''; }
   };
 
+  // AP-DMM-BRIDGE-001 — the Dart-side DMM bridge's own read primitive:
+  // a synchronous, side-effect-free query into the LIVE electrical
+  // solver (js/simulation/live-runner.js's LiveSim.readWireMeasurement,
+  // itself a thin wrapper around the existing GraphBuilder/
+  // ElectricalSolver — not a second solver). Deliberately separate from
+  // __oepBridgeApplyMeasurementResult above: that function WRITES an
+  // OEP-computed answer into V2's own display; this one READS V2's own
+  // live-solved answer back out for OEP/Dart to use as the DMM's
+  // authoritative source, replacing the old flow where Dart's
+  // (non-solver) MeasurementEngine was the one overwriting V2. Returns a
+  // plain JS object, same no-double-JSON-encoding convention as
+  // __oepBridgeCaptureSaveSnapshot below.
+  window.__oepBridgeQueryLiveMeasurement = function (wireId, mode) {
+    if (typeof LiveSim === 'undefined' || !LiveSim.readWireMeasurement) {
+      return { status: 'error', readingType: mode || 'voltage', value: null, unit: '',
+        open: true, overload: false, fault: false, note: 'LiveSim not available',
+        source: null, reference: null, solvedAt: null };
+    }
+    return LiveSim.readWireMeasurement(wireId, mode);
+  };
+
   // AP-DIAGRAM-V2-BRIDGE-SAVE-001 — the Save flush barrier's own
   // snapshot primitive. Reads V2's CURRENT globals directly (no
   // stability/debounce wait of any kind — that is the whole point: the

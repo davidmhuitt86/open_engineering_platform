@@ -1,0 +1,54 @@
+{
+  "$schema": "trx300-visual-annotations-v1",
+  "sourceDocument": "reference/ingestion/trx300/source/trx300_factory_wiring_diagram.pdf",
+  "purpose": "Documents visually significant elements of the source page that are NOT individual components (those are covered in mappings/pdf_to_oep_correspondence.json) but matter for a future ingestion pipeline's page-understanding step: page layout regions, legends, tables, and known rendering hazards. No pixel/point coordinates are asserted anywhere in this file -- only qualitative region descriptions, per the same 'do not invent coordinates' constraint applied throughout this dataset.",
+  "regions": [
+    {
+      "regionId": "title-block",
+      "description": "Vertical text \"21. WIRING DIAGRAMS\" running along the left edge of the page, plus a small \"21-1\" page-number tab in the top-right corner and a \"'88:\" year marker in the bottom-left corner.",
+      "significance": "Page/section identification metadata; not part of the circuit itself. An ingestion pipeline must learn to exclude title-block text from component/label extraction.",
+      "provenance": "multimodal_visual_read",
+      "confidence": "high"
+    },
+    {
+      "regionId": "wire-color-legend",
+      "description": "A small legend table below the title, listing single-letter/two-letter wire color codes and their full names: W=White, R=Red, Bl=Black (or Blue -- see ambiguity note), G=Green, Lg=Light Green, Y=Yellow, O=Orange, Br=Brown, P=Pink.",
+      "significance": "Every wire label on the page (e.g. \"Bl/Y\", \"G/W\") is a slash-separated pair of these codes representing a two-color wire (base/stripe). This legend is the ONLY source for decoding wire color abbreviations into the wireColor values already present in ground-truth relationship_inventory.json.",
+      "provenance": "multimodal_visual_read",
+      "confidence": "medium",
+      "notes": "The 'Bl' code is genuinely ambiguous on this scan between Black and Blue -- both are plausible readings of the same small glyph at this resolution. This is flagged explicitly rather than silently resolved one way; ground-truth relationship_inventory.json's own wireColor strings should be treated as the authoritative decode (they come from the user's own diagram, i.e. HUMAN_VERIFIED), and any future ingestion pipeline's color-legend OCR accuracy should be benchmarked against whether it reproduces those same strings, not against this annotation's guess."
+    },
+    {
+      "regionId": "switch-continuity-tables",
+      "description": "A row of 5 small grid tables spanning the top-middle/top-right of the page: IGNITION SWITCH, LIGHTING SWITCH, DIMMER SWITCH, ENGINE STOP SWITCH, STARTER SWITCH, collectively captioned \"SWITCH CONTINUITY\".",
+      "significance": "These tables encode the exact terminal-to-terminal continuity truth table for every multi-position switch in the vehicle -- the single most information-dense region on the page for electrical-behavior validation. See mappings/pdf_to_oep_correspondence.json's switchContinuityTables section for per-table mapping and confidence, and validation/electrical_validation_cases.md for how these tie into solver-level test cases.",
+      "provenance": "multimodal_visual_read",
+      "confidence": "medium",
+      "notes": "Small print, dense grid -- genuinely difficult to transcribe with full certainty at this scan resolution. Two of the five tables (Ignition, Dimmer) carry high-confidence values because the user independently verbally confirmed their contents earlier in this work session; the other three (Lighting, Engine Stop, Starter) rest on the visual read alone and are flagged medium confidence pending human confirmation."
+    },
+    {
+      "regionId": "main-schematic-body",
+      "description": "The large lower ~80% of the page: all component symbols and wire runs, densely interconnected, with numerous wire crossings and junction dots.",
+      "significance": "This is the region mappings/pdf_to_oep_correspondence.json's per-component entries describe. It has no internal grid/coordinate reference printed on the page itself.",
+      "provenance": "multimodal_visual_read",
+      "confidence": "high"
+    }
+  ],
+  "knownRenderingHazards": [
+    {
+      "hazard": "content_rotated_180_degrees_in_source_scan",
+      "description": "Already documented in source/source_manifest.json's knownQualityIssues -- included here for completeness since it affects how any future ingestion pipeline must first normalize the page before any region/symbol analysis can proceed.",
+      "confirmedBy": "user, direct visual inspection"
+    },
+    {
+      "hazard": "dense_wire_crossings_without_reliable_crossing_vs_connection_marking",
+      "description": "Many wire-to-wire crossings on the page are NOT accompanied by an unambiguous junction dot at every genuine connection point, and conversely it is not always certain from the raster image alone whether a small mark at a crossing is a genuine solid junction dot or a scan artifact/line-weight overlap. See validation/critical_ambiguities.md for the specific named cases this produces.",
+      "confirmedBy": "multimodal_visual_read, this work session"
+    },
+    {
+      "hazard": "no_embedded_text_layer",
+      "description": "Already documented in source/source_manifest.json -- restated here because it means EVERY label on this page (component names, wire colors, switch-table headers/cell values) must be read via image-based text recognition by any future ingestion pipeline; there is no text-extraction shortcut available for any part of this page.",
+      "confirmedBy": "multimodal_visual_read, this work session"
+    }
+  ]
+}

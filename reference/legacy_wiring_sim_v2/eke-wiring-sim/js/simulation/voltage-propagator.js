@@ -121,20 +121,65 @@ const VoltagePropagator = {
     // sources, so "is this node powered" is answered purely by whether
     // voltage can reach it, never short-circuited by an unrelated race.
     const batteryVoltage = VoltagePropagator._batteryVoltage(conditions);
-    GraphTraversal.powerNodes(graph).forEach(id => {
-      nodeVoltage.set(id, batteryVoltage);
-    });
-
-    // BFS from all power sources simultaneously. Queue items carry
-    // `viaTerm` — the terminal ref THIS node was entered through — so a
-    // connector node (see AP-CONNECTOR-BRIDGE-001 below) knows which of
-    // its own edges are allowed to continue propagation.
-    const queue   = [...nodeVoltage.keys()].map(id => ({ id, viaTerm: null }));
-    const visited = new Set(nodeVoltage.keys());
+    const visited = new Set();
+    const queue   = [];
 
     // AP-MULTI-ENTRY-001 — nodeId → Set of entry-pin keys already tried,
-    // for a connector/multi-switch node specifically (see below).
+    // for a connector/multi-switch node specifically (declared before the
+    // seeding loop below, which now also participates in it — see
+    // AP-BATTERY-SEED-PIN-001).
     const enteredPins = new Map();
+
+    // AP-BATTERY-SEED-PIN-001 — a power source is seeded with `viaTerm:
+    // null`, and `null` is exactly the one value that SKIPS pin-gating
+    // entirely (`viaPin` stays null below, so `isConnectorLike && viaPin
+    // != null` is false) — that's correct and necessary for a node with
+    // only ONE real external pin. For consistency, and so a power node
+    // participates in the SAME `enteredPins` bookkeeping every other
+    // pin-gated node does (relevant if it's ever re-entered later via a
+    // separate route), this now seeds once PER DISTINCT PIN it actually
+    // has a wire on instead of one `viaTerm: null` entry.
+    //
+    // Deliberate, KNOWN limitation this does NOT (and structurally
+    // cannot) fix: this graph has one VOLTAGE VALUE per NODE, not per
+    // terminal — `nodeVoltage.set(id, batteryVoltage)` above is set ONCE
+    // for the whole node, so a load wired to the battery's OWN − post
+    // still reads the full battery voltage on that post's own wire,
+    // exactly as it did before this change (confirmed by a regression
+    // test attempting the opposite expectation and failing — pin-gating
+    // only ever blocks CROSS-pin propagation reached FROM a different
+    // entry pin; it cannot give the − post a genuinely different value
+    // than the + post has, since there is only one value to give either
+    // of them). This is harmless in every real diagram this was checked
+    // against: the − post's own wire runs straight to a real Ground
+    // Point, which is ALREADY a hard voltage dead-end (line ~150 below)
+    // — so this seed-visible value never propagates any further than
+    // that one wire. The bug AP-BATTERY-TUNNEL-001 actually fixed is the
+    // opposite direction (GROUND reaching the − post tunneling THROUGH
+    // the battery's body and back OUT the + post) and remains fixed —
+    // see GroundPropagator's own equivalent fix, which does not have
+    // this limitation (GroundPropagator seeds real Ground nodes, never
+    // the battery itself).
+    GraphTraversal.powerNodes(graph).forEach(id => {
+      nodeVoltage.set(id, batteryVoltage);
+      visited.add(id);
+      const node = graph.nodes.get(id);
+      const isPinGated = node && (node.type === 'connector' || _isUnmodeledComponent(node));
+      if (isPinGated && node.edges.length) {
+        const seenPins = new Set();
+        node.edges.forEach(edge => {
+          const ownTerm = edge.fromNode === id ? edge.fromTerm : edge.toTerm;
+          const pin = _pinNumberOf(ownTerm);
+          if (pin == null || seenPins.has(pin)) return;
+          seenPins.add(pin);
+          if (!enteredPins.has(id)) enteredPins.set(id, new Set());
+          enteredPins.get(id).add(pin);
+          queue.push({ id, viaTerm: ownTerm });
+        });
+      } else {
+        queue.push({ id, viaTerm: null });
+      }
+    });
 
     while (queue.length) {
       const { id: nodeId, viaTerm } = queue.shift();

@@ -1,0 +1,41 @@
+{
+  "$schema": "trx300-source-document-manifest-v1",
+  "sourceDocumentIdentity": "1988 Honda TRX300 FourTrax Factory Service Manual, Section 21 (Wiring Diagrams), page 21-1",
+  "filename": "trx300_factory_wiring_diagram.pdf",
+  "originalUploadFilename": "trx300_original_pdf_diagram.pdf",
+  "internalPdfTitle": "Honda TRX300 Service Manual.pdf",
+  "sourceType": "scanned_service_manual_page",
+  "vehicleModelYear": "1988",
+  "manualSection": "21. WIRING DIAGRAMS",
+  "manualPageLabel": "21-1",
+  "relevantPages": [1],
+  "pageCount": 1,
+  "pageDimensions": {
+    "widthPt": 792.0,
+    "heightPt": 612.0,
+    "orientation": "landscape",
+    "equivalentPaperSize": "US Letter (11in x 8.5in) landscape"
+  },
+  "sha256": "fd7f4474f5a94ab40a772a924f88386ca06c147b9039b1e81e403fc1eaf1c746",
+  "fileSizeBytes": 185420,
+  "pdfProducer": "Microsoft: Print To PDF",
+  "pdfCreator": null,
+  "hasEmbeddedTextLayer": false,
+  "extractionInformation": {
+    "method": "multimodal_visual_read",
+    "notes": "No embedded/OCR text layer exists in the PDF (confirmed: page-text extraction returns empty) -- this is a pure scanned/rasterized image, not a text-native PDF. All content transcribed in this reference dataset was read visually (by Claude, via the Read tool's PDF image rendering) or, for the five switch-continuity tables specifically, independently supplied and confirmed verbatim by the user in an earlier conversation turn -- see mappings/pdf_to_oep_correspondence.json's per-entry provenance field for which applies to each mapped element."
+  },
+  "knownQualityIssues": [
+    {
+      "issue": "content_rotated_180_degrees",
+      "description": "The page's PDF /Rotate flag is 0 (no viewer-level rotation correction would fix this), but the scanned CONTENT itself renders upside-down -- confirmed by direct visual inspection and confirmed by the user. This means the rotation is baked into the scanned image itself, not a correctable viewer/metadata flag. A future automated ingestion pipeline reading this PDF must detect and correct for a genuine 180-degree content rotation via image analysis before OCR/symbol-recognition would have any chance of working, not just honor a /Rotate metadata value.",
+      "confirmedBy": "user, direct visual inspection"
+    },
+    {
+      "issue": "best_available_source_quality",
+      "description": "The user explicitly stated this is the best-quality copy of this page they could find after searching; no higher-resolution or better-oriented replacement is expected. This scan's resolution/legibility limits (small text in the 5 switch-continuity tables, dense wire crossings in the main diagram body) are therefore a PERMANENT characteristic of this reference case, not a temporary gap to be filled by a better upload.",
+      "confirmedBy": "user, direct statement"
+    }
+  ],
+  "notes": "This single page is the entirety of the located source material for the TRX300 wiring diagram -- no other pages of the factory manual (e.g. component location diagrams, torque specs, or earlier/later manual sections) were provided or located in this repository. The page itself is dense: it contains BOTH the full wiring schematic AND five switch-continuity tables (Ignition/Lighting/Dimmer/Engine Stop/Starter switches) in one image."
+}

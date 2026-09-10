@@ -25,6 +25,7 @@ export 'services/services.dart';
 export 'shared/shared.dart';
 export 'simulation/simulation.dart';
 export 'symbols/symbols.dart';
+export 'trace/trace.dart';
 export 'viewstate/viewstate.dart';
 export 'views/dialogs/dialogs.dart';
 export 'views/widgets/widgets.dart';

@@ -2032,7 +2032,8 @@
           "label": "Headlight Chassis Ground Feed",
           "wireColor": "G",
           "sourcePort": "1_OUT",
-          "targetPort": "SPLICE"
+          "targetPort": "SPLICE",
+          "v2ToExit": "left"
         },
         "evidenceLinks": []
       },
@@ -3041,6 +3042,22 @@
           "v2ToExit": "down"
         },
         "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm4nwdnoi1_1d9bw3d",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hm11a90flg_4abwqs",
+        "targetNode": "node_hm2k1s6010_1uemkl7",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1788949161586",
+          "label": "CHassis Ground 2",
+          "wireColor": "G",
+          "sourcePort": "1_OUT",
+          "targetPort": "SPLICE",
+          "v2ToExit": "left"
+        },
+        "evidenceLinks": []
       }
     ],
     "groups": [],
@@ -3536,12 +3553,15 @@
       },
       "rel_hm3cm4696g_1uz7jya": {
         "0": 13.19997671115334
+      },
+      "rel_hm3ctfkcr9_13ul19n": {
+        "0": -155.6000264031547
       }
     }
   },
   "metadata": {
     "title": "TRX300",
     "createdAt": "2026-09-04T00:38:20.171480",
-    "modifiedAt": "2026-09-08T11:59:48.423796"
+    "modifiedAt": "2026-09-09T05:27:45.181399"
   }
 }

@@ -262,4 +262,84 @@ void main() {
       expect(afterSave, isNull);
     });
   });
+
+  group('PRODUCT-READINESS-006 §7/§37/§46 — real V2 terminal -> Port backfill on load', () {
+    test('a node saved with ports=[] and metadata[v2Terminals] loads back with real, addressable Ports', () async {
+      final graph = EngineeringGraph.empty('g1').withNode(const EngineeringNode(
+            id: 'battery',
+            category: NodeCategory.component,
+            displayName: 'Battery',
+            metadata: {
+              'v2Terminals': [
+                {'n': '+', 'c': 'R'},
+                {'n': '-', 'c': 'Bl'},
+              ],
+            },
+            ports: [], // exactly the real, on-disk shape every V2-bridged node has today
+          ));
+      final document = DiagramDocument();
+      final filePath = '${tempDir.path}/battery.json';
+      await document.saveAs(filePath, graph, buildLayout());
+
+      final reopened = DiagramDocument();
+      final result = await reopened.open(filePath);
+
+      final battery = result.graph.nodes['battery']!;
+      expect(battery.ports.length, 2, reason: 'the real terminal count must be backfilled, not collapsed to zero');
+      expect(battery.ports.map((p) => p.name), ['+', '-']);
+      expect(battery.ports.map((p) => p.id), ['1', '2'],
+          reason: 'port ids use the same 1-based pin-index convention relationship metadata\'s '
+              'sourcePort/targetPort already use');
+    });
+
+    test('a node that already has real ports is left untouched (never overwritten)', () async {
+      final graph = EngineeringGraph.empty('g1').withNode(const EngineeringNode(
+            id: 'battery',
+            category: NodeCategory.component,
+            displayName: 'Battery',
+            metadata: {
+              'v2Terminals': [
+                {'n': 'IGNORED', 'c': 'X'},
+              ],
+            },
+            ports: [Port(id: 'real', name: 'Already Real')],
+          ));
+      final document = DiagramDocument();
+      final filePath = '${tempDir.path}/battery.json';
+      await document.saveAs(filePath, graph, buildLayout());
+
+      final reopened = DiagramDocument();
+      final result = await reopened.open(filePath);
+
+      final battery = result.graph.nodes['battery']!;
+      expect(battery.ports, [const Port(id: 'real', name: 'Already Real')]);
+    });
+
+    test('a node with no v2Terminals metadata at all is left untouched -- never fabricating a terminal', () async {
+      final graph = EngineeringGraph.empty('g1').withNode(const EngineeringNode(
+            id: 'plain',
+            category: NodeCategory.component,
+            displayName: 'Plain Node',
+          ));
+      final document = DiagramDocument();
+      final filePath = '${tempDir.path}/plain.json';
+      await document.saveAs(filePath, graph, buildLayout());
+
+      final reopened = DiagramDocument();
+      final result = await reopened.open(filePath);
+
+      expect(result.graph.nodes['plain']!.ports, isEmpty);
+    });
+
+    test('§46: the REAL diagram7.json, loaded through the real DiagramDocument.open() production path '
+        '(no test-only reconstruction), produces real multi-terminal Ports for the real Battery', () async {
+      final document = DiagramDocument();
+      final result = await document.open('samples/diagram7.json');
+
+      final battery = result.graph.nodes.values.firstWhere((n) => n.displayName == 'Battery');
+      expect(battery.ports.length, 2,
+          reason: 'the real diagram7.json Battery has 2 real terminals (+/-) once loaded through production code');
+      expect(battery.ports.map((p) => p.name), containsAll(['+', '−']));
+    });
+  });
 }

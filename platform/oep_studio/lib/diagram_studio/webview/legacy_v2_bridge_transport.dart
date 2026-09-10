@@ -449,6 +449,29 @@ class LegacyV2BridgeTransport implements LegacyV2Channel {
     return V2SaveSnapshot.fromJson(Map<String, dynamic>.from(result as Map));
   }
 
+  /// AP-DMM-BRIDGE-001 — queries the LIVE V2 electrical solver
+  /// (`LiveSim.readWireMeasurement`, via `window.__oepBridgeQueryLive
+  /// Measurement`) for a real, currently-solved reading on wire
+  /// [v2WireId] in mode [v2Mode] (V2's own 'VDC'/'VAC'/'CONT'/'RES'/
+  /// 'DIODE' codes). This is a READ, same rationale as
+  /// [captureSaveSnapshot]: bypasses [_executeIfEnabled]'s fire-and-forget
+  /// convention and returns `null` explicitly for "disabled/unreachable"
+  /// so the caller can tell that apart from "the solver answered but the
+  /// reading is open/OL" (which is a normal, non-null [V2LiveMeasurementResult]
+  /// with `open: true`).
+  @override
+  Future<V2LiveMeasurementResult?> queryLiveMeasurement(
+      String v2WireId, String v2Mode) async {
+    if (!bridgeEnabled) return null;
+    final result = await _controller.executeScript(
+      'window.__oepBridgeQueryLiveMeasurement && window.__oepBridgeQueryLiveMeasurement('
+      '${jsonEncode(v2WireId)}, ${jsonEncode(v2Mode)})',
+    );
+    if (result == null) return null;
+    return V2LiveMeasurementResult.fromJson(
+        Map<String, dynamic>.from(result as Map));
+  }
+
   @override
   Future<void> restoreWireRouteOffsets(
       String v2WireId, Map<String, double> offsets) {
@@ -550,6 +573,113 @@ abstract class LegacyV2Channel {
   /// entry (V2's own Reset Route behavior).
   Future<void> restoreWireRouteOffsets(
       String v2WireId, Map<String, double> offsets);
+
+  /// AP-DMM-BRIDGE-001 — queries the live V2 electrical solver for wire
+  /// [v2WireId] in mode [v2Mode] (V2's own 'VDC'/'VAC'/'CONT'/'RES'/
+  /// 'DIODE' codes). `null` only if the WebView/bridge could not be
+  /// reached at all — a normal "reading is open/unreachable" answer is a
+  /// non-null result with `open: true`, never `null`.
+  Future<V2LiveMeasurementResult?> queryLiveMeasurement(
+      String v2WireId, String v2Mode);
+}
+
+/// AP-DMM-BRIDGE-001 — one endpoint of a [V2LiveMeasurementResult]: the
+/// module a wire's terminal belongs to, plus the terminal/pin ref itself
+/// when the wire carried one (`w.from.t`/`w.to.t` — the SAME pin-ref
+/// convention used everywhere else in V2, including
+/// `sourcePort`/`targetPort` on the OEP relationship metadata this wire
+/// bridges to). `terminalId` is `null` only for a wire whose endpoint
+/// genuinely has no terminal ref recorded (rare — most V2 wires always
+/// carry one).
+class V2MeasurementEndpoint {
+  const V2MeasurementEndpoint({required this.moduleId, this.terminalId});
+
+  factory V2MeasurementEndpoint.fromJson(Map<String, dynamic> json) =>
+      V2MeasurementEndpoint(
+        moduleId: json['moduleId'] as String,
+        terminalId: json['terminalId'] as String?,
+      );
+
+  final String moduleId;
+  final String? terminalId;
+}
+
+/// AP-DMM-BRIDGE-001 — the decoded result of
+/// `window.__oepBridgeQueryLiveMeasurement()`: a structured reading from
+/// the LIVE V2 electrical solver (`LiveSim.readWireMeasurement`), not a
+/// display-formatted string. This is the DMM bridge's own authoritative
+/// answer — deliberately never collapses "open/unreachable" into a
+/// fabricated `0.0` (see [open]); a consumer must check [open]/[status]
+/// before trusting [value].
+class V2LiveMeasurementResult {
+  const V2LiveMeasurementResult({
+    required this.status,
+    required this.readingType,
+    required this.value,
+    required this.unit,
+    required this.open,
+    required this.overload,
+    required this.fault,
+    required this.note,
+    required this.source,
+    required this.reference,
+    required this.solvedAt,
+  });
+
+  factory V2LiveMeasurementResult.fromJson(Map<String, dynamic> json) {
+    final rawSource = json['source'] as Map?;
+    final rawReference = json['reference'] as Map?;
+    return V2LiveMeasurementResult(
+      status: json['status'] as String? ?? 'error',
+      readingType: json['readingType'] as String? ?? 'voltage',
+      value: (json['value'] as num?)?.toDouble(),
+      unit: json['unit'] as String? ?? '',
+      open: json['open'] as bool? ?? true,
+      overload: json['overload'] as bool? ?? false,
+      fault: json['fault'] as bool? ?? false,
+      note: json['note'] as String? ?? '',
+      source: rawSource == null
+          ? null
+          : V2MeasurementEndpoint.fromJson(Map<String, dynamic>.from(rawSource)),
+      reference: rawReference == null
+          ? null
+          : V2MeasurementEndpoint.fromJson(
+              Map<String, dynamic>.from(rawReference)),
+      solvedAt: (json['solvedAt'] as num?)?.toInt(),
+    );
+  }
+
+  /// 'ok' or 'error' — 'error' means the solver could not answer at all
+  /// (unknown wire, unsupported mode) and every other field is a safe
+  /// placeholder, NOT a real reading.
+  final String status;
+
+  /// 'voltage' | 'voltageAc' | 'continuity' | 'resistance' | 'diode'.
+  final String readingType;
+
+  /// The measured value, or `null` when [open] is `true` (or [status] is
+  /// 'error') — never a fabricated `0.0` standing in for "no reading".
+  final double? value;
+
+  final String unit;
+
+  /// `true` = open circuit / no continuity / OL — the authoritative
+  /// distinction from a genuine `value == 0.0`.
+  final bool open;
+
+  final bool overload;
+  final bool fault;
+  final String note;
+
+  final V2MeasurementEndpoint? source;
+  final V2MeasurementEndpoint? reference;
+
+  /// `ElectricalSolver`'s own `Date.now()` at solve time — lets a caller
+  /// detect a stale answer if it wants to (not currently enforced by any
+  /// caller; see the bridge's own "measurement always triggers a fresh
+  /// solve" contract instead, which makes staleness structurally
+  /// impossible for this call).
+  final int? solvedAt;
 }
 
 /// AP-DIAGRAM-V2-BRIDGE-SAVE-001 — the decoded result of

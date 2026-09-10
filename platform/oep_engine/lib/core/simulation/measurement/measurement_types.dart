@@ -55,4 +55,27 @@ class ProbePoint {
         portId: json['portId'] as String?,
         relationshipId: json['relationshipId'] as String?,
       );
+
+  /// PRODUCT-READINESS-004 Phase A — value equality, added so a
+  /// [ProbePoint] can key a `Map` (the terminal-centric solved-state
+  /// model indexes `ElectricalTerminalState` by `ProbePoint`, reusing this
+  /// type as the existing canonical "component + optional port [+ optional
+  /// relationship]" address rather than introducing a parallel terminal-id
+  /// type). Purely additive: nothing in this class previously depended on
+  /// identity equality (no prior `==`/`hashCode` override existed at all,
+  /// meaning two field-identical instances were already never expected to
+  /// be treated as interchangeable by any existing caller).
+  @override
+  bool operator ==(Object other) =>
+      other is ProbePoint &&
+      other.nodeId == nodeId &&
+      other.portId == portId &&
+      other.relationshipId == relationshipId;
+
+  @override
+  int get hashCode => Object.hash(nodeId, portId, relationshipId);
+
+  @override
+  String toString() =>
+      'ProbePoint($nodeId${portId != null ? ':$portId' : ''}${relationshipId != null ? ' via $relationshipId' : ''})';
 }

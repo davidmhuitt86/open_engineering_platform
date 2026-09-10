@@ -1,0 +1,8 @@
+{
+  "name": "eke-wiring-sim",
+  "private": true,
+  "description": "PRODUCT-READINESS-002 Phase 2 — no dependencies, intentionally. Uses Node's own built-in test runner (node:test, stable since Node 18) against the solver code loaded via js/tests/harness.js's vm sandbox — the smallest deterministic setup that fits this app, not a framework.",
+  "scripts": {
+    "test": "node --test"
+  }
+}

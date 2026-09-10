@@ -154,6 +154,10 @@ class LegacyV2PersistenceFakeChannel implements LegacyV2Channel {
     restoredWireRouteOffsets.add((v2WireId, offsets));
   }
 
+  @override
+  Future<V2LiveMeasurementResult?> queryLiveMeasurement(
+      String v2WireId, String v2Mode) async => null;
+
   void simulateCreate(String v2ModuleId, String label, String category,
           double x, double y,
           {String kind = ''}) =>

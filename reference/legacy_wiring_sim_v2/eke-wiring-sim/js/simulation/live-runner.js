@@ -149,8 +149,80 @@ const LiveSim = (function () {
     if (typeof renderSimPanel === 'function') renderSimPanel();
   }
 
+  // AP-DMM-BRIDGE-001 — a pure QUERY wrapper around the existing solver,
+  // added specifically for the Dart-side DMM bridge
+  // (legacy_v2_bridge_script.dart's __oepBridgeQueryLiveMeasurement, via
+  // LegacyV2Channel.queryLiveMeasurement). This is NOT a second solver —
+  // it rebuilds the graph via the same GraphBuilder.rebuild every other
+  // entry point uses and reads the answer via the EXISTING
+  // ElectricalSolver.readWire()/_wireResistance(), translating the
+  // already-computed WireReading (VDC/VAC/CONT/RES/DIODE/note) into a
+  // structured, explicit-semantics object instead of a display string.
+  //
+  // Terminal identity is NOT invented here: `wire.from.m`/`wire.from.t`
+  // and `wire.to.m`/`wire.to.t` are the SAME module-id + pin-ref pair
+  // every other part of this app (GraphBuilder, the renderer, the OEP
+  // bridge's own sourcePort/targetPort convention) already uses as a
+  // wire's endpoint identity.
+  //
+  // Raw resistance is read directly via
+  // ContinuitySolver._wireResistance(edge, conditions) rather than
+  // re-parsing WireReading.RES's DISPLAY string ('12.3Ω'/'1.2kΩ'/'<1Ω'/
+  // 'OL') — that string is formatted for a human LCD, not safe to
+  // parseFloat back into a number (a 'kΩ' value would silently come back
+  // 1000x too small, '<1Ω' wouldn't parse at all).
+  function readWireMeasurement(wireId, mode) {
+    const blank = (readingType, note) => ({
+      status: 'error', readingType: readingType || 'voltage', value: null, unit: '',
+      open: true, overload: false, fault: false, note: note || '',
+      source: null, reference: null, solvedAt: null,
+    });
+    if (typeof MODULES === 'undefined' || typeof WIRES === 'undefined' ||
+        typeof GraphBuilder === 'undefined' || typeof ElectricalSolver === 'undefined') {
+      return blank(mode, 'Live solver not available');
+    }
+    const wire = WIRES.find(w => w.id === wireId);
+    if (!wire) return blank(mode, 'Wire not found: ' + wireId);
+
+    const MODE_MAP = { VDC: 'voltage', VAC: 'voltageAc', CONT: 'continuity', RES: 'resistance', DIODE: 'diode' };
+    const readingType = MODE_MAP[mode] || null;
+    if (!readingType) return blank(mode, 'Unsupported reading type: ' + mode);
+
+    const conditions = _conditions();
+    const graph = GraphBuilder.rebuild(MODULES, WIRES);
+    const edge = graph.edges.get(wireId);
+    const reading = ElectricalSolver.readWire(wireId, graph, conditions);
+    const source = { moduleId: wire.from.m, terminalId: wire.from.t != null ? String(wire.from.t) : null };
+    const reference = { moduleId: wire.to.m, terminalId: wire.to.t != null ? String(wire.to.t) : null };
+    const base = { status: 'ok', readingType, overload: false, fault: false, note: reading.note || '', source, reference, solvedAt: Date.now() };
+
+    if (readingType === 'voltage' || readingType === 'voltageAc') {
+      const raw = readingType === 'voltage' ? reading.VDC : reading.VAC;
+      const open = reading.CONT === 'OPN';
+      const value = parseFloat(raw);
+      return { ...base, unit: 'V', open, value: (open || isNaN(value)) ? null : value };
+    }
+    if (readingType === 'continuity') {
+      const conductive = reading.CONT === '000';
+      const open = reading.CONT === 'OPN';
+      return { ...base, unit: '', open, value: conductive ? 0 : null };
+    }
+    if (readingType === 'resistance') {
+      if (!edge || typeof ContinuitySolver === 'undefined') return blank(mode, 'Resistance model unavailable for this wire');
+      const ohms = ContinuitySolver._wireResistance(edge, conditions);
+      const open = ohms === Infinity || ohms > 1e6;
+      return { ...base, unit: 'Ω', open, value: open ? null : ohms };
+    }
+    if (readingType === 'diode') {
+      const open = reading.DIODE === 'OL';
+      const value = parseFloat(reading.DIODE);
+      return { ...base, unit: 'V', open, value: (open || isNaN(value)) ? null : value };
+    }
+    return blank(mode, 'Unsupported reading type: ' + mode);
+  }
+
   return {
     setSwitch, toggleSwitch, isClosed, isSwitchModule, refresh, scheduleRefresh, BULB_COLORS,
-    setMultiSwitchGroup, multiSwitchGroupValue,
+    setMultiSwitchGroup, multiSwitchGroupValue, readWireMeasurement,
   };
 })();

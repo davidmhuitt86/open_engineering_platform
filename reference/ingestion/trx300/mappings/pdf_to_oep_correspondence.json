@@ -1,0 +1,412 @@
+{
+  "$schema": "trx300-pdf-to-oep-correspondence-v1",
+  "sourceDocument": "reference/ingestion/trx300/source/trx300_factory_wiring_diagram.pdf",
+  "groundTruthDocument": "platform/oep_studio/samples/diagram7.json",
+  "methodology": "Every entry below was produced by one of exactly two methods, recorded per-entry in 'provenance': (1) 'multimodal_visual_read' -- the PDF page was rendered as an image and read directly by Claude (the model authoring this file) via the Read tool's PDF rendering, cross-referenced against printed component labels visible on the page; (2) 'user_verbatim' -- the user directly transcribed table contents in an earlier conversation turn (the five switch-continuity tables), used here as a higher-trust cross-check against the visual read. No OCR, no automated symbol-detection, and no coordinate-extraction tooling was used -- this is a human-grade (Claude-grade) visual read, not an ingestion-pipeline run, and should NOT be mistaken for a preview of ingestion accuracy. Positional descriptions ('sourceRegion') are qualitative (e.g. 'top-left area, inside the BATTERY box') because the PDF has no embedded text layer and no reliable coordinate system was established for this single-page raster scan -- inventing precise pixel/point coordinates was explicitly avoided per task instructions. Every entry lists a 'confidence' of high / medium / low / unresolved; nothing below was guessed to fill a gap -- low-confidence and unresolved entries are marked as such rather than asserted.",
+  "confidenceLevels": {
+    "high": "Component's printed text label on the page is unambiguous and directly matches (or trivially maps to) the ground-truth object's displayName/category, with a clearly distinct drawn symbol.",
+    "medium": "Component is visually identifiable and plausibly matched, but the page is dense (overlapping wires, small print in switch tables, or a symbol shared/adjacent to a similar one) such that a second independent reviewer might reasonably disagree on an exact boundary or table cell.",
+    "low": "A plausible match exists but rests on structural inference (e.g. 'this must be the node between X and Y because the ground-truth graph says so') rather than a directly readable label on the page.",
+    "unresolved": "No distinct drawn symbol/label corresponds 1:1 to this ground-truth object on the page; the object is an OEP graph-modeling construct (typically a connector node) that the schematic represents only implicitly, as an unlabeled wire junction or an internal wire-harness connector not broken out as its own box in this particular manual page."
+  },
+  "components": [
+    {
+      "groundTruthObjectId": "node_hm268oh4ab_a08ox4",
+      "displayName": "Battery",
+      "sourceRegion": "top-left area, first labeled box after the '21. WIRING DIAGRAMS' vertical title and the wire-color legend",
+      "sourceElement": "Box labeled \"BATTERY\" with +/- terminal marks, 12V 4AH label visible",
+      "relationship": "direct_component_match",
+      "confidence": "high",
+      "provenance": "multimodal_visual_read",
+      "notes": "Unambiguous printed label."
+    },
+    {
+      "groundTruthObjectId": "node_hm268qdn3o_1xhlgpy",
+      "displayName": "Starter Solenoid",
+      "sourceRegion": "top area, immediately right of the BATTERY box",
+      "sourceElement": "Box labeled \"STARTER RELAY SWITCH\"",
+      "relationship": "direct_component_match",
+      "confidence": "high",
+      "provenance": "multimodal_visual_read",
+      "notes": "Ground-truth 'kind' flag is solenoid; the PDF's printed name for the same part is 'STARTER RELAY SWITCH' -- same physical component, different manufacturer nomenclature. Documented rather than silently normalized."
+    },
+    {
+      "groundTruthObjectId": "node_hm268u6ygb_1fa6wy",
+      "displayName": "Starter Motor",
+      "sourceRegion": "top area, right of the starter relay switch box",
+      "sourceElement": "Circle containing \"M\", labeled STARTER MOTOR",
+      "relationship": "direct_component_match",
+      "confidence": "high",
+      "provenance": "multimodal_visual_read",
+      "notes": null
+    },
+    {
+      "groundTruthObjectId": "node_hm2vuodiqa_cqq0sf",
+      "displayName": "Alternator",
+      "sourceRegion": "top area, right of the starter motor",
+      "sourceElement": "Circular multi-coil symbol labeled ALTERNATOR",
+      "relationship": "direct_component_match",
+      "confidence": "high",
+      "provenance": "multimodal_visual_read",
+      "notes": null
+    },
+    {
+      "groundTruthObjectId": "node_hm2vt79oui_1xgi8v1",
+      "displayName": "Pulse Generator",
+      "sourceRegion": "top area, right of the alternator, before the temperature sensor",
+      "sourceElement": "Circular coil symbol labeled PULSE GENERATOR",
+      "relationship": "direct_component_match",
+      "confidence": "high",
+      "provenance": "multimodal_visual_read",
+      "notes": "Ground truth models this with exactly 1 terminal, consistent with a single-wire pulse pickup returning through chassis ground -- not contradicted by anything visible on the page."
+    },
+    {
+      "groundTruthObjectId": "node_hm2691c017_be7zb0",
+      "displayName": "Oil Temp Sensor",
+      "sourceRegion": "top-middle area, right of the pulse generator",
+      "sourceElement": "Symbol labeled OIL TEMPERATURE SENSOR, drawn using a switch-style symbol rather than a distinct thermistor glyph",
+      "relationship": "direct_component_match",
+      "confidence": "high",
+      "provenance": "multimodal_visual_read",
+      "notes": "User independently confirmed this component is drawn AS a switch symbol on the source page even though it is electrically a thermistor (ground-truth kind=thermistor). This is a real, documented ingestion ambiguity: an ingestion pipeline reading symbol shape alone would misclassify this as a literal switch. See validation category 2 (classification) in validation/validation_categories.md (to be authored)."
+    },
+    {
+      "groundTruthObjectId": "node_hm268xadl2_14b9olo",
+      "displayName": "Neutral Switch",
+      "sourceRegion": "top-middle area, left of the reverse switch, below the pulse generator/temp sensor row",
+      "sourceElement": "Switch symbol labeled NEUTRAL SWITCH",
+      "relationship": "direct_component_match",
+      "confidence": "high",
+      "provenance": "multimodal_visual_read",
+      "notes": null
+    },
+    {
+      "groundTruthObjectId": "node_hm26bcdwud_z4g4up",
+      "displayName": "Reverse Switch",
+      "sourceRegion": "top-middle area, right of the neutral switch",
+      "sourceElement": "Switch symbol labeled REVERSE SWITCH",
+      "relationship": "direct_component_match",
+      "confidence": "high",
+      "provenance": "multimodal_visual_read",
+      "notes": null
+    },
+    {
+      "groundTruthObjectId": "ignition-coil",
+      "displayName": "Ignition Coil",
+      "sourceRegion": "top-middle area, right of the neutral/reverse switches, below the spark-plug ground symbol",
+      "sourceElement": "Box labeled IGNITION COIL",
+      "relationship": "direct_component_match",
+      "confidence": "high",
+      "provenance": "multimodal_visual_read",
+      "notes": null
+    },
+    {
+      "groundTruthObjectId": "left-handlebar-switch",
+      "displayName": "LH Handlebar Sw",
+      "sourceRegion": "top-middle-right area, the labeled block titled \"LIGHTING + ENGINE STOP + STARTER SWITCH\"",
+      "sourceElement": "Combined switch block, cross-referenced against 4 of the 5 switch-continuity tables at the top of the page: LIGHTING SWITCH, DIMMER SWITCH, ENGINE STOP SWITCH, STARTER SWITCH",
+      "relationship": "direct_component_match",
+      "confidence": "high",
+      "provenance": "user_verbatim",
+      "notes": "User directly confirmed the dimmer table is a genuine 2-position switch (HI or LO filament only, no OFF/third state) earlier in this work session -- that confirmation is the primary evidence for this mapping's continuity-table cell values, cross-checked against the visual read of the same tables. Ground truth's 7-terminal count for this single node is consistent with one physical switch cluster combining lighting/dimmer/engine-stop/starter functions, matching the PDF's single combined switch block."
+    },
+    {
+      "groundTruthObjectId": "ignition-switch",
+      "displayName": "Ignition Switch",
+      "sourceRegion": "bottom area, left of the CDI unit and alarm unit",
+      "sourceElement": "Box labeled IGNITION SWITCH, cross-referenced against the IGNITION SWITCH continuity table (top-right of the 5 tables)",
+      "relationship": "direct_component_match",
+      "confidence": "high",
+      "provenance": "user_verbatim",
+      "notes": "User verbatim-confirmed continuity semantics earlier this session: OFF=open; ON=BAT1-BAT2 AND BAT3-IG1. Consistent with a 4-terminal component, matching ground truth's terminal count."
+    },
+    {
+      "groundTruthObjectId": "node_hm293u86wk_1siprh5",
+      "displayName": "LH Headlight",
+      "sourceRegion": "top-right area, upper of the two headlight symbols",
+      "sourceElement": "Dual-filament headlight symbol, part of the \"HEADLIGHTS (12V 25W/25W X2)\" pair, labeled with HI/LO filament leads",
+      "relationship": "direct_component_match",
+      "confidence": "medium",
+      "provenance": "multimodal_visual_read",
+      "notes": "The page draws two visually identical headlight symbols side by side with no explicit LEFT/RIGHT text label on either -- the LH/RH distinction in ground truth is inferred from vehicle-standard layout convention (rider's left vs. right), not read directly off a printed label. Flagged medium rather than high for that reason."
+    },
+    {
+      "groundTruthObjectId": "node_hm294pfd09_155849t",
+      "displayName": "RH Headlight",
+      "sourceRegion": "top-right area, lower/second of the two headlight symbols",
+      "sourceElement": "Dual-filament headlight symbol, second of the \"HEADLIGHTS (12V 25W/25W X2)\" pair",
+      "relationship": "direct_component_match",
+      "confidence": "medium",
+      "provenance": "multimodal_visual_read",
+      "notes": "Same LH/RH ambiguity as node_hm293u86wk_1siprh5 -- see that entry's notes."
+    },
+    {
+      "groundTruthObjectId": "node_hm29auwdot_vx4btw",
+      "displayName": "Taillight",
+      "sourceRegion": "left side, below the wire-color legend, above the OPTIONAL connector",
+      "sourceElement": "Bulb symbol labeled \"TAIL LIGHT 12V 3W\"",
+      "relationship": "direct_component_match",
+      "confidence": "high",
+      "provenance": "multimodal_visual_read",
+      "notes": null
+    },
+    {
+      "groundTruthObjectId": "node_hm290w07v2_17b2iov",
+      "displayName": "Neutral Indicator Light",
+      "sourceRegion": "bottom-right area, the group of 3 small bulb symbols labeled INDICATORS",
+      "sourceElement": "Bulb symbol labeled NEUTRAL INDICATOR, within the \"INDICATORS (12V 1.7W X3)\" group",
+      "relationship": "direct_component_match",
+      "confidence": "high",
+      "provenance": "multimodal_visual_read",
+      "notes": "User's electrical-design statement this session (indicator lights carry constant 12V+ and are switched by completing a GROUND path through neutral/reverse/oil-temp switches, not by a 12V+ feed from those switches) directly explains and is consistent with this component's role and its topology in diagram7.json."
+    },
+    {
+      "groundTruthObjectId": "node_hm28yiides_14i8bbq",
+      "displayName": "Reverse Indicator Light",
+      "sourceRegion": "bottom-right area, indicators group",
+      "sourceElement": "Bulb symbol labeled REVERSE INDICATOR",
+      "relationship": "direct_component_match",
+      "confidence": "high",
+      "provenance": "multimodal_visual_read",
+      "notes": "Same ground-switched design as node_hm290w07v2_17b2iov -- see that entry's notes."
+    },
+    {
+      "groundTruthObjectId": "node_hm2920qdd8_aelkyk",
+      "displayName": "Oil Temp Indicator Light",
+      "sourceRegion": "bottom-right area, indicators group",
+      "sourceElement": "Bulb symbol labeled OIL TEMPERATURE WARNING INDICATOR",
+      "relationship": "direct_component_match",
+      "confidence": "high",
+      "provenance": "multimodal_visual_read",
+      "notes": "Same ground-switched design as node_hm290w07v2_17b2iov -- see that entry's notes."
+    },
+    {
+      "groundTruthObjectId": "regulator-rectifier",
+      "displayName": "Reg/Rect",
+      "sourceRegion": "bottom area, left-of-center",
+      "sourceElement": "Box labeled REGULATOR/RECTIFIER",
+      "relationship": "direct_component_match",
+      "confidence": "high",
+      "provenance": "multimodal_visual_read",
+      "notes": null
+    },
+    {
+      "groundTruthObjectId": "rectifier-diode",
+      "displayName": "Rectifier Diode",
+      "sourceRegion": "bottom area, right of the REGULATOR/RECTIFIER box, its own small labeled box",
+      "sourceElement": "Box labeled RECTIFIER, containing a diode arrow symbol",
+      "relationship": "direct_component_match",
+      "confidence": "medium",
+      "provenance": "multimodal_visual_read",
+      "notes": "The page shows a box labeled RECTIFIER with a diode symbol drawn inside it, distinct from the larger REGULATOR/RECTIFIER box. This entry maps that separate box to ground-truth's 'Rectifier Diode' (category=charging). See node_hm241o81f0_1foy2j2 below for the SEPARATE 'Diode' object -- these are two different ground-truth nodes and it is not fully certain from the visual read alone that they correspond to two visually distinct symbols on the page vs. one symbol modeled as two graph nodes for wiring-topology reasons. Flagged medium; would benefit from human confirmation."
+    },
+    {
+      "groundTruthObjectId": "node_hm241o81f0_1foy2j2",
+      "displayName": "Diode",
+      "sourceRegion": "bottom area, near the rectifier box",
+      "sourceElement": "Possibly the same diode arrow symbol referenced in the 'Rectifier Diode' entry above, or a second, adjacent diode symbol not independently distinguished in this visual read",
+      "relationship": "uncertain_component_match",
+      "confidence": "low",
+      "provenance": "multimodal_visual_read",
+      "notes": "Ground truth models TWO separate single-diode objects (rectifier-diode and this node) both in the charging/diode vicinity. The single-page visual read could not confidently distinguish two separate drawn diode symbols vs. one symbol serving both graph nodes for topological reasons internal to how the user modeled the circuit. Marked low confidence / requires_human_annotation rather than guessed."
+    },
+    {
+      "groundTruthObjectId": "node_hm235oce1b_4wm62u",
+      "displayName": "Battery Chassis Ground",
+      "sourceRegion": "top-left, at/below the BATTERY box's negative terminal",
+      "sourceElement": "Ground/earth symbol immediately adjacent to the battery's negative lead",
+      "relationship": "direct_component_match",
+      "confidence": "medium",
+      "provenance": "multimodal_visual_read",
+      "notes": "Ground symbols on this page are small and visually generic (a simple frame/earth glyph repeated at several points); this entry's specific ground symbol identification near the battery is a plausible but not fully certain visual read."
+    },
+    {
+      "groundTruthObjectId": "chassis-ground",
+      "displayName": "Chassis GND",
+      "sourceRegion": "multiple locations across the page (at minimum: near the spark plug/ignition coil area, and near the top of each headlight)",
+      "sourceElement": "Repeated ground/earth symbol",
+      "relationship": "direct_component_match",
+      "confidence": "medium",
+      "provenance": "multimodal_visual_read",
+      "notes": "Ground-truth's 2 ground objects (this one and Battery Chassis Ground) most likely correspond to a chassis-ground symbol appearing at MULTIPLE points on the physical page (grounds are typically drawn once per local connection point, not once globally, in factory wiring diagrams) -- meaning a strict 1-symbol-to-1-node mapping may not exist at all on the source page, and the true relationship may be 'each ground node in the graph corresponds to one or more of several ground symbols drawn at different points.' Documented as a known ambiguity rather than resolved with a specific single symbol."
+    },
+    {
+      "groundTruthObjectId": "cdi-unit",
+      "displayName": "CDI Unit",
+      "sourceRegion": "bottom-right area, left of the alarm unit and indicator lights",
+      "sourceElement": "Box labeled CDI UNIT with 6 visible pin markers along its top edge",
+      "relationship": "direct_component_match",
+      "confidence": "high",
+      "provenance": "multimodal_visual_read",
+      "notes": "6 visible pins on the page is consistent with ground truth's 6-terminal count."
+    },
+    {
+      "groundTruthObjectId": "alarm-unit",
+      "displayName": "Alarm Unit",
+      "sourceRegion": "bottom-right area, left of the CDI unit",
+      "sourceElement": "Box labeled ALARM UNIT",
+      "relationship": "direct_component_match",
+      "confidence": "high",
+      "provenance": "multimodal_visual_read",
+      "notes": null
+    },
+    {
+      "groundTruthObjectId": "dc-consent-jack",
+      "displayName": "DC Consent",
+      "sourceRegion": "bottom area, right of the regulator/rectifier",
+      "sourceElement": "Box labeled D.C. CONSENT",
+      "relationship": "direct_component_match",
+      "confidence": "high",
+      "provenance": "multimodal_visual_read",
+      "notes": null
+    },
+    {
+      "groundTruthObjectId": "node_hlzz7d8xvu_wn2xzq",
+      "displayName": "Indicator Light Connector",
+      "sourceRegion": "bottom-right area, in the wire run between the handlebar switch cluster and the 3 indicator lights",
+      "sourceElement": "No distinct labeled box; this is an implicit wire-harness junction/connector in that run",
+      "relationship": "structural_inference_only",
+      "confidence": "unresolved",
+      "provenance": "multimodal_visual_read",
+      "notes": "requires_human_annotation. This ground-truth node is an OEP graph-modeling construct (a connector) used to represent a real wire-harness connector between the handlebar switches and the indicator lights. Factory wiring diagrams of this era frequently omit in-harness connectors as distinct symbols, showing a continuous wire line instead -- this page does not appear to draw a distinct connector box at this location. Do NOT treat the absence of a mapping as an ingestion error; it may reflect real information the source page simply does not depict at this resolution."
+    },
+    {
+      "groundTruthObjectId": "node_hm11a90flg_4abwqs",
+      "displayName": "Left Handlebar Switch Connector",
+      "sourceRegion": "top-middle-right area, at/near the handlebar switch cluster block",
+      "sourceElement": "No distinct labeled box identified",
+      "relationship": "structural_inference_only",
+      "confidence": "unresolved",
+      "provenance": "multimodal_visual_read",
+      "notes": "requires_human_annotation. Same category of gap as node_hlzz7d8xvu_wn2xzq above."
+    },
+    {
+      "groundTruthObjectId": "node_hm13fzhpd7_1yhimgb",
+      "displayName": "Regulator Rectifier Connector",
+      "sourceRegion": "bottom area, at/near the REGULATOR/RECTIFIER box",
+      "sourceElement": "No distinct labeled box identified",
+      "relationship": "structural_inference_only",
+      "confidence": "unresolved",
+      "provenance": "multimodal_visual_read",
+      "notes": "requires_human_annotation."
+    },
+    {
+      "groundTruthObjectId": "node_hm2vz4eunm_mfxq72",
+      "displayName": "Alternator AC Connector",
+      "sourceRegion": "top area, at/near the ALTERNATOR symbol",
+      "sourceElement": "No distinct labeled box identified",
+      "relationship": "structural_inference_only",
+      "confidence": "unresolved",
+      "provenance": "multimodal_visual_read",
+      "notes": "requires_human_annotation."
+    },
+    {
+      "groundTruthObjectId": "node_hm2w4xzhz8_1xpw939",
+      "displayName": "Alternator Pulse Generator Connector",
+      "sourceRegion": "top area, between the ALTERNATOR and PULSE GENERATOR symbols",
+      "sourceElement": "No distinct labeled box identified",
+      "relationship": "structural_inference_only",
+      "confidence": "unresolved",
+      "provenance": "multimodal_visual_read",
+      "notes": "requires_human_annotation."
+    },
+    {
+      "groundTruthObjectId": "node_hm2wkv7mtt_9hiy30",
+      "displayName": "Ignition 12v+ Feed and Battery 12v+ Charge From Voltage Regulator",
+      "sourceRegion": "runs between the battery/fuse area and the regulator/rectifier area",
+      "sourceElement": "No distinct labeled box identified; this is a long wire run, not a boxed component",
+      "relationship": "structural_inference_only",
+      "confidence": "unresolved",
+      "provenance": "multimodal_visual_read",
+      "notes": "requires_human_annotation. This node's own displayName describes it as a wire-function label rather than a physical part, further supporting that it has no distinct drawn box to match against on the page."
+    },
+    {
+      "groundTruthObjectId": "node_hm2x5jwn0x_atvrws",
+      "displayName": "Starter Solenoid Connector",
+      "sourceRegion": "top area, at/near the STARTER RELAY SWITCH box",
+      "sourceElement": "No distinct labeled box identified",
+      "relationship": "structural_inference_only",
+      "confidence": "unresolved",
+      "provenance": "multimodal_visual_read",
+      "notes": "requires_human_annotation."
+    },
+    {
+      "groundTruthObjectId": "node_hm2xerewgw_1ecxfdq",
+      "displayName": "Indicator Light Switches Connector",
+      "sourceRegion": "bottom-middle area, at/near the neutral/reverse/oil-temp switches' wire run toward the indicator lights",
+      "sourceElement": "No distinct labeled box identified",
+      "relationship": "structural_inference_only",
+      "confidence": "unresolved",
+      "provenance": "multimodal_visual_read",
+      "notes": "requires_human_annotation."
+    }
+  ],
+  "spliceCorrespondence": {
+    "groundTruthObjectCount": 14,
+    "groundTruthObjectIds": [
+      "node_hm2k1s6010_1uemkl7", "node_hm2tnddgwy_1gwjuw8", "node_hm2tsj4le2_mykndm",
+      "node_hm2u84gdvw_1vei0mz", "node_hm2wr0ow30_1dvc49p", "node_hm31gnihnl_fss4ra",
+      "node_hm31rvez67_1kcwusy", "node_hm31v529lc_1kk54sz", "node_hm31xkp87e_zd47fh",
+      "node_hm31z5m98a_1sakbsc", "node_hm3cm4663i_nay2dv", "node_hm3ctfkcbe_16v0ks2",
+      "node_hm3cunduwy_1f30jnh", "node_hm3cvgfy3p_1qvmzv1"
+    ],
+    "sourceRegion": "scattered across the full wiring diagram body, wherever 3+ wires of the same circuit meet",
+    "sourceElement": "Solid filled dots ('junction dots') drawn at wire-branch points -- standard factory-wiring-diagram convention for a splice/branch that is not a discrete physical connector",
+    "relationship": "categorical_pattern_match",
+    "confidence": "medium_categorical_unresolved_individual",
+    "provenance": "multimodal_visual_read",
+    "notes": "At the CATEGORY level (medium confidence): the existence of 14 splice nodes in the ground-truth graph is consistent with this page's dense wire-branching pattern and its convention of marking branch points with solid dots. At the INDIVIDUAL level (unresolved / requires_human_annotation for all 14): establishing exactly which of the many dots on the page corresponds to which specific oepNodeId would require either a zoomed, region-by-region re-read cross-referenced dot-by-dot against the graph's own wire endpoint list, or direct human annotation -- this was not attempted here because it risks producing 14 fabricated coordinate guesses, which the task explicitly prohibits. This is flagged as the single largest concrete gap in this mapping and the most valuable target for a future human-annotation pass."
+  },
+  "switchContinuityTables": {
+    "sourceRegion": "top area of the page, a row of 5 small grid tables, titled collectively \"SWITCH CONTINUITY\"",
+    "tables": [
+      {
+        "tableName": "IGNITION SWITCH",
+        "mapsTo": "ignition-switch",
+        "confidence": "high",
+        "provenance": "user_verbatim",
+        "notes": "User-confirmed verbatim this session: OFF = open (no continuity); ON = BAT1-BAT2 continuity AND BAT3-IG1 continuity."
+      },
+      {
+        "tableName": "LIGHTING SWITCH",
+        "mapsTo": "left-handlebar-switch",
+        "confidence": "medium",
+        "provenance": "multimodal_visual_read",
+        "notes": "Table visually read (OFF / ON / PUSH rows against a 2-column terminal set), but individual cell values were not independently re-confirmed verbatim by the user this session the way the ignition and dimmer tables were -- flagged medium rather than high pending that confirmation."
+      },
+      {
+        "tableName": "DIMMER SWITCH",
+        "mapsTo": "left-handlebar-switch",
+        "confidence": "high",
+        "provenance": "user_verbatim",
+        "notes": "User directly confirmed this session: a genuine 2-position switch that connects either the HI filament or the LO filament (never both, never neither) -- not a 3-position switch with an OFF state."
+      },
+      {
+        "tableName": "ENGINE STOP SWITCH",
+        "mapsTo": "left-handlebar-switch",
+        "confidence": "medium",
+        "provenance": "multimodal_visual_read",
+        "notes": "Table visually read (RUN / OFF rows), not independently re-confirmed verbatim by the user this session."
+      },
+      {
+        "tableName": "STARTER SWITCH",
+        "mapsTo": "left-handlebar-switch",
+        "confidence": "medium",
+        "provenance": "multimodal_visual_read",
+        "notes": "Table visually read (FREE / PUSH rows), not independently re-confirmed verbatim by the user this session."
+      }
+    ]
+  },
+  "summary": {
+    "totalGroundTruthObjects": 47,
+    "nonSpliceObjects": 33,
+    "spliceObjects": 14,
+    "nonSpliceMappedHighConfidence": 15,
+    "nonSpliceMappedMediumConfidence": 8,
+    "nonSpliceMappedLowConfidence": 1,
+    "nonSpliceUnresolved": 9,
+    "spliceMappedIndividually": 0,
+    "spliceMappedCategorically": 14,
+    "note": "9 of 33 non-splice objects (all connector-category nodes, plus one wire-function-label node) and all 14 splice objects have NO individually-confirmed 1:1 source-page symbol correspondence. This is reported honestly per the task's explicit 'do not guess' instruction, and is itself a meaningful finding: OEP's graph model represents wiring-harness structure (connectors, splices) at a finer grain than this particular factory diagram page draws it, which is exactly the kind of gap a future ingestion benchmark needs to be able to measure and report rather than silently paper over."
+  }
+}

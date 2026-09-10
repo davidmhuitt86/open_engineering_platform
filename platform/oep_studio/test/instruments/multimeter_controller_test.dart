@@ -13,6 +13,19 @@ import '../simulation/simulation_test_fixtures.dart';
 /// history/bookmark test cleans up the real on-disk file it touches
 /// (`MeasurementHistoryStore`/`MeasurementBookmarkStore` have no
 /// directory-override, matching `WorkspaceStateStorage`'s own precedent).
+///
+/// PRODUCT-READINESS-002 Phase 11.14 — `MultimeterController` here is
+/// deliberately still exercised against `DiagramSimulationService`/
+/// `MeasurementEngine`, unchanged: this controller has no V2/WebView
+/// awareness at all (by design — see its own class doc comment) and is
+/// not part of the `measurementRequested` bridge path that was moved
+/// onto the live V2 solver (`legacy_v2_live_measurement_bridge_test.dart`).
+/// `MeasurementEngine` remains genuinely correct — just reachability-only,
+/// not a circuit solver — for whatever this controller is pointed at;
+/// wiring it to receive live V2-solver-backed results is deliberately
+/// deferred (see PRODUCT-READINESS-002's own final report, "Remaining
+/// Gaps") rather than done here by fabricating a `MeasurementResult` this
+/// engine didn't actually compute.
 void main() {
   late SimulationEngine engine;
   late DiagramSimulationService service;

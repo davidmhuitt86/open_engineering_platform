@@ -1,0 +1,1170 @@
+{
+  "$schema": "trx300-ground-truth-object-inventory-v1",
+  "sourceFile": "platform/oep_studio/samples/diagram7.json",
+  "sourceSha256": "a6b994a3030e1ba4724352421ab9a0f72a2f7b9757e08706a692242bb3f57a54",
+  "generatedAt": "2026-09-09T11:22:43.526Z",
+  "objectCount": 47,
+  "objects": [
+    {
+      "oepNodeId": "cdi-unit",
+      "v2ModuleId": "cdi-unit",
+      "displayName": "CDI Unit",
+      "category": "ignition",
+      "kind": null,
+      "isConnector": false,
+      "isSplice": false,
+      "isGround": false,
+      "terminals": [
+        {
+          "index": 1,
+          "name": "P1",
+          "color": "Bl/Y"
+        },
+        {
+          "index": 2,
+          "name": "P2",
+          "color": "G"
+        },
+        {
+          "index": 3,
+          "name": "P3",
+          "color": "Blu/Y"
+        },
+        {
+          "index": 4,
+          "name": "P4",
+          "color": "Y/W"
+        },
+        {
+          "index": 5,
+          "name": "P5",
+          "color": "Bl/W"
+        },
+        {
+          "index": 6,
+          "name": "P6",
+          "color": "Lg/R"
+        }
+      ],
+      "provenance": "HUMAN_VERIFIED"
+    },
+    {
+      "oepNodeId": "alarm-unit",
+      "v2ModuleId": "alarm-unit",
+      "displayName": "Alarm Unit",
+      "category": "control",
+      "kind": null,
+      "isConnector": false,
+      "isSplice": false,
+      "isGround": false,
+      "terminals": [
+        {
+          "index": 1,
+          "name": "A1",
+          "color": "Br/R"
+        },
+        {
+          "index": 2,
+          "name": "A2",
+          "color": "Bl"
+        },
+        {
+          "index": 3,
+          "name": "A3",
+          "color": "G"
+        },
+        {
+          "index": 4,
+          "name": "A5",
+          "color": "P"
+        },
+        {
+          "index": 5,
+          "name": "A6",
+          "color": "Blu/R"
+        }
+      ],
+      "provenance": "HUMAN_VERIFIED"
+    },
+    {
+      "oepNodeId": "ignition-switch",
+      "v2ModuleId": "ignition-switch",
+      "displayName": "Ignition Switch",
+      "category": "control",
+      "kind": null,
+      "isConnector": false,
+      "isSplice": false,
+      "isGround": false,
+      "terminals": [
+        {
+          "index": 1,
+          "name": "BAT1",
+          "color": "R"
+        },
+        {
+          "index": 2,
+          "name": "BAT2",
+          "color": "Bl"
+        },
+        {
+          "index": 3,
+          "name": "IG1",
+          "color": "P"
+        },
+        {
+          "index": 4,
+          "name": "BAT3",
+          "color": "P/W"
+        }
+      ],
+      "provenance": "HUMAN_VERIFIED"
+    },
+    {
+      "oepNodeId": "dc-consent-jack",
+      "v2ModuleId": "dc-consent-jack",
+      "displayName": "DC Consent",
+      "category": "accessory",
+      "kind": null,
+      "isConnector": false,
+      "isSplice": false,
+      "isGround": false,
+      "terminals": [
+        {
+          "index": 1,
+          "name": "+12V",
+          "color": "P"
+        },
+        {
+          "index": 2,
+          "name": "GND",
+          "color": "G"
+        }
+      ],
+      "provenance": "HUMAN_VERIFIED"
+    },
+    {
+      "oepNodeId": "rectifier-diode",
+      "v2ModuleId": "rectifier-diode",
+      "displayName": "Rectifier Diode",
+      "category": "charging",
+      "kind": null,
+      "isConnector": false,
+      "isSplice": false,
+      "isGround": false,
+      "terminals": [
+        {
+          "index": 1,
+          "name": "A",
+          "color": "Lg/R"
+        },
+        {
+          "index": 2,
+          "name": "K",
+          "color": "G/R"
+        }
+      ],
+      "provenance": "HUMAN_VERIFIED"
+    },
+    {
+      "oepNodeId": "regulator-rectifier",
+      "v2ModuleId": "regulator-rectifier",
+      "displayName": "Reg/Rect",
+      "category": "charging",
+      "kind": null,
+      "isConnector": false,
+      "isSplice": false,
+      "isGround": false,
+      "terminals": [
+        {
+          "index": 1,
+          "name": "GND",
+          "color": "Bl"
+        },
+        {
+          "index": 2,
+          "name": "B+",
+          "color": "R"
+        },
+        {
+          "index": 3,
+          "name": "REG",
+          "color": "G"
+        },
+        {
+          "index": 4,
+          "name": "AC1",
+          "color": "Y"
+        },
+        {
+          "index": 5,
+          "name": "AC2",
+          "color": "Y"
+        },
+        {
+          "index": 6,
+          "name": "AC3",
+          "color": "Y"
+        }
+      ],
+      "provenance": "HUMAN_VERIFIED"
+    },
+    {
+      "oepNodeId": "left-handlebar-switch",
+      "v2ModuleId": "left-handlebar-switch",
+      "displayName": "LH Handlebar Sw",
+      "category": "control",
+      "kind": null,
+      "isConnector": false,
+      "isSplice": false,
+      "isGround": false,
+      "terminals": [
+        {
+          "index": 1,
+          "name": "BAT2",
+          "color": "Bl"
+        },
+        {
+          "index": 2,
+          "name": "IG1",
+          "color": "Bl"
+        },
+        {
+          "index": 3,
+          "name": "TL",
+          "color": "Br"
+        },
+        {
+          "index": 4,
+          "name": "ST",
+          "color": "Y/R"
+        },
+        {
+          "index": 5,
+          "name": "IG2",
+          "color": "Bl/W"
+        },
+        {
+          "index": 6,
+          "name": "LO",
+          "color": "W"
+        },
+        {
+          "index": 7,
+          "name": "HI",
+          "color": "Blu"
+        }
+      ],
+      "provenance": "HUMAN_VERIFIED"
+    },
+    {
+      "oepNodeId": "chassis-ground",
+      "v2ModuleId": "chassis-ground",
+      "displayName": "Chassis GND",
+      "category": "ground",
+      "kind": null,
+      "isConnector": false,
+      "isSplice": false,
+      "isGround": true,
+      "terminals": [
+        {
+          "index": 1,
+          "name": "A",
+          "color": "G"
+        },
+        {
+          "index": 2,
+          "name": "B",
+          "color": "G"
+        }
+      ],
+      "provenance": "HUMAN_VERIFIED"
+    },
+    {
+      "oepNodeId": "ignition-coil",
+      "v2ModuleId": "ignition-coil",
+      "displayName": "Ignition Coil",
+      "category": "ignition",
+      "kind": null,
+      "isConnector": false,
+      "isSplice": false,
+      "isGround": false,
+      "terminals": [
+        {
+          "index": 1,
+          "name": "PRI+",
+          "color": "Bl/Y"
+        },
+        {
+          "index": 2,
+          "name": "GND",
+          "color": "G"
+        }
+      ],
+      "provenance": "HUMAN_VERIFIED"
+    },
+    {
+      "oepNodeId": "node_hlzz7d8xvu_wn2xzq",
+      "v2ModuleId": "mod-connector-4p-vertical-1788581949683",
+      "displayName": "Indicator Light Connector",
+      "category": "connector",
+      "kind": null,
+      "isConnector": true,
+      "isSplice": false,
+      "isGround": false,
+      "terminals": [
+        {
+          "index": 1,
+          "name": "A",
+          "color": "Lg/R|G/R"
+        },
+        {
+          "index": 2,
+          "name": "B",
+          "color": "Bl|Bl"
+        },
+        {
+          "index": 3,
+          "name": "C",
+          "color": "Gr|Gr"
+        },
+        {
+          "index": 4,
+          "name": "D",
+          "color": "Br/R|Br/R"
+        }
+      ],
+      "provenance": "HUMAN_VERIFIED"
+    },
+    {
+      "oepNodeId": "node_hm11a90flg_4abwqs",
+      "v2ModuleId": "mod-left-handlebar-switch-connector-1788664841749",
+      "displayName": "Left Handlebar Switch Connector",
+      "category": "connector",
+      "kind": null,
+      "isConnector": true,
+      "isSplice": false,
+      "isGround": false,
+      "terminals": [
+        {
+          "index": 1,
+          "name": "1",
+          "color": "G|G"
+        },
+        {
+          "index": 2,
+          "name": "2",
+          "color": "Br|Br"
+        },
+        {
+          "index": 3,
+          "name": "3",
+          "color": "Y/R|Y/R"
+        }
+      ],
+      "provenance": "HUMAN_VERIFIED"
+    },
+    {
+      "oepNodeId": "node_hm13fzhpd7_1yhimgb",
+      "v2ModuleId": "mod-connector-3p-1788669542226",
+      "displayName": "Regulator\nRectifier \nConnector",
+      "category": "connector",
+      "kind": null,
+      "isConnector": true,
+      "isSplice": false,
+      "isGround": false,
+      "terminals": [
+        {
+          "index": 1,
+          "name": "1",
+          "color": "Bl|Bl"
+        },
+        {
+          "index": 2,
+          "name": "2",
+          "color": "R|R"
+        },
+        {
+          "index": 3,
+          "name": "3",
+          "color": "G|G"
+        }
+      ],
+      "provenance": "HUMAN_VERIFIED"
+    },
+    {
+      "oepNodeId": "node_hm235oce1b_4wm62u",
+      "v2ModuleId": "mod-msin-battery-chassis-ground-1788747283091",
+      "displayName": "Battery Chassis Ground",
+      "category": "ground",
+      "kind": null,
+      "isConnector": false,
+      "isSplice": false,
+      "isGround": true,
+      "terminals": [
+        {
+          "index": 1,
+          "name": "GND",
+          "color": "Bl"
+        }
+      ],
+      "provenance": "HUMAN_VERIFIED"
+    },
+    {
+      "oepNodeId": "node_hm241o81f0_1foy2j2",
+      "v2ModuleId": "diode-1788749217639",
+      "displayName": "Diode",
+      "category": "diode",
+      "kind": null,
+      "isConnector": false,
+      "isSplice": false,
+      "isGround": false,
+      "terminals": [
+        {
+          "index": 1,
+          "name": "A",
+          "color": "BL"
+        },
+        {
+          "index": 2,
+          "name": "K",
+          "color": "BL"
+        }
+      ],
+      "provenance": "HUMAN_VERIFIED"
+    },
+    {
+      "oepNodeId": "node_hm268oh4ab_a08ox4",
+      "v2ModuleId": "mod-battery-1788753995022",
+      "displayName": "Battery",
+      "category": "power",
+      "kind": "battery",
+      "isConnector": false,
+      "isSplice": false,
+      "isGround": false,
+      "terminals": [
+        {
+          "index": 1,
+          "name": "+",
+          "color": "R"
+        },
+        {
+          "index": 2,
+          "name": "−",
+          "color": "Bl"
+        }
+      ],
+      "provenance": "HUMAN_VERIFIED"
+    },
+    {
+      "oepNodeId": "node_hm268qdn3o_1xhlgpy",
+      "v2ModuleId": "mod-starter-solenoid-1788753998164",
+      "displayName": "Starter Solenoid",
+      "category": "control",
+      "kind": "solenoid",
+      "isConnector": false,
+      "isSplice": false,
+      "isGround": false,
+      "terminals": [
+        {
+          "index": 1,
+          "name": "BAT",
+          "color": "R"
+        },
+        {
+          "index": 2,
+          "name": "C1",
+          "color": "Y"
+        },
+        {
+          "index": 3,
+          "name": "C2",
+          "color": "Y"
+        },
+        {
+          "index": 4,
+          "name": "MTR",
+          "color": "R"
+        }
+      ],
+      "provenance": "HUMAN_VERIFIED"
+    },
+    {
+      "oepNodeId": "node_hm268u6ygb_1fa6wy",
+      "v2ModuleId": "mod-starter-motor-1788754004556",
+      "displayName": "Starter Motor",
+      "category": "starter",
+      "kind": "starterMotor",
+      "isConnector": false,
+      "isSplice": false,
+      "isGround": false,
+      "terminals": [
+        {
+          "index": 1,
+          "name": "B+",
+          "color": "R"
+        },
+        {
+          "index": 2,
+          "name": "GND",
+          "color": "Bl"
+        }
+      ],
+      "provenance": "HUMAN_VERIFIED"
+    },
+    {
+      "oepNodeId": "node_hm268xadl2_14b9olo",
+      "v2ModuleId": "mod-switch-1788754009784",
+      "displayName": "Neutral Switch",
+      "category": "control",
+      "kind": "groundedSwitch",
+      "isConnector": false,
+      "isSplice": false,
+      "isGround": false,
+      "terminals": [
+        {
+          "index": 1,
+          "name": "SW",
+          "color": "Lg"
+        },
+        {
+          "index": 2,
+          "name": "GND",
+          "color": "Bl"
+        }
+      ],
+      "provenance": "HUMAN_VERIFIED"
+    },
+    {
+      "oepNodeId": "node_hm2691c017_be7zb0",
+      "v2ModuleId": "mod-temp-sensor-1788754016627",
+      "displayName": "Oil Temp Sensor",
+      "category": "accessory",
+      "kind": "thermistor",
+      "isConnector": false,
+      "isSplice": false,
+      "isGround": false,
+      "terminals": [
+        {
+          "index": 1,
+          "name": "SIG",
+          "color": "Blu"
+        },
+        {
+          "index": 2,
+          "name": "GND",
+          "color": "Bl"
+        }
+      ],
+      "provenance": "HUMAN_VERIFIED"
+    },
+    {
+      "oepNodeId": "node_hm26bcdwud_z4g4up",
+      "v2ModuleId": "mod-reverse-switch-1788754156004",
+      "displayName": "Reverse Switch",
+      "category": "control",
+      "kind": "groundedSwitch",
+      "isConnector": false,
+      "isSplice": false,
+      "isGround": false,
+      "terminals": [
+        {
+          "index": 1,
+          "name": "SW",
+          "color": "Gr"
+        },
+        {
+          "index": 2,
+          "name": "GND",
+          "color": "Bl"
+        }
+      ],
+      "provenance": "HUMAN_VERIFIED"
+    },
+    {
+      "oepNodeId": "node_hm28yiides_14i8bbq",
+      "v2ModuleId": "mod-reverse-indicator-light-1788759910493",
+      "displayName": "Reverse Indicator Light",
+      "category": "indicator",
+      "kind": "bulb",
+      "isConnector": false,
+      "isSplice": false,
+      "isGround": false,
+      "terminals": [
+        {
+          "index": 1,
+          "name": "SIG",
+          "color": "Gr"
+        },
+        {
+          "index": 2,
+          "name": "GND",
+          "color": "Bl"
+        }
+      ],
+      "provenance": "HUMAN_VERIFIED"
+    },
+    {
+      "oepNodeId": "node_hm290w07v2_17b2iov",
+      "v2ModuleId": "mod-neutral-indicator-light-1788760054333",
+      "displayName": "Neutral Indicator Light",
+      "category": "indicator",
+      "kind": "bulb",
+      "isConnector": false,
+      "isSplice": false,
+      "isGround": false,
+      "terminals": [
+        {
+          "index": 1,
+          "name": "SIG",
+          "color": "Bl"
+        },
+        {
+          "index": 2,
+          "name": "GND",
+          "color": "Lg/R"
+        }
+      ],
+      "provenance": "HUMAN_VERIFIED"
+    },
+    {
+      "oepNodeId": "node_hm2920qdd8_aelkyk",
+      "v2ModuleId": "mod-oil-temp-indicator-light-1788760122816",
+      "displayName": "Oil Temp Indicator Light",
+      "category": "indicator",
+      "kind": "bulb",
+      "isConnector": false,
+      "isSplice": false,
+      "isGround": false,
+      "terminals": [
+        {
+          "index": 1,
+          "name": "SIG",
+          "color": "Bl"
+        },
+        {
+          "index": 2,
+          "name": "GND",
+          "color": "Br/R"
+        }
+      ],
+      "provenance": "HUMAN_VERIFIED"
+    },
+    {
+      "oepNodeId": "node_hm293u86wk_1siprh5",
+      "v2ModuleId": "mod-lh-headlight-1788760232575",
+      "displayName": "LH Headlight",
+      "category": "lighting",
+      "kind": "bulb",
+      "isConnector": false,
+      "isSplice": false,
+      "isGround": false,
+      "terminals": [
+        {
+          "index": 1,
+          "name": "GND",
+          "color": "G"
+        },
+        {
+          "index": 2,
+          "name": "LO",
+          "color": "W"
+        },
+        {
+          "index": 3,
+          "name": "Hi",
+          "color": "Blu"
+        }
+      ],
+      "provenance": "HUMAN_VERIFIED"
+    },
+    {
+      "oepNodeId": "node_hm294pfd09_155849t",
+      "v2ModuleId": "mod-rh-headlight-1788760285029",
+      "displayName": "RH Headlight",
+      "category": "lighting",
+      "kind": "bulb",
+      "isConnector": false,
+      "isSplice": false,
+      "isGround": false,
+      "terminals": [
+        {
+          "index": 1,
+          "name": "HI",
+          "color": "Blu"
+        },
+        {
+          "index": 2,
+          "name": "LO",
+          "color": "W"
+        },
+        {
+          "index": 3,
+          "name": "GND",
+          "color": "G"
+        }
+      ],
+      "provenance": "HUMAN_VERIFIED"
+    },
+    {
+      "oepNodeId": "node_hm29auwdot_vx4btw",
+      "v2ModuleId": "mod-headlight-1788760657228",
+      "displayName": "Taillight",
+      "category": "lighting",
+      "kind": "bulb",
+      "isConnector": false,
+      "isSplice": false,
+      "isGround": false,
+      "terminals": [
+        {
+          "index": 1,
+          "name": "GND",
+          "color": "G"
+        },
+        {
+          "index": 2,
+          "name": "TL",
+          "color": "Br"
+        }
+      ],
+      "provenance": "HUMAN_VERIFIED"
+    },
+    {
+      "oepNodeId": "node_hm2k1s6010_1uemkl7",
+      "v2ModuleId": "splice-1788784052811",
+      "displayName": "Splice",
+      "category": "splice",
+      "kind": null,
+      "isConnector": false,
+      "isSplice": true,
+      "isGround": false,
+      "terminals": [
+        {
+          "index": 1,
+          "name": "SPLICE",
+          "color": "W"
+        }
+      ],
+      "provenance": "HUMAN_VERIFIED"
+    },
+    {
+      "oepNodeId": "node_hm2tnddgwy_1gwjuw8",
+      "v2ModuleId": "splice-1788804949285",
+      "displayName": "Splice",
+      "category": "splice",
+      "kind": null,
+      "isConnector": false,
+      "isSplice": true,
+      "isGround": false,
+      "terminals": [
+        {
+          "index": 1,
+          "name": "SPLICE",
+          "color": "G"
+        }
+      ],
+      "provenance": "HUMAN_VERIFIED"
+    },
+    {
+      "oepNodeId": "node_hm2tsj4le2_mykndm",
+      "v2ModuleId": "splice-1788805261205",
+      "displayName": "Splice",
+      "category": "splice",
+      "kind": null,
+      "isConnector": false,
+      "isSplice": true,
+      "isGround": false,
+      "terminals": [
+        {
+          "index": 1,
+          "name": "SPLICE",
+          "color": "G"
+        }
+      ],
+      "provenance": "HUMAN_VERIFIED"
+    },
+    {
+      "oepNodeId": "node_hm2u84gdvw_1vei0mz",
+      "v2ModuleId": "splice-1788806203939",
+      "displayName": "Splice",
+      "category": "splice",
+      "kind": null,
+      "isConnector": false,
+      "isSplice": true,
+      "isGround": false,
+      "terminals": [
+        {
+          "index": 1,
+          "name": "SPLICE",
+          "color": "Bl"
+        }
+      ],
+      "provenance": "HUMAN_VERIFIED"
+    },
+    {
+      "oepNodeId": "node_hm2vt79oui_1xgi8v1",
+      "v2ModuleId": "mod-pulse-generator-1788809655256",
+      "displayName": "Pulse Generator",
+      "category": "ignition",
+      "kind": "pulseGenerator",
+      "isConnector": false,
+      "isSplice": false,
+      "isGround": false,
+      "terminals": [
+        {
+          "index": 1,
+          "name": "SIG",
+          "color": "Blu/Y"
+        }
+      ],
+      "provenance": "HUMAN_VERIFIED"
+    },
+    {
+      "oepNodeId": "node_hm2vuodiqa_cqq0sf",
+      "v2ModuleId": "mod-alternator-1788809744510",
+      "displayName": "Alternator",
+      "category": "charging",
+      "kind": "alternator",
+      "isConnector": false,
+      "isSplice": false,
+      "isGround": false,
+      "terminals": [
+        {
+          "index": 1,
+          "name": "1",
+          "color": "G"
+        },
+        {
+          "index": 2,
+          "name": "2",
+          "color": "Y/W"
+        },
+        {
+          "index": 3,
+          "name": "3",
+          "color": "Y"
+        },
+        {
+          "index": 4,
+          "name": "4",
+          "color": "Y"
+        },
+        {
+          "index": 5,
+          "name": "5",
+          "color": "Y"
+        }
+      ],
+      "provenance": "HUMAN_VERIFIED"
+    },
+    {
+      "oepNodeId": "node_hm2vz4eunm_mfxq72",
+      "v2ModuleId": "mod-alternator-ac-connector-1788810013416",
+      "displayName": "Alternator AC Connector",
+      "category": "connector",
+      "kind": null,
+      "isConnector": true,
+      "isSplice": false,
+      "isGround": false,
+      "terminals": [
+        {
+          "index": 1,
+          "name": "P1",
+          "color": "Y|Y"
+        },
+        {
+          "index": 2,
+          "name": "P2",
+          "color": "Y|Y"
+        },
+        {
+          "index": 3,
+          "name": "P3",
+          "color": "Y|Y"
+        }
+      ],
+      "provenance": "HUMAN_VERIFIED"
+    },
+    {
+      "oepNodeId": "node_hm2w4xzhz8_1xpw939",
+      "v2ModuleId": "mod-alternator-pulse-generator-connector-1788810365443",
+      "displayName": "Alternator Pulse Generator Connector",
+      "category": "connector",
+      "kind": null,
+      "isConnector": true,
+      "isSplice": false,
+      "isGround": false,
+      "terminals": [
+        {
+          "index": 1,
+          "name": "A",
+          "color": "Blu/Y|Blu/Y"
+        },
+        {
+          "index": 2,
+          "name": "B",
+          "color": "G|G"
+        },
+        {
+          "index": 3,
+          "name": "C",
+          "color": "Y/W|Y/W"
+        }
+      ],
+      "provenance": "HUMAN_VERIFIED"
+    },
+    {
+      "oepNodeId": "node_hm2wkv7mtt_9hiy30",
+      "v2ModuleId": "mod-ignition-12v--feed-and-battery-12v--charge-from-voltage-regulator-1788811328228",
+      "displayName": "Ignition 12v+ Feed and Battery 12v+ Charge From Voltage Regulator",
+      "category": "connector",
+      "kind": null,
+      "isConnector": true,
+      "isSplice": false,
+      "isGround": false,
+      "terminals": [
+        {
+          "index": 1,
+          "name": "A",
+          "color": "P/W|P/W"
+        },
+        {
+          "index": 2,
+          "name": "B",
+          "color": "R|R"
+        }
+      ],
+      "provenance": "HUMAN_VERIFIED"
+    },
+    {
+      "oepNodeId": "node_hm2wr0ow30_1dvc49p",
+      "v2ModuleId": "splice-1788811700280",
+      "displayName": "Splice",
+      "category": "splice",
+      "kind": null,
+      "isConnector": false,
+      "isSplice": true,
+      "isGround": false,
+      "terminals": [
+        {
+          "index": 1,
+          "name": "SPLICE",
+          "color": "R"
+        }
+      ],
+      "provenance": "HUMAN_VERIFIED"
+    },
+    {
+      "oepNodeId": "node_hm2x5jwn0x_atvrws",
+      "v2ModuleId": "mod-starter-solenoid-connector-1788812579118",
+      "displayName": "Starter Solenoid Connector",
+      "category": "connector",
+      "kind": null,
+      "isConnector": true,
+      "isSplice": false,
+      "isGround": false,
+      "terminals": [
+        {
+          "index": 1,
+          "name": "A",
+          "color": "Y/R|Y/R"
+        },
+        {
+          "index": 2,
+          "name": "B",
+          "color": "G/R|G/R"
+        }
+      ],
+      "provenance": "HUMAN_VERIFIED"
+    },
+    {
+      "oepNodeId": "node_hm2xerewgw_1ecxfdq",
+      "v2ModuleId": "mod-indicator-light-switches-connector-1788813135726",
+      "displayName": "Indicator Light Switches Connector",
+      "category": "connector",
+      "kind": null,
+      "isConnector": true,
+      "isSplice": false,
+      "isGround": false,
+      "terminals": [
+        {
+          "index": 1,
+          "name": "A",
+          "color": "Gr|Gr"
+        },
+        {
+          "index": 2,
+          "name": "B",
+          "color": "Lg/R|Lg"
+        },
+        {
+          "index": 3,
+          "name": "C",
+          "color": "Blu/R|Blu"
+        }
+      ],
+      "provenance": "HUMAN_VERIFIED"
+    },
+    {
+      "oepNodeId": "node_hm31gnihnl_fss4ra",
+      "v2ModuleId": "splice-1788821957190",
+      "displayName": "Splice",
+      "category": "splice",
+      "kind": null,
+      "isConnector": false,
+      "isSplice": true,
+      "isGround": false,
+      "terminals": [
+        {
+          "index": 1,
+          "name": "SPLICE",
+          "color": "Lg/R"
+        }
+      ],
+      "provenance": "HUMAN_VERIFIED"
+    },
+    {
+      "oepNodeId": "node_hm31rvez67_1kcwusy",
+      "v2ModuleId": "splice-1788822635615",
+      "displayName": "Splice",
+      "category": "splice",
+      "kind": null,
+      "isConnector": false,
+      "isSplice": true,
+      "isGround": false,
+      "terminals": [
+        {
+          "index": 1,
+          "name": "SPLICE",
+          "color": "Bl"
+        }
+      ],
+      "provenance": "HUMAN_VERIFIED"
+    },
+    {
+      "oepNodeId": "node_hm31v529lc_1kk54sz",
+      "v2ModuleId": "splice-1788822833274",
+      "displayName": "Splice",
+      "category": "splice",
+      "kind": null,
+      "isConnector": false,
+      "isSplice": true,
+      "isGround": false,
+      "terminals": [
+        {
+          "index": 1,
+          "name": "SPLICE",
+          "color": "G"
+        }
+      ],
+      "provenance": "HUMAN_VERIFIED"
+    },
+    {
+      "oepNodeId": "node_hm31xkp87e_zd47fh",
+      "v2ModuleId": "splice-1788822980433",
+      "displayName": "Splice",
+      "category": "splice",
+      "kind": null,
+      "isConnector": false,
+      "isSplice": true,
+      "isGround": false,
+      "terminals": [
+        {
+          "index": 1,
+          "name": "SPLICE",
+          "color": "G/R"
+        }
+      ],
+      "provenance": "HUMAN_VERIFIED"
+    },
+    {
+      "oepNodeId": "node_hm31z5m98a_1sakbsc",
+      "v2ModuleId": "splice-1788823075978",
+      "displayName": "Splice",
+      "category": "splice",
+      "kind": null,
+      "isConnector": false,
+      "isSplice": true,
+      "isGround": false,
+      "terminals": [
+        {
+          "index": 1,
+          "name": "SPLICE",
+          "color": "BL"
+        }
+      ],
+      "provenance": "HUMAN_VERIFIED"
+    },
+    {
+      "oepNodeId": "node_hm3cm4663i_nay2dv",
+      "v2ModuleId": "splice-1788846232164",
+      "displayName": "Splice",
+      "category": "splice",
+      "kind": null,
+      "isConnector": false,
+      "isSplice": true,
+      "isGround": false,
+      "terminals": [
+        {
+          "index": 1,
+          "name": "SPLICE",
+          "color": "Bl"
+        }
+      ],
+      "provenance": "HUMAN_VERIFIED"
+    },
+    {
+      "oepNodeId": "node_hm3ctfkcbe_16v0ks2",
+      "v2ModuleId": "splice-1788846674507",
+      "displayName": "Splice",
+      "category": "splice",
+      "kind": null,
+      "isConnector": false,
+      "isSplice": true,
+      "isGround": false,
+      "terminals": [
+        {
+          "index": 1,
+          "name": "SPLICE",
+          "color": "G"
+        }
+      ],
+      "provenance": "HUMAN_VERIFIED"
+    },
+    {
+      "oepNodeId": "node_hm3cunduwy_1f30jnh",
+      "v2ModuleId": "splice-1788846748236",
+      "displayName": "Splice",
+      "category": "splice",
+      "kind": null,
+      "isConnector": false,
+      "isSplice": true,
+      "isGround": false,
+      "terminals": [
+        {
+          "index": 1,
+          "name": "SPLICE",
+          "color": "W"
+        }
+      ],
+      "provenance": "HUMAN_VERIFIED"
+    },
+    {
+      "oepNodeId": "node_hm3cvgfy3p_1qvmzv1",
+      "v2ModuleId": "splice-1788846797226",
+      "displayName": "Splice",
+      "category": "splice",
+      "kind": null,
+      "isConnector": false,
+      "isSplice": true,
+      "isGround": false,
+      "terminals": [
+        {
+          "index": 1,
+          "name": "SPLICE",
+          "color": "Blu"
+        }
+      ],
+      "provenance": "HUMAN_VERIFIED"
+    }
+  ]
+}
