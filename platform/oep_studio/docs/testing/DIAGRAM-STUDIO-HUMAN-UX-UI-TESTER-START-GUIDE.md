@@ -6,7 +6,23 @@ Read this before you touch the application. It tells you what this test is, how 
 
 You are testing the **product**, not the developer. The question this test answers is: *"Can a real person use Diagram Studio as an engineering tool?"* You are not being asked to confirm that the code is correct — you're being asked to describe what actually happens when you use it, from your own point of view, as if you'd never seen the source code (because you shouldn't look at it).
 
-Use the full test procedure here: [DIAGRAM-STUDIO-HUMAN-UX-UI-ACCEPTANCE-TEST-FORM.md](DIAGRAM-STUDIO-HUMAN-UX-UI-ACCEPTANCE-TEST-FORM.md) (the practical, fill-it-out-as-you-go version). If you want the full explanation behind any step, the master document is [DIAGRAM-STUDIO-HUMAN-UX-UI-ACCEPTANCE-TEST.md](DIAGRAM-STUDIO-HUMAN-UX-UI-ACCEPTANCE-TEST.md).
+The recommended way to actually run the test is the interactive tool: [diagram-studio-human-acceptance-test.html](diagram-studio-human-acceptance-test.html) — see "Using the Interactive HTML Test Form" below. The practical checklist it's built from is [DIAGRAM-STUDIO-HUMAN-UX-UI-ACCEPTANCE-TEST-FORM.md](DIAGRAM-STUDIO-HUMAN-UX-UI-ACCEPTANCE-TEST-FORM.md); if you want the full explanation behind any step, the master document is [DIAGRAM-STUDIO-HUMAN-UX-UI-ACCEPTANCE-TEST.md](DIAGRAM-STUDIO-HUMAN-UX-UI-ACCEPTANCE-TEST.md).
+
+## Using the Interactive HTML Test Form
+
+`diagram-studio-human-acceptance-test.html` is a standalone tool — no internet connection, no install, nothing else needed. It runs entirely in your browser.
+
+1. Double-click `diagram-studio-human-acceptance-test.html` (in this same folder) to open it in your default browser.
+2. Fill in the **Tester information** panel at the top (tester, date, build, commit, OS, display, input device, test document).
+3. Open Diagram Studio **separately**, in its own window, side by side with this tool.
+4. Work through **Sections A–U** using the sidebar to jump between them. Each row has a **Result** dropdown (starts at `UNTESTED`) and a **Notes** field — set the result and type what you saw as you go.
+5. Record each result the moment you observe it, not from memory afterward.
+6. Use the **+ Quick note** button (top toolbar) any time something's worth flagging but you don't want to stop and fill out a full issue — it remembers which section/test you were on automatically. Quick notes land in the **Observations** list.
+7. Use **+ Add issue** (in the Issues section, or the "+ Create P1 issue" button that appears automatically if Section N detects a lifecycle mismatch) for anything that's a real defect. The Issue ID is generated for you based on the type you pick (e.g. `BUG-001`, `UX-002`).
+8. Use **+ Add suggestion** (in the Suggestions section) for ideas that aren't defects.
+9. The tool autosaves to your browser as you type (watch the "Saved …" status next to the toolbar buttons) — you don't need to do anything to save, but use **Export JSON** periodically anyway for a portable backup. If you close the browser and come back later, it will offer to restore your session.
+10. Complete the **Final scorecard** and **Release readiness checklist** sections at the bottom when you're done.
+11. When the session is complete, use **Export JSON** (a full backup you or a developer can re-import later), **Export Markdown** (a developer-readable report), and/or **Export HTML report** (a clean, printable summary) — do all three if you're not sure which will be wanted.
 
 ## Test environment record
 
@@ -39,27 +55,29 @@ To open it: from the Home screen, open **Diagram Studio** (under Available Studi
 
 ## How to record results
 
-Use the fillable form. For every numbered step:
-- Write **PASS** if it worked as you'd expect.
-- Write **FAIL** if it didn't.
-- Write **BLOCKED** if you couldn't complete it (something else stopped you — a crash, a missing prerequisite, unclear how to proceed).
-- Write **N/A** if the step doesn't apply to what you're looking at.
+Every test row starts as **UNTESTED**. For every numbered step, set its dropdown to:
+- **PASS** if it worked as you'd expect.
+- **FAIL** if it didn't.
+- **BLOCKED** if you couldn't complete it (something else stopped you — a crash, a missing prerequisite, unclear how to proceed).
+- **N/A** if the step doesn't apply to what you're looking at.
+
+Nothing is ever marked PASS automatically — only you, by selecting it, decide a result. The progress bar and counts at the top update live as you go, and the sidebar marks each section untested / in progress / complete / has-failures so you can always see what's left.
 
 ## How to record a bug
 
-Use the Issue Capture Template (in the form or master doc). You do not need to explain *why* something is broken — only *what happened*, *what you expected instead*, and whether you can make it happen again. A developer will investigate the cause later.
+Click **+ Add issue**. You do not need to explain *why* something is broken — only *what happened*, *what you expected instead*, and whether you can make it happen again. A developer will investigate the cause later. The issue gets an ID automatically based on the type you pick.
 
 ## How to record something that's confusing — even if it works correctly
 
-This matters as much as bugs. If a control technically does the right thing but you weren't sure what it would do before clicking it, or the result left you unsure what just happened, write it down as a **UX** finding. Don't wait for something to be "broken" before recording it.
+This matters as much as bugs. If a control technically does the right thing but you weren't sure what it would do before clicking it, or the result left you unsure what just happened, use **+ Quick note** (type: UX) or just say so in the row's own Notes field — you can still mark the row PASS. Don't wait for something to be "broken" before recording it.
 
 ## How to record a suggestion
 
-If you think of a better way something could work, write it in the **Tester Suggestions** table, not as a bug. Suggestions and defects are tracked separately on purpose — an idea for improvement isn't a failure.
+If you think of a better way something could work, use **+ Add suggestion**, not an issue. Suggestions and defects are tracked separately on purpose — an idea for improvement isn't a failure.
 
 ## How to capture a screenshot
 
-Use your normal Windows screenshot tool (Win+Shift+S, or the Snipping Tool) whenever: a bug occurs, the UI is confusing, something renders incorrectly, an error appears, an unexpected state appears, or a written suggestion depends on seeing the screen. Save the file somewhere you can reference it by name in your notes (you don't need to embed it in the document itself — a filename/description reference is enough).
+Use your normal Windows screenshot tool (Win+Shift+S, or the Snipping Tool), save it somewhere you'll remember, and reference its filename in the issue's **Screenshot / evidence reference** field (e.g. `IMG_0042.png`, or just `desktop capture 21:14`) whenever: a bug occurs, the UI is confusing, something renders incorrectly, an error appears, an unexpected state appears, or a written suggestion depends on seeing the screen. You don't need to embed the image anywhere — a filename/description reference is enough.
 
 ## How to record the WebView lifecycle ID (Section N)
 
@@ -74,8 +92,8 @@ This is a specific, important technical check, but it doesn't require understand
    ```
    The number after `lifecycle=` on the line ending `instance=workspace-tab-diagram` is the **Primary lifecycle ID**. Write it down.
 3. A line with `instance=compare` instead is the **Compare** WebView (used by the "Compare Diagrams" feature) — it's expected to appear/disappear on its own and is **not** what you're tracking here. Only watch the `instance=workspace-tab-diagram` lines.
-4. After each step in Section N (open Trace, close Trace, open DMM, add a module, etc.), check the console again. Write down the Primary lifecycle ID each time.
-5. **It should never change.** If it does — if a new `CREATE` line appears for `instance=workspace-tab-diagram` with a different number — that is a bug. Record it immediately as a **P1 BUG**: the operation you just did, the old ID, the new ID, and the time. Take a screenshot of the console showing it. Then continue testing if you reasonably can.
+4. After each step in Section N (open Trace, close Trace, open DMM, add a module, etc.), check the console again and type the Primary lifecycle ID into that step's field in the tool.
+5. **It should never change.** The tool compares every value you enter automatically — if it spots a difference, it shows a warning banner right there in Section N with a **+ Create P1 issue** button that pre-fills the old ID, the new ID, and the operation for you. The tool will never decide this is a bug on its own — you decide, by actually clicking that button (or not). Take a screenshot of the console showing the change either way.
 
 ## What NOT to do during the test
 

@@ -1,0 +1,1050 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Diagram Studio — Human UX/UI Acceptance Test</title>
+<style>
+:root{
+  --bg:#0f1417; --panel:#161d21; --panel-2:#1d262b; --sunken:#0b0f11;
+  --border:#2a353b; --border-strong:#3b4952;
+  --text:#e6edf0; --text-2:#a9b7bd; --text-3:#728088;
+  --accent:#4fb3d9; --accent-strong:#7ec9e6; --accent-bg:#122a33; --accent-text:#04141a;
+  --pass:#3fbd6b; --pass-bg:#0f2a1a;
+  --fail:#e5564d; --fail-bg:#331413;
+  --blocked:#e0a83e; --blocked-bg:#332608;
+  --na:#8891a0; --na-bg:#1c2126;
+  --untested:#5b6a72; --untested-bg:#161d21;
+  --radius:8px;
+  --font-sans: -apple-system, "Segoe UI", "Segoe UI Variable", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Mono", "Consolas", "SFMono-Regular", Menlo, monospace;
+}
+*{box-sizing:border-box}
+html,body{background:var(--bg);color:var(--text);margin:0;font-family:var(--font-sans);font-size:14px;line-height:1.5}
+::selection{background:var(--accent);color:var(--accent-text)}
+a{color:var(--accent-strong)}
+.layout{display:flex;min-height:100vh}
+.sidebar{width:230px;flex:0 0 230px;background:var(--panel);border-right:1px solid var(--border);position:sticky;top:0;height:100vh;overflow-y:auto;padding:16px 10px}
+.brand{display:flex;align-items:center;gap:10px;padding:6px 8px 16px}
+.brand .mark{width:30px;height:30px;border-radius:8px;background:var(--accent);color:var(--accent-text);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;flex:none}
+.brand .txt{line-height:1.25}
+.brand .txt b{font-size:13.5px;display:block}
+.brand .txt span{font-size:10.5px;color:var(--text-3);text-transform:uppercase;letter-spacing:.06em}
+.navgroup{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--text-3);margin:14px 8px 4px}
+.navlink{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;text-decoration:none;color:var(--text-2);font-size:12.5px;cursor:pointer}
+.navlink:hover{background:var(--panel-2);color:var(--text)}
+.navlink .dot{width:7px;height:7px;border-radius:50%;flex:none;background:var(--untested)}
+.navlink.st-complete .dot{background:var(--pass)}
+.navlink.st-progress .dot{background:var(--accent)}
+.navlink.st-fail .dot{background:var(--fail)}
+.navlink .id{font-family:var(--font-mono);color:var(--text-3);width:16px;flex:none}
+.main{flex:1;min-width:0;padding:18px 26px 90px}
+.topbar{position:sticky;top:0;z-index:5;background:var(--bg);padding:10px 0 14px;margin-bottom:14px;border-bottom:1px solid var(--border)}
+h1{font-size:20px;font-weight:600;margin:0 0 2px}
+.sub{color:var(--text-2);font-size:12.5px;margin:0 0 12px}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+button{font:inherit;font-size:12.5px;font-weight:500;padding:7px 12px;border-radius:6px;border:1px solid var(--border-strong);background:var(--panel-2);color:var(--text);cursor:pointer}
+button:hover{border-color:var(--accent)}
+button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+button.primary{background:var(--accent);color:var(--accent-text);border-color:var(--accent)}
+button.danger{border-color:var(--fail);color:var(--fail)}
+button.sm{padding:4px 9px;font-size:11.5px}
+#savestatus{font-size:11.5px;color:var(--text-3);margin-left:auto;white-space:nowrap}
+.dash{display:grid;grid-template-columns:2fr 1fr;gap:14px;margin-bottom:18px}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px 18px}
+.card h2{font-size:14.5px;font-weight:600;margin:0 0 10px;display:flex;align-items:center;gap:8px}
+.card h2 .badge{font-family:var(--font-mono);font-size:10.5px;color:var(--accent-strong);background:var(--accent-bg);padding:2px 7px;border-radius:20px}
+.barwrap{background:var(--sunken);border-radius:20px;height:10px;overflow:hidden;margin:8px 0 10px}
+.bar{height:100%;background:var(--accent);transition:width .2s}
+.counts{display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px}
+.counts b{font-family:var(--font-mono);font-size:14px;display:block}
+.count-pass b{color:var(--pass)} .count-fail b{color:var(--fail)} .count-blocked b{color:var(--blocked)}
+.count-na b{color:var(--na)} .count-untested b{color:var(--untested)}
+.sevrow{display:flex;gap:10px;flex-wrap:wrap;font-size:12px;margin-top:4px}
+.sevchip{font-family:var(--font-mono);background:var(--sunken);border:1px solid var(--border);border-radius:6px;padding:3px 8px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px 16px}
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{font-size:10.5px;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em}
+select,input[type=text],input[type=date],input[type=number],textarea{
+  font:inherit;font-size:13px;padding:6px 8px;border-radius:6px;border:1px solid var(--border-strong);background:var(--sunken);color:var(--text);width:100%
+}
+textarea{resize:vertical;min-height:34px;font-family:inherit}
+section.card{margin-bottom:16px}
+.tblwrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-3);font-weight:500;padding:6px 8px;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:6px 8px;border-bottom:1px solid var(--border);vertical-align:top}
+tr:last-child td{border-bottom:none}
+td.id{font-family:var(--font-mono);font-size:11.5px;color:var(--text-2);white-space:nowrap;padding-top:8px}
+td.step{color:var(--text);min-width:180px}
+select.r-UNTESTED{color:var(--untested)}
+select.r-PASS{background:var(--pass-bg);color:var(--pass);border-color:var(--pass);font-weight:600}
+select.r-FAIL{background:var(--fail-bg);color:var(--fail);border-color:var(--fail);font-weight:600}
+select.r-BLOCKED{background:var(--blocked-bg);color:var(--blocked);border-color:var(--blocked);font-weight:600}
+select.r-N\/A{background:var(--na-bg);color:var(--na)}
+.desc{color:var(--text-2);font-size:12.5px;margin:0 0 10px}
+.freeq{margin-bottom:12px}
+.freeq label{display:block;font-size:12.5px;font-weight:500;margin-bottom:4px;color:var(--text)}
+.banner{background:var(--accent-bg);border:1px solid var(--accent);border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:12px;margin-bottom:14px;font-size:13px}
+.banner.warn{background:var(--blocked-bg);border-color:var(--blocked)}
+.banner.warn b{color:var(--blocked)}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:flex-start;justify-content:center;padding:5vh 16px;overflow-y:auto;z-index:50}
+.overlay.open{display:flex}
+.modal{background:var(--panel);border:1px solid var(--border-strong);border-radius:12px;padding:20px;max-width:640px;width:100%}
+.modal h3{margin:0 0 12px;font-size:15px}
+.modalfoot{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
+.issuetable td,.issuetable th{white-space:nowrap}
+.issuetable td.wrap{white-space:normal}
+.statuspill{font-size:11px;padding:2px 8px;border-radius:20px;font-family:var(--font-mono)}
+.status-OPEN{background:var(--fail-bg);color:var(--fail)}
+.status-REVIEWED{background:var(--accent-bg);color:var(--accent-strong)}
+.status-TRIAGED{background:var(--blocked-bg);color:var(--blocked)}
+.status-FIXED,.status-DUPLICATE,.status-WONTFIX,.status-DEFERRED{background:var(--sunken);color:var(--text-2)}
+.checklist label{display:flex;align-items:center;gap:8px;font-size:13px;padding:5px 0}
+.checklist input{width:auto}
+.scorecard{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.scoreitem input{font-family:var(--font-mono);text-align:center;font-weight:600}
+.empty{color:var(--text-3);font-size:12.5px;font-style:italic;padding:6px 0}
+footer{color:var(--text-3);font-size:11.5px;text-align:center;padding:18px 0}
+@media (max-width:900px){ .sidebar{display:none} .dash,.grid2,.grid3,.scorecard{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="navlist"></nav>
+<main class="main">
+
+<div class="topbar">
+  <h1>Diagram Studio — Human UX/UI Acceptance Test</h1>
+  <p class="sub">Real-World Product Acceptance · offline, self-contained testing instrument · source spec: DIAGRAM-STUDIO-HUMAN-UX-UI-ACCEPTANCE-TEST.md</p>
+  <div class="toolbar">
+    <button class="primary" id="btnQuickNote">+ Quick note</button>
+    <button id="btnExportJson">Export JSON</button>
+    <button id="btnExportMd">Export Markdown</button>
+    <button id="btnExportHtml">Export HTML report</button>
+    <button id="btnImport">Import session</button>
+    <input type="file" id="fileImport" accept="application/json" style="display:none">
+    <button class="danger" id="btnReset">Reset session</button>
+    <span id="savestatus">—</span>
+  </div>
+</div>
+
+<div id="restoreBanner"></div>
+
+<section class="dash">
+  <div class="card">
+    <h2>Test progress</h2>
+    <div class="barwrap"><div class="bar" id="progressBar" style="width:0%"></div></div>
+    <div class="counts">
+      <div><b id="cTotal">0</b>total</div>
+      <div class="count-pass"><b id="cPass">0</b>pass</div>
+      <div class="count-fail"><b id="cFail">0</b>fail</div>
+      <div class="count-blocked"><b id="cBlocked">0</b>blocked</div>
+      <div class="count-na"><b id="cNA">0</b>n/a</div>
+      <div class="count-untested"><b id="cUntested">0</b>untested</div>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Issues by severity</h2>
+    <div class="sevrow">
+      <span class="sevchip">P0 <b id="sP0">0</b></span>
+      <span class="sevchip">P1 <b id="sP1">0</b></span>
+      <span class="sevchip">P2 <b id="sP2">0</b></span>
+      <span class="sevchip">P3 <b id="sP3">0</b></span>
+      <span class="sevchip">P4 <b id="sP4">0</b></span>
+      <span class="sevchip">SUGGESTIONS <b id="sSug">0</b></span>
+    </div>
+  </div>
+</section>
+
+<section class="card" id="sec-tester">
+  <h2>Tester information</h2>
+  <div class="grid3">
+    <div class="field"><label>Tester</label><input type="text" id="f_tester"></div>
+    <div class="field"><label>Date</label><input type="date" id="f_date"></div>
+    <div class="field"><label>Build</label><input type="text" id="f_build"></div>
+    <div class="field"><label>Commit</label><input type="text" id="f_commit"></div>
+    <div class="field"><label>Operating system</label><input type="text" id="f_os"></div>
+    <div class="field"><label>Display</label><input type="text" id="f_display"></div>
+    <div class="field"><label>Input device</label><input type="text" id="f_input_device"></div>
+    <div class="field"><label>Test document</label><input type="text" id="f_test_document" value="samples/diagram7.json"></div>
+    <div class="field"><label>Experience level</label>
+      <select id="f_experience"><option></option><option>New user</option><option>Technician</option><option>Installer</option><option>Engineer</option><option>Developer</option><option>Other</option></select>
+    </div>
+  </div>
+</section>
+
+<div id="sectionsRoot"></div>
+
+<section class="card" id="sec-issuelist">
+  <h2><span class="badge">ISSUES</span></h2>
+  <p class="desc">Every defect and finding captured during this session. Use Quick Note during a test step, or Add Issue for a fully-detailed entry.</p>
+  <button id="btnAddIssue" class="primary" style="margin-bottom:10px">+ Add issue</button>
+  <div class="tblwrap"><table class="issuetable"><thead><tr><th>ID</th><th>Type</th><th>Severity</th><th>Section</th><th>Title</th><th>Status</th><th>Actions</th></tr></thead><tbody id="issueRows"></tbody></table></div>
+  <div class="empty" id="issueEmpty">No issues recorded yet.</div>
+</section>
+
+<section class="card" id="sec-observations">
+  <h2><span class="badge">OBSERVATIONS</span></h2>
+  <p class="desc">Free-form notes that don't fit a specific test case. Quick Notes also appear here automatically.</p>
+  <div class="tblwrap"><table><thead><tr><th>Time</th><th>Section</th><th>Test</th><th>Type</th><th>Observation</th><th></th></tr></thead><tbody id="obsRows"></tbody></table></div>
+  <div class="empty" id="obsEmpty">No observations yet.</div>
+  <button id="btnAddObs" style="margin-top:10px">+ Add observation</button>
+</section>
+
+<section class="card" id="sec-suggestions">
+  <h2><span class="badge">SUGGESTIONS</span></h2>
+  <p class="desc">Ideas and improvements — kept separate from defects.</p>
+  <div class="tblwrap"><table><thead><tr><th>ID</th><th>Area</th><th>Suggestion</th><th>Reason</th><th>Priority</th><th>Notes</th><th></th></tr></thead><tbody id="sugRows"></tbody></table></div>
+  <div class="empty" id="sugEmpty">No suggestions yet.</div>
+  <button id="btnAddSug" style="margin-top:10px">+ Add suggestion</button>
+</section>
+
+<section class="card" id="sec-score">
+  <h2>Final scorecard</h2>
+  <div class="scorecard">
+    <div class="field scoreitem"><label>Functional readiness /10</label><input type="number" min="1" max="10" id="sc_functional"></div>
+    <div class="field scoreitem"><label>UX readiness /10</label><input type="number" min="1" max="10" id="sc_ux"></div>
+    <div class="field scoreitem"><label>UI readiness /10</label><input type="number" min="1" max="10" id="sc_ui"></div>
+    <div class="field scoreitem"><label>Engineering usefulness /10</label><input type="number" min="1" max="10" id="sc_eng"></div>
+    <div class="field scoreitem"><label>Performance /10</label><input type="number" min="1" max="10" id="sc_perf"></div>
+    <div class="field scoreitem"><label>Discoverability /10</label><input type="number" min="1" max="10" id="sc_disc"></div>
+    <div class="field scoreitem"><label>Professional readiness /10</label><input type="number" min="1" max="10" id="sc_prof"></div>
+    <div class="field scoreitem"><label>Overall /10 (blank = auto-average)</label><input type="number" min="1" max="10" id="sc_overall" placeholder="auto"></div>
+  </div>
+  <div class="grid2" style="margin-top:14px">
+    <div class="field"><label>Would you use this professionally?</label>
+      <select id="sc_prof_use"><option></option><option>YES</option><option>NO</option><option>WITH CHANGES</option></select></div>
+    <div class="field"><label>What must change before professional use?</label><textarea id="sc_must_change"></textarea></div>
+  </div>
+</section>
+
+<section class="card" id="sec-release">
+  <h2>Release readiness checklist</h2>
+  <div class="checklist" id="checklistItems"></div>
+  <div class="field" style="margin-top:10px;max-width:320px">
+    <label>Final recommendation</label>
+    <select id="finalRecommendation"><option></option><option>READY</option><option>READY WITH KNOWN ISSUES</option><option>NOT READY</option></select>
+  </div>
+</section>
+
+<footer>Autosaves to this browser's local storage only. Export regularly for a portable, permanent record.</footer>
+</main>
+</div>
+
+<div class="overlay" id="quickNoteOverlay">
+  <div class="modal">
+    <h3>Quick note</h3>
+    <div class="grid2">
+      <div class="field"><label>Type</label><select id="qn_type"></select></div>
+      <div class="field"><label>Severity</label><select id="qn_severity"></select></div>
+    </div>
+    <div class="field" style="margin-top:10px"><label>Observation</label><textarea id="qn_text" style="min-height:80px"></textarea></div>
+    <p class="desc" id="qn_context" style="margin-top:8px"></p>
+    <div class="modalfoot"><button id="qn_cancel">Cancel</button><button class="primary" id="qn_save">Save</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="issueOverlay">
+  <div class="modal" style="max-width:720px">
+    <h3 id="issueModalTitle">Add issue</h3>
+    <div class="grid3">
+      <div class="field"><label>Issue ID</label><input type="text" id="is_id" readonly></div>
+      <div class="field"><label>Classification</label><select id="is_type"></select></div>
+      <div class="field"><label>Severity</label><select id="is_severity"></select></div>
+    </div>
+    <div class="grid3" style="margin-top:8px">
+      <div class="field"><label>Section</label><input type="text" id="is_section"></div>
+      <div class="field"><label>Test case</label><input type="text" id="is_testcase"></div>
+      <div class="field"><label>Can reproduce?</label><select id="is_repro"><option></option><option>YES</option><option>NO</option><option>UNKNOWN</option></select></div>
+    </div>
+    <div class="field" style="margin-top:8px"><label>Title</label><input type="text" id="is_title"></div>
+    <div class="grid2" style="margin-top:8px">
+      <div class="field"><label>Expected behavior</label><textarea id="is_expected"></textarea></div>
+      <div class="field"><label>Actual behavior</label><textarea id="is_actual"></textarea></div>
+    </div>
+    <div class="field" style="margin-top:8px"><label>Reproduction steps</label><textarea id="is_repro_steps"></textarea></div>
+    <div class="grid2" style="margin-top:8px">
+      <div class="field"><label>Impact</label><textarea id="is_impact"></textarea></div>
+      <div class="field"><label>Screenshot / evidence reference</label><input type="text" id="is_evidence" placeholder="e.g. IMG_0042.png or &quot;desktop capture 21:14&quot;"></div>
+    </div>
+    <div class="field" style="margin-top:8px"><label>Tester notes</label><textarea id="is_notes"></textarea></div>
+    <div class="modalfoot"><button id="is_cancel">Cancel</button><button class="primary" id="is_save">Save issue</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="resetOverlay">
+  <div class="modal" style="max-width:480px">
+    <h3>Reset test session</h3>
+    <p>This will permanently clear the current browser test session. Export your results first.</p>
+    <div class="modalfoot"><button id="reset_cancel">Cancel</button><button class="danger" id="reset_confirm">Reset</button></div>
+  </div>
+</div>
+
+<script>
+'use strict';
+const TYPES = ['BUG','UX','UI','USABILITY','PERFORMANCE','DATA/PERSISTENCE','NAVIGATION','ACCESSIBILITY','VISUAL','ENGINEERING LOGIC','DOCUMENTATION','FEATURE REQUEST','SUGGESTION'];
+const TYPE_PREFIX = {BUG:'BUG',UX:'UX',UI:'UI',USABILITY:'USE',PERFORMANCE:'PERF','DATA/PERSISTENCE':'DATA',NAVIGATION:'NAV',ACCESSIBILITY:'A11Y',VISUAL:'VIS','ENGINEERING LOGIC':'ENG',DOCUMENTATION:'DOC','FEATURE REQUEST':'FEAT',SUGGESTION:'SUG'};
+const SEVERITIES = ['P0 — BLOCKER','P1 — CRITICAL','P2 — MAJOR','P3 — MINOR','P4 — COSMETIC / ENHANCEMENT','SUGGESTION'];
+const RESULT_OPTS = ['UNTESTED','PASS','FAIL','BLOCKED','N/A'];
+const STATUS_OPTS = ['OPEN','REVIEWED','TRIAGED','FIXED','WONTFIX','DEFERRED','DUPLICATE'];
+
+function slug(s){ return s.toUpperCase().replace(/[^A-Z0-9]+/g,'_').replace(/^_|_$/g,'').slice(0,24); }
+
+const STD_COLS = [{key:'result',label:'Result',type:'result'},{key:'notes',label:'Notes',type:'text'}];
+
+const SECTIONS = [
+  {id:'A', title:'Application startup', rowHead:'#', cols:STD_COLS, rows:[
+    ['A-001','Launch Diagram Studio (startup time / initial screen / branding / clarity of next action)'],
+    ['A-002','Launch with no Diagram open (is it clear what to do, where past work is, what the app can do?)'],
+    ['A-003','Close and relaunch (crashes / stale state / unexpected reopen / UI corruption)'],
+  ]},
+  {id:'B', title:'Workspace / tabs', rowHead:'#', cols:STD_COLS, rows:[
+    ['B-001','Open a Diagram'],['B-002','Open a second Diagram'],['B-003','Switch between tabs'],
+    ['B-004','Return to original Diagram'],['B-005','Each Diagram retains visual/selection/edit/panel/WebView/document state'],
+    ['B-006','Open/close additional Studio surfaces'],['B-007','Close a Diagram tab'],['B-008','Reopen a Diagram'],
+  ]},
+  {id:'C', title:'Primary diagram interaction (TRX300)', rowHead:'#', cols:STD_COLS, rows:[
+    ['C-001','Pan'],['C-002','Zoom in'],['C-003','Zoom out'],['C-004','Fit/center'],['C-005','Select a module'],
+    ['C-006','Select a wire'],['C-007','Click empty space'],['C-008','Move a module'],['C-009','Move several modules'],
+    ['C-010','Result predictable each time?'],['C-011','Selected object visually obvious?'],['C-012','Obvious how to deselect?'],
+  ]},
+  {id:'D', title:'Adding / editing engineering objects', rowHead:'#', cols:STD_COLS, lifecyclePair:true, rows:[
+    ['D-001','Open ADD'],['D-002','Categories make sense to a first-timer?'],['D-003','Add a module'],
+    ['D-004','Move the module'],['D-005','Edit its properties'],['D-006','Change its label (if supported)'],
+    ['D-007','Delete/remove it (if supported)'],['D-008','Undo (if supported)'],['D-009','Repeat the workflow'],
+  ]},
+  {id:'E', title:'Wire creation / routing', rowHead:'#', cols:STD_COLS, rows:[
+    ['E-001','Create a wire'],['E-002','Connect two valid terminals'],['E-003','Attempt an invalid connection'],
+    ['E-004','Select a wire'],['E-005','Move/edit the wire'],['E-006','Adjust its route'],['E-007','Reset its route'],
+    ['E-008','Move a connected module'],['E-009','Save immediately after'],['E-010','Close/reopen the document'],
+    ['E-011','Route preserved?'],
+  ]},
+  {id:'F', title:'File / document lifecycle', rowHead:'#', cols:STD_COLS, rows:[
+    ['F-001','Make a change'],['F-002','Immediately save'],['F-003','Close'],['F-004','Reopen'],
+    ['F-005','Change persisted?'],['F-006','Modify a wire route'],['F-007','Immediately save'],['F-008','Reopen'],
+    ['F-009','Route persisted?'],['F-010','Modify without saving'],['F-011','Unsaved state clearly communicated?'],
+  ]},
+  {id:'G', title:'Toolbar UX', rowHead:'Control', noId:true,
+   desc:'For each control, note: expected meaning / label clear? / icon clear? / behaves as expected? / dropdown clear? / grouped logically? / gives feedback? / outcome clear?',
+   cols:STD_COLS, rows:[['FILE'],['SELECT'],['WIRE'],['ADD'],['VIEW'],['SEARCH'],['TRACE'],['MEASURE'],['ANALYZE'],['EXPORT'],['INSPECT']]},
+  {id:'H', title:'Trace', rowHead:'#', cols:STD_COLS, rows:[
+    ['H-001','Select a component'],['H-002','Open Trace'],['H-003','Physical Trace'],['H-004','Conducting Trace'],
+    ['H-005','Current Flow Trace'],['H-006','Inspect path results'],['H-007','Click a path step'],
+    ['H-008','Diagram highlighting observed'],['H-009','Fit the circuit'],['H-010','Change key/switch state'],
+    ['H-011','Repeat trace'],['H-012','Result makes engineering sense?'],['H-013','Source/return/branches/blocked/flow/diagnostics clear?'],
+  ]},
+  {id:'I', title:'DMM / measurement', rowHead:'#', cols:STD_COLS, rows:[
+    ['I-001','Open DMM'],['I-002','Initial state'],['I-003','Select mode'],['I-004','Select probe points'],
+    ['I-005','Measure powered circuit'],['I-006','Measure unpowered circuit'],['I-007','Measure continuity'],
+    ['I-008','Measure resistance'],['I-009','Measure diode (if applicable)'],['I-010','Change key state'],
+    ['I-011','Repeat measurement'],['I-012','OL behavior'],['I-013','Fault behavior'],['I-014','Unsupported behavior'],
+    ['I-015','Feels like a real instrument?'],
+  ]},
+  {id:'J', title:'Analysis', rowHead:'#', cols:STD_COLS, rows:[
+    ['J-001','Open Analysis'],['J-002','Panel understandable?'],['J-003','Run analysis'],['J-004','Interpret results'],
+    ['J-005','Change circuit state'],['J-006','Re-run analysis'],['J-007','Stale results clearly communicated?'],
+  ]},
+  {id:'K', title:'Search', rowHead:'#', cols:STD_COLS, rows:[
+    ['K-001','Search (module/component/terminal/wire/relationship/partial/exact/nonexistent)'],['K-002','Select result'],
+    ['K-003','Navigate to result'],['K-004','Diagram visibly identifies result?'],['K-005','Clear search'],['K-006','Search again'],
+  ]},
+  {id:'L', title:'Export', rowHead:'Format', noId:true, cols:[
+    {key:'export_ok',label:'Export OK',type:'text'},{key:'opens_ok',label:'Opens OK',type:'text'},
+    {key:'fidelity',label:'Visual fidelity',type:'text'},{key:'routing',label:'Routing/labels/symbols OK',type:'text'},
+    {key:'result',label:'Result',type:'result'},{key:'notes',label:'Notes',type:'text'},
+  ], rows:[['SVG'],['PNG'],['PDF'],['Other']]},
+  {id:'M', title:'Inspect / property UX', rowHead:'Object type', noId:true, cols:[
+    {key:'info_ok',label:'Info shown makes sense?',type:'text'},{key:'terms_ok',label:'Terminology clear?',type:'text'},
+    {key:'result',label:'Result',type:'result'},{key:'notes',label:'Notes',type:'text'},
+  ], rows:[['Module'],['Terminal'],['Wire'],['Splice'],['Relationship'],['Other']]},
+  {id:'O', title:'Error handling', rowHead:'Attempted invalid action', noId:true, cols:[
+    {key:'response',label:'App response (prevented/explained/feedback/silent/crash/confusing)',type:'text'},
+    {key:'result',label:'Result',type:'result'},{key:'notes',label:'Notes',type:'text'},
+  ], rows:[['Invalid wire connection'],['Action with no selection'],['Unsupported measurement'],
+    ['Nonsense search'],['Close with unsaved work'],['Other invalid operation']]},
+  {id:'P', title:'Persistence / data integrity', rowHead:'Item verified after reopen', noId:true,
+   desc:'Session: Open TRX300 → add module → move module → add/edit wire → change route → change labels/properties → save → close → reopen → verify.',
+   cols:STD_COLS, rows:[['Diagram geometry'],['Module positions'],['Wire routes'],['Relationships'],['Labels'],['Other persisted state']]},
+  {id:'Q', title:'Performance', rowHead:'Action', noId:true, desc:'Rate: Fast / Acceptable / Slow / Unusable', cols:[
+    {key:'rating',label:'Rating (Fast/Acceptable/Slow/Unusable)',type:'text'},{key:'result',label:'Result',type:'result'},{key:'notes',label:'Notes',type:'text'},
+  ], rows:[['Application startup'],['Opening a document'],['Switching tabs'],['Opening a panel'],
+    ['Trace execution'],['Search'],['DMM measurement'],['Module creation'],['Wire creation'],
+    ['Save'],['Reopen'],['Zoom'],['Pan']]},
+  {id:'R', title:'Visual / UI consistency', rowHead:'Area', noId:true, cols:STD_COLS,
+   rows:[['Typography'],['Spacing/alignment'],['Icons'],['Button states'],['Dropdowns'],
+    ['Panels'],['Borders'],['Selected states'],['Disabled states'],['Error states'],
+    ['Empty states'],['Dark theme consistency'],['Visual hierarchy']]},
+];
+
+const N_ROWS = [
+  ['N-001','Open Trace'],['N-002','Close Trace'],['N-003','Open DMM'],['N-004','Close DMM'],
+  ['N-005','Open Analysis'],['N-006','Close Analysis'],['N-007','Open Compare'],['N-008','Close Compare'],
+  ['N-009','Add module'],['N-010','Add wire'],['N-011','Move module'],['N-012','Edit wire'],['N-013','Search'],
+  ['N-014','Trace'],['N-015','Measure'],['N-016','Change switch/key state'],['N-017','Switch workspace tab'],
+  ['N-018','Return to original Diagram'],
+];
+
+const FREETEXT_SECTIONS = [
+  {id:'S', title:'First-time user test',
+   intro:'Give the tester only this objective, with no further explanation: "Open the TRX300 diagram and investigate how the headlight circuit works." Do not coach them toward Trace, DMM, or Search.',
+   fields:[
+    ['s_first_action','First action'],['s_expected','What I expected'],['s_discovered','What I discovered'],
+    ['s_hesitated','Where I hesitated'],['s_confused','Where I became confused'],
+    ['s_failed_discover','What I failed to discover'],['s_discovered_naturally','What I discovered naturally'],
+  ]},
+  {id:'T', title:'Real installer workflow',
+   intro:'Scenario: determine how a circuit behaves and verify correct wiring.',
+   fields:[
+    ['t_component','Component selected'],['t_terminal','Terminal'],['t_source','Source'],['t_return','Return'],
+    ['t_branches','Branches/splices'],['t_state','Operating state'],['t_measurements','Measurements'],
+    ['t_trace_result','Trace result'],['t_conclusion','Final conclusion'],
+  ], afterFields: true},
+  {id:'U', title:'Full real-world session (30–60 min)', fields:[
+    ['u_1','1. What worked especially well?'],['u_2','2. What was confusing?'],['u_3','3. What felt slow?'],
+    ['u_4','4. What felt unnecessary?'],['u_5','5. What did you expect but could not find?'],
+    ['u_6','6. What feature did you discover accidentally?'],['u_7','7. What would you change first?'],
+    ['u_8','8. What would prevent you from using this professionally?'],
+    ['u_9','9. What would make this substantially better?'],
+  ]},
+];
+
+const CHECKLIST = [
+  'No P0 issues','No unresolved P1 issues','PR-014 WebView lifetime verified (Section N)','Save/reopen verified',
+  'Multi-document behavior verified','Trace verified','DMM verified','Search verified','Export verified',
+  'Error handling reviewed','First-time-user test performed','Real installer workflow performed',
+  'Tester suggestions reviewed','Screenshots/evidence collected','Known limitations documented',
+];
+
+function freshState(){
+  return {
+    schemaVersion: 1,
+    product: 'Diagram Studio',
+    test: 'Human UX/UI Acceptance Test',
+    tester: {tester:'',date:'',experience:''},
+    environment: {build:'',commit:'',os:'',display:'',input_device:'',test_document:'samples/diagram7.json'},
+    sections: {},
+    lifecycleN: {start:'', steps:{}, stable:'', installer_could_use:'', installer_why:''},
+    issues: [],
+    observations: [],
+    suggestions: [],
+    scorecard: {functional:'',ux:'',ui:'',eng:'',perf:'',disc:'',prof:'',overall:'',prof_use:'',must_change:''},
+    checklist: {},
+    finalRecommendation: '',
+    freetext: {},
+    nextIssueSeq: {},
+  };
+}
+
+let state = freshState();
+let editingIssueId = null;
+
+function allRowIds(){
+  const ids = [];
+  SECTIONS.forEach(sec=>sec.rows.forEach(r=>{
+    const rid = sec.noId ? `${sec.id}-${slug(r[0])}` : r[0];
+    ids.push(rid);
+  }));
+  return ids;
+}
+
+function rowResult(id){ return (state.sections[id] && state.sections[id].result) || 'UNTESTED'; }
+
+function updateDashboard(){
+  const ids = allRowIds();
+  const counts = {PASS:0,FAIL:0,BLOCKED:0,'N/A':0,UNTESTED:0};
+  ids.forEach(id=>counts[rowResult(id)]++);
+  document.getElementById('cTotal').textContent = ids.length;
+  document.getElementById('cPass').textContent = counts.PASS;
+  document.getElementById('cFail').textContent = counts.FAIL;
+  document.getElementById('cBlocked').textContent = counts.BLOCKED;
+  document.getElementById('cNA').textContent = counts['N/A'];
+  document.getElementById('cUntested').textContent = counts.UNTESTED;
+  const pct = ids.length ? Math.round(((ids.length-counts.UNTESTED)/ids.length)*100) : 0;
+  document.getElementById('progressBar').style.width = pct+'%';
+
+  const sev = {P0:0,P1:0,P2:0,P3:0,P4:0,SUG:0};
+  state.issues.forEach(i=>{
+    if(i.severity.startsWith('P0')) sev.P0++;
+    else if(i.severity.startsWith('P1')) sev.P1++;
+    else if(i.severity.startsWith('P2')) sev.P2++;
+    else if(i.severity.startsWith('P3')) sev.P3++;
+    else if(i.severity.startsWith('P4')) sev.P4++;
+    else if(i.severity==='SUGGESTION') sev.SUG++;
+  });
+  document.getElementById('sP0').textContent = sev.P0;
+  document.getElementById('sP1').textContent = sev.P1;
+  document.getElementById('sP2').textContent = sev.P2;
+  document.getElementById('sP3').textContent = sev.P3;
+  document.getElementById('sP4').textContent = sev.P4;
+  document.getElementById('sSug').textContent = sev.SUG;
+
+  updateNavState();
+}
+
+function sectionState(sec){
+  const rids = sec.rows.map(r=> sec.noId ? `${sec.id}-${slug(r[0])}` : r[0]);
+  const results = rids.map(rowResult);
+  if(results.some(r=>r==='FAIL')) return 'fail';
+  if(results.every(r=>r==='UNTESTED')) return 'untested';
+  if(results.every(r=>r!=='UNTESTED')) return 'complete';
+  return 'progress';
+}
+
+function nState(){
+  const started = N_ROWS.some(r=>state.lifecycleN.steps[r[0]] && state.lifecycleN.steps[r[0]].lifecycle);
+  if(state.lifecycleN.stable==='NO') return 'fail';
+  if(!started && !state.lifecycleN.start) return 'untested';
+  if(state.lifecycleN.stable) return 'complete';
+  return 'progress';
+}
+
+function updateNavState(){
+  SECTIONS.forEach(sec=>{
+    const el = document.querySelector(`.navlink[data-sec="${sec.id}"]`);
+    if(!el) return;
+    el.classList.remove('st-complete','st-progress','st-fail');
+    const st = sectionState(sec);
+    if(st!=='untested') el.classList.add(`st-${st==='fail'?'fail':st==='complete'?'complete':'progress'}`);
+  });
+  const nEl = document.querySelector('.navlink[data-sec="N"]');
+  if(nEl){
+    nEl.classList.remove('st-complete','st-progress','st-fail');
+    const st = nState();
+    if(st!=='untested') nEl.classList.add(`st-${st==='fail'?'fail':st==='complete'?'complete':'progress'}`);
+  }
+}
+
+function fieldResultSelect(name, value){
+  const cls = `r-${value||'UNTESTED'}`;
+  return `<select data-field="${name}" class="${cls}">${RESULT_OPTS.map(o=>`<option value="${o}" ${o===(value||'UNTESTED')?'selected':''}>${o}</option>`).join('')}</select>`;
+}
+function fieldText(name, value){
+  return `<input type="text" data-field="${name}" value="${(value||'').replace(/"/g,'&quot;')}">`;
+}
+
+function buildSection(sec){
+  const el = document.createElement('section');
+  el.className = 'card';
+  el.id = 'sec-'+sec.id;
+  let head = `<h2><span class="badge">${sec.id}</span> ${sec.title}</h2>`;
+  if(sec.desc) head += `<p class="desc">${sec.desc}</p>`;
+  const rowsHtml = sec.rows.map(r=>{
+    const label = r[0];
+    const rid = sec.noId ? `${sec.id}-${slug(label)}` : label;
+    const saved = state.sections[rid] || {};
+    const cells = sec.cols.map(c=>{
+      const val = c.key==='result' ? saved.result : (saved[c.key]||'');
+      const fname = `${rid}::${c.key}`;
+      return `<td>${c.type==='result'?fieldResultSelect(fname,val):fieldText(fname,val)}</td>`;
+    }).join('');
+    const stepCell = sec.noId ? `<td class="step">${label}</td>` : `<td class="id">${rid}</td><td class="step">${r[1]}</td>`;
+    return `<tr data-rowid="${rid}">${stepCell}${cells}</tr>`;
+  }).join('');
+  const headCells = sec.cols.map(c=>`<th>${c.label}</th>`).join('');
+  const table = `<div class="tblwrap"><table><thead><tr>${sec.noId?`<th>${sec.rowHead}</th>`:`<th>${sec.rowHead}</th><th>Step</th>`}${headCells}</tr></thead><tbody>${rowsHtml}</tbody></table></div>`;
+  let extra = '';
+  if(sec.lifecyclePair){
+    const before = (state.sections['D::lifecycle_before']||{}).v || '';
+    const after = (state.sections['D::lifecycle_after']||{}).v || '';
+    extra = `<div class="grid2" style="margin-top:12px;max-width:460px">
+      <div class="field"><label>Primary WebView lifecycle — before section</label><input type="text" data-field="D::lifecycle_before::v" value="${before}"></div>
+      <div class="field"><label>Primary WebView lifecycle — after section (must match)</label><input type="text" data-field="D::lifecycle_after::v" value="${after}"></div>
+    </div>`;
+  }
+  el.innerHTML = head + table + extra;
+  return el;
+}
+
+function buildNSection(){
+  const el = document.createElement('section');
+  el.className = 'card';
+  el.id = 'sec-N';
+  const rows = N_ROWS.map(r=>{
+    const step = state.lifecycleN.steps[r[0]] || {};
+    return `<tr data-n="${r[0]}"><td class="id">${r[0]}</td><td class="step">${r[1]}</td>
+      <td><input type="text" data-nfield="${r[0]}::lifecycle" value="${step.lifecycle||''}"></td></tr>`;
+  }).join('');
+  el.innerHTML = `<h2><span class="badge">N</span> Panel lifecycle / PR-014 (WebView lifetime)</h2>
+    <p class="desc">Watch the <code>[V2-WEBVIEW]</code> console lines for <code>instance=workspace-tab-diagram</code> — that number is the Primary lifecycle ID. CREATE/DISPOSE of the Compare WebView (<code>instance=compare</code>) is not automatically a failure, and a REINITIALIZE without CREATE/DISPOSE may be legitimate for a real document replacement. Only a changed Primary lifecycle ID matters here.</p>
+    <div class="field" style="max-width:320px;margin-bottom:10px"><label>Primary WebView lifecycle at start of section</label><input type="text" id="n_start" value="${state.lifecycleN.start||''}"></div>
+    <div id="nWarning"></div>
+    <div class="tblwrap"><table><thead><tr><th>#</th><th>Operation</th><th>Lifecycle ID observed</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="field" style="max-width:420px;margin-top:12px"><label>Primary lifecycle remained stable across all steps</label>
+      <select id="n_stable"><option value=""></option><option ${state.lifecycleN.stable==='YES'?'selected':''}>YES</option><option ${state.lifecycleN.stable==='NO'?'selected':''}>NO</option></select></div>`;
+  return el;
+}
+
+function buildFreeText(sec){
+  const el = document.createElement('section');
+  el.className = 'card';
+  el.id = 'sec-'+sec.id;
+  let head = `<h2><span class="badge">${sec.id}</span> ${sec.title}</h2>`;
+  if(sec.intro) head += `<p class="desc">${sec.intro}</p>`;
+  let fields = sec.fields.map(f=>`<div class="freeq"><label>${f[1]}</label><textarea data-free="${f[0]}">${state.freetext[f[0]]||''}</textarea></div>`).join('');
+  if(sec.afterFields){
+    fields += `<div class="grid2" style="margin-top:6px">
+      <div class="field"><label>Could I use this workflow on a real installation?</label>
+        <select id="t_could_use"><option></option><option ${state.lifecycleN.installer_could_use==='YES'?'selected':''}>YES</option><option ${state.lifecycleN.installer_could_use==='NO'?'selected':''}>NO</option><option ${state.lifecycleN.installer_could_use==='WITH CHANGES'?'selected':''}>WITH CHANGES</option></select></div>
+      <div class="field"><label>Why?</label><textarea id="t_could_use_why">${state.lifecycleN.installer_why||''}</textarea></div>
+    </div>`;
+  }
+  if(sec.id==='U'){
+    fields += `<div class="freeq"><label>10. Would you use it on a real job?</label>
+      <select id="u_10"><option></option><option ${state.freetext.u_10==='YES'?'selected':''}>YES</option><option ${state.freetext.u_10==='NO'?'selected':''}>NO</option><option ${state.freetext.u_10==='WITH CHANGES'?'selected':''}>WITH CHANGES</option></select></div>`;
+  }
+  el.innerHTML = head + fields;
+  return el;
+}
+
+const root = document.getElementById('sectionsRoot');
+SECTIONS.forEach((sec,i)=>{
+  root.appendChild(buildSection(sec));
+  if(sec.id==='M') root.appendChild(buildNSection());
+});
+FREETEXT_SECTIONS.forEach(sec=>root.appendChild(buildFreeText(sec)));
+
+const navlist = document.getElementById('navlist');
+const navItems = [
+  ['tester','Tester info',null],
+  ...SECTIONS.map(s=>[s.id,`${s.title}`,s.id]),
+  ['N','Panel lifecycle','N'],
+  ...FREETEXT_SECTIONS.map(s=>[s.id,`${s.title}`,s.id]),
+  ['issuelist','Issues',null],['observations','Observations',null],['suggestions','Suggestions',null],
+  ['score','Scorecard',null],['release','Release checklist',null],
+];
+navlist.innerHTML = `<div class="brand"><div class="mark">O</div><div class="txt"><b>Diagram Studio</b><span>Acceptance test</span></div></div>` +
+  navItems.map(([id,label,secId])=>`<a class="navlink${secId?' navsec':''}" ${secId?`data-sec="${secId}"`:''} href="#sec-${id}"><span class="id">${secId||''}</span><span class="dot"></span>${label}</a>`).join('');
+
+document.getElementById('checklistItems').innerHTML = CHECKLIST.map((c,i)=>
+  `<label><input type="checkbox" data-chk="${i}" ${state.checklist[i]?'checked':''}> ${c}</label>`).join('');
+
+function readAllFieldsIntoState(){
+  document.querySelectorAll('[data-field]').forEach(el=>{
+    const parts = el.dataset.field.split('::');
+    if(parts.length===3){
+      const [rid,key,sub] = parts;
+      state.sections[rid] = state.sections[rid] || {};
+      state.sections[rid][sub] = el.value;
+    } else {
+      const [rid,key] = parts;
+      state.sections[rid] = state.sections[rid] || {};
+      state.sections[rid][key] = el.value;
+    }
+  });
+}
+
+document.addEventListener('input', e=>{
+  const t = e.target;
+  if(t.dataset.field){
+    const parts = t.dataset.field.split('::');
+    if(parts.length===3){
+      state.sections[parts[0]] = state.sections[parts[0]] || {};
+      state.sections[parts[0]][parts[2]] = t.value;
+    } else {
+      state.sections[parts[0]] = state.sections[parts[0]] || {};
+      state.sections[parts[0]][parts[1]] = t.value;
+      if(t.tagName==='SELECT'){ t.className = `r-${t.value||'UNTESTED'}`; }
+    }
+    updateDashboard(); saveDraft();
+  } else if(t.dataset.nfield){
+    const [step,key] = t.dataset.nfield.split('::');
+    state.lifecycleN.steps[step] = state.lifecycleN.steps[step] || {};
+    state.lifecycleN.steps[step][key] = t.value;
+    checkLifecycleMismatch(step, t.value);
+    updateDashboard(); saveDraft();
+  } else if(t.dataset.free){
+    state.freetext[t.dataset.free] = t.value;
+    saveDraft();
+  } else if(t.id==='n_start'){
+    state.lifecycleN.start = t.value; checkLifecycleMismatch(null,null); saveDraft();
+  } else if(t.id.startsWith('sc_')){
+    const map={sc_functional:'functional',sc_ux:'ux',sc_ui:'ui',sc_eng:'eng',sc_perf:'perf',sc_disc:'disc',sc_prof:'prof',sc_overall:'overall',sc_must_change:'must_change'};
+    if(map[t.id]) state.scorecard[map[t.id]] = t.value;
+    saveDraft();
+  } else if(t.tagName==='INPUT' && t.type==='text' && (t.id==='f_tester'||t.id==='f_build'||t.id==='f_commit'||t.id==='f_os'||t.id==='f_display'||t.id==='f_input_device'||t.id==='f_test_document')){
+    saveTesterFields(); saveDraft();
+  } else if(t.id==='t_could_use_why'){
+    state.lifecycleN.installer_why = t.value; saveDraft();
+  }
+});
+document.addEventListener('change', e=>{
+  const t = e.target;
+  if(t.id==='f_date'){ state.tester.date=t.value; saveDraft(); }
+  if(t.id==='f_experience'){ state.tester.experience=t.value; saveDraft(); }
+  if(t.id==='sc_prof_use'){ state.scorecard.prof_use=t.value; saveDraft(); }
+  if(t.id==='finalRecommendation'){ state.finalRecommendation=t.value; saveDraft(); }
+  if(t.id==='n_stable'){ state.lifecycleN.stable=t.value; updateDashboard(); saveDraft(); showNBanner(); }
+  if(t.id==='t_could_use'){ state.lifecycleN.installer_could_use=t.value; saveDraft(); }
+  if(t.id==='u_10'){ state.freetext.u_10=t.value; saveDraft(); }
+  if(t.dataset.chk!==undefined){ state.checklist[t.dataset.chk]=t.checked; saveDraft(); }
+});
+
+function saveTesterFields(){
+  state.tester.tester = document.getElementById('f_tester').value;
+  state.environment.build = document.getElementById('f_build').value;
+  state.environment.commit = document.getElementById('f_commit').value;
+  state.environment.os = document.getElementById('f_os').value;
+  state.environment.display = document.getElementById('f_display').value;
+  state.environment.input_device = document.getElementById('f_input_device').value;
+  state.environment.test_document = document.getElementById('f_test_document').value;
+}
+
+function checkLifecycleMismatch(){
+  const vals = [state.lifecycleN.start, ...N_ROWS.map(r=>(state.lifecycleN.steps[r[0]]||{}).lifecycle)].filter(v=>v);
+  const distinct = [...new Set(vals)];
+  const box = document.getElementById('nWarning');
+  if(distinct.length>1){
+    box.innerHTML = `<div class="banner warn"><span><b>WARNING:</b> Primary WebView lifecycle ID changed (${distinct.join(' → ')}). The tester must decide what occurred — this is not automatically classified as a bug.</span><button class="danger sm" id="btnCreateP1">+ Create P1 issue</button></div>`;
+    document.getElementById('btnCreateP1').onclick = ()=>{
+      openIssueModal({type:'BUG',severity:'P1 — CRITICAL',section:'N',testcase:'', title:'Primary WebView lifecycle ID changed', expected:'Primary lifecycle ID remains constant for the life of the Diagram Workspace instance.', actual:`Lifecycle ID changed across observed values: ${distinct.join(' → ')}.`});
+    };
+  } else {
+    box.innerHTML='';
+  }
+}
+function showNBanner(){ /* placeholder for future stable/unstable banner if needed */ }
+
+// ---------- Quick note ----------
+document.getElementById('qn_type').innerHTML = TYPES.map(t=>`<option>${t}</option>`).join('');
+document.getElementById('qn_severity').innerHTML = SEVERITIES.map(s=>`<option>${s}</option>`).join('');
+let currentContext = {section:'', test:''};
+document.addEventListener('focusin', e=>{
+  const row = e.target.closest('tr[data-rowid]');
+  if(row){
+    const rid = row.dataset.rowid;
+    const sec = SECTIONS.find(s=>rid.startsWith(s.id));
+    currentContext = {section: sec?sec.id:'', test: rid};
+  }
+  const nrow = e.target.closest('tr[data-n]');
+  if(nrow){ currentContext = {section:'N', test: nrow.dataset.n}; }
+});
+document.getElementById('btnQuickNote').addEventListener('click', ()=>{
+  document.getElementById('qn_text').value='';
+  document.getElementById('qn_context').textContent = `Context: Section ${currentContext.section||'—'}${currentContext.test?', '+currentContext.test:''}`;
+  document.getElementById('quickNoteOverlay').classList.add('open');
+});
+document.getElementById('qn_cancel').addEventListener('click', ()=>document.getElementById('quickNoteOverlay').classList.remove('open'));
+document.getElementById('qn_save').addEventListener('click', ()=>{
+  const text = document.getElementById('qn_text').value.trim();
+  if(!text){ alert('Enter an observation first.'); return; }
+  state.observations.push({
+    id: 'OBS-'+String(state.observations.length+1).padStart(3,'0'),
+    timestamp: new Date().toLocaleString(),
+    section: currentContext.section, test: currentContext.test,
+    type: document.getElementById('qn_type').value,
+    note: text,
+  });
+  document.getElementById('quickNoteOverlay').classList.remove('open');
+  renderObservations(); saveDraft();
+});
+
+// ---------- Issue modal ----------
+document.getElementById('is_type').innerHTML = TYPES.map(t=>`<option>${t}</option>`).join('');
+document.getElementById('is_severity').innerHTML = SEVERITIES.map(s=>`<option>${s}</option>`).join('');
+function nextIssueId(type){
+  const prefix = TYPE_PREFIX[type]||'ISS';
+  state.nextIssueSeq[prefix] = (state.nextIssueSeq[prefix]||0)+1;
+  return `${prefix}-${String(state.nextIssueSeq[prefix]).padStart(3,'0')}`;
+}
+function openIssueModal(prefill){
+  editingIssueId = prefill && prefill._editId ? prefill._editId : null;
+  const type = (prefill && prefill.type) || 'BUG';
+  document.getElementById('is_type').value = type;
+  document.getElementById('is_severity').value = (prefill && prefill.severity) || 'P2 — MAJOR';
+  document.getElementById('is_section').value = (prefill && prefill.section) || currentContext.section || '';
+  document.getElementById('is_testcase').value = (prefill && prefill.testcase) || currentContext.test || '';
+  document.getElementById('is_title').value = (prefill && prefill.title) || '';
+  document.getElementById('is_expected').value = (prefill && prefill.expected) || '';
+  document.getElementById('is_actual').value = (prefill && prefill.actual) || '';
+  document.getElementById('is_repro_steps').value = (prefill && prefill.repro_steps) || '';
+  document.getElementById('is_impact').value = (prefill && prefill.impact) || '';
+  document.getElementById('is_evidence').value = (prefill && prefill.evidence) || '';
+  document.getElementById('is_notes').value = (prefill && prefill.notes) || '';
+  document.getElementById('is_repro').value = (prefill && prefill.can_reproduce) || '';
+  document.getElementById('is_id').value = editingIssueId ? editingIssueId : nextIssueIdPreview(type);
+  document.getElementById('issueModalTitle').textContent = editingIssueId ? 'Edit issue' : 'Add issue';
+  document.getElementById('issueOverlay').classList.add('open');
+}
+function nextIssueIdPreview(type){
+  const prefix = TYPE_PREFIX[type]||'ISS';
+  const n = (state.nextIssueSeq[prefix]||0)+1;
+  return `${prefix}-${String(n).padStart(3,'0')}`;
+}
+document.getElementById('is_type').addEventListener('change', e=>{
+  if(!editingIssueId) document.getElementById('is_id').value = nextIssueIdPreview(e.target.value);
+});
+document.getElementById('btnAddIssue').addEventListener('click', ()=>openIssueModal(null));
+document.getElementById('is_cancel').addEventListener('click', ()=>document.getElementById('issueOverlay').classList.remove('open'));
+document.getElementById('is_save').addEventListener('click', ()=>{
+  const title = document.getElementById('is_title').value.trim();
+  if(!title){ alert('Enter a title first.'); return; }
+  const type = document.getElementById('is_type').value;
+  const rec = {
+    id: editingIssueId || nextIssueId(type),
+    type, severity: document.getElementById('is_severity').value,
+    section: document.getElementById('is_section').value,
+    testcase: document.getElementById('is_testcase').value,
+    title, expected: document.getElementById('is_expected').value,
+    actual: document.getElementById('is_actual').value,
+    repro_steps: document.getElementById('is_repro_steps').value,
+    impact: document.getElementById('is_impact').value,
+    evidence: document.getElementById('is_evidence').value,
+    notes: document.getElementById('is_notes').value,
+    can_reproduce: document.getElementById('is_repro').value,
+    status: (editingIssueId && state.issues.find(i=>i.id===editingIssueId)?.status) || 'OPEN',
+    timestamp: (editingIssueId && state.issues.find(i=>i.id===editingIssueId)?.timestamp) || new Date().toLocaleString(),
+  };
+  if(editingIssueId){
+    const idx = state.issues.findIndex(i=>i.id===editingIssueId);
+    state.issues[idx] = rec;
+  } else {
+    state.issues.push(rec);
+  }
+  document.getElementById('issueOverlay').classList.remove('open');
+  renderIssues(); updateDashboard(); saveDraft();
+});
+
+function renderIssues(){
+  const rows = document.getElementById('issueRows');
+  document.getElementById('issueEmpty').style.display = state.issues.length ? 'none' : 'block';
+  rows.innerHTML = state.issues.map(i=>`<tr>
+    <td class="id">${i.id}</td><td>${i.type}</td><td>${i.severity.split(' ')[0]}</td><td>${i.section||''}${i.testcase?'/'+i.testcase:''}</td>
+    <td class="wrap">${i.title}</td>
+    <td><span class="statuspill status-${i.status}">${i.status}</span></td>
+    <td>
+      <button class="sm" data-edit="${i.id}">Edit</button>
+      <button class="sm" data-review="${i.id}">Mark reviewed</button>
+      <button class="sm danger" data-del="${i.id}">Delete</button>
+    </td></tr>`).join('');
+}
+document.getElementById('issueRows').addEventListener('click', e=>{
+  const t = e.target;
+  if(t.dataset.edit){ openIssueModal({...state.issues.find(i=>i.id===t.dataset.edit), _editId:t.dataset.edit}); }
+  if(t.dataset.review){ const i=state.issues.find(x=>x.id===t.dataset.review); if(i){ i.status='REVIEWED'; renderIssues(); saveDraft(); } }
+  if(t.dataset.del){ if(confirm('Delete issue '+t.dataset.del+'?')){ state.issues = state.issues.filter(x=>x.id!==t.dataset.del); renderIssues(); updateDashboard(); saveDraft(); } }
+});
+
+function renderObservations(){
+  const rows = document.getElementById('obsRows');
+  document.getElementById('obsEmpty').style.display = state.observations.length ? 'none':'block';
+  rows.innerHTML = state.observations.map(o=>`<tr><td>${o.timestamp}</td><td class="id">${o.section||''}</td><td class="id">${o.test||''}</td><td>${o.type}</td><td class="wrap">${o.note}</td><td><button class="sm danger" data-obsdel="${o.id}">Delete</button></td></tr>`).join('');
+}
+document.getElementById('obsRows').addEventListener('click', e=>{
+  if(e.target.dataset.obsdel){ state.observations = state.observations.filter(o=>o.id!==e.target.dataset.obsdel); renderObservations(); saveDraft(); }
+});
+document.getElementById('btnAddObs').addEventListener('click', ()=>{
+  document.getElementById('qn_text').value='';
+  document.getElementById('qn_context').textContent = 'Context: manually added observation';
+  document.getElementById('quickNoteOverlay').classList.add('open');
+});
+
+function renderSuggestions(){
+  const rows = document.getElementById('sugRows');
+  document.getElementById('sugEmpty').style.display = state.suggestions.length ? 'none':'block';
+  rows.innerHTML = state.suggestions.map(s=>`<tr>
+    <td class="id">${s.id}</td>
+    <td><input type="text" data-sugfield="${s.id}::area" value="${(s.area||'').replace(/"/g,'&quot;')}"></td>
+    <td><input type="text" data-sugfield="${s.id}::suggestion" value="${(s.suggestion||'').replace(/"/g,'&quot;')}"></td>
+    <td><input type="text" data-sugfield="${s.id}::reason" value="${(s.reason||'').replace(/"/g,'&quot;')}"></td>
+    <td><input type="text" data-sugfield="${s.id}::priority" value="${(s.priority||'').replace(/"/g,'&quot;')}"></td>
+    <td><input type="text" data-sugfield="${s.id}::notes" value="${(s.notes||'').replace(/"/g,'&quot;')}"></td>
+    <td><button class="sm danger" data-sugdel="${s.id}">Delete</button></td></tr>`).join('');
+}
+document.getElementById('sugRows').addEventListener('input', e=>{
+  if(e.target.dataset.sugfield){
+    const [id,key] = e.target.dataset.sugfield.split('::');
+    const s = state.suggestions.find(x=>x.id===id);
+    if(s){ s[key]=e.target.value; saveDraft(); }
+  }
+});
+document.getElementById('sugRows').addEventListener('click', e=>{
+  if(e.target.dataset.sugdel){ state.suggestions = state.suggestions.filter(s=>s.id!==e.target.dataset.sugdel); renderSuggestions(); saveDraft(); }
+});
+document.getElementById('btnAddSug').addEventListener('click', ()=>{
+  state.suggestions.push({id:'SUG-'+String(state.suggestions.length+1).padStart(3,'0'), area:'', suggestion:'', reason:'', priority:'', notes:''});
+  renderSuggestions(); saveDraft();
+});
+
+// ---------- persistence ----------
+const STORAGE_KEY = 'diagram-studio-acceptance-test-session-v1';
+let saveTimer=null;
+function saveDraft(){
+  clearTimeout(saveTimer);
+  document.getElementById('savestatus').textContent = 'Saving…';
+  saveTimer = setTimeout(()=>{
+    try{
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      document.getElementById('savestatus').textContent = 'Saved '+new Date().toLocaleTimeString();
+    }catch(e){
+      document.getElementById('savestatus').textContent = 'Autosave unavailable in this browser';
+    }
+  }, 350);
+}
+function applyStateToForm(){
+  document.getElementById('f_tester').value = state.tester.tester||'';
+  document.getElementById('f_date').value = state.tester.date||'';
+  document.getElementById('f_experience').value = state.tester.experience||'';
+  document.getElementById('f_build').value = state.environment.build||'';
+  document.getElementById('f_commit').value = state.environment.commit||'';
+  document.getElementById('f_os').value = state.environment.os||'';
+  document.getElementById('f_display').value = state.environment.display||'';
+  document.getElementById('f_input_device').value = state.environment.input_device||'';
+  document.getElementById('f_test_document').value = state.environment.test_document||'samples/diagram7.json';
+  document.getElementById('sc_functional').value = state.scorecard.functional||'';
+  document.getElementById('sc_ux').value = state.scorecard.ux||'';
+  document.getElementById('sc_ui').value = state.scorecard.ui||'';
+  document.getElementById('sc_eng').value = state.scorecard.eng||'';
+  document.getElementById('sc_perf').value = state.scorecard.perf||'';
+  document.getElementById('sc_disc').value = state.scorecard.disc||'';
+  document.getElementById('sc_prof').value = state.scorecard.prof||'';
+  document.getElementById('sc_overall').value = state.scorecard.overall||'';
+  document.getElementById('sc_prof_use').value = state.scorecard.prof_use||'';
+  document.getElementById('sc_must_change').value = state.scorecard.must_change||'';
+  document.getElementById('finalRecommendation').value = state.finalRecommendation||'';
+  root.innerHTML='';
+  SECTIONS.forEach(sec=>{ root.appendChild(buildSection(sec)); if(sec.id==='M') root.appendChild(buildNSection()); });
+  FREETEXT_SECTIONS.forEach(sec=>root.appendChild(buildFreeText(sec)));
+  document.querySelectorAll('#checklistItems input').forEach(cb=>{ cb.checked = !!state.checklist[cb.dataset.chk]; });
+  renderIssues(); renderObservations(); renderSuggestions(); updateDashboard(); checkLifecycleMismatch();
+}
+
+function loadExisting(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return false;
+    const parsed = JSON.parse(raw);
+    if(!parsed || parsed.schemaVersion!==1) return false;
+    state = Object.assign(freshState(), parsed);
+    return true;
+  }catch(e){ return false; }
+}
+
+const hadSession = loadExisting();
+if(hadSession){
+  document.getElementById('restoreBanner').innerHTML = `<div class="banner"><span>Previous test session restored.</span>
+    <button class="sm" id="btnContinueSession">Continue session</button>
+    <button class="sm danger" id="btnStartNew" style="margin-left:auto">Start new session</button></div>`;
+  document.getElementById('btnContinueSession').addEventListener('click', ()=>document.getElementById('restoreBanner').innerHTML='');
+  document.getElementById('btnStartNew').addEventListener('click', ()=>{
+    if(!confirm('This will permanently clear the current browser test session. Export your results first.\n\nStart a new session?')) return;
+    state = freshState();
+    try{ localStorage.removeItem(STORAGE_KEY); }catch(e){}
+    applyStateToForm();
+    document.getElementById('restoreBanner').innerHTML='';
+  });
+}
+applyStateToForm();
+
+// ---------- reset ----------
+document.getElementById('btnReset').addEventListener('click', ()=>document.getElementById('resetOverlay').classList.add('open'));
+document.getElementById('reset_cancel').addEventListener('click', ()=>document.getElementById('resetOverlay').classList.remove('open'));
+document.getElementById('reset_confirm').addEventListener('click', ()=>{
+  state = freshState();
+  try{ localStorage.removeItem(STORAGE_KEY); }catch(e){}
+  applyStateToForm();
+  document.getElementById('resetOverlay').classList.remove('open');
+  document.getElementById('savestatus').textContent = 'Session reset';
+});
+
+// close overlays on backdrop click
+document.querySelectorAll('.overlay').forEach(ov=>ov.addEventListener('click', e=>{ if(e.target===ov) ov.classList.remove('open'); }));
+
+// ---------- export / import ----------
+function download(filename, content, mime){
+  const blob = new Blob([content], {type:mime});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 1000);
+}
+document.getElementById('btnExportJson').addEventListener('click', ()=>{
+  download('diagram-studio-test-results.json', JSON.stringify(state, null, 2), 'application/json');
+});
+function buildReportText(){
+  const ids = allRowIds();
+  const failed = ids.filter(id=>rowResult(id)==='FAIL');
+  const blocked = ids.filter(id=>rowResult(id)==='BLOCKED');
+  const lines = [];
+  lines.push(`# Diagram Studio — Human UX/UI Acceptance Test Results`);
+  lines.push('');
+  lines.push(`Tester: ${state.tester.tester||''}  `);
+  lines.push(`Date: ${state.tester.date||''}  `);
+  lines.push(`Build: ${state.environment.build||''}  `);
+  lines.push(`Commit: ${state.environment.commit||''}  `);
+  lines.push('');
+  lines.push(`## Test counts`);
+  const counts={PASS:0,FAIL:0,BLOCKED:0,'N/A':0,UNTESTED:0};
+  ids.forEach(id=>counts[rowResult(id)]++);
+  lines.push(`PASS: ${counts.PASS}  FAIL: ${counts.FAIL}  BLOCKED: ${counts.BLOCKED}  N/A: ${counts['N/A']}  UNTESTED: ${counts.UNTESTED}`);
+  lines.push('');
+  lines.push(`## Failed tests`);
+  lines.push(failed.length ? failed.map(id=>`- ${id}: ${(state.sections[id]||{}).notes||''}`).join('\n') : '_None._');
+  lines.push('');
+  lines.push(`## Blocked tests`);
+  lines.push(blocked.length ? blocked.map(id=>`- ${id}: ${(state.sections[id]||{}).notes||''}`).join('\n') : '_None._');
+  lines.push('');
+  lines.push(`## Issues`);
+  lines.push(state.issues.length ? state.issues.map(i=>`- **${i.id}** [${i.type} / ${i.severity}] ${i.title} — ${i.status}\n  Expected: ${i.expected}\n  Actual: ${i.actual}`).join('\n') : '_None recorded._');
+  lines.push('');
+  lines.push(`## Observations`);
+  lines.push(state.observations.length ? state.observations.map(o=>`- [${o.timestamp}] (${o.section}/${o.test}, ${o.type}) ${o.note}`).join('\n') : '_None recorded._');
+  lines.push('');
+  lines.push(`## Suggestions`);
+  lines.push(state.suggestions.length ? state.suggestions.map(s=>`- **${s.id}** (${s.area}): ${s.suggestion} — ${s.reason} [priority: ${s.priority}]`).join('\n') : '_None recorded._');
+  lines.push('');
+  lines.push(`## First-time-user test`);
+  FREETEXT_SECTIONS[0].fields.forEach(f=>lines.push(`**${f[1]}**: ${state.freetext[f[0]]||''}  `));
+  lines.push('');
+  lines.push(`## Installer workflow`);
+  FREETEXT_SECTIONS[1].fields.forEach(f=>lines.push(`**${f[1]}**: ${state.freetext[f[0]]||''}  `));
+  lines.push(`**Could use on a real installation?** ${state.lifecycleN.installer_could_use||''} — ${state.lifecycleN.installer_why||''}`);
+  lines.push('');
+  lines.push(`## PR-014 WebView lifetime`);
+  lines.push(`Primary lifecycle at start: ${state.lifecycleN.start||''}`);
+  lines.push(`Remained stable: ${state.lifecycleN.stable||''}`);
+  lines.push('');
+  lines.push(`## Final scorecard`);
+  lines.push(`Functional ${state.scorecard.functional||''}/10, UX ${state.scorecard.ux||''}/10, UI ${state.scorecard.ui||''}/10, Engineering ${state.scorecard.eng||''}/10, Performance ${state.scorecard.perf||''}/10, Discoverability ${state.scorecard.disc||''}/10, Professional ${state.scorecard.prof||''}/10, Overall ${state.scorecard.overall||''}/10`);
+  lines.push(`Would use professionally: ${state.scorecard.prof_use||''}`);
+  lines.push('');
+  lines.push(`## Release recommendation`);
+  lines.push(state.finalRecommendation || '_Not set._');
+  return lines.join('\n');
+}
+document.getElementById('btnExportMd').addEventListener('click', ()=>{
+  download('diagram-studio-test-results.md', buildReportText(), 'text/markdown');
+});
+document.getElementById('btnExportHtml').addEventListener('click', ()=>{
+  const md = buildReportText().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Diagram Studio Test Results</title>
+  <style>body{font-family:sans-serif;max-width:800px;margin:40px auto;padding:0 20px;white-space:pre-wrap;line-height:1.6}</style>
+  </head><body>${md}</body></html>`;
+  download('diagram-studio-test-results.html', html, 'text/html');
+});
+document.getElementById('btnImport').addEventListener('click', ()=>document.getElementById('fileImport').click());
+document.getElementById('fileImport').addEventListener('change', e=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    let parsed;
+    try{ parsed = JSON.parse(reader.result); }
+    catch(err){ alert('Could not read that file as JSON.'); return; }
+    if(!parsed || typeof parsed!=='object' || parsed.schemaVersion!==1 || parsed.product!=='Diagram Studio'){
+      alert('That file does not match the expected Diagram Studio test-session schema.');
+      return;
+    }
+    state = Object.assign(freshState(), parsed);
+    applyStateToForm();
+    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(err){}
+    document.getElementById('savestatus').textContent = 'Imported';
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+</script>
+</body>
+</html>
