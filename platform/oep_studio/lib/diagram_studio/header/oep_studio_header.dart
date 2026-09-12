@@ -5,52 +5,23 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../../core/theme/studio_colors.dart';
 import '../webview/legacy_v2_webview.dart';
 
-/// OEP-STUDIO-BRANDING-V1 — the two view-perspectives this single header
-/// (and single underlying document/session — see [OepStudioHeader]'s own
-/// doc comment) can present as. NOT a second route/page/document: this is
-/// the presentation-layer counterpart of V2's own already-real
-/// `toggleSimPanel()` state (`js/ui/sim-panel.js`), never a new authority
-/// of its own.
+/// The two view-perspectives of one Diagram Studio document/session —
+/// NOT a second route/page. Presentation-layer counterpart of V2's own
+/// `toggleSimPanel()` state (`js/ui/sim-panel.js`); never a new authority.
+/// Full rationale: docs/architecture/diagram_studio/OEP-STUDIO-BRANDING-V1.md.
 enum OepStudioView { diagram, simulation }
 
-/// Page-scoped (not persisted, always starts on [OepStudioView.diagram]) —
-/// same lifetime/pattern as [dmmPanelVisibleProvider]/
-/// [compareModeEnabledProvider] (`diagram_studio/compare/diagram_with_compare_pane.dart`).
+/// Page-scoped, not persisted; always starts on [OepStudioView.diagram].
 final oepStudioViewProvider =
     StateProvider<OepStudioView>((ref) => OepStudioView.diagram);
 
-/// OEP-STUDIO-BRANDING-V1 — the shared OEP application header: master
-/// logo, the active Studio's own identity mark/title/subtitle, and the
-/// OEP-branded view-swap control. Sits above [WebSurfacesHostPage]'s own
-/// tab strip (`web_surface/web_surfaces_host_page.dart`) — presentation
-/// only, per this task's own §25 constraint ("do not put business logic
-/// in the header"): every real state change (which view is active, and
-/// the live V2 page's own Simulate-panel visibility) lives in
-/// [oepStudioViewProvider] and [legacyV2ToggleSimulationViewProvider]
-/// respectively, both owned elsewhere.
-///
-/// **Why one header, not two Studio pages:** per direct product
-/// direction, there is no separate "Simulation Studio" route — Diagram
-/// Studio is the one real screen, and "Simulation view" is a
-/// perspective/mode of that same open document (the same tabs, the same
-/// session), not a second Studio. This widget's [OepStudioView] param is
-/// therefore what changes, not which widget is mounted — asked for
-/// explicitly: "Do NOT create separate Diagram Studio and Simulation
-/// Studio routes just for the visual design."
-///
-/// **Asset provenance** — `assets/branding/*.svg` are supplied,
-/// pre-approved artwork (OEP_Branding_V1_SVG_Assets), used directly and
-/// verbatim; nothing under `assets/branding/` in this repo was traced,
-/// redrawn, or approximated from the concept-board renders — those stay
-/// references for layout/proportion only, per direct instruction.
-/// `oep_logo.svg` is the full lockup (mark + "OPEN ENGINEERING PLATFORM"
-/// wordmark baked into the SVG itself); `oep_logo_compact.svg` is the
-/// same mark without the wordmark, used here at header size, since a
-/// second, Flutter-rendered "Open Engineering Platform" caption would
-/// duplicate what the full logo already says. `diagram_studio_mark.svg`/
-/// `simulation_studio_mark.svg` are the two Studio marks (shared hexagon
-/// container, blue vs. teal). `oep_view_swap.svg` is the swap symbol
-/// (the same hexagon, two opposing directional paths through it).
+/// The shared OEP application header (master logo, active Studio mark/
+/// title/subtitle, view-swap control). Sits above [WebSurfacesHostPage]'s
+/// tab strip. Presentation only — real state (which view is active; V2's
+/// live Simulate-panel visibility) lives in [oepStudioViewProvider] and
+/// [legacyV2ToggleSimulationViewProvider], both owned elsewhere; do not
+/// add business logic here. Asset provenance and full design rationale:
+/// docs/architecture/diagram_studio/OEP-STUDIO-BRANDING-V1.md.
 class OepStudioHeader extends ConsumerWidget {
   const OepStudioHeader({super.key});
 

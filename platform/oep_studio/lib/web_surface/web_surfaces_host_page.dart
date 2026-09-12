@@ -590,35 +590,54 @@ class _TabChip extends StatelessWidget {
       onTap: onTap,
       child: Container(
         margin: const EdgeInsets.only(top: 4, right: 2),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
         decoration: BoxDecoration(
           color: active ? StudioColors.selectedRowBackground : Colors.transparent,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
-          border: Border(
-            top: BorderSide(color: active ? StudioColors.selection : Colors.transparent),
-            left: BorderSide(color: active ? StudioColors.selection.withValues(alpha: 0.4) : Colors.transparent),
-            right: BorderSide(color: active ? StudioColors.selection.withValues(alpha: 0.4) : Colors.transparent),
-            bottom: BorderSide(color: active ? StudioColors.selection : Colors.transparent, width: 2),
+          border: Border.all(
+            color: active
+                ? StudioColors.selection.withValues(alpha: 0.4)
+                : Colors.transparent,
           ),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
+        // A rounded Border requires one uniform side color (Flutter
+        // constraint) — the stronger bottom accent this used to get from
+        // a separate, thicker, full-alpha BorderSide is a real, thin
+        // underline bar instead, stacked on top of the padded content.
+        child: Stack(
           children: [
-            Icon(icon, size: 14, color: iconColor),
-            const SizedBox(width: 6),
-            Text(
-              displayTitle,
-              style: TextStyle(
-                color: active ? StudioColors.textPrimary : StudioColors.textSecondary,
-                fontSize: 12,
-                fontWeight: active ? FontWeight.w600 : FontWeight.w400,
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icon, size: 14, color: iconColor),
+                  const SizedBox(width: 6),
+                  Text(
+                    displayTitle,
+                    style: TextStyle(
+                      color: active ? StudioColors.textPrimary : StudioColors.textSecondary,
+                      fontSize: 12,
+                      fontWeight: active ? FontWeight.w600 : FontWeight.w400,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  InkWell(
+                    onTap: onClose,
+                    child: const Icon(Icons.close, size: 14, color: StudioColors.textDisabled),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(width: 6),
-            InkWell(
-              onTap: onClose,
-              child: const Icon(Icons.close, size: 14, color: StudioColors.textDisabled),
-            ),
+            if (active)
+              const Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: SizedBox(
+                  height: 2,
+                  child: ColoredBox(color: StudioColors.selection),
+                ),
+              ),
           ],
         ),
       ),

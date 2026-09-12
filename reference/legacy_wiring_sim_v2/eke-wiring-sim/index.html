@@ -48,6 +48,7 @@
   <symbol id="oep-i-route" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M8.5 6H14a4 4 0 0 1 4 4v4"/></symbol>
   <symbol id="oep-i-ruler" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="8" rx="1.5"/><path d="M7 8v3M11 8v3M15 8v3M19 8v3"/></symbol>
   <symbol id="oep-i-layout" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></symbol>
+  <symbol id="oep-i-analyze" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M11 20V4M18 20v-7"/></symbol>
 </svg>
 
 <!-- OEP-STUDIO-BRANDING-V1 — one single-row toolbar matching the OEP
@@ -73,46 +74,26 @@
      header's own swap control, § legacy_v2_webview.dart's
      `toggleSimPanel()` call, drives). -->
 <div id="tb-diagram" class="tb-row">
-  <!-- OEP-STUDIO-BRANDING-V1 — final information architecture (the
-       collapsed 8-group structure, explicitly preferred over the wider
-       15-icon layout: "the toolbar becomes an engineering command
-       system rather than a row of icons"): FILE | EDIT | BUILD | VIEW |
-       ANALYZE | LAYOUT | EXPORT | INSPECT, every one a dropdown.
-       FILE's own 5 actions (New/Open/Load Previous/Save/Save As) —
-       previously 4 separate always-visible Flutter buttons floating
-       over the canvas, which visibly collided with each other and this
-       toolbar (direct report: two "Save As…" buttons showing at once
-       — investigated: _SaveButton relabels itself "Save As…" whenever
-       there's no path yet, while its always-visible companion
-       _SaveAsButton also always reads "Save As…", so both showed that
-       exact label at once) — now live in ONE dropdown here, sent via
-       the engineeringCommand bridge (same channel ANALYZE's own
-       Trace/Measure sections use) to the exact same pre-existing
-       Flutter methods (_WindowsLegacyV2WebViewPageState._newDiagram/
-       _openDocument/_loadPreviousDocument/_saveDocument/
-       _saveDocumentAs). EDIT groups Select+Search (both act on what's
-       already on the diagram); BUILD groups every real "add something
-       new" command (Add Module/Component/Connector/Splice/Wire); VIEW
-       groups Pan/Zoom/Fit; ANALYZE groups Trace+Measure (both real
-       FLUTTER logic — TraceController/MultimeterController, the SAME
-       controllers the Trace Circuit/Multimeter workspace-action panels
-       above use — never a second/parallel implementation of either).
-       Every dropdown lists ONLY commands this app genuinely has — no
-       Auto-Route/Curved wires, PNG/PDF/BOM export, Align/Distribute,
-       multi-pin/weatherproof connectors, etc.: none of those exist
-       anywhere in this codebase, so none are shown (per direct
-       instruction: "only put commands here that actually exist"). -->
+  <!-- OEP-STUDIO-BRANDING-V1 §PR-012 — hybrid IA: high-frequency
+       commands (Select/Wire/Search/Trace/Measure) are direct buttons;
+       related/occasional commands (File/Add/View/Analyze/Layout/
+       Export/Inspect) are dropdowns. Trace/Measure are BOTH — a direct
+       click does the most common action, the chevron opens secondary
+       modes. See OEP-STUDIO-BRANDING-V1.md for the full command-by-
+       command accounting (what's real, what's an honest disclosure). -->
   <button class="tb-icon-btn tb-icon-btn-has-chev" data-dropdown-for="dd-file" onclick="toolbarToggleDropdown('dd-file', this)" title="File">
     <svg class="tb-icon"><use href="#oep-i-file"/></svg><span class="tb-icon-btn-lbl">File</span>
     <svg class="tb-icon-chev"><use href="#oep-i-chevron"/></svg>
   </button>
   <div class="tb-sep"></div>
-  <button class="tb-icon-btn tb-icon-btn-has-chev tb-icon-btn-active" id="edit-btn" data-dropdown-for="dd-edit" onclick="toolbarToggleDropdown('dd-edit', this)" title="Edit">
-    <svg class="tb-icon"><use href="#oep-i-select"/></svg><span class="tb-icon-btn-lbl">Edit</span>
-    <svg class="tb-icon-chev"><use href="#oep-i-chevron"/></svg>
+  <button class="tb-icon-btn" id="edit-btn" onclick="toggleEdit()" title="Select">
+    <svg class="tb-icon"><use href="#oep-i-select"/></svg><span class="tb-icon-btn-lbl">Select</span>
   </button>
-  <button class="tb-icon-btn tb-icon-btn-has-chev" data-dropdown-for="dd-build" onclick="toolbarToggleDropdown('dd-build', this)" title="Build">
-    <svg class="tb-icon"><use href="#oep-i-plus"/></svg><span class="tb-icon-btn-lbl">Build</span>
+  <button class="tb-icon-btn" id="wire-btn" onclick="toggleWireMode()" title="Wire">
+    <svg class="tb-icon"><use href="#oep-i-bolt"/></svg><span class="tb-icon-btn-lbl">Wire</span>
+  </button>
+  <button class="tb-icon-btn tb-icon-btn-has-chev" data-dropdown-for="dd-add" onclick="toolbarToggleDropdown('dd-add', this)" title="Add">
+    <svg class="tb-icon"><use href="#oep-i-plus"/></svg><span class="tb-icon-btn-lbl">Add</span>
     <svg class="tb-icon-chev"><use href="#oep-i-chevron"/></svg>
   </button>
   <button class="tb-icon-btn tb-icon-btn-has-chev" data-dropdown-for="dd-view" onclick="toolbarToggleDropdown('dd-view', this)" title="View">
@@ -120,35 +101,44 @@
     <svg class="tb-icon-chev"><use href="#oep-i-chevron"/></svg>
   </button>
   <div class="tb-sep"></div>
-  <button class="tb-icon-btn tb-icon-btn-has-chev" data-dropdown-for="dd-analyze" onclick="toolbarToggleDropdown('dd-analyze', this)" title="Analyze">
-    <svg class="tb-icon"><use href="#oep-i-route"/></svg><span class="tb-icon-btn-lbl">Analyze</span>
-    <svg class="tb-icon-chev"><use href="#oep-i-chevron"/></svg>
+  <button class="tb-icon-btn" onclick="toggleSearch()" title="Search modules, wires, colors">
+    <svg class="tb-icon"><use href="#oep-i-search"/></svg><span class="tb-icon-btn-lbl">Search</span>
+  </button>
+  <!-- Trace/Measure — direct click = the most common real action;
+       chevron = secondary modes. Both real: Trace's direct click is
+       V2's own existing traceCircuit()/CircuitTracer highlighting
+       primitive (presentation only, unchanged); its dropdown's other
+       modes and Measure's own actions reach the real Flutter
+       TraceController/MultimeterController via the engineeringCommand
+       bridge (toolbarSendEngineeringCommand) — the SAME controllers the
+       Trace Circuit/Multimeter workspace-action panels above use, never
+       a second implementation of either. -->
+  <button class="tb-icon-btn tb-icon-btn-has-chev" data-dropdown-for="dd-trace" onclick="if (typeof selW!=='undefined' && selW) traceCircuit(); else showToast('Select a wire first, then Trace')" title="Trace Circuit">
+    <svg class="tb-icon"><use href="#oep-i-route"/></svg><span class="tb-icon-btn-lbl">Trace</span>
+    <svg class="tb-icon-chev" onclick="event.stopPropagation();toolbarToggleDropdown('dd-trace', this.closest('.tb-icon-btn'))"><use href="#oep-i-chevron"/></svg>
+  </button>
+  <button class="tb-icon-btn tb-icon-btn-has-chev" data-dropdown-for="dd-measure" onclick="toolbarSendEngineeringCommand('measure.open')" title="Open Multimeter">
+    <svg class="tb-icon"><use href="#oep-i-ruler"/></svg><span class="tb-icon-btn-lbl">Measure</span>
+    <svg class="tb-icon-chev" onclick="event.stopPropagation();toolbarToggleDropdown('dd-measure', this.closest('.tb-icon-btn'))"><use href="#oep-i-chevron"/></svg>
   </button>
   <div class="tb-sep"></div>
-  <button class="tb-icon-btn tb-icon-btn-has-chev" data-dropdown-for="dd-layout" onclick="toolbarToggleDropdown('dd-layout', this)" title="Layout">
-    <svg class="tb-icon"><use href="#oep-i-layout"/></svg><span class="tb-icon-btn-lbl">Layout</span>
+  <!-- Analyze — real shortcuts to the existing Analysis/Compare Diagrams
+       workspace-action panels above (same providers, same panels —
+       never a second implementation); Circuit Intelligence/Diagnostics
+       are not real features anywhere in this codebase, so they are not
+       listed. -->
+  <button class="tb-icon-btn tb-icon-btn-has-chev" data-dropdown-for="dd-analyze" onclick="toolbarToggleDropdown('dd-analyze', this)" title="Analyze">
+    <svg class="tb-icon"><use href="#oep-i-analyze"/></svg><span class="tb-icon-btn-lbl">Analyze</span>
     <svg class="tb-icon-chev"><use href="#oep-i-chevron"/></svg>
   </button>
-  <!-- AP-MODULE-KIND-002 — V2's own in-page Save/Load buttons removed
-       per direct request: redundant now that the platform's own
-       Save (toolbar/Ctrl+S/Command Palette) is the one real save path
-       (it already routes through the same flush/reconciliation V2's
-       own button used, via `saveLayout()`'s Dart-side interception —
-       see `__oepBridgeInterceptSave`, legacy_v2_bridge_script.dart),
-       and V2's raw-JSON Load bypassed the OEP document model entirely.
-       `saveLayout` is left defined and still overridden by the Dart
-       bridge's `__oepBridgeInterceptSave` — other code (e.g.
-       routing-editor.js) still calls it directly. `loadLayoutFile`/
-       `onLayoutFile` are left defined too but now have no UI entry
-       point at all (their `#lfi` file-picker input is removed below),
-       matching "unnecessary." -->
+  <!-- AP-MODULE-KIND-002 — V2's own Save/Load buttons were removed
+       earlier (redundant with the platform's own Save path, which
+       already routes through the same flush/reconciliation those used —
+       see __oepBridgeInterceptSave, legacy_v2_bridge_script.dart). -->
   <button class="tb-icon-btn tb-icon-btn-has-chev" data-dropdown-for="dd-export" onclick="toolbarToggleDropdown('dd-export', this)" title="Export">
     <svg class="tb-icon"><use href="#oep-i-download"/></svg><span class="tb-icon-btn-lbl">Export</span>
     <svg class="tb-icon-chev"><use href="#oep-i-chevron"/></svg>
   </button>
-  <!-- Inspect — a real shortcut to the existing Property Inspector
-       surface (popOut('inspector')) plus Legend, never a duplicate
-       re-implementation of either. -->
   <button class="tb-icon-btn tb-icon-btn-has-chev" data-dropdown-for="dd-inspect" onclick="toolbarToggleDropdown('dd-inspect', this)" title="Inspect">
     <svg class="tb-icon"><use href="#oep-i-info"/></svg><span class="tb-icon-btn-lbl">Inspect</span>
     <svg class="tb-icon-chev"><use href="#oep-i-chevron"/></svg>
@@ -764,17 +754,11 @@ document.getElementById('am-is-conn').addEventListener('change',function(){
   <div class="tb-dd-row"><button class="tb-btn tb-dd-full" disabled>Recent Diagrams (coming soon)</button></div>
 </div>
 
-<div id="dd-edit" class="tb-dropdown">
-  <div class="tb-dd-row"><button class="tb-btn tb-dd-full active" onclick="toggleEdit();toolbarCloseAllDropdowns()">Select</button></div>
-  <div class="tb-dd-row"><button class="tb-btn tb-dd-full" onclick="toggleSearch();toolbarCloseAllDropdowns()">Search</button></div>
-</div>
-
-<div id="dd-build" class="tb-dropdown">
+<div id="dd-add" class="tb-dropdown">
   <div class="tb-dd-row"><button class="tb-btn tb-dd-full" onclick="openModPanel();toolbarCloseAllDropdowns()">Add Module (library/preset/custom)</button></div>
   <div class="tb-dd-row"><button class="tb-btn tb-dd-full" onclick="openAdd();toolbarCloseAllDropdowns()">Component (custom module)</button></div>
   <div class="tb-dd-row"><button class="tb-btn tb-dd-full" onclick="openAddConn();toolbarCloseAllDropdowns()">Connector (custom)</button></div>
   <div class="tb-dd-row"><button class="tb-btn tb-dd-full" onclick="openAddSplice();toolbarCloseAllDropdowns()">Splice (at view center)</button></div>
-  <div class="tb-dd-row"><button class="tb-btn tb-dd-full" id="wire-btn" onclick="toggleWireMode();toolbarCloseAllDropdowns()">Wire</button></div>
 </div>
 
 <div id="dd-view" class="tb-dropdown">
@@ -800,43 +784,49 @@ document.getElementById('am-is-conn').addEventListener('change',function(){
   </div>
 </div>
 
-<!-- Analyze — Trace and Measure, the two groups here backed by real
-     FLUTTER logic (TraceController/MultimeterController, the SAME
-     controllers the Trace Circuit/Multimeter workspace-action panels
-     above use), via the engineeringCommand bridge message
-     (toolbarSendEngineeringCommand, this file's own toolbar.js) — never
-     a second/parallel implementation of either feature. Physical/
-     Conducting/Current Flow are the real TraceMode enum values
-     TraceController already supports (trace_controller.dart); Trace
-     From Source opens that same real panel (its own "trace from
-     source" toggle already lives there — trace_inspector_panel.dart's
-     `_traceFromSource` state, not duplicated here); Clear Trace calls
-     the controller's own clear(). Measure's items are the real
-     MultimeterController (multimeter_controller.dart) behind the SAME
-     Multimeter workspace-action panel, never V2's own removed
-     wire-based meter (AP-DIAGRAM-STUDIO-DMM-CONSOLIDATION-001: that
-     rendering was deliberately retired so exactly one real DMM
-     instrument remains). -->
-<div id="dd-analyze" class="tb-dropdown">
-  <div class="tb-dd-section-title">Trace</div>
+<!-- Trace — direct click (the button itself) already runs V2's own
+     existing traceCircuit()/CircuitTracer highlighting; this dropdown
+     is the secondary modes, all real TraceMode enum values
+     TraceController already supports (trace_controller.dart), reached
+     via the engineeringCommand bridge — the SAME controller the Trace
+     Circuit workspace-action panel above uses, never a second trace
+     implementation. Trace From Source opens that real panel (its own
+     "trace from source" toggle already lives there —
+     trace_inspector_panel.dart's `_traceFromSource` state, not
+     duplicated here); Clear Trace calls the controller's own clear(). -->
+<div id="dd-trace" class="tb-dropdown">
+  <div class="tb-dd-row"><button class="tb-btn tb-dd-full" onclick="if (typeof selW!=='undefined' && selW) traceCircuit(); else showToast('Select a wire first, then Trace');toolbarCloseAllDropdowns()">Trace Circuit</button></div>
+  <div class="tb-dd-section-title">Trace Mode</div>
   <div class="tb-dd-row"><button class="tb-btn tb-dd-full" onclick="toolbarSendEngineeringCommand('trace.physical')">Physical</button></div>
   <div class="tb-dd-row"><button class="tb-btn tb-dd-full" onclick="toolbarSendEngineeringCommand('trace.conducting')">Conducting</button></div>
   <div class="tb-dd-row"><button class="tb-btn tb-dd-full" onclick="toolbarSendEngineeringCommand('trace.currentFlow')">Current Flow</button></div>
   <div class="tb-dd-row"><button class="tb-btn tb-dd-full" onclick="toolbarSendEngineeringCommand('trace.fromSource')">Trace From Source</button></div>
   <div class="tb-dd-row"><button class="tb-btn tb-dd-full" onclick="toolbarSendEngineeringCommand('trace.clear')">Clear Trace</button></div>
-  <div class="tb-dd-section-title">Measure</div>
+</div>
+
+<!-- Measure — direct click (the button itself) already opens the real
+     Multimeter panel; this dropdown is the secondary modes, all real
+     MeasurementType values MultimeterController already supports
+     (multimeter_controller.dart), reached via the engineeringCommand
+     bridge — the SAME controller the Multimeter workspace-action panel
+     above uses, never V2's own removed wire-based meter
+     (AP-DIAGRAM-STUDIO-DMM-CONSOLIDATION-001: that rendering was
+     deliberately retired so exactly one real DMM instrument remains). -->
+<div id="dd-measure" class="tb-dropdown">
   <div class="tb-dd-row"><button class="tb-btn tb-dd-full" onclick="toolbarSendEngineeringCommand('measure.voltageDc')">Voltage (DC)</button></div>
   <div class="tb-dd-row"><button class="tb-btn tb-dd-full" onclick="toolbarSendEngineeringCommand('measure.voltageAc')">Voltage (AC)</button></div>
   <div class="tb-dd-row"><button class="tb-btn tb-dd-full" onclick="toolbarSendEngineeringCommand('measure.resistance')">Resistance</button></div>
   <div class="tb-dd-row"><button class="tb-btn tb-dd-full" onclick="toolbarSendEngineeringCommand('measure.continuity')">Continuity</button></div>
   <div class="tb-dd-row"><button class="tb-btn tb-dd-full" onclick="toolbarSendEngineeringCommand('measure.diode')">Diode</button></div>
-  <div class="tb-dd-row"><button class="tb-btn tb-dd-full" onclick="toolbarSendEngineeringCommand('measure.open')">Open Multimeter</button></div>
 </div>
 
-<!-- Layout — no auto-layout engine exists in this app; honest
-     disclosure rather than a fabricated feature. -->
-<div id="dd-layout" class="tb-dropdown">
-  <div class="tb-dd-row"><button class="tb-btn tb-dd-full" onclick="showToast('Auto-layout is not available yet — drag modules manually in Select mode');toolbarCloseAllDropdowns()">Auto Arrange (not yet available)</button></div>
+<!-- Analyze — real shortcuts to the existing Analysis/Compare Diagrams
+     workspace-action panels above (same providers, same panels — never
+     a second implementation). Circuit Intelligence/Diagnostics are not
+     real features anywhere in this codebase, so they're not listed. -->
+<div id="dd-analyze" class="tb-dropdown">
+  <div class="tb-dd-row"><button class="tb-btn tb-dd-full" onclick="toolbarSendEngineeringCommand('analyze.analysis')">Analysis</button></div>
+  <div class="tb-dd-row"><button class="tb-btn tb-dd-full" onclick="toolbarSendEngineeringCommand('analyze.compare')">Compare Diagrams</button></div>
 </div>
 
 <!-- Export — Export SVG is the one real export format this app

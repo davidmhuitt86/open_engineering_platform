@@ -11,7 +11,12 @@ import '../../core/notifications/platform_notification_service.dart';
 import '../../core/services/engineering_project_service.dart';
 import '../../core/theme/studio_colors.dart';
 import '../compare/diagram_with_compare_pane.dart'
-    show dmmPanelVisibleProvider, tracePanelVisibleProvider;
+    show
+        analysisPanelVisibleProvider,
+        dmmPanelVisibleProvider,
+        tracePanelVisibleProvider,
+        toggleAnalysisPanel,
+        toggleComparePane;
 import '../controller/diagram_studio_controller.dart';
 import '../controller/diagram_studio_controller_provider.dart';
 import '../instruments/multimeter/multimeter_controller.dart';
@@ -322,6 +327,16 @@ class _WindowsLegacyV2WebViewPageState
         unawaited(_saveDocument(context, documentPath));
       case 'file.saveAs':
         unawaited(_saveDocumentAs(context));
+      // PRODUCT-READINESS-012 — the engineering toolbar's Analyze
+      // dropdown (index.html's `dd-analyze`): real shortcuts to the
+      // exact same Analysis/Compare Diagrams workspace-action panels
+      // above (toggleAnalysisPanel/toggleComparePane,
+      // diagram_with_compare_pane.dart — the same functions those
+      // panel buttons call directly), never a second implementation.
+      case 'analyze.analysis':
+        toggleAnalysisPanel(ref, ref.read(analysisPanelVisibleProvider));
+      case 'analyze.compare':
+        unawaited(toggleComparePane(context, ref));
     }
   }
 

@@ -25,6 +25,18 @@ TRX300 fixture" (repository already carried substantial uncommitted work
 predating this phase, per `git status` at the start of this pass — none of
 it altered or reverted; see §22/Files Modified).
 
+> **Post-hoc note (PRODUCT-READINESS-012):** the hash `3c62b2c` no longer
+> resolves on `main`. It was not reverted or altered in content — a later,
+> unrelated history cleanup (removing an oversized video file accidentally
+> committed in an ancestor commit) rewrote every commit from that point
+> forward, so this same commit ("Add automated regression tests for
+> solver invariants and TRX300 fixture", identical message and content)
+> now exists under a new hash. "Baseline commit" here means *the phase's
+> own starting state* (what HEAD was when this PR-011 session began, per
+> its own `git status` caveat above), not a Git parent-commit guarantee
+> that survives all future history rewrites. No fact in this report is
+> changed by this note.
+
 ## 3. Objective
 
 Prove PR-006 through PR-010's existing architecture through the actual

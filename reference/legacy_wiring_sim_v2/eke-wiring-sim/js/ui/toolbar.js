@@ -1,21 +1,13 @@
 /**
  * ui/toolbar.js
  *
- * OEP-STUDIO-BRANDING-V1 — the generic contextual-dropdown controller for
- * the restyled top toolbar (`#topbar-actions` in index.html): click a
- * `.tb-icon-btn[data-dropdown-for]`, its matching `#dd-*` panel opens
- * directly below it; click anywhere outside the open dropdown (including
- * its own trigger button again, or Escape) and it closes. Exactly the
- * "click tool -> dropdown, select action -> dropdown can close, click
- * empty space -> collapses" behavior asked for — no intrusive modal
- * windows, no Close button.
+ * Generic contextual-dropdown controller for the engineering toolbar
+ * (index.html): click a `.tb-icon-btn[data-dropdown-for]`, its matching
+ * `#dd-*` panel opens beneath it; click outside, or Escape, closes it.
  *
- * Deliberately owns ONLY open/close/position state for these dropdowns.
- * Every action inside a dropdown is still a plain onclick= calling an
- * existing global function (zBy, toggleEdit, toggleSearch, ...) defined
- * elsewhere (app.js et al) — this file adds no new diagram/editing
- * behavior of its own, matching this file's own pre-existing doc-comment
- * scope ("No electrical logic. No rendering of diagram elements.").
+ * Owns ONLY open/close/position state for these dropdowns. Every action
+ * inside one is a plain onclick= calling an existing global function
+ * (app.js et al) — no new diagram/editing behavior lives here.
  */
 
 let _openDropdownId = null;
@@ -54,22 +46,11 @@ document.addEventListener('keydown', (e) => {
 });
 
 /**
- * OEP-STUDIO-BRANDING-V1 — the engineering toolbar's TRACE/MEASURE
- * dropdown items are the only ones backed by real FLUTTER logic
- * (TraceController/MultimeterController — the same controllers the
- * Trace Circuit/Multimeter workspace-action panels already use), not a
- * V2-native function. This posts one small, fixed-vocabulary command
- * string through `window.__oepBridgePostMessage` — the SAME cross-
- * platform (Windows/Android) outbound function the injected bridge
- * script itself already defines and uses for every other message this
- * app sends (legacy_v2_bridge_script.dart), rather than reaching for
- * `window.chrome.webview.postMessage` directly, which would only work
- * on Windows. `LegacyV2BridgeTransport.onEngineeringCommand` (Windows)
- * / the Android transport's own identical handling dispatches this to
- * real provider actions on the Dart side
- * (`_WindowsLegacyV2WebViewPageState._handleEngineeringCommand`,
- * legacy_v2_webview.dart). Closes whichever dropdown is open first,
- * same as any other toolbar action.
+ * Sends one fixed-vocabulary command string to the Flutter side (File/
+ * Trace/Measure/Analyze toolbar items that need real Flutter logic, not
+ * a V2-native function) via `window.__oepBridgePostMessage` — the same
+ * cross-platform outbound channel every other bridge message uses.
+ * Handled by `_handleEngineeringCommand` (legacy_v2_webview.dart).
  */
 function toolbarSendEngineeringCommand(command) {
   toolbarCloseAllDropdowns();
