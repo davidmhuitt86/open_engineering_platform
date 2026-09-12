@@ -10,6 +10,7 @@ import '../simulation/diagram_simulation_service.dart';
 import '../webview/legacy_v2_bridge_transport.dart';
 import '../webview/legacy_v2_state_adapter.dart';
 import '../webview/legacy_v2_trust_boundary.dart';
+import '../webview/legacy_v2_webview.dart' show logV2WebviewLifecycle, nextV2WebviewLifecycleId;
 import 'compare_diagram_controller.dart';
 import 'compare_legacy_v2_android_webview.dart';
 import 'compare_project_provider.dart';
@@ -54,6 +55,11 @@ class _WindowsCompareLegacyV2WebViewPage extends ConsumerStatefulWidget {
 }
 
 class _WindowsCompareLegacyV2WebViewPageState extends ConsumerState<_WindowsCompareLegacyV2WebViewPage> {
+  /// PRODUCT-READINESS-014 — shares [nextV2WebviewLifecycleId]'s one
+  /// counter with the Primary Windows webview so log lines from both are
+  /// directly orderable/comparable (§ that function's own doc comment).
+  late final int _lifecycleId = nextV2WebviewLifecycleId();
+
   final WebviewController _controller = WebviewController();
   late final LegacyV2BridgeTransport _transport = LegacyV2BridgeTransport(_controller);
   LegacyV2StateAdapter? _adapter;
@@ -100,16 +106,19 @@ class _WindowsCompareLegacyV2WebViewPageState extends ConsumerState<_WindowsComp
   @override
   void initState() {
     super.initState();
+    logV2WebviewLifecycle('CREATE', lifecycleId: _lifecycleId, instance: 'compare');
     _init();
   }
 
   Future<void> _init() async {
+    logV2WebviewLifecycle('INIT', lifecycleId: _lifecycleId, instance: 'compare');
     try {
       await _controller.initialize();
       await _transport.attach();
       final entryUrl = _v2EntryPointUri().toString();
       _controller.url.listen((url) => _onNavigate(url, entryUrl));
       await _controller.loadUrl(entryUrl);
+      logV2WebviewLifecycle('LOAD', lifecycleId: _lifecycleId, instance: 'compare');
       if (!mounted) return;
       setState(() => _ready = true);
     } catch (e) {
@@ -138,6 +147,7 @@ class _WindowsCompareLegacyV2WebViewPageState extends ConsumerState<_WindowsComp
   void _triggerInitialSeed(LegacyV2StateAdapter adapter) {
     if (_didInitialSeed) return;
     _didInitialSeed = true;
+    logV2WebviewLifecycle('SEED', lifecycleId: _lifecycleId, instance: 'compare');
     unawaited(adapter.initializeFromDocument().then((_) async {
       await _transport.interceptV2Save();
       if (mounted) setState(() {});
@@ -157,6 +167,7 @@ class _WindowsCompareLegacyV2WebViewPageState extends ConsumerState<_WindowsComp
 
   @override
   void dispose() {
+    logV2WebviewLifecycle('DISPOSE', lifecycleId: _lifecycleId, instance: 'compare');
     // AP-DIAGRAM-V2-BRIDGE-SAVE-002 — best-effort; see the Primary
     // Windows host's own doc comment on this same line for why this must
     // never throw.
@@ -171,6 +182,10 @@ class _WindowsCompareLegacyV2WebViewPageState extends ConsumerState<_WindowsComp
   @override
   Widget build(BuildContext context) {
     ref.listen(compareEngineeringProjectServiceProvider.select((s) => s.document.id), (previous, next) {
+      logV2WebviewLifecycle('REINITIALIZE',
+          lifecycleId: _lifecycleId,
+          instance: 'compare',
+          detail: 'oldDocument=$previous newDocument=$next');
       final adapter = _adapter;
       if (adapter != null) _onDocumentChanged(adapter);
     });

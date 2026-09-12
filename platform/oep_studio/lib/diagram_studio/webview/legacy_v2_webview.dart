@@ -55,6 +55,38 @@ import 'legacy_v2_trust_boundary.dart';
 final legacyV2ToggleSimulationViewProvider =
     StateProvider<Future<void> Function()?>((ref) => null);
 
+/// PRODUCT-READINESS-014 — a monotonically increasing id assigned once
+/// per Legacy V2 WebView `State` instance (shared across the Primary
+/// Windows widget and `CompareLegacyV2WebViewPage`'s own Windows widget,
+/// not a separate counter per class, so log lines from both are directly
+/// orderable/comparable — matching this task's own log examples, e.g.
+/// "CREATE lifecycle=7" for Primary followed by "CREATE lifecycle=8
+/// instance=compare"). Temporary diagnostic instrumentation only, never
+/// used for identity/business logic; see [logV2WebviewLifecycle].
+int _nextV2WebviewLifecycleId = 0;
+
+int nextV2WebviewLifecycleId() => ++_nextV2WebviewLifecycleId;
+
+/// PRODUCT-READINESS-014 Phase 1 — establishes, with evidence rather
+/// than visual impression, whether a given action actually recreates a
+/// Legacy V2 WebView `State` (and therefore its `WebviewController`/
+/// `LegacyV2BridgeTransport`/`LegacyV2StateAdapter`, and reloads the real
+/// V2 page) versus merely rebuilding an ancestor widget. Deliberately
+/// narrow and non-sensitive: never logs document paths/content, only
+/// ids — `instance` is either the fixed `primaryDiagramInstanceId`
+/// literal, a real (but content-free) `WorkspaceTab.id`, or the fixed
+/// literal `'compare'`.
+void logV2WebviewLifecycle(
+  String event, {
+  required int lifecycleId,
+  String? instance,
+  String? detail,
+}) {
+  final instancePart = instance == null ? '' : ' instance=$instance';
+  final detailPart = detail == null ? '' : ' $detail';
+  debugPrint('[V2-WEBVIEW] $event lifecycle=$lifecycleId$instancePart$detailPart');
+}
+
 class LegacyV2WebViewPage extends StatelessWidget {
   const LegacyV2WebViewPage({this.instanceId, super.key});
 
@@ -133,6 +165,11 @@ class _WindowsLegacyV2WebViewPageState
   /// per Diagram tab, per `EngineeringWorkspacePage._buildTabContent`),
   /// so the instance id never changes mid-lifetime.
   String get _instanceId => widget.instanceId ?? primaryDiagramInstanceId;
+
+  /// PRODUCT-READINESS-014 — see [nextV2WebviewLifecycleId]'s own doc
+  /// comment. Assigned once, in [initState], and never changes for this
+  /// `State`'s lifetime.
+  late final int _lifecycleId = nextV2WebviewLifecycleId();
 
   final WebviewController _controller = WebviewController();
   late final LegacyV2BridgeTransport _transport =
@@ -227,16 +264,19 @@ class _WindowsLegacyV2WebViewPageState
   @override
   void initState() {
     super.initState();
+    logV2WebviewLifecycle('CREATE', lifecycleId: _lifecycleId, instance: _instanceId);
     _init();
   }
 
   Future<void> _init() async {
+    logV2WebviewLifecycle('INIT', lifecycleId: _lifecycleId, instance: _instanceId);
     try {
       await _controller.initialize();
       await _transport.attach();
       final entryUrl = _v2EntryPointUri().toString();
       _controller.url.listen((url) => _onNavigate(url, entryUrl));
       await _controller.loadUrl(entryUrl);
+      logV2WebviewLifecycle('LOAD', lifecycleId: _lifecycleId, instance: _instanceId);
       if (!mounted) return;
       setState(() => _ready = true);
       // OEP-STUDIO-BRANDING-V1 — only the primary instance publishes the
@@ -505,6 +545,7 @@ class _WindowsLegacyV2WebViewPageState
   void _triggerInitialSeed(LegacyV2StateAdapter adapter) {
     if (_didInitialSeed) return;
     _didInitialSeed = true;
+    logV2WebviewLifecycle('SEED', lifecycleId: _lifecycleId, instance: _instanceId);
     _seedChain = _seedChain.then((_) => _waitForV2Ready()).then((_) async {
       await adapter.initializeFromDocument();
       await _verifySeedLanded(adapter);
@@ -625,6 +666,7 @@ class _WindowsLegacyV2WebViewPageState
 
   @override
   void dispose() {
+    logV2WebviewLifecycle('DISPOSE', lifecycleId: _lifecycleId, instance: _instanceId);
     // AP-DIAGRAM-V2-BRIDGE-SAVE-002 — never leave a disposed widget's
     // adapter reachable from a save trigger that outlives it. Best-effort
     // only: if the family entry has already been torn down by the time
@@ -662,6 +704,10 @@ class _WindowsLegacyV2WebViewPageState
     ref.listen(
         engineeringProjectServiceFamily(_instanceId)
             .select((s) => s.document.id), (previous, next) {
+      logV2WebviewLifecycle('REINITIALIZE',
+          lifecycleId: _lifecycleId,
+          instance: _instanceId,
+          detail: 'oldDocument=$previous newDocument=$next');
       final adapter = _adapter;
       if (adapter != null) _onDocumentChanged(adapter);
     });

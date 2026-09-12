@@ -205,50 +205,57 @@ class DiagramWithComparePane extends ConsumerWidget {
             ),
           ),
         ),
+        // PRODUCT-READINESS-014 — one permanent host structure for the
+        // Primary Legacy V2 WebView, regardless of which (if any) side
+        // panel is active. This USED to be a `compareEnabled ? Row(...) :
+        // analysisEnabled ? Row(...) : ... : const LegacyV2WebViewPage()`
+        // chain — every branch built its own separate `Row(children:
+        // [Expanded(LegacyV2WebViewPage()), ...])`, *except* the final
+        // "no panel" branch, which built a bare `LegacyV2WebViewPage()`
+        // with no `Row`/`Expanded` wrapper at all. Flutter's element
+        // reconciliation compares the widget at a given tree position by
+        // `runtimeType` (plus `key`); going from "no panel" to "any panel"
+        // (or back) therefore flipped the runtimeType at this exact
+        // position between `Row` and `LegacyV2WebViewPage`, which
+        // `Widget.canUpdate` treats as "cannot update" — Flutter disposed
+        // the Primary WebView's entire `State` (WebviewController,
+        // transport, adapter, and all) and created a fresh one, reloading
+        // the real V2 page. Confirmed via this task's own CREATE/DISPOSE
+        // lifecycle logging (`logV2WebviewLifecycle`) before this fix, and
+        // absent after it — see
+        // `docs/architecture/diagram_studio/PRODUCT-READINESS-014-IMPLEMENTATION-REPORT.md`.
+        //
+        // Now the `Row` and the Primary's `Expanded(LegacyV2WebViewPage())`
+        // are unconditional — always the same widget, always at index 0 —
+        // and only the trailing side-panel children (a divider plus
+        // whichever panel is active) come and go. Flutter's positional
+        // diffing for an unkeyed children list never disturbs index 0 when
+        // only trailing entries are added/removed, so the Primary's
+        // `Element`/`State` (and therefore its live WebView2 process) now
+        // survives every panel open/close/switch.
         Expanded(
-          child: compareEnabled
-              ? Row(
-                  children: const [
-                    Expanded(child: LegacyV2WebViewPage()),
-                    VerticalDivider(width: 1, color: StudioColors.border),
-                    Expanded(child: CompareLegacyV2WebViewPage()),
-                  ],
-                )
-              : analysisEnabled
-                  ? Row(
-                      children: const [
-                        Expanded(child: LegacyV2WebViewPage()),
-                        VerticalDivider(width: 1, color: StudioColors.border),
-                        SizedBox(
-                          width: 340,
-                          child: AnalysisResultsPanel(
-                              instanceId: primaryDiagramInstanceId),
-                        ),
-                      ],
-                    )
-                  : dmmEnabled
-                      ? const Row(
-                          children: [
-                            Expanded(child: LegacyV2WebViewPage()),
-                            VerticalDivider(width: 1, color: StudioColors.border),
-                            SizedBox(
-                              width: 340,
-                              child: DigitalMultimeterInstrumentPanel(),
-                            ),
-                          ],
-                        )
-                      : traceEnabled
-                          ? const Row(
-                              children: [
-                                Expanded(child: LegacyV2WebViewPage()),
-                                VerticalDivider(width: 1, color: StudioColors.border),
-                                SizedBox(
-                                  width: 340,
-                                  child: TraceInspectorPanel(),
-                                ),
-                              ],
-                            )
-                          : const LegacyV2WebViewPage(),
+          child: Row(
+            children: [
+              const Expanded(child: LegacyV2WebViewPage()),
+              if (compareEnabled) ...const [
+                VerticalDivider(width: 1, color: StudioColors.border),
+                Expanded(child: CompareLegacyV2WebViewPage()),
+              ] else if (analysisEnabled) ...const [
+                VerticalDivider(width: 1, color: StudioColors.border),
+                SizedBox(
+                  width: 340,
+                  child: AnalysisResultsPanel(
+                      instanceId: primaryDiagramInstanceId),
+                ),
+              ] else if (dmmEnabled) ...const [
+                VerticalDivider(width: 1, color: StudioColors.border),
+                SizedBox(width: 340, child: DigitalMultimeterInstrumentPanel()),
+              ] else if (traceEnabled) ...const [
+                VerticalDivider(width: 1, color: StudioColors.border),
+                SizedBox(width: 340, child: TraceInspectorPanel()),
+              ],
+            ],
+          ),
         ),
       ],
     );

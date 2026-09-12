@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:engineering_engine/engineering_engine.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../simulation/diagram_simulation_service.dart';
@@ -1241,6 +1242,14 @@ class LegacyV2StateAdapter {
   /// document-switch case; this makes the initial seed symmetric with it
   /// rather than a silent special case.
   Future<void> initializeFromDocument() async {
+    // PRODUCT-READINESS-014 Phase 1 — this clears and reseeds V2's entire
+    // MODULES/WIRES arrays via bridge calls; it never touches the
+    // WebView's own `State`/`WebviewController`/`loadUrl` (those live one
+    // layer up, in the WebView `State` itself — see that class's own
+    // CREATE/INIT/LOAD/DISPOSE logging). Logged here, separately, so a
+    // seed/reseed can be confirmed to have actually run even if the
+    // caller's own log line were ever missing.
+    debugPrint('[V2-WEBVIEW] ADAPTER-INITIALIZE-FROM-DOCUMENT begin');
     _ready = false;
     _v2ToOepNodeId.clear();
     _v2ToOepRelationshipId.clear();
@@ -1553,6 +1562,7 @@ class LegacyV2StateAdapter {
   /// bookkeeping that's specific to a genuine document switch, not a
   /// first-ever load.
   Future<void> reinitializeForDocument() async {
+    debugPrint('[V2-WEBVIEW] ADAPTER-REINITIALIZE-FOR-DOCUMENT begin');
     lastBridgedV2ModuleId = null;
     lastBridgedV2WireId = null;
     _lastBridgedKind = null;
