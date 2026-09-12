@@ -608,12 +608,16 @@ FREETEXT_SECTIONS.forEach(sec=>root.appendChild(buildFreeText(sec)));
 const navlist = document.getElementById('navlist');
 const navItems = [
   ['tester','Tester info',null],
-  ...SECTIONS.map(s=>[s.id,`${s.title}`,s.id]),
-  ['N','Panel lifecycle','N'],
+];
+SECTIONS.forEach(s=>{
+  navItems.push([s.id, s.title, s.id]);
+  if(s.id==='M') navItems.push(['N','Panel lifecycle','N']);
+});
+navItems.push(
   ...FREETEXT_SECTIONS.map(s=>[s.id,`${s.title}`,s.id]),
   ['issuelist','Issues',null],['observations','Observations',null],['suggestions','Suggestions',null],
   ['score','Scorecard',null],['release','Release checklist',null],
-];
+);
 navlist.innerHTML = `<div class="brand"><div class="mark">O</div><div class="txt"><b>Diagram Studio</b><span>Acceptance test</span></div></div>` +
   navItems.map(([id,label,secId])=>`<a class="navlink${secId?' navsec':''}" ${secId?`data-sec="${secId}"`:''} href="#sec-${id}"><span class="id">${secId||''}</span><span class="dot"></span>${label}</a>`).join('');
 
