@@ -165,6 +165,7 @@ const String _kRawBridgeScript = r'''
   var lastWireProps = {};     // id -> { lbl, c }, previous poll's WIRES lbl/c snapshot
   var syncedWireProps = {};   // id -> { lbl, c } most recent OEP-authoritative wire label/color
   var lastMeterKey = null;    // previous poll's "<selW.id>|<meterMode>" combined key
+  var lastOperatingStateJson = null; // previous poll's JSON.stringify(LiveSim.getLiveOperatingState())
 
   window.__oepBridgeApplyAuthoritative = function (id, x, y) {
     if (typeof positions !== 'undefined') {
@@ -555,6 +556,92 @@ const String _kRawBridgeScript = r'''
     if (typeof drawWires === 'function') { drawWires(); }
   };
 
+  // PRODUCT-READINESS-009 §11/§21/§27 — the minimal adapter that lets the
+  // native `TraceEngine`'s own result drive the REAL, already-rendered
+  // diagram's existing highlight primitives, without invoking V2's own
+  // CircuitTracer/PathFinder/PathHighlighter (which stays untouched,
+  // reference-only): `tracedWires` + `drawWires()` is the exact mechanism
+  // `js/diagram/path-highlighter.js` itself already uses; `nativeFlowWires`
+  // (declared alongside `tracedWires` in app.js) is a small, additive
+  // global `wireHasFlow`/`wireFlowDir` (renderer.js) consult FIRST when
+  // present, so current-flow animation is gated on genuinely native,
+  // solved-current data -- never V2's own legacy `VDC != 0` heuristic --
+  // while leaving every other, non-trace use of those two functions
+  // (V2's own manual wire-tracer panel, if a user opens it independently)
+  // completely unaffected, since `nativeFlowWires` stays `null` except
+  // while a native current-flow trace is actively displayed.
+  window.__oepBridgeApplyTraceHighlight = function (wireIds, sourceIds, returnIds, blockedIds, flowByWireId) {
+    try {
+      tracedWires = new Set(wireIds || []);
+      document.querySelectorAll('.mod-card.trace-source,.mod-card.trace-return,.mod-card.trace-blocked').forEach(function (el) {
+        el.classList.remove('trace-source', 'trace-return', 'trace-blocked');
+      });
+      (sourceIds || []).forEach(function (id) {
+        var el = document.querySelector('.mod-card[data-mid="' + id + '"]');
+        if (el) el.classList.add('trace-source');
+      });
+      (returnIds || []).forEach(function (id) {
+        var el = document.querySelector('.mod-card[data-mid="' + id + '"]');
+        if (el) el.classList.add('trace-return');
+      });
+      (blockedIds || []).forEach(function (id) {
+        var el = document.querySelector('.mod-card[data-mid="' + id + '"]');
+        if (el) el.classList.add('trace-blocked');
+      });
+      var hasFlow = flowByWireId && Object.keys(flowByWireId).length > 0;
+      nativeFlowWires = hasFlow ? new Map(Object.entries(flowByWireId).map(function (e) { return [e[0], +e[1]]; })) : null;
+      if (typeof drawWires === 'function') drawWires();
+    } catch (e) {}
+  };
+
+  window.__oepBridgeClearTraceHighlight = function () {
+    try {
+      tracedWires = new Set();
+      nativeFlowWires = null;
+      document.querySelectorAll('.mod-card.trace-source,.mod-card.trace-return,.mod-card.trace-blocked').forEach(function (el) {
+        el.classList.remove('trace-source', 'trace-return', 'trace-blocked');
+      });
+      if (typeof drawWires === 'function') drawWires();
+    } catch (e) {}
+  };
+
+  // PRODUCT-READINESS-010 §17 — "Fit Circuit": computes a bounding box
+  // over the real, already-rendered module cards named by nodeIds (using
+  // each module's own real, untransformed `positions[id]` origin plus its
+  // own card's real `offsetWidth`/`offsetHeight` -- deliberately NOT
+  // `getBoundingClientRect()`, which would already reflect the CURRENT
+  // scale/pan transform on #scene, making the math circular), then
+  // reuses the exact same `scale`/`tx`/`ty`/`applyT()` primitives V2's
+  // own existing whole-diagram "Fit view" (`zReset()`, same file) already
+  // uses -- never a second viewport/camera authority, just the same one
+  // scoped to a subset instead of the whole canvas.
+  window.__oepBridgeFitToNodes = function (nodeIds) {
+    try {
+      if (typeof positions === 'undefined' || !nodeIds || !nodeIds.length) return;
+      var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      nodeIds.forEach(function (id) {
+        var pos = positions[id];
+        var card = document.querySelector('.mod-card[data-mid="' + id + '"]');
+        if (!pos || !card) return;
+        minX = Math.min(minX, pos.x);
+        minY = Math.min(minY, pos.y);
+        maxX = Math.max(maxX, pos.x + card.offsetWidth);
+        maxY = Math.max(maxY, pos.y + card.offsetHeight);
+      });
+      if (minX === Infinity) return; // none of the ids resolved to a real, rendered card.
+      var padding = 40;
+      minX -= padding; minY -= padding; maxX += padding; maxY += padding;
+      var bw = Math.max(1, maxX - minX), bh = Math.max(1, maxY - minY);
+      var vw = vp.offsetWidth, vh = vp.offsetHeight;
+      var s = Math.min(3, Math.max(.15, Math.min(vw / bw, vh / bh)));
+      scale = s;
+      tx = (vw - bw * s) / 2 - minX * s;
+      ty = (vh - bh * s) / 2 - minY * s;
+      if (typeof applyT === 'function') applyT();
+      if (typeof drawWires === 'function') drawWires();
+    } catch (e) {}
+  };
+
   window.__oepBridgeInterceptSave = function () {
     // See the Dart-side `interceptV2Save`'s own doc comment for why this
     // must run after V2's own script has already defined `saveLayout` —
@@ -833,6 +920,25 @@ const String _kRawBridgeScript = r'''
         }
       } else {
         lastMeterKey = null;
+      }
+    } catch (e) {
+      // Same rationale as the position-polling try/catch above.
+    }
+
+    // PRODUCT-READINESS-008 -- V2's own live switch/key state, poll-diffed
+    // the same way as every other V2-observation in this bridge (LiveSim
+    // has no change event of its own): whenever the JSON snapshot of
+    // LiveSim.getLiveOperatingState() differs from the previous tick's,
+    // post it so the Dart-side adapter can translate it into a real
+    // ElectricalOperatingContext for the native solver.
+    try {
+      if (typeof LiveSim !== 'undefined' && LiveSim && typeof LiveSim.getLiveOperatingState === 'function') {
+        var operatingState = LiveSim.getLiveOperatingState();
+        var operatingStateJson = JSON.stringify(operatingState);
+        if (operatingStateJson !== lastOperatingStateJson) {
+          lastOperatingStateJson = operatingStateJson;
+          pending.push({ type: 'operatingStateChanged', payload: operatingState });
+        }
       }
     } catch (e) {
       // Same rationale as the position-polling try/catch above.

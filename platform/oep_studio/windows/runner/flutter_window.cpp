@@ -36,6 +36,13 @@ bool FlutterWindow::OnCreate() {
   // window is shown. It is a no-op if the first frame hasn't completed yet.
   flutter_controller_->ForceRedraw();
 
+  // Fallback only (see the timer ids' own doc comment, flutter_window.h):
+  // if the engine's first frame never completes, the callback above never
+  // fires and the window never shows. WM_TIMER handling below force-shows
+  // it after a timeout and cancels itself once the real callback has
+  // already shown the window, so this never fires on the normal path.
+  SetTimer(GetHandle(), kFallbackShowTimerId, kFallbackShowTimeoutMs, nullptr);
+
   return true;
 }
 
@@ -64,6 +71,17 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
   switch (message) {
     case WM_FONTCHANGE:
       flutter_controller_->engine()->ReloadSystemFonts();
+      break;
+    case WM_TIMER:
+      if (wparam == kFallbackShowTimerId) {
+        KillTimer(hwnd, kFallbackShowTimerId);
+        // Only a fallback: if the real "next frame" callback already
+        // showed the window, IsWindowVisible is already true and this is
+        // a no-op (§ this timer's own doc comment, flutter_window.h).
+        if (!IsWindowVisible(hwnd)) {
+          this->Show();
+        }
+      }
       break;
   }
 

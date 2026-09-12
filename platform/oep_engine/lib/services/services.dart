@@ -13,6 +13,7 @@ export '../core/navigation/navigation_event.dart';
 export '../core/navigation/navigation_service.dart';
 export '../core/search/search_result.dart';
 export '../core/search/search_service.dart';
+export '../core/search/terminal_search.dart';
 export '../core/selection/focus_state.dart';
 export '../core/selection/graph_selection.dart';
 export '../core/selection/selection_service.dart';

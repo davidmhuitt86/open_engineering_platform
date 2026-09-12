@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:oep_instruments_runtime/protocol/oip_message.dart';
 import 'package:oep_instruments_runtime/protocol/oip_message_category.dart';
 import 'package:oep_instruments_runtime/transports/oip_host_server.dart';
+import 'package:oep_instruments_runtime/transports/transport_state.dart';
 import 'package:oep_instruments_runtime/transports/wifi_oip_transport.dart';
 
 /// Real loopback test: an [OipHostServer] listening on localhost, a real
@@ -103,6 +104,57 @@ void main() {
             messageId: 'm1',
             timestamp: DateTime(2026, 1, 1),
           )), throwsStateError);
+    });
+
+    // PRODUCT-READINESS-007 §20 — real TCP loopback, no mocks: the SERVER
+    // side closes the connection out from under the client (simulating a
+    // dropped Wi-Fi/AP restart), and the client transport is expected to
+    // detect it and automatically reconnect using a bounded backoff,
+    // without the caller doing anything.
+    test('automatic reconnect: a server-initiated drop is detected and the client reconnects on its own', () async {
+      final server = await OipHostServer.bind(address: '127.0.0.1', port: 0);
+      addTearDown(server.close);
+      final serverConnections = <OipHostConnection>[];
+      final connectionsSub = server.connections.listen(serverConnections.add);
+      addTearDown(connectionsSub.cancel);
+
+      final client = WifiOipTransport(transportId: 'test-reconnect');
+      await client.initialize();
+      addTearDown(client.shutdown);
+      final states = <TransportConnectionState>[];
+      final stateSub = client.stateChanges.listen(states.add);
+      addTearDown(stateSub.cancel);
+
+      await client.connect('127.0.0.1:${server.port}');
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+      expect(serverConnections, hasLength(1));
+      expect(client.state, TransportConnectionState.connected);
+
+      // Drop from the SERVER side -- the client never called disconnect().
+      await serverConnections[0].close();
+
+      // First backoff step is 1s; give it real time to fire and for a
+      // fresh TCP handshake to complete against the still-listening
+      // server (same port -- nothing else changed).
+      await Future<void>.delayed(const Duration(milliseconds: 1800));
+
+      expect(states, contains(TransportConnectionState.disconnected));
+      expect(states, contains(TransportConnectionState.reconnecting));
+      expect(client.state, TransportConnectionState.connected, reason: 'the client should have reconnected automatically');
+      expect(serverConnections, hasLength(2), reason: 'a genuinely new TCP connection was established, not a leaked/duplicated old one');
+    });
+
+    test('manual disconnect() never triggers an automatic reconnect', () async {
+      final server = await OipHostServer.bind(address: '127.0.0.1', port: 0);
+      addTearDown(server.close);
+      final client = WifiOipTransport(transportId: 'test-manual-disconnect');
+      await client.initialize();
+      addTearDown(client.shutdown);
+      await client.connect('127.0.0.1:${server.port}');
+      await client.disconnect();
+
+      await Future<void>.delayed(const Duration(milliseconds: 1800));
+      expect(client.state, TransportConnectionState.disconnected, reason: 'no reconnect attempt should have fired');
     });
   });
 }

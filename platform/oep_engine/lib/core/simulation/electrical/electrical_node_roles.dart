@@ -1,4 +1,5 @@
 import '../../graph/models/engineering_node.dart';
+import '../../graph/models/port.dart';
 import 'electrical_component_behavior.dart';
 
 /// PRODUCT-READINESS-006 — component classification shared by [TraceEngine]
@@ -34,4 +35,62 @@ ElectricalComponentBehavior? defaultElectricalBehaviorFor(EngineeringNode node) 
   if (isConnectorNode(node)) return const PassThroughElectricalComponentBehavior();
   if (isSpliceNode(node)) return const AlwaysBridgeElectricalComponentBehavior();
   return null;
+}
+
+/// Common ground/negative-terminal name spellings this engine has directly
+/// observed in real diagrams (`platform/oep_studio/samples/diagram7.json`'s
+/// own real Battery: terminal names `+`/`−`, confirmed by direct
+/// inspection) — shared by [electrical_solver.dart]'s own
+/// `defaultIsReferenceTerminal` and [preciseIsReferenceTerminal] below.
+const referenceTerminalNamePatterns = {'-', '−', 'gnd', 'ground', 'neg', 'negative'};
+
+bool nameMatchesReferenceTerminal(EngineeringNode node, String? portId) {
+  if (portId == null) return false;
+  final port = node.ports.where((p) => p.id == portId).cast<Port?>().firstWhere((_) => true, orElse: () => null);
+  final name = port?.name.trim().toLowerCase();
+  return name != null && referenceTerminalNamePatterns.contains(name);
+}
+
+/// A node this engine can recognize, from real, already-established
+/// signals, as a modeled power SOURCE component — the same three signals
+/// `defaultIsSourceTerminal` (`electrical_solver.dart`) already checks
+/// (`behavior.generatesPower`, `metadata['v2Category'] == 'power'`,
+/// `metadata['v2Kind'] == 'battery'`), factored out here so
+/// [preciseIsReferenceTerminal] can reuse the exact same recognition
+/// without duplicating it.
+bool isRecognizedSourceComponent(EngineeringNode node, ElectricalComponentBehavior? behavior) =>
+    behavior?.generatesPower == true || node.metadata['v2Category'] == 'power' || node.metadata['v2Kind'] == 'battery';
+
+/// PRODUCT-READINESS-006B/PRODUCT-READINESS-008 §16 — the PRECISE
+/// reference-terminal resolver PRODUCT-READINESS-006B validated against
+/// the real, full-harness `diagram7.json` (previously only wired into
+/// that phase's own TRX300 test, per its own disclosed "the DEFAULT
+/// name-based resolver over-fires at full-harness scale" finding — see
+/// `ELECTRICAL_SOLUTION_ENGINE.md`'s "A real finding from the real
+/// diagram7.json validation"). PRODUCT-READINESS-008 §16 requires this
+/// now be available on the PRODUCTION path, not test-only.
+///
+/// Unconditionally true for a genuine [isGroundNode] (a real
+/// Ground-category node, or `metadata['v2Category'] == 'ground'` — the
+/// real TRX300 `chassis-ground` node is exactly this). Otherwise, a
+/// name-matched terminal (`referenceTerminalNamePatterns`) is treated as
+/// a reference ONLY when it belongs to a [isRecognizedSourceComponent] —
+/// i.e. "a modeled SOURCE's own declared return/negative pin is a
+/// reference" (needed for battery isolation — a battery's own `-` post
+/// must read 0V even with no separate chassis-ground node in scope),
+/// while an unrelated real component that merely happens to have a pin
+/// NAMED something like `-`/`neg` (PRODUCT-READINESS-006B's own real
+/// finding: a voltage regulator/rectifier, an ignition coil, a DC
+/// accessory jack, ... in the real, full `diagram7.json`) is no longer
+/// incorrectly promoted to a global 0V boundary merely by its pin's name.
+/// This is strictly narrower than the plain name-based default
+/// (`defaultIsReferenceTerminal`) in exactly the one case that was found
+/// to be wrong, and identical to it everywhere else — a real regression
+/// risk was checked by running every existing PRODUCT-READINESS-004/005/
+/// 006/006B fixture against this resolver (they all already model their
+/// own source components via `v2Category: 'power'`, so no existing test
+/// value changes).
+bool preciseIsReferenceTerminal(EngineeringNode node, String? portId, {ElectricalComponentBehavior? behavior}) {
+  if (isGroundNode(node)) return true;
+  return nameMatchesReferenceTerminal(node, portId) && isRecognizedSourceComponent(node, behavior);
 }

@@ -50,7 +50,10 @@ class LegacyV2AndroidBridgeTransport implements LegacyV2Channel {
   void Function(V2WirePropertiesChangedMessage message)?
       onWirePropertiesChanged;
   void Function(V2MeasurementRequestedMessage message)? onMeasurementRequested;
+  void Function(V2OperatingStateChangedMessage message)?
+      onOperatingStateChanged;
   void Function()? onSaveRequested;
+  void Function(String command)? onEngineeringCommand;
 
   /// Registers the `OepBridge` JS channel and injects the shared bridge
   /// script. Must be called once the page has actually finished loading
@@ -115,8 +118,14 @@ class LegacyV2AndroidBridgeTransport implements LegacyV2Channel {
       case 'measurementRequested':
         onMeasurementRequested
             ?.call(V2MeasurementRequestedMessage.fromJson(payload));
+      case 'operatingStateChanged':
+        onOperatingStateChanged
+            ?.call(V2OperatingStateChangedMessage.fromJson(payload));
       case 'saveRequested':
         onSaveRequested?.call();
+      case 'engineeringCommand':
+        final command = payload['command'] as String?;
+        if (command != null) onEngineeringCommand?.call(command);
     }
   }
 
@@ -285,6 +294,41 @@ class LegacyV2AndroidBridgeTransport implements LegacyV2Channel {
     if (result is! String || result.isEmpty || result == 'null') return null;
     return V2LiveMeasurementResult.fromJson(
         Map<String, dynamic>.from(jsonDecode(result) as Map));
+  }
+
+  /// PRODUCT-READINESS-009 §11/§21 — same shared injected bridge function
+  /// as the Windows transport (`window.__oepBridgeApplyTraceHighlight`);
+  /// Android has no return value to decode, so this is a plain
+  /// fire-and-forget `runJavaScript` write, same shape as every other
+  /// `_executeIfEnabled` call in this class.
+  @override
+  Future<void> applyTraceHighlight(
+    List<String> wireIds,
+    List<String> sourceModuleIds,
+    List<String> returnModuleIds,
+    List<String> blockedModuleIds,
+    Map<String, int> currentFlowByWireId,
+  ) {
+    return _executeIfEnabled(
+      'window.__oepBridgeApplyTraceHighlight && window.__oepBridgeApplyTraceHighlight('
+      '${jsonEncode(wireIds)}, ${jsonEncode(sourceModuleIds)}, ${jsonEncode(returnModuleIds)}, '
+      '${jsonEncode(blockedModuleIds)}, ${jsonEncode(currentFlowByWireId)})',
+    );
+  }
+
+  @override
+  Future<void> clearTraceHighlight() {
+    return _executeIfEnabled(
+      'window.__oepBridgeClearTraceHighlight && window.__oepBridgeClearTraceHighlight()',
+    );
+  }
+
+  /// PRODUCT-READINESS-010 §17 — see [LegacyV2Channel.fitToTraceHighlight].
+  @override
+  Future<void> fitToTraceHighlight(List<String> nodeIds) {
+    return _executeIfEnabled(
+      'window.__oepBridgeFitToNodes && window.__oepBridgeFitToNodes(${jsonEncode(nodeIds)})',
+    );
   }
 
   /// Same escape hatch as [LegacyV2BridgeTransport.executeRawScript].

@@ -121,11 +121,30 @@ class LegacyV2BridgeTransport implements LegacyV2Channel {
   /// selection (`if (!selW) return;`), so there is nothing to request.
   void Function(V2MeasurementRequestedMessage message)? onMeasurementRequested;
 
+  /// PRODUCT-READINESS-008 — fired whenever V2's own live switch/key
+  /// state changes (poll-diffed, same rationale as [onMeasurementRequested]
+  /// above).
+  void Function(V2OperatingStateChangedMessage message)?
+      onOperatingStateChanged;
+
   /// AP-DIAGRAM-V2-BRIDGE-003, Phase 4 — fired when V2's own "Save"
   /// button is clicked, once [interceptV2Save] has been applied. Never
   /// fires before that call, since V2's original `saveLayout` (a plain
   /// file download) is still in effect until then.
   void Function()? onSaveRequested;
+
+  /// OEP-STUDIO-BRANDING-V1 — fired when the engineering toolbar's own
+  /// Trace/Measure dropdown items are clicked (`js/ui/toolbar.js`'s
+  /// `toolbarSendEngineeringCommand`). These two groups are the only
+  /// ones in that toolbar backed by real FLUTTER logic (the actual
+  /// `TraceController`/`MultimeterController`, not anything V2's own JS
+  /// can reach) rather than a V2-native function — [command] is one of
+  /// a small, fixed, real set (`trace.physical`/`trace.conducting`/
+  /// `trace.currentFlow`/`trace.fromSource`/`trace.clear`/
+  /// `measure.voltageDc`/`measure.voltageAc`/`measure.resistance`/
+  /// `measure.continuity`/`measure.diode`/`measure.open`), never a
+  /// free-form command string interpreted as code.
+  void Function(String command)? onEngineeringCommand;
 
   Future<void> attach() async {
     await _controller.addScriptToExecuteOnDocumentCreated(
@@ -192,8 +211,14 @@ class LegacyV2BridgeTransport implements LegacyV2Channel {
       case 'measurementRequested':
         onMeasurementRequested
             ?.call(V2MeasurementRequestedMessage.fromJson(payload));
+      case 'operatingStateChanged':
+        onOperatingStateChanged
+            ?.call(V2OperatingStateChangedMessage.fromJson(payload));
       case 'saveRequested':
         onSaveRequested?.call();
+      case 'engineeringCommand':
+        final command = payload['command'] as String?;
+        if (command != null) onEngineeringCommand?.call(command);
     }
   }
 
@@ -481,6 +506,40 @@ class LegacyV2BridgeTransport implements LegacyV2Channel {
     );
   }
 
+  /// PRODUCT-READINESS-009 §11/§21 — see [LegacyV2Channel.applyTraceHighlight].
+  /// `window.__oepBridgeApplyTraceHighlight` is the injected bridge-script
+  /// function (`legacy_v2_bridge_script.dart`) that actually sets V2's own
+  /// `tracedWires`/marker CSS classes/`nativeFlowWires` and redraws.
+  @override
+  Future<void> applyTraceHighlight(
+    List<String> wireIds,
+    List<String> sourceModuleIds,
+    List<String> returnModuleIds,
+    List<String> blockedModuleIds,
+    Map<String, int> currentFlowByWireId,
+  ) {
+    return _executeIfEnabled(
+      'window.__oepBridgeApplyTraceHighlight && window.__oepBridgeApplyTraceHighlight('
+      '${jsonEncode(wireIds)}, ${jsonEncode(sourceModuleIds)}, ${jsonEncode(returnModuleIds)}, '
+      '${jsonEncode(blockedModuleIds)}, ${jsonEncode(currentFlowByWireId)})',
+    );
+  }
+
+  @override
+  Future<void> clearTraceHighlight() {
+    return _executeIfEnabled(
+      'window.__oepBridgeClearTraceHighlight && window.__oepBridgeClearTraceHighlight()',
+    );
+  }
+
+  /// PRODUCT-READINESS-010 §17 — see [LegacyV2Channel.fitToTraceHighlight].
+  @override
+  Future<void> fitToTraceHighlight(List<String> nodeIds) {
+    return _executeIfEnabled(
+      'window.__oepBridgeFitToNodes && window.__oepBridgeFitToNodes(${jsonEncode(nodeIds)})',
+    );
+  }
+
   /// Transport-level escape hatch for one-off, non-mutating V2 calls that
   /// don't warrant their own message type — used for "Fit view"
   /// (`zReset()`, proven in POC-002, return value ignored) and for
@@ -517,7 +576,17 @@ abstract class LegacyV2Channel {
       void Function(V2WirePropertiesChangedMessage message)? handler);
   set onMeasurementRequested(
       void Function(V2MeasurementRequestedMessage message)? handler);
+
+  /// PRODUCT-READINESS-008 — fires whenever V2's own live switch/key
+  /// state changes (poll-diffed the same way `onMeasurementRequested`
+  /// is), so a host can translate it into an `ElectricalOperatingContext`
+  /// for the native Engine.
+  set onOperatingStateChanged(
+      void Function(V2OperatingStateChangedMessage message)? handler);
   set onSaveRequested(void Function()? handler);
+
+  /// § the concrete field's own doc comment on [LegacyV2BridgeTransport].
+  set onEngineeringCommand(void Function(String command)? handler);
 
   Future<void> sendAuthoritativeModulePosition(
       String v2ModuleId, double x, double y);
@@ -581,6 +650,38 @@ abstract class LegacyV2Channel {
   /// non-null result with `open: true`, never `null`.
   Future<V2LiveMeasurementResult?> queryLiveMeasurement(
       String v2WireId, String v2Mode);
+
+  /// PRODUCT-READINESS-009 §11 — pushes a native [TraceHighlightPlan]
+  /// (already translated to V2 ids by the caller) into the real,
+  /// unmodified V2 diagram rendering: [wireIds] become traced/glowing
+  /// wires (V2's own `tracedWires` + `drawWires()` primitive, the same
+  /// mechanism its own `PathHighlighter` already uses -- this call never
+  /// invokes V2's own `CircuitTracer`/`PathFinder`), [sourceModuleIds]/
+  /// [returnModuleIds]/[blockedModuleIds] get a distinct CSS marker class
+  /// each, and [currentFlowByWireId] (wire id -> `+1`/`-1`, only ever
+  /// populated for [TraceMode.currentFlow]) drives the real directional
+  /// flow-overlay animation gated on genuinely solved current -- never
+  /// V2's own legacy `VDC != 0` heuristic (§27/§41).
+  Future<void> applyTraceHighlight(
+    List<String> wireIds,
+    List<String> sourceModuleIds,
+    List<String> returnModuleIds,
+    List<String> blockedModuleIds,
+    Map<String, int> currentFlowByWireId,
+  );
+
+  /// §29 — returns the real diagram to its normal, unhighlighted state.
+  Future<void> clearTraceHighlight();
+
+  /// PRODUCT-READINESS-010 §17 — "Fit Circuit": pans/zooms the real,
+  /// already-rendered V2 viewport to the bounding region of the real
+  /// module cards named by [nodeIds] (already-translated V2 module ids).
+  /// Never moves engineering objects, never touches persisted layout --
+  /// pure transient viewport state (`scale`/`tx`/`ty`), reusing the same
+  /// `applyT()`/`drawWires()` primitives V2's own existing "Fit view"
+  /// (`zReset()`) already uses, just scoped to a bounding box over
+  /// [nodeIds] instead of the whole canvas.
+  Future<void> fitToTraceHighlight(List<String> nodeIds);
 }
 
 /// AP-DMM-BRIDGE-001 — one endpoint of a [V2LiveMeasurementResult]: the
@@ -1245,6 +1346,44 @@ class V2MeasurementRequestedMessage {
 
   final String v2WireId;
   final String mode;
+}
+
+/// PRODUCT-READINESS-008 — V2's own live switch/key state, exactly as
+/// `LiveSim.getLiveOperatingState()` returns it (real, already-generic
+/// data: `switchStates` covers any plain 2-position switch, keyed by V2's
+/// own module id, value `'open'`/`'closed'`; `multiSwitchStates` covers
+/// any real multi-position switch, keyed by module id then by that
+/// switch's own group name, e.g. `{power: 'on'}` for the ignition switch
+/// or `{lights: 'on', dimmer: 'lo', engineStop: 'run', starter: 'free'}`
+/// for the handlebar switch — see `MultiSwitchBehavior.DEFS`, the real
+/// source of these group/position names, not invented here). Deliberately
+/// carries V2's own raw vocabulary rather than a pre-translated
+/// `ElectricalOperatingContext` — translation (V2 module id -> OEP node
+/// id, and whatever semantic shape a real component behavior expects) is
+/// [LegacyV2StateAdapter]'s own job, not this transport's.
+class V2OperatingStateChangedMessage {
+  const V2OperatingStateChangedMessage({
+    required this.switchStates,
+    required this.multiSwitchStates,
+  });
+
+  factory V2OperatingStateChangedMessage.fromJson(Map<String, dynamic> json) =>
+      V2OperatingStateChangedMessage(
+        switchStates: Map<String, String>.from(
+            json['switchStates'] as Map? ?? const {}),
+        multiSwitchStates: {
+          for (final entry
+              in (json['multiSwitchStates'] as Map? ?? const {}).entries)
+            entry.key as String:
+                Map<String, String>.from(entry.value as Map),
+        },
+      );
+
+  /// V2 module id -> `'open'`/`'closed'`.
+  final Map<String, String> switchStates;
+
+  /// V2 module id -> `{ groupName: 'position' }`.
+  final Map<String, Map<String, String>> multiSwitchStates;
 }
 
 class V2StatusMessage {

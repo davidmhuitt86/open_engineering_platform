@@ -82,56 +82,20 @@ EngineeringGraph _loadTrx300Graph() {
 String _portIdForName(EngineeringNode node, String name) =>
     node.ports.firstWhere((p) => p.name.toUpperCase() == name.toUpperCase()).id;
 
-/// The REAL factory switch-continuity data (verbatim from the source PDF/
-/// the user's own direct confirmation this session and prior ones —
-/// PRODUCT-READINESS-002's own `MultiSwitchBehavior.DEFS`,
-/// `reference/legacy_wiring_sim_v2/eke-wiring-sim/js/knowledge/behaviors/multi-switch.js`)
-/// — TRX300-specific reference DATA, not generic solver logic (§33). The
-/// generic [MultiPositionSwitchElectricalBehavior] class itself has no
-/// idea this represents an "ignition switch" or "handlebar switch" at all.
-ElectricalComponentBehavior _ignitionSwitchBehavior(EngineeringNode node) {
-  String id(String name) => _portIdForName(node, name);
-  return MultiPositionSwitchElectricalBehavior(
-    switchId: node.id,
-    closedPairsForPosition: {
-      'on': {
-        ElectricalTerminalPair(id('BAT1'), id('BAT2')),
-        ElectricalTerminalPair(id('BAT3'), id('IG1')),
-      },
-      'off': const {},
-    },
-  );
-}
-
-/// Real handlebar-switch data (JS `handlebarSwitch` DEF) — modeled here
-/// with a Dart Record as the position key, since this one real switch
-/// bundles FOUR independent groups (lights/dimmer/engineStop/starter) the
-/// single-value [MultiPositionSwitchElectricalBehavior.switchId] lookup
-/// otherwise assumes is just one dimension — a Record is structurally
-/// equatable/hashable, so it works as a Map key with no new mechanism.
-ElectricalComponentBehavior _handlebarSwitchBehavior(EngineeringNode node) {
-  String id(String name) => _portIdForName(node, name);
-  Set<ElectricalTerminalPair> pairsFor(({String lights, String dimmer, String engineStop, String starter}) state) {
-    final pairs = <ElectricalTerminalPair>{};
-    if (state.lights == 'on') {
-      pairs.add(ElectricalTerminalPair(id('BAT2'), id('TL')));
-      pairs.add(state.dimmer == 'lo' ? ElectricalTerminalPair(id('BAT2'), id('LO')) : ElectricalTerminalPair(id('BAT2'), id('HI')));
-    }
-    if (state.engineStop == 'run') pairs.add(ElectricalTerminalPair(id('IG1'), id('IG2')));
-    if (state.starter == 'push') pairs.add(ElectricalTerminalPair(id('BAT2'), id('ST')));
-    return pairs;
-  }
-
-  const allStates = [
-    (lights: 'off', dimmer: 'lo', engineStop: 'run', starter: 'free'),
-    (lights: 'on', dimmer: 'lo', engineStop: 'run', starter: 'free'),
-    (lights: 'on', dimmer: 'hi', engineStop: 'run', starter: 'free'),
-  ];
-  return MultiPositionSwitchElectricalBehavior(
-    switchId: node.id,
-    closedPairsForPosition: {for (final s in allStates) s: pairsFor(s)},
-  );
-}
+// PRODUCT-READINESS-008 §11/§16 — the real ignition/handlebar switch
+// continuity data now lives in ONE production location
+// (`package:engineering_engine`'s own `Trx300IgnitionSwitchBehavior`/
+// `Trx300HandlebarSwitchBehavior`, `lib/simulation/electrical/reference/
+// trx300_v2_switch_behaviors.dart`), imported here rather than
+// re-declared — this test and the real production V2 bridge
+// (`platform/oep_studio/lib/diagram_studio/webview/`) now share the
+// exact same data (§11: "Do not duplicate the TRX300 switch tables in
+// Dart"). Their `activeInputStates` shape is a plain `Map<String,Object?>`
+// of that switch's own real group/position data (e.g. `{'power': 'on'}`,
+// `{'lights': 'on', 'dimmer': 'lo', ...}`) — the SAME shape
+// `LegacyV2StateAdapter.currentOperatingContext` produces from the live
+// V2 bridge, not a Dart Record (which the live bridge, reading a runtime
+// JSON snapshot, cannot construct).
 
 void main() {
   late EngineeringGraph graph;
@@ -140,6 +104,7 @@ void main() {
   late EngineeringNode handlebarSwitch;
   late EngineeringNode headlight;
   late EngineeringNode taillight;
+  late EngineeringNode chassisGround;
 
   setUpAll(() {
     graph = _loadTrx300Graph();
@@ -148,11 +113,12 @@ void main() {
     handlebarSwitch = graph.nodes.values.firstWhere((n) => n.id == 'left-handlebar-switch');
     headlight = graph.nodes.values.firstWhere((n) => n.displayName == 'LH Headlight');
     taillight = graph.nodes.values.firstWhere((n) => n.displayName == 'Taillight');
+    chassisGround = graph.nodes.values.firstWhere((n) => n.id == 'chassis-ground');
   });
 
   ElectricalComponentBehavior? behaviorFor(EngineeringNode node) {
-    if (node.id == ignitionSwitch.id) return _ignitionSwitchBehavior(node);
-    if (node.id == handlebarSwitch.id) return _handlebarSwitchBehavior(node);
+    if (node.id == ignitionSwitch.id) return Trx300IgnitionSwitchBehavior(switchId: node.id);
+    if (node.id == handlebarSwitch.id) return Trx300HandlebarSwitchBehavior(switchId: node.id);
     if (node.metadata['v2Category'] == 'splice') return const AlwaysBridgeElectricalComponentBehavior();
     if (node.metadata['v2Connector'] == true) return const PassThroughElectricalComponentBehavior();
     // PRODUCT-READINESS-006B §28/§29 — the REAL, disclosed Legacy V2
@@ -181,8 +147,8 @@ void main() {
     if (node.id == headlight.id) {
       String id(String name) => _portIdForName(node, name);
       return MultiTerminalResistiveLoadElectricalComponentBehavior(resistanceOhmsByPair: {
-        ElectricalTerminalPair(id('GND'), id('LO')): 120,
-        ElectricalTerminalPair(id('GND'), id('Hi')): 120,
+        ElectricalTerminalPair(id('GND'), id('LO')): trx300LampHotResistanceOhms,
+        ElectricalTerminalPair(id('GND'), id('Hi')): trx300LampHotResistanceOhms,
       });
     }
     return null;
@@ -199,7 +165,7 @@ void main() {
   // knowledge/behaviors/battery.js`) and every prior PRODUCT-READINESS-00x
   // session's own TRX300 work.
   ElectricalReading trx300BatteryVoltage(EngineeringNode node, ElectricalOperatingContext context) =>
-      ElectricalReading.valid(12.6, unit: 'V', note: 'BatteryBehavior.VOLTAGE[1] (key ON) — no nominalVoltageV authored on the real node.');
+      ElectricalReading.valid(trx300BatteryKeyOnVoltage, unit: 'V', note: 'BatteryBehavior.VOLTAGE[1] (key ON) — no nominalVoltageV authored on the real node.');
 
   // PRODUCT-READINESS-006B finding (§27/§28, root-caused via a temporary
   // Dart diagnostic script against this exact real file, then removed):
@@ -224,10 +190,15 @@ void main() {
   // "ground"` node -- the real `chassis-ground` node this file's own data
   // has) is supplied instead, exactly the kind of caller-supplied override
   // [ElectricalReferenceRoleResolver] exists for.
+  // PRODUCT-READINESS-008 §16 — [preciseIsReferenceTerminal] is now the
+  // production resolver (`electrical_node_roles.dart`), not a test-local
+  // lambda: this test now proves the SAME resolver the real production V2
+  // bridge/OIP path uses, closing exactly the "currently test-only" gap
+  // §16 calls out.
   final solver = ElectricalSolver(
     behaviorResolver: behaviorFor,
     sourceVoltage: trx300BatteryVoltage,
-    isReferenceTerminal: (node, portId) => isGroundNode(node),
+    isReferenceTerminal: preciseIsReferenceTerminal,
   );
   final counter = ElectricalSolutionGenerationCounter();
 
@@ -236,8 +207,8 @@ void main() {
 
   test('§30: key OFF -- nothing reaches the headlight, regardless of the handlebar switch position', () {
     final context = ElectricalOperatingContext(activeInputStates: {
-      ignitionSwitch.id: 'off',
-      handlebarSwitch.id: (lights: 'on', dimmer: 'lo', engineStop: 'run', starter: 'free'),
+      ignitionSwitch.id: {'power': 'off'},
+      handlebarSwitch.id: {'lights': 'on', 'dimmer': 'lo', 'engineStop': 'run', 'starter': 'free'},
     });
     final state = solver.solve(graph, context, generationCounter: counter);
     expect(state.terminalState(headlight.id, headlightTerminal('LO').portId!)?.voltage.state, ElectricalReadingState.unreached);
@@ -246,8 +217,8 @@ void main() {
 
   test('§30: key ON, lights OFF -- battery reaches the handlebar switch, but not the headlight', () {
     final context = ElectricalOperatingContext(activeInputStates: {
-      ignitionSwitch.id: 'on',
-      handlebarSwitch.id: (lights: 'off', dimmer: 'lo', engineStop: 'run', starter: 'free'),
+      ignitionSwitch.id: {'power': 'on'},
+      handlebarSwitch.id: {'lights': 'off', 'dimmer': 'lo', 'engineStop': 'run', 'starter': 'free'},
     });
     final state = solver.solve(graph, context, generationCounter: counter);
     final handlebarBat2 = state.terminalState(handlebarSwitch.id, _portIdForName(handlebarSwitch, 'BAT2'));
@@ -258,8 +229,8 @@ void main() {
 
   test('§29/§30: lights ON, dimmer LOW -- the headlight\'s LO terminal is energized, Hi is not; taillight is energized', () {
     final context = ElectricalOperatingContext(activeInputStates: {
-      ignitionSwitch.id: 'on',
-      handlebarSwitch.id: (lights: 'on', dimmer: 'lo', engineStop: 'run', starter: 'free'),
+      ignitionSwitch.id: {'power': 'on'},
+      handlebarSwitch.id: {'lights': 'on', 'dimmer': 'lo', 'engineStop': 'run', 'starter': 'free'},
     });
     final state = solver.solve(graph, context, generationCounter: counter);
     expect(state.terminalState(headlight.id, headlightTerminal('LO').portId!)?.voltage.isValid, isTrue);
@@ -270,8 +241,8 @@ void main() {
 
   test('§29/§30: lights ON, dimmer HIGH -- the headlight\'s Hi terminal is energized, LO is not', () {
     final context = ElectricalOperatingContext(activeInputStates: {
-      ignitionSwitch.id: 'on',
-      handlebarSwitch.id: (lights: 'on', dimmer: 'hi', engineStop: 'run', starter: 'free'),
+      ignitionSwitch.id: {'power': 'on'},
+      handlebarSwitch.id: {'lights': 'on', 'dimmer': 'hi', 'engineStop': 'run', 'starter': 'free'},
     });
     final state = solver.solve(graph, context, generationCounter: counter);
     expect(state.terminalState(headlight.id, headlightTerminal('Hi').portId!)?.voltage.isValid, isTrue);
@@ -291,8 +262,8 @@ void main() {
 
     test('lights ON, dimmer LOW: a genuine, network-solved current/power is calculated for the real headlight -- not a fabricated value', () {
       final context = ElectricalOperatingContext(activeInputStates: {
-        ignitionSwitch.id: 'on',
-        handlebarSwitch.id: (lights: 'on', dimmer: 'lo', engineStop: 'run', starter: 'free'),
+        ignitionSwitch.id: {'power': 'on'},
+        handlebarSwitch.id: {'lights': 'on', 'dimmer': 'lo', 'engineStop': 'run', 'starter': 'free'},
       });
       final state = solver.solve(graph, context, generationCounter: counter);
       expect(state.network, isNotNull);
@@ -335,8 +306,8 @@ void main() {
       // "unreached" (no path exists at all) -- see [ElectricalCurrentDirection.none]'s
       // own doc comment for the same real/zero distinction.
       final context = ElectricalOperatingContext(activeInputStates: {
-        ignitionSwitch.id: 'off',
-        handlebarSwitch.id: (lights: 'on', dimmer: 'lo', engineStop: 'run', starter: 'free'),
+        ignitionSwitch.id: {'power': 'off'},
+        handlebarSwitch.id: {'lights': 'on', 'dimmer': 'lo', 'engineStop': 'run', 'starter': 'free'},
       });
       final state = solver.solve(graph, context, generationCounter: counter);
       final currentResult = query.measure(state, ElectricalMeasurementRequest(positiveTerminal: lo(), negativeTerminal: gnd(), mode: MeasurementType.current));
@@ -349,8 +320,8 @@ void main() {
           .solve(
             graph,
             ElectricalOperatingContext(activeInputStates: {
-              ignitionSwitch.id: 'on',
-              handlebarSwitch.id: (lights: 'on', dimmer: 'lo', engineStop: 'run', starter: 'free'),
+              ignitionSwitch.id: {'power': 'on'},
+              handlebarSwitch.id: {'lights': 'on', 'dimmer': 'lo', 'engineStop': 'run', 'starter': 'free'},
             }),
             generationCounter: counter,
           )
@@ -362,13 +333,100 @@ void main() {
           .solve(
             graph,
             ElectricalOperatingContext(activeInputStates: {
-              ignitionSwitch.id: 'off',
-              handlebarSwitch.id: (lights: 'on', dimmer: 'lo', engineStop: 'run', starter: 'free'),
+              ignitionSwitch.id: {'power': 'off'},
+              handlebarSwitch.id: {'lights': 'on', 'dimmer': 'lo', 'engineStop': 'run', 'starter': 'free'},
             }),
             generationCounter: counter,
           )
           .network!;
       expect(keyOffNetwork.continuityBetween(batteryPlus, lo()), isFalse, reason: 'the ignition switch is open');
+    });
+  });
+
+  group('PRODUCT-READINESS-007 §23 -- real TRX300 measurement validation (probe/mode/state/generation recorded per assertion)', () {
+    const query = ElectricalMeasurementQuery();
+    ProbePoint batteryPlus() => ProbePoint(nodeId: battery.id, portId: _portIdForName(battery, '+'));
+    ProbePoint chassisGroundTerminal() => ProbePoint(nodeId: chassisGround.id, portId: '1');
+    ProbePoint lo() => headlightTerminal('LO');
+    ProbePoint gnd() => headlightTerminal('GND');
+
+    test('B: the real chassis-ground node reads a real, structural 0V reference', () {
+      final state = solver.solve(
+        graph,
+        ElectricalOperatingContext(activeInputStates: {
+          ignitionSwitch.id: {'power': 'on'},
+          handlebarSwitch.id: {'lights': 'on', 'dimmer': 'lo', 'engineStop': 'run', 'starter': 'free'},
+        }),
+        generationCounter: counter,
+      );
+      final result = query.measure(state, ElectricalMeasurementRequest(positiveTerminal: chassisGroundTerminal(), negativeTerminal: chassisGroundTerminal(), mode: MeasurementType.voltageDc));
+      // Probe red=chassis-ground:1, black=chassis-ground:1, mode=VDC.
+      expect(result.reading.isValid, isTrue);
+      expect(result.reading.value, 0);
+      expect(result.generation, state.generation, reason: 'the measurement result is traceable to the exact solved generation it was answered from');
+    });
+
+    test('I: RESISTANCE across the real headlight LO filament is its own real, declared 120Ω, regardless of switch position', () {
+      // Probe red=headlight.LO, black=headlight.GND, mode=RES.
+      for (final ignitionOn in [true, false]) {
+        final state = solver.solve(
+          graph,
+          ElectricalOperatingContext(activeInputStates: {
+            ignitionSwitch.id: {'power': ignitionOn ? 'on' : 'off'},
+            handlebarSwitch.id: {'lights': 'on', 'dimmer': 'lo', 'engineStop': 'run', 'starter': 'free'},
+          }),
+          generationCounter: counter,
+        );
+        final result = query.measure(state, ElectricalMeasurementRequest(positiveTerminal: lo(), negativeTerminal: gnd(), mode: MeasurementType.resistance));
+        expect(result.reading.isValid, isTrue, reason: 'resistance does not require a source (ignitionOn=$ignitionOn)');
+        expect(result.reading.value, closeTo(120, 1e-6), reason: 'small floating-point residue from Gaussian elimination over the real, ~110-supernode network');
+      }
+    });
+
+    test('K: OPEN-circuit resistance/continuity from the real battery to the real headlight LO when the ignition is OFF', () {
+      // Probe red=battery.+, black=headlight.LO, mode=RES then CONT.
+      final state = solver.solve(
+        graph,
+        ElectricalOperatingContext(activeInputStates: {
+          ignitionSwitch.id: {'power': 'off'},
+          handlebarSwitch.id: {'lights': 'on', 'dimmer': 'lo', 'engineStop': 'run', 'starter': 'free'},
+        }),
+        generationCounter: counter,
+      );
+      final resistance = query.measure(state, ElectricalMeasurementRequest(positiveTerminal: batteryPlus(), negativeTerminal: lo(), mode: MeasurementType.resistance));
+      expect(resistance.reading.state, ElectricalReadingState.open);
+      final continuity = query.measure(state, ElectricalMeasurementRequest(positiveTerminal: batteryPlus(), negativeTerminal: lo(), mode: MeasurementType.continuity));
+      expect(continuity.reading.state, ElectricalReadingState.open);
+    });
+
+    test('L: AC voltage against real terminals is honestly UNSUPPORTED -- the native Engine has no AC model (§49), never a fabricated reading', () {
+      // Probe red=battery.+, black=chassis-ground:1, mode=VAC.
+      final state = solver.solve(
+        graph,
+        ElectricalOperatingContext(activeInputStates: {
+          ignitionSwitch.id: {'power': 'on'},
+          handlebarSwitch.id: {'lights': 'on', 'dimmer': 'lo', 'engineStop': 'run', 'starter': 'free'},
+        }),
+        generationCounter: counter,
+      );
+      final result = query.measure(state, ElectricalMeasurementRequest(positiveTerminal: batteryPlus(), negativeTerminal: chassisGroundTerminal(), mode: MeasurementType.voltageAc));
+      expect(result.reading.state, ElectricalReadingState.unsupported);
+      expect(result.reading.value, isNull);
+    });
+
+    test('J: no diode component is present/modeled in this real diagram -- diode semantics are validated only via PR-006B\'s own synthetic fixtures O/P (disclosed, not fabricated here)', () {
+      // Honest disclosure per §23's own instruction not to claim a
+      // validation that was not actually performed: diagram7.json's real
+      // "regulator-rectifier" node likely contains a diode internally in
+      // real hardware, but no `DiodeElectricalBehavior` is modeled for it
+      // anywhere in this codebase's TRX300 fixtures (only splice/
+      // connector/switch/headlight behaviors are supplied) -- so a DIODE-
+      // mode probe against it would answer via the generic
+      // continuity/structural fallback, not a genuine diode-forward-drop
+      // answer, and asserting a specific number here would misrepresent
+      // what was actually validated.
+      expect(graph.nodes.values.any((n) => n.displayName.toLowerCase().contains('rectifier')), isTrue,
+          reason: 'confirms the node exists in the real data, even though no diode BEHAVIOR is modeled for it');
     });
   });
 }

@@ -127,6 +127,18 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^5.0.0
 
+  # PRODUCT-READINESS-011 — real Windows OS-level E2E acceptance testing.
+  # `integration_test` runs the test binary as the real, production
+  # `main()` app (not a `flutter_test` widget-harness process) on a real
+  # Windows desktop window; `win32` provides FFI bindings to `user32.dll`
+  # (FindWindow/GetClientRect/ClientToScreen/SetCursorPos/SendInput) so
+  # the SAME running process can locate its own real top-level HWND and
+  # inject real OS mouse/keyboard input into it — the actual production
+  # interaction path, not a bypass. Test-only; never imported from `lib/`.
+  integration_test:
+    sdk: flutter
+  win32: ^5.5.4
+
 flutter:
   uses-material-design: true
 
@@ -145,8 +157,17 @@ flutter:
   # build`; `KnowledgePackageSource.production`
   # (`lib/diagram_studio/analysis/knowledge_package_source.dart`) fails
   # explicitly, not silently, if this asset is missing.
+  #
+  # OEP-STUDIO-BRANDING-V1 — assets/branding/ is the OEP master identity +
+  # Diagram/Simulation Studio marks + view-swap symbol, used by
+  # `OepStudioHeader` (lib/core/theme/oep_studio_header.dart). Vector, not
+  # a screenshot of the concept board (see that file's own doc comment for
+  # the asset-by-asset design rationale). Checked into git (unlike
+  # assets/knowledge/ above) — these are hand-authored source assets, not
+  # a build artifact.
   assets:
     - assets/knowledge/
+    - assets/branding/
 
   # AP-OEP-DIAGRAM-ANDROID-001: the legacy V2 wiring app's static files
   # are NOT declared here — Flutter's asset bundler silently drops any

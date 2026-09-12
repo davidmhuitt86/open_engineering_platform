@@ -1416,7 +1416,15 @@ const FLOW_SPEED=1.2; // px per frame
 const FLOW_DASH=12;
 const FLOW_GAP=8;
 
+// PRODUCT-READINESS-009 — when a native current-flow trace is active
+// (`nativeFlowWires` non-null, set only by
+// window.__oepBridgeApplyTraceHighlight), a wire's flow state/direction
+// comes EXCLUSIVELY from the native solved data, never this function's
+// own legacy `VDC != 0` heuristic below -- that heuristic remains
+// completely unmodified for every other case (`nativeFlowWires === null`,
+// e.g. V2's own manual wire-tracer panel).
 function wireHasFlow(w){
+  if(nativeFlowWires)return nativeFlowWires.has(w.id);
   if(keyPos===0)return false;
   const rd=(window.SWPACK&&SWPACK.getReading(w.id,keyPos))||(w.R?w.R[keyPos]:null);
   if(!rd)return false;
@@ -1426,8 +1434,12 @@ function wireHasFlow(w){
   return true;
 }
 
-// Returns +1 (from→to) or -1 (to→from, ground wires) flow direction
+// Returns +1 (from→to) or -1 (to→from, ground wires) flow direction.
+// PRODUCT-READINESS-009 — prefers the native, solved-current-derived
+// direction when present (see wireHasFlow above); the ground-category
+// fallback below is unchanged legacy behavior for the non-native case.
 function wireFlowDir(w){
+  if(nativeFlowWires&&nativeFlowWires.has(w.id))return nativeFlowWires.get(w.id);
   const m=MODULES.find(x=>x.id===w.to.m);
   if(m&&m.cat==='ground')return -1;
   return 1;

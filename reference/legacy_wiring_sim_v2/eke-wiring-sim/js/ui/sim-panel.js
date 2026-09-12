@@ -19,6 +19,17 @@ function toggleSimPanel() {
   document.getElementById('sim-panel').classList.toggle('open', simPanelOpen);
   document.getElementById('sim-panel-btn').classList.toggle('swpack-on', simPanelOpen);
   if (simPanelOpen) renderSimPanel();
+  // OEP-STUDIO-BRANDING-V1 — this real, pre-existing toggle IS the
+  // Diagram-view/Simulation-view swap (the OEP header's own swap
+  // control calls into this same function, via
+  // legacyV2ToggleSimulationViewProvider, legacy_v2_webview.dart), so
+  // it also drives which single-row toolbar is visible: #tb-diagram
+  // while off, #tb-simulation while on. No new state — one real
+  // boolean, two things now key off it.
+  const diagramRow = document.getElementById('tb-diagram');
+  const simRow = document.getElementById('tb-simulation');
+  if (diagramRow) diagramRow.classList.toggle('tb-row-hidden', simPanelOpen);
+  if (simRow) simRow.classList.toggle('tb-row-hidden', !simPanelOpen);
 }
 
 function renderSimPanel() {

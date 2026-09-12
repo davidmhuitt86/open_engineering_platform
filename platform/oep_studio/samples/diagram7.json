@@ -715,11 +715,41 @@
           "v2Exit": "right",
           "v2Connector": true,
           "v2Vertical": true,
-          "v2Flipped": false
+          "v2Flipped": false,
+          "v2LabelPos": "top"
         },
         "evidenceLinks": [],
         "properties": {},
-        "ports": []
+        "ports": [
+          {
+            "id": "1",
+            "name": "A",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "2",
+            "name": "B",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "3",
+            "name": "C",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "4",
+            "name": "D",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          }
+        ]
       },
       {
         "id": "node_hm11a90flg_4abwqs",
@@ -755,7 +785,29 @@
         },
         "evidenceLinks": [],
         "properties": {},
-        "ports": []
+        "ports": [
+          {
+            "id": "1",
+            "name": "1",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "2",
+            "name": "2",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "3",
+            "name": "3",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          }
+        ]
       },
       {
         "id": "node_hm13fzhpd7_1yhimgb",
@@ -793,7 +845,29 @@
         },
         "evidenceLinks": [],
         "properties": {},
-        "ports": []
+        "ports": [
+          {
+            "id": "1",
+            "name": "1",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "2",
+            "name": "2",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "3",
+            "name": "3",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          }
+        ]
       },
       {
         "id": "node_hm235oce1b_4wm62u",
@@ -818,35 +892,15 @@
         },
         "evidenceLinks": [],
         "properties": {},
-        "ports": []
-      },
-      {
-        "id": "node_hm241o81f0_1foy2j2",
-        "category": "component",
-        "displayName": "Diode",
-        "symbolId": "generic_module",
-        "repositoryObjectId": null,
-        "metadata": {
-          "v2ModuleId": "diode-1788749217639",
-          "v2Category": "diode",
-          "v2Terminals": [
-            {
-              "c": "BL",
-              "n": "A"
-            },
-            {
-              "c": "BL",
-              "n": "K"
-            }
-          ],
-          "v2Exit": "right",
-          "v2Connector": false,
-          "v2Vertical": false,
-          "v2Flipped": false
-        },
-        "evidenceLinks": [],
-        "properties": {},
-        "ports": []
+        "ports": [
+          {
+            "id": "1",
+            "name": "GND",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          }
+        ]
       },
       {
         "id": "node_hm268oh4ab_a08ox4",
@@ -879,7 +933,22 @@
         },
         "evidenceLinks": [],
         "properties": {},
-        "ports": []
+        "ports": [
+          {
+            "id": "1",
+            "name": "+",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "2",
+            "name": "−",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          }
+        ]
       },
       {
         "id": "node_hm268qdn3o_1xhlgpy",
@@ -921,7 +990,36 @@
         },
         "evidenceLinks": [],
         "properties": {},
-        "ports": []
+        "ports": [
+          {
+            "id": "1",
+            "name": "BAT",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "2",
+            "name": "C1",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "3",
+            "name": "C2",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "4",
+            "name": "MTR",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          }
+        ]
       },
       {
         "id": "node_hm268u6ygb_1fa6wy",
@@ -954,7 +1052,22 @@
         },
         "evidenceLinks": [],
         "properties": {},
-        "ports": []
+        "ports": [
+          {
+            "id": "1",
+            "name": "B+",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "2",
+            "name": "GND",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          }
+        ]
       },
       {
         "id": "node_hm268xadl2_14b9olo",
@@ -986,7 +1099,22 @@
         },
         "evidenceLinks": [],
         "properties": {},
-        "ports": []
+        "ports": [
+          {
+            "id": "1",
+            "name": "SW",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "2",
+            "name": "GND",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          }
+        ]
       },
       {
         "id": "node_hm2691c017_be7zb0",
@@ -1018,7 +1146,22 @@
         },
         "evidenceLinks": [],
         "properties": {},
-        "ports": []
+        "ports": [
+          {
+            "id": "1",
+            "name": "SIG",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "2",
+            "name": "GND",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          }
+        ]
       },
       {
         "id": "node_hm26bcdwud_z4g4up",
@@ -1050,7 +1193,22 @@
         },
         "evidenceLinks": [],
         "properties": {},
-        "ports": []
+        "ports": [
+          {
+            "id": "1",
+            "name": "SW",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "2",
+            "name": "GND",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          }
+        ]
       },
       {
         "id": "node_hm28yiides_14i8bbq",
@@ -1082,7 +1240,22 @@
         },
         "evidenceLinks": [],
         "properties": {},
-        "ports": []
+        "ports": [
+          {
+            "id": "1",
+            "name": "SIG",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "2",
+            "name": "GND",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          }
+        ]
       },
       {
         "id": "node_hm290w07v2_17b2iov",
@@ -1114,7 +1287,22 @@
         },
         "evidenceLinks": [],
         "properties": {},
-        "ports": []
+        "ports": [
+          {
+            "id": "1",
+            "name": "SIG",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "2",
+            "name": "GND",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          }
+        ]
       },
       {
         "id": "node_hm2920qdd8_aelkyk",
@@ -1146,7 +1334,22 @@
         },
         "evidenceLinks": [],
         "properties": {},
-        "ports": []
+        "ports": [
+          {
+            "id": "1",
+            "name": "SIG",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "2",
+            "name": "GND",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          }
+        ]
       },
       {
         "id": "node_hm293u86wk_1siprh5",
@@ -1180,7 +1383,29 @@
         },
         "evidenceLinks": [],
         "properties": {},
-        "ports": []
+        "ports": [
+          {
+            "id": "1",
+            "name": "GND",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "2",
+            "name": "LO",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "3",
+            "name": "Hi",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          }
+        ]
       },
       {
         "id": "node_hm294pfd09_155849t",
@@ -1215,7 +1440,29 @@
         },
         "evidenceLinks": [],
         "properties": {},
-        "ports": []
+        "ports": [
+          {
+            "id": "1",
+            "name": "HI",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "2",
+            "name": "LO",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "3",
+            "name": "GND",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          }
+        ]
       },
       {
         "id": "node_hm29auwdot_vx4btw",
@@ -1246,31 +1493,22 @@
         },
         "evidenceLinks": [],
         "properties": {},
-        "ports": []
-      },
-      {
-        "id": "node_hm2k1s6010_1uemkl7",
-        "category": "component",
-        "displayName": "Splice",
-        "symbolId": "generic_module",
-        "repositoryObjectId": null,
-        "metadata": {
-          "v2ModuleId": "splice-1788784052811",
-          "v2Category": "splice",
-          "v2Terminals": [
-            {
-              "c": "W",
-              "n": "SPLICE"
-            }
-          ],
-          "v2Exit": "up",
-          "v2Connector": false,
-          "v2Vertical": false,
-          "v2Flipped": false
-        },
-        "evidenceLinks": [],
-        "properties": {},
-        "ports": []
+        "ports": [
+          {
+            "id": "1",
+            "name": "GND",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "2",
+            "name": "TL",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          }
+        ]
       },
       {
         "id": "node_hm2tnddgwy_1gwjuw8",
@@ -1294,7 +1532,15 @@
         },
         "evidenceLinks": [],
         "properties": {},
-        "ports": []
+        "ports": [
+          {
+            "id": "1",
+            "name": "SPLICE",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          }
+        ]
       },
       {
         "id": "node_hm2tsj4le2_mykndm",
@@ -1318,7 +1564,15 @@
         },
         "evidenceLinks": [],
         "properties": {},
-        "ports": []
+        "ports": [
+          {
+            "id": "1",
+            "name": "SPLICE",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          }
+        ]
       },
       {
         "id": "node_hm2u84gdvw_1vei0mz",
@@ -1342,7 +1596,15 @@
         },
         "evidenceLinks": [],
         "properties": {},
-        "ports": []
+        "ports": [
+          {
+            "id": "1",
+            "name": "SPLICE",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          }
+        ]
       },
       {
         "id": "node_hm2vt79oui_1xgi8v1",
@@ -1368,7 +1630,15 @@
         },
         "evidenceLinks": [],
         "properties": {},
-        "ports": []
+        "ports": [
+          {
+            "id": "1",
+            "name": "SIG",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          }
+        ]
       },
       {
         "id": "node_hm2vuodiqa_cqq0sf",
@@ -1411,7 +1681,43 @@
         },
         "evidenceLinks": [],
         "properties": {},
-        "ports": []
+        "ports": [
+          {
+            "id": "1",
+            "name": "1",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "2",
+            "name": "2",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "3",
+            "name": "3",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "4",
+            "name": "4",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "5",
+            "name": "5",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          }
+        ]
       },
       {
         "id": "node_hm2vz4eunm_mfxq72",
@@ -1444,7 +1750,29 @@
         },
         "evidenceLinks": [],
         "properties": {},
-        "ports": []
+        "ports": [
+          {
+            "id": "1",
+            "name": "P1",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "2",
+            "name": "P2",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "3",
+            "name": "P3",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          }
+        ]
       },
       {
         "id": "node_hm2w4xzhz8_1xpw939",
@@ -1477,7 +1805,29 @@
         },
         "evidenceLinks": [],
         "properties": {},
-        "ports": []
+        "ports": [
+          {
+            "id": "1",
+            "name": "A",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "2",
+            "name": "B",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "3",
+            "name": "C",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          }
+        ]
       },
       {
         "id": "node_hm2wkv7mtt_9hiy30",
@@ -1507,7 +1857,22 @@
         },
         "evidenceLinks": [],
         "properties": {},
-        "ports": []
+        "ports": [
+          {
+            "id": "1",
+            "name": "A",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "2",
+            "name": "B",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          }
+        ]
       },
       {
         "id": "node_hm2wr0ow30_1dvc49p",
@@ -1531,7 +1896,15 @@
         },
         "evidenceLinks": [],
         "properties": {},
-        "ports": []
+        "ports": [
+          {
+            "id": "1",
+            "name": "SPLICE",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          }
+        ]
       },
       {
         "id": "node_hm2x5jwn0x_atvrws",
@@ -1562,7 +1935,22 @@
         },
         "evidenceLinks": [],
         "properties": {},
-        "ports": []
+        "ports": [
+          {
+            "id": "1",
+            "name": "A",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "2",
+            "name": "B",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          }
+        ]
       },
       {
         "id": "node_hm2xerewgw_1ecxfdq",
@@ -1597,7 +1985,29 @@
         },
         "evidenceLinks": [],
         "properties": {},
-        "ports": []
+        "ports": [
+          {
+            "id": "1",
+            "name": "A",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "2",
+            "name": "B",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          },
+          {
+            "id": "3",
+            "name": "C",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          }
+        ]
       },
       {
         "id": "node_hm31gnihnl_fss4ra",
@@ -1621,7 +2031,15 @@
         },
         "evidenceLinks": [],
         "properties": {},
-        "ports": []
+        "ports": [
+          {
+            "id": "1",
+            "name": "SPLICE",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          }
+        ]
       },
       {
         "id": "node_hm31rvez67_1kcwusy",
@@ -1645,7 +2063,15 @@
         },
         "evidenceLinks": [],
         "properties": {},
-        "ports": []
+        "ports": [
+          {
+            "id": "1",
+            "name": "SPLICE",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          }
+        ]
       },
       {
         "id": "node_hm31v529lc_1kk54sz",
@@ -1669,7 +2095,15 @@
         },
         "evidenceLinks": [],
         "properties": {},
-        "ports": []
+        "ports": [
+          {
+            "id": "1",
+            "name": "SPLICE",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          }
+        ]
       },
       {
         "id": "node_hm31xkp87e_zd47fh",
@@ -1693,7 +2127,15 @@
         },
         "evidenceLinks": [],
         "properties": {},
-        "ports": []
+        "ports": [
+          {
+            "id": "1",
+            "name": "SPLICE",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          }
+        ]
       },
       {
         "id": "node_hm31z5m98a_1sakbsc",
@@ -1717,7 +2159,15 @@
         },
         "evidenceLinks": [],
         "properties": {},
-        "ports": []
+        "ports": [
+          {
+            "id": "1",
+            "name": "SPLICE",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          }
+        ]
       },
       {
         "id": "node_hm3cm4663i_nay2dv",
@@ -1741,7 +2191,15 @@
         },
         "evidenceLinks": [],
         "properties": {},
-        "ports": []
+        "ports": [
+          {
+            "id": "1",
+            "name": "SPLICE",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          }
+        ]
       },
       {
         "id": "node_hm3ctfkcbe_16v0ks2",
@@ -1765,7 +2223,15 @@
         },
         "evidenceLinks": [],
         "properties": {},
-        "ports": []
+        "ports": [
+          {
+            "id": "1",
+            "name": "SPLICE",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          }
+        ]
       },
       {
         "id": "node_hm3cunduwy_1f30jnh",
@@ -1789,7 +2255,15 @@
         },
         "evidenceLinks": [],
         "properties": {},
-        "ports": []
+        "ports": [
+          {
+            "id": "1",
+            "name": "SPLICE",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          }
+        ]
       },
       {
         "id": "node_hm3cvgfy3p_1qvmzv1",
@@ -1803,6 +2277,62 @@
           "v2Terminals": [
             {
               "c": "Blu",
+              "n": "SPLICE"
+            }
+          ],
+          "v2Exit": "right",
+          "v2Connector": false,
+          "v2Vertical": false,
+          "v2Flipped": false
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": [
+          {
+            "id": "1",
+            "name": "SPLICE",
+            "direction": "unspecified",
+            "type": "generic",
+            "metadata": {}
+          }
+        ]
+      },
+      {
+        "id": "node_hm5peeikxl_ns203n",
+        "category": "component",
+        "displayName": "Splice",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "splice-1789030792601",
+          "v2Category": "splice",
+          "v2Terminals": [
+            {
+              "c": "G",
+              "n": "SPLICE"
+            }
+          ],
+          "v2Exit": "right",
+          "v2Connector": false,
+          "v2Vertical": false,
+          "v2Flipped": false
+        },
+        "evidenceLinks": [],
+        "properties": {},
+        "ports": []
+      },
+      {
+        "id": "node_hm5pht5nzt_2louc2",
+        "category": "component",
+        "displayName": "Splice",
+        "symbolId": "generic_module",
+        "repositoryObjectId": null,
+        "metadata": {
+          "v2ModuleId": "splice-1789030998294",
+          "v2Category": "splice",
+          "v2Terminals": [
+            {
+              "c": "G",
               "n": "SPLICE"
             }
           ],
@@ -2006,22 +2536,6 @@
         "evidenceLinks": []
       },
       {
-        "id": "rel_hm2tiw5blw_1kw3u57",
-        "relationshipType": "connectedTo",
-        "sourceNode": "chassis-ground",
-        "targetNode": "node_hm2k1s6010_1uemkl7",
-        "repositoryRelationshipId": null,
-        "metadata": {
-          "v2WireId": "wire-1788804678696",
-          "label": "Chassis Ground Tap",
-          "wireColor": "G",
-          "sourcePort": "1",
-          "targetPort": "SPLICE",
-          "v2ToExit": "down"
-        },
-        "evidenceLinks": []
-      },
-      {
         "id": "rel_hm2tnddhqv_1qdpx75",
         "relationshipType": "connectedTo",
         "sourceNode": "node_hm11a90flg_4abwqs",
@@ -2082,38 +2596,6 @@
           "sourcePort": "SPLICE",
           "targetPort": "2",
           "v2FromExit": "right"
-        },
-        "evidenceLinks": []
-      },
-      {
-        "id": "rel_hm2tt5r0pl_ocyqy",
-        "relationshipType": "connectedTo",
-        "sourceNode": "node_hm2tsj4le2_mykndm",
-        "targetNode": "node_hm2tnddgwy_1gwjuw8",
-        "repositoryRelationshipId": null,
-        "metadata": {
-          "v2WireId": "wire-1788805299399",
-          "label": "Alarm Unit,DC Jack Chassis Ground Feed",
-          "wireColor": "G",
-          "sourcePort": "SPLICE",
-          "targetPort": "SPLICE",
-          "v2ToExit": "up"
-        },
-        "evidenceLinks": []
-      },
-      {
-        "id": "rel_hm2tvvvd96_1il0vjq",
-        "relationshipType": "connectedTo",
-        "sourceNode": "cdi-unit",
-        "targetNode": "node_hm2k1s6010_1uemkl7",
-        "repositoryRelationshipId": null,
-        "metadata": {
-          "v2WireId": "wire-1788805464015",
-          "label": "CDI Unit Chassis Ground",
-          "wireColor": "G",
-          "sourcePort": "2",
-          "targetPort": "SPLICE",
-          "v2ToExit": "down"
         },
         "evidenceLinks": []
       },
@@ -2666,23 +3148,6 @@
         "evidenceLinks": []
       },
       {
-        "id": "rel_hm31v52ad6_e187m4",
-        "relationshipType": "connectedTo",
-        "sourceNode": "node_hm2k1s6010_1uemkl7",
-        "targetNode": "node_hm31v529lc_1kk54sz",
-        "repositoryRelationshipId": null,
-        "metadata": {
-          "v2WireId": "wire-1788822833275-a",
-          "label": "Taillight Chassis Ground",
-          "wireColor": "G",
-          "sourcePort": "SPLICE",
-          "targetPort": "SPLICE",
-          "v2ToExit": "left",
-          "v2FromExit": "up"
-        },
-        "evidenceLinks": []
-      },
-      {
         "id": "rel_hm31v52ad6_kpi6s3",
         "relationshipType": "connectedTo",
         "sourceNode": "node_hm31v529lc_1kk54sz",
@@ -2758,22 +3223,6 @@
           "sourcePort": "2",
           "targetPort": "SPLICE",
           "v2ToExit": "up"
-        },
-        "evidenceLinks": []
-      },
-      {
-        "id": "rel_hm31z5ma0f_dh41bf",
-        "relationshipType": "connectedTo",
-        "sourceNode": "node_hm241o81f0_1foy2j2",
-        "targetNode": "node_hm31z5m98a_1sakbsc",
-        "repositoryRelationshipId": null,
-        "metadata": {
-          "v2WireId": "wire-1788823075978-a",
-          "label": "Igniition 12v+ Feed to Handlebar Switch",
-          "wireColor": "Bl",
-          "sourcePort": "2",
-          "targetPort": "SPLICE",
-          "v2ToExit": "left"
         },
         "evidenceLinks": []
       },
@@ -2867,22 +3316,6 @@
           "sourcePort": "2_OUT",
           "targetPort": "SPLICE",
           "v2ToExit": "left"
-        },
-        "evidenceLinks": []
-      },
-      {
-        "id": "rel_hm3cm469y4_9qip54",
-        "relationshipType": "connectedTo",
-        "sourceNode": "node_hm3cm4663i_nay2dv",
-        "targetNode": "node_hm241o81f0_1foy2j2",
-        "repositoryRelationshipId": null,
-        "metadata": {
-          "v2WireId": "wire-1788846232164-b",
-          "label": "Indicator Light 12v+ Feed",
-          "wireColor": "Bl",
-          "sourcePort": "SPLICE",
-          "targetPort": "2",
-          "v2FromExit": "up"
         },
         "evidenceLinks": []
       },
@@ -3044,18 +3477,117 @@
         "evidenceLinks": []
       },
       {
-        "id": "rel_hm4nwdnoi1_1d9bw3d",
+        "id": "rel_hm5peeimh7_12qesle",
         "relationshipType": "connectedTo",
-        "sourceNode": "node_hm11a90flg_4abwqs",
-        "targetNode": "node_hm2k1s6010_1uemkl7",
+        "sourceNode": "node_hm5peeikxl_ns203n",
+        "targetNode": "node_hm2tnddgwy_1gwjuw8",
         "repositoryRelationshipId": null,
         "metadata": {
-          "v2WireId": "wire-1788949161586",
-          "label": "CHassis Ground 2",
+          "v2WireId": "wire-1789030792601-b",
+          "label": "Alarm Unit,DC Jack Chassis Ground Feed",
           "wireColor": "G",
-          "sourcePort": "1_OUT",
+          "sourcePort": "SPLICE",
           "targetPort": "SPLICE",
-          "v2ToExit": "left"
+          "v2FromExit": "left"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm5peu08t0_km50r7",
+        "relationshipType": "connectedTo",
+        "sourceNode": "chassis-ground",
+        "targetNode": "node_hm5peeikxl_ns203n",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1789030818586",
+          "label": "Chassis Ground Tap",
+          "wireColor": "G",
+          "sourcePort": "1",
+          "targetPort": "SPLICE",
+          "v2ToExit": "down"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm5pft8l0y_1543xbq",
+        "relationshipType": "connectedTo",
+        "sourceNode": "cdi-unit",
+        "targetNode": "node_hm5peeikxl_ns203n",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1789030877592",
+          "label": "CDI Chassis Ground",
+          "wireColor": "G",
+          "sourcePort": "2",
+          "targetPort": "SPLICE",
+          "v2ToExit": "up"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm5pht5or3_vfhpb8",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hm2tsj4le2_mykndm",
+        "targetNode": "node_hm5pht5nzt_2louc2",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1789030998295-a",
+          "label": "Alarm Unit,DC Jack Chassis Ground Feed",
+          "wireColor": "G",
+          "sourcePort": "SPLICE",
+          "targetPort": "SPLICE",
+          "v2ToExit": "up"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm5pht5or3_1j2dr0y",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hm5pht5nzt_2louc2",
+        "targetNode": "node_hm5peeikxl_ns203n",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1789030998295-b",
+          "label": "Alarm Unit,DC Jack Chassis Ground Feed",
+          "wireColor": "G",
+          "sourcePort": "SPLICE",
+          "targetPort": "SPLICE",
+          "v2ToExit": "right",
+          "v2FromExit": "left"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm5piks4bl_1dcp27j",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hm31v529lc_1kk54sz",
+        "targetNode": "node_hm5pht5nzt_2louc2",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1789031044964",
+          "label": "Taillight Chassis Ground Tap",
+          "wireColor": "G",
+          "sourcePort": "SPLICE",
+          "targetPort": "SPLICE",
+          "v2FromExit": "left",
+          "v2ToExit": "right"
+        },
+        "evidenceLinks": []
+      },
+      {
+        "id": "rel_hm5pnn7dk7_1uvlul3",
+        "relationshipType": "connectedTo",
+        "sourceNode": "node_hm31z5m98a_1sakbsc",
+        "targetNode": "node_hm3cm4663i_nay2dv",
+        "repositoryRelationshipId": null,
+        "metadata": {
+          "v2WireId": "wire-1789031351205",
+          "label": "Handlebar Switch 12v+ Feed",
+          "wireColor": "Bl",
+          "sourcePort": "SPLICE",
+          "targetPort": "SPLICE",
+          "v2ToExit": "left",
+          "v2FromExit": "up"
         },
         "evidenceLinks": []
       }
@@ -3067,27 +3599,27 @@
     "positions": {
       "cdi-unit": {
         "dx": 320.0,
-        "dy": 80.0
+        "dy": 60.0
       },
       "alarm-unit": {
         "dx": 520.0,
-        "dy": 80.0
+        "dy": 60.0
       },
       "ignition-switch": {
         "dx": 680.0,
-        "dy": 80.0
+        "dy": 60.0
       },
       "dc-consent-jack": {
         "dx": 820.0,
-        "dy": 80.0
+        "dy": 60.0
       },
       "rectifier-diode": {
         "dx": 920.0,
-        "dy": 80.0
+        "dy": 60.0
       },
       "regulator-rectifier": {
         "dx": 1020.0,
-        "dy": 100.0
+        "dy": 60.0
       },
       "left-handlebar-switch": {
         "dx": 140.0,
@@ -3116,10 +3648,6 @@
       "node_hm235oce1b_4wm62u": {
         "dx": 1540.0,
         "dy": 680.0
-      },
-      "node_hm241o81f0_1foy2j2": {
-        "dx": 420.0,
-        "dy": 320.0
       },
       "node_hm268oh4ab_a08ox4": {
         "dx": 1440.0,
@@ -3168,10 +3696,6 @@
       "node_hm29auwdot_vx4btw": {
         "dx": 1500.0,
         "dy": 360.0
-      },
-      "node_hm2k1s6010_1uemkl7": {
-        "dx": 520.0,
-        "dy": 380.0
       },
       "node_hm2tnddgwy_1gwjuw8": {
         "dx": 500.0,
@@ -3252,6 +3776,14 @@
       "node_hm3cvgfy3p_1qvmzv1": {
         "dx": 180.0,
         "dy": 300.0
+      },
+      "node_hm5peeikxl_ns203n": {
+        "dx": 520.0,
+        "dy": 380.0
+      },
+      "node_hm5pht5nzt_2louc2": {
+        "dx": 580.0,
+        "dy": 380.0
       }
     },
     "wireOverrides": {},
@@ -3416,7 +3948,7 @@
         "0": 64.39997886063216
       },
       "kill-cdi": {
-        "0": 24.40000061278647
+        "0": 44.40000291888629
       },
       "rel_hm1zkw79ly_1rlk8nh": {
         "0": 24.399994961627115
@@ -3484,7 +4016,7 @@
         "0": -6.800030966224824
       },
       "rel_hm2tvvvd96_1il0vjq": {
-        "0": -186.80000217924726
+        "0": -214.8000193346267
       },
       "rel_hm2u1o91wb_c1xhg3": {
         "0": 24.400028309923584
@@ -3556,12 +4088,18 @@
       },
       "rel_hm3ctfkcr9_13ul19n": {
         "0": -155.6000264031547
+      },
+      "rel_hm2tnddhqv_1qdpx75": {
+        "0": -1.6000138353181796
+      },
+      "rel_hm5pft8l0y_1543xbq": {
+        "0": -246.79998091365536
       }
     }
   },
   "metadata": {
     "title": "TRX300",
     "createdAt": "2026-09-04T00:38:20.171480",
-    "modifiedAt": "2026-09-09T05:27:45.181399"
+    "modifiedAt": "2026-09-10T04:11:03.997337"
   }
 }

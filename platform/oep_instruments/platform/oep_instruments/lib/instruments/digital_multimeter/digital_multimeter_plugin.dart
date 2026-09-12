@@ -7,6 +7,7 @@ import '../../capability/capability.dart';
 import '../../capability/capability_category.dart';
 import '../../capability/capability_registry.dart';
 import '../../measurement/measurement.dart';
+import '../../measurement/measurement_range.dart';
 import '../../measurement/measurement_state.dart';
 import '../../plugins/instrument_plugin.dart';
 import '../../plugins/plugin_context.dart';
@@ -82,6 +83,13 @@ class DigitalMultimeterPlugin implements InstrumentPlugin {
         version: '1.0',
       ),
       Capability(
+        id: 'measurement.diode',
+        displayName: 'Diode Test',
+        description: 'Tests a diode\'s forward voltage drop / reverse-bias OL between two probe points.',
+        category: CapabilityCategory.measurement,
+        version: '1.0',
+      ),
+      Capability(
         id: 'interaction.probePlacement',
         displayName: 'Probe Placement',
         description: 'Place and move the black/red probe pair on measurement targets.',
@@ -101,6 +109,20 @@ class DigitalMultimeterPlugin implements InstrumentPlugin {
   Probe _probeBlack = const Probe(id: 'dmm-black', displayName: 'Black Probe', type: ProbeType.reference, color: 'black', state: ProbeState.available);
   Probe _probeRed = const Probe(id: 'dmm-red', displayName: 'Red Probe', type: ProbeType.measurement, color: 'red', state: ProbeState.available);
 
+  /// A specific terminal/port on [Probe.currentTargetId]'s component, for
+  /// a Host whose engineering model distinguishes a multi-terminal
+  /// component's individual pins (e.g. Diagram Studio's `Port.id`) --
+  /// deliberately NOT part of [Probe] itself (OIP-PROBE-001's own model
+  /// is protocol-generic; a "which pin" concept is specific to a
+  /// particular Host's own graph, matching the same
+  /// `probeRedPortId`/`probeBlackPortId` payload fields the Host side
+  /// (`OipHostBridgeService`) already accepts and has since it was
+  /// built -- this plugin simply hadn't populated them yet). `null` means
+  /// "measure at the component as a whole," exactly today's existing
+  /// behavior, unchanged for any caller that never sets a port.
+  String? _probeBlackPortId;
+  String? _probeRedPortId;
+
   /// OIP-DMM-007 — the black lead is always in COM; only the red lead's
   /// jack changes with mode (matching how a real DMM's front panel is
   /// laid out).
@@ -114,6 +136,17 @@ class DigitalMultimeterPlugin implements InstrumentPlugin {
   OipTransport? _transport;
 
   StreamSubscription<OipMessage>? _transportSubscription;
+
+  /// PRODUCT-READINESS-007 §7 — the `messageId` of the most recently SENT
+  /// `requestMeasurement`, so [receiveMeasurement] can reject a stale
+  /// response that answers an earlier, superseded request (§7's own
+  /// example: request #41 -> request #42 -> result #41 arrives -> #41
+  /// MUST be discarded). `null` before the first request, or once a
+  /// response for the current request has already been applied (a
+  /// response is only ever accepted once — a duplicate/retransmitted
+  /// `measurementResult` with the same `replyTo` is also rejected, since
+  /// [_pendingRequestId] is cleared on acceptance).
+  String? _pendingRequestId;
 
   final ValueNotifier<int> _revision = ValueNotifier(0);
 
@@ -188,6 +221,27 @@ class DigitalMultimeterPlugin implements InstrumentPlugin {
   /// follow-up (real DMM-specific sound samples).
   void setMode(DmmMeasurementMode mode) {
     _mode = mode;
+    // AP-DIAGRAM-OIP-DMM-SYNC-001 -- a mode change made HERE (the local
+    // user physically tapping this instrument's own mode dial) is the
+    // one direction this plugin ever originates a mode change from; it
+    // tells whatever Host it's connected to (Diagram Studio's real,
+    // diagram-embedded MultimeterController) to apply the same change,
+    // rather than each side tracking its own independent mode. A
+    // silent no-op when unconnected -- browsing modes offline is a
+    // normal, expected UI state, not an error (same convention
+    // [requestMeasurement] already uses).
+    final transport = _transport;
+    if (transport != null) {
+      unawaited(transport.send(OipMessage(
+        protocolVersion: '1.0',
+        category: OipMessageCategory.instrument,
+        type: 'setDmmMode',
+        sessionId: session?.id ?? '',
+        messageId: '${DateTime.now().microsecondsSinceEpoch}',
+        timestamp: DateTime.now(),
+        payload: {'measurementType': mode.name},
+      )));
+    }
     // A real meter's REL/Min/Max are mode-scoped -- switching modes
     // always resets them, matching OIP-DMM-017 §-adjacent behavior for
     // relative measurement and min/max capture.
@@ -243,12 +297,13 @@ class DigitalMultimeterPlugin implements InstrumentPlugin {
     _revision.value++;
   }
 
-  void setProbeBlackTarget(String? targetId) {
+  void setProbeBlackTarget(String? targetId, {String? portId}) {
     _probeBlack = _probeBlack.copyWith(
       state: targetId == null ? ProbeState.available : ProbeState.attached,
       currentTargetId: targetId,
       clearTarget: targetId == null,
     );
+    _probeBlackPortId = targetId == null ? null : portId;
     _revision.value++;
   }
 
@@ -257,12 +312,13 @@ class DigitalMultimeterPlugin implements InstrumentPlugin {
   /// tone-on-connect is a disclosed follow-up needing the actual
   /// measurement result, not just probe attachment, to know whether a
   /// real continuity beep is warranted).
-  void setProbeRedTarget(String? targetId) {
+  void setProbeRedTarget(String? targetId, {String? portId}) {
     _probeRed = _probeRed.copyWith(
       state: targetId == null ? ProbeState.available : ProbeState.attached,
       currentTargetId: targetId,
       clearTarget: targetId == null,
     );
+    _probeRedPortId = targetId == null ? null : portId;
     if (targetId != null) HapticFeedback.lightImpact();
     _revision.value++;
   }
@@ -308,17 +364,25 @@ class DigitalMultimeterPlugin implements InstrumentPlugin {
     final activeSession = session;
     if (transport == null || activeSession == null) return;
 
+    final requestId = '${DateTime.now().microsecondsSinceEpoch}';
+    // §7 — this becomes the ONLY request id whose response
+    // [receiveMeasurement] will accept; a response for any earlier,
+    // superseded request is now stale and gets discarded there.
+    _pendingRequestId = requestId;
+
     await transport.send(OipMessage(
       protocolVersion: '1.0',
       category: OipMessageCategory.measurement,
       type: 'requestMeasurement',
       sessionId: activeSession.id,
-      messageId: '${DateTime.now().microsecondsSinceEpoch}',
+      messageId: requestId,
       timestamp: DateTime.now(),
       payload: {
         'measurementType': _mode.name,
         'probeBlackTargetId': _probeBlack.currentTargetId,
         'probeRedTargetId': _probeRed.currentTargetId,
+        if (_probeBlackPortId != null) 'probeBlackPortId': _probeBlackPortId,
+        if (_probeRedPortId != null) 'probeRedPortId': _probeRedPortId,
       },
     ));
   }
@@ -354,20 +418,79 @@ class DigitalMultimeterPlugin implements InstrumentPlugin {
 
   @override
   void receiveEvent(OipMessage event) {
-    // Non-measurement Runtime events (selection changed, simulation
-    // state, ...) -- no engineering interpretation happens here, only
-    // UI-relevant bookkeeping a future increment will add as real
-    // event-driven behavior is needed.
+    // AP-DIAGRAM-OIP-DMM-SYNC-001 -- the Host (Diagram Studio's own
+    // diagram-embedded MultimeterController) mirroring its real, current
+    // mode/probe placement to this instrument. Applied directly to this
+    // plugin's own state -- deliberately NOT through [setMode] (which
+    // would send a `setDmmMode` request right back to the Host that just
+    // told us this, an unnecessary echo, not a real change) -- and with
+    // no click tone/haptic, since nothing here was actually turned by
+    // this instrument's own user.
+    if (event.category == OipMessageCategory.instrument && event.type == 'dmmStateChanged') {
+      _applyRemoteState(event.payload);
+      return;
+    }
+    // Every other non-measurement Runtime event (selection changed,
+    // simulation state, ...) -- no engineering interpretation happens
+    // here, only UI-relevant bookkeeping a future increment will add as
+    // real event-driven behavior is needed.
+    _revision.value++;
+  }
+
+  /// AP-DIAGRAM-OIP-DMM-SYNC-001 — see [receiveEvent]'s own doc comment
+  /// for why this is a separate path from [setMode]/[setProbeRedTarget]/
+  /// [setProbeBlackTarget]: those originate a change and tell the Host;
+  /// this reflects a change the Host already made. An unrecognized/
+  /// missing `measurementType` leaves [_mode] untouched rather than
+  /// falling back to a guessed mode.
+  void _applyRemoteState(Map<String, Object?> payload) {
+    final wireMode = payload['measurementType'] as String?;
+    final mode = DmmMeasurementMode.values.where((m) => m.name == wireMode).firstOrNull;
+    if (mode != null) {
+      _mode = mode;
+      _relativeReference = null;
+      _minValue = null;
+      _maxValue = null;
+    }
+    final redTargetId = payload['probeRedTargetId'] as String?;
+    _probeRed = _probeRed.copyWith(
+      state: redTargetId == null ? ProbeState.available : ProbeState.attached,
+      currentTargetId: redTargetId,
+      clearTarget: redTargetId == null,
+    );
+    _probeRedPortId = redTargetId == null ? null : payload['probeRedPortId'] as String?;
+    final blackTargetId = payload['probeBlackTargetId'] as String?;
+    _probeBlack = _probeBlack.copyWith(
+      state: blackTargetId == null ? ProbeState.available : ProbeState.attached,
+      currentTargetId: blackTargetId,
+      clearTarget: blackTargetId == null,
+    );
+    _probeBlackPortId = blackTargetId == null ? null : payload['probeBlackPortId'] as String?;
     _revision.value++;
   }
 
   @override
   void receiveMeasurement(OipMessage measurement) {
+    // §7 stale-result protection — a response that explicitly answers a
+    // DIFFERENT (older, superseded) request than the one currently
+    // outstanding is discarded outright, never allowed to overwrite a
+    // newer request's own eventual result. A response with no `replyTo`
+    // at all (an older Host, or a non-request-driven broadcast) is
+    // accepted for backward compatibility — correlation is additive, not
+    // required (§11 "Do not break compatibility unnecessarily").
+    final replyTo = measurement.replyTo;
+    if (replyTo != null && replyTo != _pendingRequestId) return;
+    if (replyTo != null && replyTo == _pendingRequestId) _pendingRequestId = null;
+
     final payload = measurement.payload;
+    final rangeJson = payload['valueRange'];
+    final value = rangeJson is Map
+        ? MeasurementRange.fromJson(Map<String, Object?>.from(rangeJson))
+        : payload['value'];
     _lastMeasurement = Measurement(
       id: payload['id'] as String? ?? measurement.messageId,
       timestamp: measurement.timestamp,
-      value: payload['value'],
+      value: value,
       unit: payload['unit'] as String? ?? '',
       measurementType: payload['measurementType'] as String? ?? _mode.name,
       source: payload['source'] as String? ?? 'unknown',
@@ -375,8 +498,8 @@ class DigitalMultimeterPlugin implements InstrumentPlugin {
       state: _stateFromPayload(payload),
       sessionId: measurement.sessionId,
       engineeringObjectId: payload['engineeringObjectId'] as String?,
+      electricalState: payload['electricalState'] as String?,
     );
-    final value = _lastMeasurement?.value;
     if (value is num) {
       _minValue = _minValue == null ? value : (value < _minValue! ? value : _minValue);
       _maxValue = _maxValue == null ? value : (value > _maxValue! ? value : _maxValue);

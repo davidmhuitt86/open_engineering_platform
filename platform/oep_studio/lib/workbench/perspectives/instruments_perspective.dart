@@ -67,6 +67,22 @@ class InstrumentsSurfacePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // PRODUCT-READINESS-008 §20 note: `DigitalMultimeterInstrument` (the
+    // real, now-complete `EngineeringInstrument` implementation) is
+    // deliberately NOT wired into this Surface's own dock. This Surface
+    // is reached independently of the Diagram Perspective/any live
+    // `ProviderScope`-backed diagram session in its own existing tests
+    // (`engineering_instruments_surface_migration_test.dart` pumps
+    // `InstrumentsSurfacePage` with NO `ProviderScope` ancestor at all,
+    // relying on this dock's own "zero instruments" short-circuit to
+    // never touch Riverpod) — mounting a real, Riverpod-`Consumer`-based
+    // instrument panel here would crash exactly that already-passing
+    // test, and this Surface's own doc comment already discloses it has
+    // no live diagram session to give a real instrument anyway. The DMM
+    // is instead reached through Diagram Studio's own content
+    // (`DiagramWithComparePane`'s "Multimeter" toggle), where a live
+    // session is always genuinely present — see that file's own doc
+    // comment.
     return const Column(
       children: [
         Expanded(child: InstrumentsPerspectiveCenter()),

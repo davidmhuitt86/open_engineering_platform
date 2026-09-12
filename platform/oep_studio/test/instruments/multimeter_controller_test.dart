@@ -40,6 +40,144 @@ void main() {
 
   tearDown(() => controller.dispose());
 
+  group('PRODUCT-READINESS-007 §6 -- native Engine electrical measurement path (additive)', () {
+    EngineeringGraph electricalFixtureGraph() => EngineeringGraph(
+          id: 'elec-g1',
+          nodes: {
+            'battery': const EngineeringNode(
+              id: 'battery',
+              category: NodeCategory.component,
+              displayName: 'Battery',
+              metadata: {'v2Category': 'power'},
+              properties: {'nominalVoltageV': 12.0},
+            ),
+            'ground': const EngineeringNode(id: 'ground', category: NodeCategory.ground, displayName: 'Ground'),
+          },
+          relationships: {
+            'w1': const EngineeringRelationship(id: 'w1', relationshipType: RelationshipType.connectedTo, sourceNode: 'battery', targetNode: 'ground'),
+          },
+        );
+
+    test('measureElectrical() takes a real reading through ElectricalSolver + ElectricalMeasurementQuery -- never SimulationEngine', () async {
+      controller
+        ..setProbeA(const ProbePoint(nodeId: 'battery'))
+        ..setProbeB(const ProbePoint(nodeId: 'ground'))
+        ..setType(MeasurementType.voltageDc);
+      expect(controller.electricalResult, isNull, reason: 'a mode/probe change clears any prior electrical result');
+
+      await controller.measureElectrical(
+        graph: electricalFixtureGraph(),
+        solver: const ElectricalSolver(),
+        generationCounter: ElectricalSolutionGenerationCounter(),
+      );
+
+      expect(controller.electricalResult, isNotNull);
+      expect(controller.electricalResult!.reading.isValid, isTrue);
+      expect(controller.electricalResult!.reading.value, 12.0);
+      // The OLD, reachability-based path is untouched by this call.
+      expect(controller.latestResult, isNull);
+    });
+
+    test('measureElectrical() against a genuinely floating pair (no wire path to any source or reference) honestly reports UNREACHED', () async {
+      // Two isolated nodes, no relationships at all -- neither reaches a
+      // source nor a reference by any path, so this is unambiguously
+      // UNREACHED (distinct from `buildSimulationTestGraph()`'s own
+      // battery/lamp/fuse/chassis, which -- though it declares no real
+      // source either -- ARE wire-connected to the real chassis-ground
+      // reference node, and per the Engine's own "single boundary, zero
+      // current" rule correctly settle at a real, valid 0V, not
+      // UNREACHED; see `ELECTRICAL_SOLUTION_ENGINE.md`'s own PRODUCT-
+      // READINESS-006B section for the same principle applied to TRX300).
+      final floatingGraph = EngineeringGraph(id: 'floating', nodes: {
+        'a': const EngineeringNode(id: 'a', category: NodeCategory.component, displayName: 'A'),
+        'b': const EngineeringNode(id: 'b', category: NodeCategory.component, displayName: 'B'),
+      }, relationships: const {});
+
+      controller
+        ..setProbeA(const ProbePoint(nodeId: 'a'))
+        ..setProbeB(const ProbePoint(nodeId: 'b'))
+        ..setType(MeasurementType.voltageDc);
+
+      await controller.measureElectrical(
+        graph: floatingGraph,
+        solver: const ElectricalSolver(),
+        generationCounter: ElectricalSolutionGenerationCounter(),
+      );
+
+      expect(controller.electricalResult!.reading.state, ElectricalReadingState.unreached);
+      expect(controller.electricalResult!.reading.value, isNull);
+    });
+
+    test('§6.9 changing a probe or the mode clears the current electrical result', () async {
+      controller
+        ..setProbeA(const ProbePoint(nodeId: 'battery'))
+        ..setProbeB(const ProbePoint(nodeId: 'ground'))
+        ..setType(MeasurementType.voltageDc);
+      await controller.measureElectrical(
+        graph: electricalFixtureGraph(),
+        solver: const ElectricalSolver(),
+        generationCounter: ElectricalSolutionGenerationCounter(),
+      );
+      expect(controller.electricalResult, isNotNull);
+
+      controller.setProbeA(const ProbePoint(nodeId: 'ground'));
+      expect(controller.electricalResult, isNull);
+    });
+
+    // PRODUCT-READINESS-008 §9/§30 -- the worked stale-result example (an
+    // older request 101 must never overwrite a newer request 102), proven
+    // against the REAL `MultimeterController.measureElectrical`
+    // correlation guard (`_electricalRequestSeq`), not a reimplementation.
+    // `ElectricalSolver.solve` itself is synchronous (no `await` inside
+    // `measureElectrical`), so a genuine out-of-order completion can only
+    // be produced the same way any synchronous API can race: reentrantly
+    // -- a solver whose own `solve()` call reaches back into the
+    // controller (here, `setProbeB`, exactly as a live V2 state change
+    // arriving mid-solve would) before the outer, now-superseded
+    // "request 101" call reaches its own correlation check. This exercises
+    // the real `if (requestSeq != _electricalRequestSeq) return;` guard,
+    // not a mock of it.
+    test('§9/§30 an older, now-superseded electrical request never overwrites a newer one', () async {
+      controller
+        ..setProbeA(const ProbePoint(nodeId: 'battery'))
+        ..setProbeB(const ProbePoint(nodeId: 'ground'))
+        ..setType(MeasurementType.voltageDc);
+
+      final reentrantSolver = _ReentrantOnceElectricalSolver(
+        onFirstSolve: () {
+          // Simulates request 102: a mode change (the same observable
+          // effect a live V2 state change forcing a re-measure would have)
+          // followed by a reentrant `measureElectrical` call that reaches
+          // its own correlation check -- and completes -- before request
+          // 101's own check runs. (`measureElectrical` has no internal
+          // `await`, so calling it here, unawaited, still runs it
+          // synchronously to completion.) Deliberately a DIFFERENT mode
+          // than request 101's `voltageDc` so the final displayed result
+          // can be attributed to 102, not just asserted non-null.
+          controller.setType(MeasurementType.resistance);
+          controller.measureElectrical(
+            graph: electricalFixtureGraph(),
+            solver: const ElectricalSolver(),
+            generationCounter: ElectricalSolutionGenerationCounter(),
+          );
+        },
+      );
+
+      // Request 101 -- its own correlation check runs only AFTER the
+      // reentrant request 102 above has already completed and bumped
+      // `_electricalRequestSeq`, so 101 must discard its own answer.
+      await controller.measureElectrical(
+        graph: electricalFixtureGraph(),
+        solver: reentrantSolver,
+        generationCounter: ElectricalSolutionGenerationCounter(),
+      );
+
+      expect(controller.electricalResult, isNotNull, reason: 'request 102\'s own valid result must still be displayed');
+      expect(controller.electricalResult!.request.mode, MeasurementType.resistance, reason: 'the displayed result is request 102\'s (resistance), never overwritten by the late-checking request 101 (voltageDc)');
+      expect(reentrantSolver.solveCallCount, 1, reason: 'request 101\'s own (outer) solve really ran, and only once');
+    });
+  });
+
   test('canMeasure requires both probes and a supported type', () {
     expect(controller.canMeasure, isFalse);
     controller.setProbeA(const ProbePoint(nodeId: 'battery'));
@@ -204,4 +342,28 @@ void main() {
   test('relatedFindings returns empty with no result or no report', () {
     expect(controller.relatedFindings(null), isEmpty);
   });
+}
+
+/// PRODUCT-READINESS-008 §9/§30 test helper: a real [ElectricalSolver]
+/// (delegates to `super.solve` for the actual computation -- never
+/// fabricates a result) that runs [onFirstSolve] the first time [solve] is
+/// called, before returning, to reproduce a genuine reentrant
+/// "newer-request-completes-while-an-older-one-is-still-solving" race
+/// against [MultimeterController]'s real correlation guard.
+class _ReentrantOnceElectricalSolver extends ElectricalSolver {
+  _ReentrantOnceElectricalSolver({required this.onFirstSolve});
+
+  final void Function() onFirstSolve;
+  int solveCallCount = 0;
+
+  @override
+  SolvedElectricalState solve(
+    EngineeringGraph graph,
+    ElectricalOperatingContext operatingContext, {
+    required ElectricalSolutionGenerationCounter generationCounter,
+  }) {
+    solveCallCount++;
+    if (solveCallCount == 1) onFirstSolve();
+    return super.solve(graph, operatingContext, generationCounter: generationCounter);
+  }
 }

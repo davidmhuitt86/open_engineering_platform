@@ -97,6 +97,18 @@ function autoPlaceLeads(w) {
 }
 
 function updateMeter() {
+  // AP-DIAGRAM-STUDIO-DMM-CONSOLIDATION-001 -- V2's own embedded meter
+  // rendering (the LCD readout this function used to write to,
+  // `#sidebar-meter`/`#meter` in index.html) was removed: the real
+  // Multimeter now lives only in Diagram Studio's own panel, synced to
+  // the Android app over OIP (AP-DIAGRAM-OIP-DMM-SYNC-001) -- one real
+  // instrument instead of three. This function is still called from
+  // surviving, unrelated code (`setKey`, the Key ON/OFF/Crank/Run
+  // buttons) that has no reason to know the meter display is gone, so it
+  // stays as a real function -- a no-op now that its target elements no
+  // longer exist, rather than deleted outright and forcing every caller
+  // to be found and edited too.
+  if (!$('lcd-mode')) return;
   if (!selW) return;
   const rd = (window.SWPACK && SWPACK.getReading(selW.id, keyPos)) || (selW.R ? selW.R[keyPos] : null);
   if (!rd) return;

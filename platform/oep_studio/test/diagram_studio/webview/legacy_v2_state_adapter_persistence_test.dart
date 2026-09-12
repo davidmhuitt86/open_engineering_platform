@@ -43,7 +43,12 @@ class _FakeChannel implements LegacyV2Channel {
   set onMeasurementRequested(
       void Function(V2MeasurementRequestedMessage message)? handler) {}
   @override
+  set onOperatingStateChanged(
+      void Function(V2OperatingStateChangedMessage message)? handler) {}
+  @override
   set onSaveRequested(void Function()? handler) => _onSaveRequested = handler;
+  @override
+  set onEngineeringCommand(void Function(String command)? handler) {}
 
   @override
   Future<void> sendAuthoritativeModulePosition(
@@ -111,6 +116,18 @@ class _FakeChannel implements LegacyV2Channel {
   @override
   Future<V2LiveMeasurementResult?> queryLiveMeasurement(
       String v2WireId, String v2Mode) async => null;
+
+  /// PRODUCT-READINESS-009 — no-op: not exercised by this test.
+  @override
+  Future<void> applyTraceHighlight(List<String> wireIds, List<String> sourceModuleIds,
+      List<String> returnModuleIds, List<String> blockedModuleIds, Map<String, int> currentFlowByWireId) async {}
+
+  @override
+  Future<void> clearTraceHighlight() async {}
+
+  /// PRODUCT-READINESS-010 §17 — no-op: not exercised by this test.
+  @override
+  Future<void> fitToTraceHighlight(List<String> nodeIds) async {}
 
   void simulateSaveRequested() => _onSaveRequested?.call();
 }

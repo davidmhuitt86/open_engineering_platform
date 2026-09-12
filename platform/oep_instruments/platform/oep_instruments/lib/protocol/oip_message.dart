@@ -16,6 +16,7 @@ class OipMessage {
     required this.timestamp,
     this.payload = const {},
     this.metadata,
+    this.replyTo,
   });
 
   final String protocolVersion;
@@ -35,6 +36,20 @@ class OipMessage {
   final Map<String, Object?> payload;
   final Map<String, Object?>? metadata;
 
+  /// PRODUCT-READINESS-007 — request/response correlation. A response
+  /// message sets this to the `messageId` of the request it answers; a
+  /// request never sets it (`null`). Additive and optional: an older
+  /// sender that never sets `replyTo` still round-trips through
+  /// [toJson]/[fromJson] unchanged (§26 "New message types/fields shall
+  /// not invalidate older protocol versions"), and a receiver that
+  /// doesn't yet check `replyTo` behaves exactly as before. A receiver
+  /// that DOES track an outstanding request id should treat a
+  /// non-matching (or, for backward compatibility, a missing) `replyTo`
+  /// as informative rather than fatal — see
+  /// `DigitalMultimeterPlugin.receiveMeasurement`'s own stale-response
+  /// rejection for the reference implementation of this rule.
+  final String? replyTo;
+
   Map<String, Object?> toJson() => {
         'protocolVersion': protocolVersion,
         'category': category.name,
@@ -44,6 +59,7 @@ class OipMessage {
         'timestamp': timestamp.toIso8601String(),
         'payload': payload,
         if (metadata != null) 'metadata': metadata,
+        if (replyTo != null) 'replyTo': replyTo,
       };
 
   factory OipMessage.fromJson(Map<String, Object?> json) => OipMessage(
@@ -55,5 +71,6 @@ class OipMessage {
         timestamp: DateTime.parse(json['timestamp'] as String),
         payload: Map<String, Object?>.from(json['payload'] as Map? ?? const {}),
         metadata: json['metadata'] == null ? null : Map<String, Object?>.from(json['metadata'] as Map),
+        replyTo: json['replyTo'] as String?,
       );
 }

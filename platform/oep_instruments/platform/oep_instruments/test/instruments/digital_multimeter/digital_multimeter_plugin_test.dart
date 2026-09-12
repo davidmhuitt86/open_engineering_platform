@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:oep_instruments_runtime/instruments/digital_multimeter/digital_multimeter_plugin.dart';
 import 'package:oep_instruments_runtime/instruments/digital_multimeter/dmm_measurement_mode.dart';
 import 'package:oep_instruments_runtime/instruments/digital_multimeter/dmm_probe_jack.dart';
+import 'package:oep_instruments_runtime/measurement/measurement_range.dart';
 import 'package:oep_instruments_runtime/plugins/plugin_context.dart';
 import 'package:oep_instruments_runtime/protocol/oip_message.dart';
 import 'package:oep_instruments_runtime/protocol/oip_message_category.dart';
@@ -25,6 +26,10 @@ void main() {
       await plugin.initialize(context);
       expect(plugin.capabilities.supports('measurement.dcVoltage'), isTrue);
       expect(plugin.capabilities.supports('measurement.continuity'), isTrue);
+      // PRODUCT-READINESS-007 §18/§19 -- diode is now a real, wired mode:
+      // capability negotiation must be able to see that too, not just the
+      // original four.
+      expect(plugin.capabilities.supports('measurement.diode'), isTrue);
       expect(plugin.capabilities.validateDependencies(), isEmpty);
     });
 
@@ -143,6 +148,158 @@ void main() {
       await transport.shutdown();
     });
 
+    test('AP-DIAGRAM-OIP-DMM-SYNC-001: setMode, once connected, sends a real setDmmMode request to the Host', () async {
+      final server = await OipHostServer.bind(address: '127.0.0.1', port: 0);
+      addTearDown(server.close);
+      final serverConnectionFuture = server.connections.first;
+
+      final transport = WifiOipTransport(transportId: 'dmm-client-mode-sync');
+      await transport.initialize();
+      addTearDown(transport.shutdown);
+      await transport.connect('127.0.0.1:${server.port}');
+      final serverConnection = await serverConnectionFuture;
+
+      final plugin = DigitalMultimeterPlugin();
+      await plugin.initialize(context);
+      plugin.connectTransport(transport);
+
+      final requestFuture = serverConnection.messages.first;
+      plugin.setMode(DmmMeasurementMode.resistance);
+      final request = await requestFuture;
+      expect(request.category, OipMessageCategory.instrument);
+      expect(request.type, 'setDmmMode');
+      expect(request.payload['measurementType'], 'resistance');
+    });
+
+    test('AP-DIAGRAM-OIP-DMM-SYNC-001: a dmmStateChanged event from the Host updates mode/probes '
+        'without sending anything back (no echo)', () async {
+      final server = await OipHostServer.bind(address: '127.0.0.1', port: 0);
+      addTearDown(server.close);
+      final serverConnectionFuture = server.connections.first;
+
+      final transport = WifiOipTransport(transportId: 'dmm-client-remote-state');
+      await transport.initialize();
+      addTearDown(transport.shutdown);
+      await transport.connect('127.0.0.1:${server.port}');
+      final serverConnection = await serverConnectionFuture;
+
+      final plugin = DigitalMultimeterPlugin();
+      await plugin.initialize(context);
+      plugin.connectTransport(transport);
+
+      // Nothing this test sends should ever produce an outbound message
+      // from the plugin -- if it did (an echo/ping-pong), this listener
+      // would see it and the final `expect` below would fail.
+      var echoed = false;
+      serverConnection.messages.listen((_) => echoed = true);
+
+      serverConnection.send(OipMessage(
+        protocolVersion: '1.0',
+        category: OipMessageCategory.instrument,
+        type: 'dmmStateChanged',
+        sessionId: session.id,
+        messageId: 'e1',
+        timestamp: DateTime(2026, 1, 1),
+        payload: {
+          'measurementType': 'continuity',
+          'probeRedTargetId': 'node-a',
+          'probeRedPortId': 'port-1',
+          'probeBlackTargetId': 'node-b',
+          'probeBlackPortId': null,
+        },
+      ));
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+
+      expect(plugin.mode, DmmMeasurementMode.continuity);
+      expect(plugin.probeRed.currentTargetId, 'node-a');
+      expect(plugin.probeBlack.currentTargetId, 'node-b');
+      expect(echoed, isFalse);
+    });
+
+    test('PRODUCT-READINESS-007 §7: a stale measurementResult (replyTo pointing at a superseded request) is discarded', () async {
+      final server = await OipHostServer.bind(address: '127.0.0.1', port: 0);
+      addTearDown(server.close);
+      final serverConnectionFuture = server.connections.first;
+
+      final transport = WifiOipTransport(transportId: 'dmm-client-stale');
+      await transport.initialize();
+      addTearDown(transport.shutdown);
+      await transport.connect('127.0.0.1:${server.port}');
+      final serverConnection = await serverConnectionFuture;
+
+      final plugin = DigitalMultimeterPlugin();
+      await plugin.initialize(context);
+      plugin.connectTransport(transport);
+
+      // Request #1.
+      final firstRequestFuture = serverConnection.messages.first;
+      await plugin.requestMeasurement();
+      final firstRequest = await firstRequestFuture;
+
+      // Request #2 -- immediately supersedes #1 (e.g. the user changed
+      // probes/mode before #1's answer arrived).
+      final secondRequestFuture = serverConnection.messages.first;
+      await plugin.requestMeasurement();
+      final secondRequest = await secondRequestFuture;
+      expect(secondRequest.messageId, isNot(firstRequest.messageId));
+
+      // #1's answer arrives AFTER #2 was sent -- must be discarded.
+      serverConnection.send(OipMessage(
+        protocolVersion: '1.0',
+        category: OipMessageCategory.measurement,
+        type: 'measurementResult',
+        sessionId: session.id,
+        messageId: 'stale-response',
+        replyTo: firstRequest.messageId,
+        timestamp: DateTime(2026, 1, 1),
+        payload: {'value': 999.0, 'unit': 'V'},
+      ));
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+      expect(plugin.lastMeasurement, isNull, reason: 'the stale #1 response must never overwrite the still-outstanding #2');
+
+      // #2's real answer arrives -- must be accepted.
+      serverConnection.send(OipMessage(
+        protocolVersion: '1.0',
+        category: OipMessageCategory.measurement,
+        type: 'measurementResult',
+        sessionId: session.id,
+        messageId: 'current-response',
+        replyTo: secondRequest.messageId,
+        timestamp: DateTime(2026, 1, 1),
+        payload: {'value': 5.0, 'unit': 'V'},
+      ));
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+      expect(plugin.lastMeasurement?.value, 5.0);
+    });
+
+    test('receiveMeasurement parses a structured electricalState and a MeasurementRange value, never string-parsing a range', () async {
+      final plugin = DigitalMultimeterPlugin();
+      await plugin.initialize(context);
+
+      plugin.receiveMeasurement(OipMessage(
+        protocolVersion: '1.0',
+        category: OipMessageCategory.measurement,
+        type: 'measurementResult',
+        sessionId: session.id,
+        messageId: 'm-open',
+        timestamp: DateTime(2026, 1, 1),
+        payload: {'unit': 'Ω', 'electricalState': 'open'},
+      ));
+      expect(plugin.lastMeasurement?.electricalState, 'open');
+      expect(plugin.lastMeasurement?.value, isNull);
+
+      plugin.receiveMeasurement(OipMessage(
+        protocolVersion: '1.0',
+        category: OipMessageCategory.measurement,
+        type: 'measurementResult',
+        sessionId: session.id,
+        messageId: 'm-range',
+        timestamp: DateTime(2026, 1, 1),
+        payload: {'unit': 'V', 'electricalState': 'valid', 'valueRange': {'low': 13, 'high': 16}},
+      ));
+      expect(plugin.lastMeasurement?.value, const MeasurementRange(low: 13, high: 16));
+    });
+
     test('requestMeasurement is a safe no-op when nothing is connected', () async {
       final plugin = DigitalMultimeterPlugin();
       await plugin.initialize(context);
@@ -172,6 +329,70 @@ void main() {
 
       expect(find.text('Ω'), findsOneWidget);
       expect(find.text('----'), findsOneWidget);
+    });
+
+    testWidgets('PRODUCT-READINESS-007 §3/§13/§18: OL, fault, unsupported, and a range value each render distinctly', (tester) async {
+      tester.view.physicalSize = const Size(412, 915);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final plugin = DigitalMultimeterPlugin();
+      await plugin.initialize(context);
+      plugin.setMode(DmmMeasurementMode.resistance);
+
+      await tester.pumpWidget(
+        Directionality(textDirection: TextDirection.ltr, child: Builder(builder: plugin.render)),
+      );
+
+      plugin.receiveMeasurement(OipMessage(
+        protocolVersion: '1.0',
+        category: OipMessageCategory.measurement,
+        type: 'measurementResult',
+        sessionId: session.id,
+        messageId: 'm-ol',
+        timestamp: DateTime(2026, 1, 1),
+        payload: {'unit': 'Ω', 'electricalState': 'open'},
+      ));
+      await tester.pump();
+      expect(find.text('OL'), findsOneWidget);
+
+      plugin.receiveMeasurement(OipMessage(
+        protocolVersion: '1.0',
+        category: OipMessageCategory.measurement,
+        type: 'measurementResult',
+        sessionId: session.id,
+        messageId: 'm-fault',
+        timestamp: DateTime(2026, 1, 1),
+        payload: {'unit': 'Ω', 'electricalState': 'fault'},
+      ));
+      await tester.pump();
+      expect(find.text('FAULT'), findsOneWidget);
+
+      plugin.receiveMeasurement(OipMessage(
+        protocolVersion: '1.0',
+        category: OipMessageCategory.measurement,
+        type: 'measurementResult',
+        sessionId: session.id,
+        messageId: 'm-unsupported',
+        timestamp: DateTime(2026, 1, 1),
+        payload: {'unit': 'A', 'electricalState': 'unsupported'},
+      ));
+      await tester.pump();
+      expect(find.text('UNSUPP'), findsOneWidget);
+
+      plugin.setMode(DmmMeasurementMode.acVoltage);
+      plugin.receiveMeasurement(OipMessage(
+        protocolVersion: '1.0',
+        category: OipMessageCategory.measurement,
+        type: 'measurementResult',
+        sessionId: session.id,
+        messageId: 'm-range',
+        timestamp: DateTime(2026, 1, 1),
+        payload: {'unit': 'V', 'electricalState': 'valid', 'valueRange': {'low': 13, 'high': 16}},
+      ));
+      await tester.pump();
+      expect(find.text('13-16'), findsOneWidget);
     });
   });
 }

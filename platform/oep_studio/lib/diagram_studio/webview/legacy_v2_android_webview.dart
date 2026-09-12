@@ -175,6 +175,21 @@ class _LegacyV2AndroidWebViewPageState
     ref
         .read(engineeringProjectServiceFamily(_instanceId).notifier)
         .beforeSaveFlush = adapter.flushBeforeSave;
+    // PRODUCT-READINESS-008 — see the Windows host's own doc comment on
+    // this same line for the full rationale (deferred: `_ensureAdapter`
+    // is called from `build()`).
+    if (ref.read(legacyV2AdapterFamily(_instanceId)) != adapter) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        if (ref.read(legacyV2AdapterFamily(_instanceId)) != adapter) {
+          ref.read(legacyV2AdapterFamily(_instanceId).notifier).state = adapter;
+        }
+      });
+    }
+    adapter.onOperatingStateChanged = (context) {
+      if (!mounted) return;
+      ref.read(legacyV2OperatingContextFamily(_instanceId).notifier).state = context;
+    };
     return adapter;
   }
 

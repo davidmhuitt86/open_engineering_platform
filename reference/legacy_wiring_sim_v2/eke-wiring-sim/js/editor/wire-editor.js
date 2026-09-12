@@ -106,13 +106,25 @@ function setupTermClicks(card) {
 
 // ── Wire mode ─────────────────────────────────────────────────────
 
+// OEP-STUDIO-BRANDING-V1 — #wire-btn now also has a real SVG icon child
+// (index.html's #tb-diagram), so a plain `.textContent =` (the three
+// call sites below all used to do this) would silently delete it —
+// this targets the label span instead, same as toggleEdit's own
+// identical fix (module-editor.js).
+function _setWireBtnLabel(text) {
+  const btn = $('wire-btn');
+  if (!btn) return;
+  const lbl = btn.querySelector('.tb-icon-btn-lbl');
+  if (lbl) lbl.textContent = text; else btn.textContent = '⚡ ' + text;
+}
+
 function toggleWireMode() {
   wireMode = !wireMode;
   if (wireMode && editMode) toggleEdit();
   if (wireMode && routeEditMode) exitRouteEditMode();
   vp.classList.toggle('wire-mode', wireMode);
   $('wire-btn').classList.toggle('wire-on', wireMode);
-  $('wire-btn').textContent     = wireMode ? '⚡ Done' : '⚡ Wire';
+  _setWireBtnLabel(wireMode ? 'Done' : 'Wire');
   $('wire-badge').style.display = wireMode ? 'block'  : 'none';
   $('wep').classList.toggle('open', wireMode);
   pendingWireExit = null;
@@ -125,7 +137,7 @@ function cancelWireMode() {
   wireMode = false; wireSrc = null; reconnectTarget = null; pendingWireExit = null;
   vp.classList.remove('wire-mode');
   $('wire-btn').classList.remove('wire-on');
-  $('wire-btn').textContent     = '⚡ Wire';
+  _setWireBtnLabel('Wire');
   $('wire-badge').style.display = 'none';
   $('wep').classList.remove('open');
   clearSrcHL(); drawWires();
@@ -164,7 +176,7 @@ function startReconnectWireEnd(end) {
   wireMode = true; wireSrc = null;
   vp.classList.add('wire-mode');
   $('wire-btn').classList.add('wire-on');
-  $('wire-btn').textContent = '⚡ Done';
+  _setWireBtnLabel('Done');
   $('wire-badge').style.display = 'block';
   $('wep').classList.add('open');
   $('wep-status').textContent =

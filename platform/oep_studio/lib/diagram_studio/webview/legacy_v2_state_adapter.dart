@@ -1,8 +1,10 @@
 import 'dart:async';
 
 import 'package:engineering_engine/engineering_engine.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../simulation/diagram_simulation_service.dart';
+import '../trace/trace_highlight_plan.dart';
 import 'diagram_editing_host.dart';
 import 'legacy_v2_bridge_transport.dart';
 
@@ -78,6 +80,7 @@ class LegacyV2StateAdapter {
     channel.onModuleSelectionChanged = _handleModuleSelectionChanged;
     channel.onWirePropertiesChanged = _handleWirePropertiesChanged;
     channel.onMeasurementRequested = _handleMeasurementRequested;
+    channel.onOperatingStateChanged = _handleOperatingStateChanged;
     channel.onSaveRequested = _handleSaveRequested;
   }
 
@@ -228,7 +231,130 @@ class LegacyV2StateAdapter {
   void Function(String v2WireId, String v2Mode, V2LiveMeasurementResult result)?
       onLiveMeasurement;
 
+  /// PRODUCT-READINESS-008 §10-§14 — the most recent RAW (V2-module-id-
+  /// keyed) live switch/key state, or `null` before the first
+  /// `operatingStateChanged` message has arrived. Kept separately from
+  /// [currentOperatingContext] so translation always runs against
+  /// whatever the CURRENT `_v2ToOepNodeId` mapping is (a module bridged
+  /// after this snapshot arrived is still correctly translated on the
+  /// next read), never a stale, pre-translated snapshot.
+  V2OperatingStateChangedMessage? _latestRawOperatingState;
+
+  /// §10 — the live V2 switch/key state, translated into the Engine's own
+  /// generic [ElectricalOperatingContext] (§11/§12: never a
+  /// `Trx300SwitchState`-shaped type — this is exactly the same
+  /// `ElectricalOperatingContext` any diagram's live operating state would
+  /// produce). Translation rule (§12, derived from the REAL V2 data this
+  /// bridge already observes, nothing invented):
+  ///  - a plain switch (`V2OperatingStateChangedMessage.switchStates`,
+  ///    V2's own `'open'`/`'closed'` vocabulary) becomes a `bool`
+  ///    (`true` when closed) — matching [SwitchElectricalBehavior]'s own
+  ///    default `closedValue: true`.
+  ///  - a real multi-position switch (`multiSwitchStates`, V2's own
+  ///    `{group: position}` vocabulary, e.g. the ignition switch's own
+  ///    `{power: 'on'}` or the handlebar switch's own `{lights: 'on',
+  ///    dimmer: 'lo', engineStop: 'run', starter: 'free'}`) becomes a
+  ///    plain `Map<String, Object?>` carrying that SAME group/position
+  ///    data verbatim — a real component behavior reads the specific
+  ///    group(s) it cares about directly (see
+  ///    `Trx300V2SwitchBehaviors` in `trx300_v2_switch_behaviors.dart`),
+  ///    rather than this adapter guessing a single combined key.
+  /// Each map entry is keyed by the OEP node id (via [oepNodeIdFor]) —
+  /// exactly the `switchId` convention every
+  /// [ElectricalComponentBehavior] in this codebase already uses
+  /// (`switchId: node.id`). A V2 module with no OEP mapping yet (not yet
+  /// bridged) is silently omitted, never fabricated.
+  ElectricalOperatingContext get currentOperatingContext =>
+      _translateOperatingState(_latestRawOperatingState);
+
+  ElectricalOperatingContext _translateOperatingState(
+      V2OperatingStateChangedMessage? raw) {
+    if (raw == null) return ElectricalOperatingContext.none;
+    final activeInputStates = <String, Object?>{};
+    raw.switchStates.forEach((v2ModuleId, value) {
+      final oepId = oepNodeIdFor(v2ModuleId);
+      if (oepId != null) activeInputStates[oepId] = value == 'closed';
+    });
+    raw.multiSwitchStates.forEach((v2ModuleId, groupMap) {
+      final oepId = oepNodeIdFor(v2ModuleId);
+      if (oepId != null) {
+        activeInputStates[oepId] = Map<String, Object?>.from(groupMap);
+      }
+    });
+    return ElectricalOperatingContext(activeInputStates: activeInputStates);
+  }
+
+  /// §14 step 3/4 — fired with the freshly-translated
+  /// [ElectricalOperatingContext] every time V2's own live switch/key
+  /// state actually changes. A DMM host (`DigitalMultimeterInstrumentPanel`)
+  /// listens here to know when to re-solve/re-measure.
+  void Function(ElectricalOperatingContext context)? onOperatingStateChanged;
+
+  void _handleOperatingStateChanged(V2OperatingStateChangedMessage message) {
+    if (!_ready) return;
+    _latestRawOperatingState = message;
+    onOperatingStateChanged?.call(currentOperatingContext);
+  }
+
   String? oepNodeIdFor(String v2ModuleId) => _v2ToOepNodeId[v2ModuleId];
+
+  /// PRODUCT-READINESS-009 — the reverse of [oepNodeIdFor], needed to
+  /// translate a native [TraceHighlightPlan]'s OEP node ids back into the
+  /// V2 module ids the diagram's own rendering understands. Deliberately a
+  /// small linear scan over the same existing [_v2ToOepNodeId] map rather
+  /// than a second, independently-maintained reverse map — this is called
+  /// once per trace-highlight update (a user action), not per frame.
+  String? v2ModuleIdFor(String oepNodeId) {
+    for (final entry in _v2ToOepNodeId.entries) {
+      if (entry.value == oepNodeId) return entry.key;
+    }
+    return null;
+  }
+
+  /// The reverse of [oepRelationshipIdFor] — see [v2ModuleIdFor]'s own
+  /// doc comment for why a linear scan over the existing
+  /// [_v2ToOepRelationshipId] map, not a new reverse map.
+  String? v2WireIdFor(String oepRelationshipId) {
+    for (final entry in _v2ToOepRelationshipId.entries) {
+      if (entry.value == oepRelationshipId) return entry.key;
+    }
+    return null;
+  }
+
+  /// PRODUCT-READINESS-009 §11 — translates a [TraceHighlightPlan] (pure
+  /// OEP identity) into the V2 ids the real diagram rendering understands,
+  /// then pushes it through [channel] exactly like every other
+  /// OEP-authoritative-result-into-V2 call this adapter already makes
+  /// (§21: reuse the existing bridge, minimal adapter only). IDs that
+  /// cannot be resolved (not yet bridged, or since removed) are silently
+  /// omitted -- never fabricated.
+  Future<void> applyTraceHighlight(TraceHighlightPlan plan) {
+    final wireIds = plan.relationshipIds.map(v2WireIdFor).whereType<String>().toList();
+    final sourceIds = plan.sourceNodeIds.map(v2ModuleIdFor).whereType<String>().toList();
+    final returnIds = plan.returnNodeIds.map(v2ModuleIdFor).whereType<String>().toList();
+    final blockedIds = plan.blockedNodeIds.map(v2ModuleIdFor).whereType<String>().toList();
+    final flow = <String, int>{
+      for (final entry in plan.currentFlowByRelationshipId.entries)
+        if (v2WireIdFor(entry.key) case final String wireId) wireId: entry.value,
+    };
+    return channel.applyTraceHighlight(wireIds, sourceIds, returnIds, blockedIds, flow);
+  }
+
+  /// §29 — returns the real, rendered diagram to its normal, unhighlighted
+  /// state. Never mutates `DiagramDocument` (§20 — this is pure V2
+  /// rendering state, exactly like [applyTraceHighlight]).
+  Future<void> clearTraceHighlight() => channel.clearTraceHighlight();
+
+  /// PRODUCT-READINESS-010 §17 — "Fit Circuit": pans/zooms the real V2
+  /// viewport to the bounding region of [plan]'s own real, rendered
+  /// module cards. Never moves engineering objects, never touches
+  /// persisted layout (§17 — pure transient viewport state, the same
+  /// "translate OEP ids -> V2 ids, then push through the existing bridge"
+  /// shape as [applyTraceHighlight]).
+  Future<void> fitTraceHighlight(TraceHighlightPlan plan) {
+    final nodeIds = plan.allNodeIds.map(v2ModuleIdFor).whereType<String>().toList();
+    return channel.fitToTraceHighlight(nodeIds);
+  }
 
   /// AP-OEP-DIAGRAM-OPEN-RACE-001 companion — how many modules the most
   /// recent [initializeFromDocument]/[reinitializeForDocument] *attempted*
@@ -242,6 +368,20 @@ class LegacyV2StateAdapter {
   /// a mismatch into a visible error instead of a diagram that looks like
   /// it "loaded" (no exception, no error state) while showing nothing.
   int get bridgedModuleCount => _v2ToOepNodeId.length;
+
+  /// The wire-side equivalent of [bridgedModuleCount] — how many
+  /// relationships [initializeFromDocument]/[reinitializeForDocument] just
+  /// attempted to restore into V2 as wires. Added alongside the module
+  /// check in `_verifySeedLanded` (`legacy_v2_webview.dart`): every
+  /// `restoreWire` call is the same fire-and-forget
+  /// `window.__oepBridgeRestoreWire && ...` shape as `restoreModule` (§
+  /// [bridgedModuleCount]'s own doc comment for why that means a stuck/
+  /// unready V2 page silently no-ops instead of throwing), but until now
+  /// only the module count was ever compared against V2's live state —
+  /// a diagram whose modules landed correctly but whose wires silently
+  /// didn't produced no error at all, just a diagram that looked loaded
+  /// with most of its wires missing.
+  int get bridgedWireCount => _v2ToOepRelationshipId.length;
 
   /// Reads back [_handleModuleCreated]'s stashed `metadata['v2Terminals']`
   /// — typed `List<Map<String, String>>` in-memory, but `List<dynamic>` of
@@ -1044,8 +1184,8 @@ class LegacyV2StateAdapter {
       toV2,
       label,
       color,
-      fromTerminal: relationship.metadata['sourcePort'] as String? ?? '',
-      toTerminal: relationship.metadata['targetPort'] as String? ?? '',
+      fromTerminal: _v2TerminalRef(relationship, source: true),
+      toTerminal: _v2TerminalRef(relationship, source: false),
     );
     channel.confirmWireCreated(v2Id, label, color);
     // AP-DIAGRAM-V2-BRIDGE-SAVE-001 — an Undo/Redo touching this
@@ -1152,8 +1292,8 @@ class LegacyV2StateAdapter {
         toV2,
         relationship.metadata['label'] as String? ?? '',
         relationship.metadata['wireColor'] as String? ?? '',
-        fromTerminal: relationship.metadata['sourcePort'] as String? ?? '',
-        toTerminal: relationship.metadata['targetPort'] as String? ?? '',
+        fromTerminal: _v2TerminalRef(relationship, source: true),
+        toTerminal: _v2TerminalRef(relationship, source: false),
         fromExit: relationship.metadata['v2FromExit'] as String? ?? '',
         toExit: relationship.metadata['v2ToExit'] as String? ?? '',
         cable: relationship.metadata['v2Cable'] as bool? ?? false,
@@ -1451,6 +1591,29 @@ class LegacyV2StateAdapter {
     currentDocumentToken = controller.document.id;
   }
 
+  /// AP-DIAGRAM-V2-BRIDGE-PORT-SUFFIX-001 — the terminal ref V2's own
+  /// `restoreWire` needs to find the correct dot (a connector-type module
+  /// renders TWO dots per logical pin, `"<pin>_IN"`/`"<pin>_OUT"`).
+  /// `normalizeV2RelationshipPortReferences` (`v2_terminal_port_bridge
+  /// .dart`) strips that suffix from `sourcePort`/`targetPort` for the
+  /// solver's own `Port.id`-shaped matching, stashing the original,
+  /// un-normalized reference under `v2RawSourcePort`/`v2RawTargetPort`
+  /// only when it actually changed something — so this prefers the raw
+  /// key when present (a normalized document) and falls back to the
+  /// plain key otherwise (a freshly-created wire this session, whose
+  /// metadata was never run through normalization at all, or an
+  /// already-bare reference normalization left untouched).
+  static String _v2TerminalRef(EngineeringRelationship relationship, {required bool source}) {
+    final raw = source
+        ? relationship.metadata['v2RawSourcePort'] as String?
+        : relationship.metadata['v2RawTargetPort'] as String?;
+    if (raw != null) return raw;
+    return (source
+            ? relationship.metadata['sourcePort']
+            : relationship.metadata['targetPort']) as String? ??
+        '';
+  }
+
   String? _reverseNodeLookup(String oepNodeId) {
     for (final entry in _v2ToOepNodeId.entries) {
       if (entry.value == oepNodeId) return entry.key;
@@ -1458,3 +1621,25 @@ class LegacyV2StateAdapter {
     return null;
   }
 }
+
+/// PRODUCT-READINESS-008 — the live [LegacyV2StateAdapter] for a given
+/// Diagram instance, published once the WebView page that owns it
+/// constructs it (`LegacyV2WebViewPage._ensureAdapter`), so a SIBLING
+/// widget (the DMM instrument panel, mounted alongside the WebView, never
+/// inside it) can reach the SAME adapter instance without the WebView
+/// page needing to know the DMM exists at all. `null` before the WebView
+/// has initialized (or on a platform/route with no WebView mounted) —
+/// every consumer must treat that as "no live V2 state yet," never as an
+/// error.
+final legacyV2AdapterFamily = StateProvider.family<LegacyV2StateAdapter?, String>((ref, instanceId) => null);
+
+/// PRODUCT-READINESS-008 §10/§14 — the live, translated
+/// [ElectricalOperatingContext] for a given Diagram instance, updated
+/// every time [LegacyV2StateAdapter.onOperatingStateChanged] fires. A
+/// separate, directly-watchable provider (rather than requiring every
+/// consumer to re-derive it from [legacyV2AdapterFamily] itself) so a DMM
+/// panel's `ref.watch`/`ref.listen` naturally rebuilds/re-measures on a
+/// real V2 switch-state change, exactly like any other reactive Riverpod
+/// state in this app.
+final legacyV2OperatingContextFamily =
+    StateProvider.family<ElectricalOperatingContext, String>((ref, instanceId) => ElectricalOperatingContext.none);

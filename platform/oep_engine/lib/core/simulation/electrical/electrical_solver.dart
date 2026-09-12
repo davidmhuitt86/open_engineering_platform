@@ -39,19 +39,17 @@ typedef ElectricalReferenceRoleResolver = bool Function(EngineeringNode node, St
 /// fabricated.
 typedef ElectricalSourceVoltageResolver = ElectricalReading Function(EngineeringNode node, ElectricalOperatingContext context);
 
-/// Common ground/negative-terminal name spellings this engine has directly
-/// observed in real diagrams (`platform/oep_studio/samples/diagram7.json`'s
-/// own real Battery: terminal names `+`/`−`, confirmed by direct
-/// inspection) — used only by the DEFAULT [ElectricalReferenceRoleResolver]
-/// below; a caller may always override it.
-const _referenceTerminalNamePatterns = {'-', '−', 'gnd', 'ground', 'neg', 'negative'};
-
+/// The plain, name-based-fallback default — see [preciseIsReferenceTerminal]
+/// (`electrical_node_roles.dart`) for the PRODUCTION-recommended resolver
+/// PRODUCT-READINESS-006B/008 established, which narrows the name-based
+/// fallback to a recognized source component's own return pin (avoiding
+/// the real, disclosed over-firing this plain default has at real,
+/// full-harness scale). This default remains unchanged/available for a
+/// caller working with a small/synthetic diagram, where the distinction
+/// never matters.
 bool defaultIsReferenceTerminal(EngineeringNode node, String? portId) {
   if (isGroundNode(node)) return true;
-  if (portId == null) return false;
-  final port = node.ports.where((p) => p.id == portId).cast<Port?>().firstWhere((_) => true, orElse: () => null);
-  final name = port?.name.trim().toLowerCase();
-  return name != null && _referenceTerminalNamePatterns.contains(name);
+  return nameMatchesReferenceTerminal(node, portId);
 }
 
 /// A node is treated as a modeled power source when EITHER its own
@@ -214,6 +212,23 @@ class ElectricalSolver {
       }
     }
 
+    // PRODUCT-READINESS-006B — built BEFORE the branch-state loop below
+    // (unlike its previous position after that loop) so `_resistiveCurrentFor`
+    // can consult it as a real, non-heuristic fallback when the ideal-
+    // propagation voltage can't resolve a resistive load's own return
+    // terminal (§9/PRODUCT-READINESS-009 — see that method's own doc
+    // comment for why this fallback is safe where an earlier, REJECTED
+    // multi-hop ground-BFS heuristic was not).
+    final network = ElectricalResistiveNetwork.build(
+      graph: graph,
+      context: operatingContext,
+      behaviorFor: behaviorFor,
+      isSourceTerminal: isSourceTerminal,
+      isReferenceTerminal: isReferenceTerminal,
+      sourceVoltage: sourceVoltage,
+      wireResistanceOhms: wireResistanceOhms,
+    );
+
     final branchStates = <String, ElectricalBranchState>{};
     for (final relationship in graph.relationships.values) {
       final source = _endpointTerminal(relationship, atSource: true);
@@ -236,7 +251,7 @@ class ElectricalSolver {
           : ElectricalConductingState.unknown;
 
       final resistiveCurrent =
-          _resistiveCurrentFor(graph, source, destination, resolvedVoltageByTerminal, operatingContext, behaviorFor);
+          _resistiveCurrentFor(graph, source, destination, resolvedVoltageByTerminal, operatingContext, behaviorFor, network);
 
       branchStates[relationship.id] = ElectricalBranchState(
         branchId: relationship.id,
@@ -252,22 +267,6 @@ class ElectricalSolver {
         relationshipId: relationship.id,
       );
     }
-
-    // PRODUCT-READINESS-006B — the general resistive-network solve (§9-§14),
-    // ADDITIVE alongside `terminalStates`/`branchStates` above (both built
-    // by the UNCHANGED PRODUCT-READINESS-006 ideal-propagation algorithm,
-    // preserving every regression value that phase established). See
-    // `electrical_resistive_network.dart`'s own top doc comment for why
-    // both coexist rather than one replacing the other.
-    final network = ElectricalResistiveNetwork.build(
-      graph: graph,
-      context: operatingContext,
-      behaviorFor: behaviorFor,
-      isSourceTerminal: isSourceTerminal,
-      isReferenceTerminal: isReferenceTerminal,
-      sourceVoltage: sourceVoltage,
-      wireResistanceOhms: wireResistanceOhms,
-    );
 
     return SolvedElectricalState(
       generation: generationCounter.next(),
@@ -382,10 +381,27 @@ class ElectricalSolver {
   /// Ground-category node — the exact, unambiguous shape a load's own
   /// return terminal has in every fixture this phase's own tests use
   /// (§32.A/K: `lamp.out -> wire -> ground`) — never a transitive chain.
+  ///
+  /// PRODUCT-READINESS-009 — a THIRD fallback, tried only after both of
+  /// the above: [network]'s own [ElectricalResistiveNetwork.operatingVoltage]
+  /// (PRODUCT-READINESS-006B's real, resistance-aware circuit solve). This
+  /// is deliberately NOT the same kind of heuristic the two rejected
+  /// ground-BFS-reachability attempts documented above were — it computes
+  /// an actual voltage-divider answer from the real, disclosed component/
+  /// wire resistances (§8-§14 of that class), never "is this terminal
+  /// merely near a ground node." On the real `diagram7.json` TRX300
+  /// fixture, a load's own return terminal (e.g. a headlight's GND) is
+  /// typically several splice-hops from chassis-ground — a shape neither
+  /// of the two narrower fallbacks above resolves, which otherwise left
+  /// `TraceMode.currentFlow` (PRODUCT-READINESS-009 §12/§13) unable to
+  /// report ANY valid current for that entirely real, correctly-wired
+  /// circuit. Consulted last, and only when both narrower checks already
+  /// failed, so no existing (already-valid) answer changes.
   ElectricalReading _effectiveVoltageForCurrent(
     EngineeringGraph graph,
     ProbePoint terminal,
     Map<ProbePoint, ElectricalReading> resolvedVoltageByTerminal,
+    ElectricalResistiveNetwork network,
   ) {
     final direct = resolvedVoltageByTerminal[terminal];
     if (direct != null && direct.isValid) return direct;
@@ -399,6 +415,8 @@ class ElectricalSolver {
       final otherNode = graph.nodes[otherNodeId];
       if (otherNode != null && isGroundNode(otherNode)) return ElectricalReading.valid(0, unit: 'V');
     }
+    final fromNetwork = network.operatingVoltage(terminal);
+    if (fromNetwork != null && fromNetwork.isValid) return fromNetwork;
     return direct ?? ElectricalReading.unreached(unit: 'V');
   }
 
@@ -429,6 +447,7 @@ class ElectricalSolver {
     Map<ProbePoint, ElectricalReading> resolvedVoltageByTerminal,
     ElectricalOperatingContext context,
     ElectricalComponentBehavior? Function(EngineeringNode) behaviorFor,
+    ElectricalResistiveNetwork network,
   ) {
     ({ElectricalReading resistance, ProbePoint ownTerminal, ProbePoint otherTerminal})? resistiveComponentAt(ProbePoint terminal) {
       final node = graph.nodes[terminal.nodeId];
@@ -464,8 +483,8 @@ class ElectricalSolver {
     final found = resistiveComponentAt(wireSource) ?? resistiveComponentAt(wireDestination);
     if (found == null) return unsupported;
 
-    final ownVoltage = _effectiveVoltageForCurrent(graph, found.ownTerminal, resolvedVoltageByTerminal);
-    final otherVoltage = _effectiveVoltageForCurrent(graph, found.otherTerminal, resolvedVoltageByTerminal);
+    final ownVoltage = _effectiveVoltageForCurrent(graph, found.ownTerminal, resolvedVoltageByTerminal, network);
+    final otherVoltage = _effectiveVoltageForCurrent(graph, found.otherTerminal, resolvedVoltageByTerminal, network);
     if (!ownVoltage.isValid || !otherVoltage.isValid) {
       return (
         current: ElectricalReading.unsupported(unit: 'A', note: 'Both of the component\'s own terminal voltages must be resolved first.'),

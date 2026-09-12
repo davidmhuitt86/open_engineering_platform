@@ -1,0 +1,126 @@
+/* ══════════════════════════════════════════════════════════════
+   OEP-STUDIO-BRANDING-V1 — visual restyle of the existing toolbar.
+   Loaded after main.css/editor.css (index.html <head>), so every rule
+   here is an override, not a rewrite: nothing here changes an element's
+   id, its onclick= handler, or what it does — only how it looks.
+   Matches the OEP dark navy / cyan-blue design language the new
+   Flutter header (lib/diagram_studio/header/oep_studio_header.dart)
+   already uses (StudioColors: background #0D1117, surface #11161D,
+   selection #3B82F6), and the single-row, large icon-over-label
+   toolbar layout from the approved reference renders.
+══════════════════════════════════════════════════════════════ */
+:root, [data-theme="dark"]{
+  --oep-bg:#0B0F15;
+  --oep-surface:#0F141C;
+  --oep-surface-raised:#161C26;
+  --oep-surface-sunken:#0A0E13;
+  --oep-border:#232B36;
+  --oep-border-strong:#2E3947;
+  --oep-text-hi:#E6E9EE;
+  --oep-text-lo:#8B96A3;
+  --oep-accent:#3B82F6;
+  --oep-accent-strong:#4C8DFF;
+  --oep-accent-tint:rgba(76,141,255,.16);
+}
+
+#topbar-wrap{border-bottom:1px solid var(--oep-border);background:var(--oep-surface);}
+#topbar-logo{display:none} /* the real OEP mark + "Diagram/Simulation Studio" title now live in the Flutter header above this row */
+#topbar-logo-mark{display:none}
+
+.sep{background:var(--oep-border);}
+
+/* ══ Single-row toolbar (#tb-diagram / #tb-simulation) ══ */
+.tb-row{
+  display:flex;align-items:center;gap:4px;
+  background:var(--oep-surface);color:var(--oep-text-hi);
+  padding:10px 20px;min-height:82px;
+  text-transform:none;letter-spacing:normal;overflow-x:auto;overflow-y:hidden;
+}
+.tb-row::-webkit-scrollbar{display:none}
+.tb-row-hidden{display:none !important;}
+.tb-sep{width:1px;align-self:stretch;margin:8px 14px;background:var(--oep-border);flex-shrink:0;}
+.tb-spacer{flex:1 1 auto;}
+
+.tb-icon-btn{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:7px;min-width:68px;height:62px;padding:0 12px;
+  background:transparent;border:1px solid transparent;border-radius:10px;
+  color:var(--oep-text-lo);cursor:pointer;font-family:inherit;
+  text-transform:none;letter-spacing:normal;flex-shrink:0;position:relative;
+  transition:background-color .12s ease,border-color .12s ease,color .12s ease;
+}
+.tb-icon-btn:hover{background:var(--oep-surface-raised);border-color:var(--oep-border);color:var(--oep-text-hi);}
+
+/* PERSISTENT active tool (Edit engaged, Wire Mode engaged, the LH
+   switch-pack panel currently open) — solid fill, matching the
+   reference's own "Select" engaged-tool treatment. */
+.tb-icon-btn.tb-icon-btn-active,
+.tb-icon-btn.edit-on,
+.tb-icon-btn.wire-on,
+.tb-icon-btn.swpack-on{
+  background:var(--oep-accent);border-color:var(--oep-accent);color:#fff;
+}
+.tb-icon-btn.tb-icon-btn-active .tb-icon,
+.tb-icon-btn.edit-on .tb-icon,
+.tb-icon-btn.wire-on .tb-icon,
+.tb-icon-btn.swpack-on .tb-icon{color:#fff;}
+
+/* TRANSIENT state (this button's own dropdown is currently open) —
+   outline only, deliberately distinct from the solid-fill "engaged
+   tool" treatment above, matching the reference's own "Search" (open,
+   not itself an engaged tool) vs. "Select" (engaged) distinction. */
+.tb-icon-btn.tb-dd-open{
+  background:var(--oep-accent-tint);border-color:var(--oep-accent);color:var(--oep-accent-strong);
+}
+.tb-icon-btn.tb-dd-open .tb-icon{color:var(--oep-accent-strong);}
+
+.tb-icon{width:23px;height:23px;color:var(--oep-text-lo);}
+.tb-icon-btn:hover .tb-icon{color:var(--oep-text-hi);}
+.tb-icon-btn-lbl{font-size:9.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap;}
+.tb-icon-chev{width:10px;height:10px;color:inherit;position:absolute;bottom:7px;right:9px;opacity:.65;}
+.tb-icon-btn-has-chev{padding-right:22px;}
+
+.tb-icon-btn-small{min-width:34px;height:34px;align-self:center;gap:0;border-radius:8px;}
+.tb-icon-btn-small .tb-icon{width:15px;height:15px;}
+
+/* ── Contextual dropdown panel — a sectioned card, not a modal ── */
+.tb-dropdown{
+  display:none;position:fixed;z-index:600;min-width:230px;
+  background:var(--oep-surface-raised);border:1px solid var(--oep-border-strong);
+  border-radius:12px;box-shadow:0 16px 40px rgba(0,0,0,.6);
+  padding:10px;gap:3px;flex-direction:column;
+}
+.tb-dropdown.open{display:flex;}
+.tb-dd-section-title{
+  font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--oep-text-lo);padding:8px 8px 3px;
+}
+.tb-dd-row{display:flex;align-items:center;gap:6px;padding:1px 1px;}
+.tb-dd-row .tb-btn{flex:0 0 auto;}
+.tb-dd-full{flex:1 1 auto;justify-content:flex-start;text-align:left;display:flex;align-items:center;gap:9px;
+  background:transparent;border:1px solid transparent;color:var(--oep-text-hi);
+  padding:8px 9px;border-radius:7px;font-size:11.5px;text-transform:none;letter-spacing:normal;}
+.tb-dd-full:hover{background:var(--oep-accent-tint);border-color:var(--oep-accent);color:var(--oep-accent-strong);}
+.tb-dd-full.active,.tb-dd-full.key-btn.active{background:var(--oep-accent);border-color:var(--oep-accent);color:#fff;}
+.tb-dd-full:disabled{color:var(--oep-text-lo);cursor:default;opacity:.55;}
+.tb-dd-full:disabled:hover{background:transparent;border-color:transparent;color:var(--oep-text-lo);}
+.tb-dd-sep{height:1px;margin:6px 4px;background:var(--oep-border);}
+
+/* #sw-indicators reused inside .tb-dropdown (§ dd-switches) — a row of
+   small status chips, not the old always-on topbar strip. */
+#sw-indicators{display:flex;gap:6px;flex:1 1 auto;flex-wrap:wrap;}
+.sw-ind{display:flex;align-items:center;gap:4px;background:var(--oep-surface-sunken);border:1px solid var(--oep-border);
+  border-radius:7px;padding:5px 8px;font-size:9px;font-weight:700;color:var(--oep-text-lo);}
+
+.tb-btn{background:var(--oep-surface-raised);border:1px solid var(--oep-border);color:var(--oep-text-lo);border-radius:6px;padding:5px 9px;}
+.tb-btn:hover{background:var(--oep-border-strong);color:var(--oep-text-hi);}
+
+#zoom-display, #ui-scale-display{
+  background:var(--oep-surface-sunken);border:1px solid var(--oep-border);
+  color:var(--oep-text-hi);border-radius:5px;
+}
+
+#theme-toggle{background:var(--oep-surface-raised);border:1px solid var(--oep-border);color:var(--oep-text-lo);border-radius:6px;font-size:9px;padding:5px 8px;}
+#theme-toggle:hover{background:var(--oep-border-strong);color:var(--oep-text-hi);}
+
+#edit-badge, #wire-badge{border-radius:5px;}

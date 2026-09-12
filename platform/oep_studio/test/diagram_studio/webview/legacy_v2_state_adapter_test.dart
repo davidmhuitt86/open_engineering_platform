@@ -73,8 +73,13 @@ class _FakeChannel implements LegacyV2Channel {
           void Function(V2MeasurementRequestedMessage message)? handler) =>
       _onMeasurementRequested = handler;
   @override
+  set onOperatingStateChanged(
+      void Function(V2OperatingStateChangedMessage message)? handler) {}
+  @override
   set onSaveRequested(void Function()? handler) => _onSaveRequested = handler;
   void Function()? _onSaveRequested;
+  @override
+  set onEngineeringCommand(void Function(String command)? handler) {}
   void Function(V2WireDeletedMessage message)? _onWireDeleted;
   void Function(V2WireSelectionChangedMessage message)? _onWireSelectionChanged;
   void Function(V2ModuleSelectionChangedMessage message)?
@@ -264,6 +269,20 @@ class _FakeChannel implements LegacyV2Channel {
     queriedLiveMeasurements.add((v2WireId, v2Mode));
     return nextLiveMeasurement;
   }
+
+  /// PRODUCT-READINESS-009 — no-op: this test file exercises the module/
+  /// wire/selection/measurement/operating-state bridge, not trace
+  /// highlighting.
+  @override
+  Future<void> applyTraceHighlight(List<String> wireIds, List<String> sourceModuleIds,
+      List<String> returnModuleIds, List<String> blockedModuleIds, Map<String, int> currentFlowByWireId) async {}
+
+  @override
+  Future<void> clearTraceHighlight() async {}
+
+  /// PRODUCT-READINESS-010 §17 — no-op: not exercised by this test.
+  @override
+  Future<void> fitToTraceHighlight(List<String> nodeIds) async {}
 }
 
 void main() {

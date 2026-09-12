@@ -20,9 +20,7 @@ import 'oip_host_bridge_service.dart';
 /// category as every other "Settings" concern in this app, not a
 /// per-document editing action.
 final instrumentBridgeServiceProvider = Provider<OipHostBridgeService>((ref) {
-  final service = OipHostBridgeService(
-    engineProvider: () => ref.read(engineeringProjectServiceProvider).engine?.registry.simulationEngine,
-  );
+  final service = OipHostBridgeService();
   ref.onDispose(() {
     unawaited(service.stop());
   });
@@ -30,6 +28,18 @@ final instrumentBridgeServiceProvider = Provider<OipHostBridgeService>((ref) {
 });
 
 /// Fresh on every call, not captured once — the currently open diagram's
-/// graph, or `null` if none is open yet.
+/// graph, or `null` if none is open yet. Answers the backward-compatible
+/// "primary" diagram (no `diagramInstanceId`) — see
+/// [instrumentBridgeGraphForInstance] for the multi-instance-aware form.
 EngineeringGraph? currentInstrumentBridgeGraph(WidgetRef ref) =>
     ref.read(engineeringProjectServiceProvider).session?.graph;
+
+/// PRODUCT-READINESS-007 §10 — resolves a specific, non-primary Diagram
+/// instance's own graph by its real instance id (a `WorkspaceTab.id`,
+/// per `engineeringProjectServiceFamily`'s own doc comment), for
+/// [OipHostBridgeService.start]'s `graphProviderByInstance`. Returns
+/// `null` when no diagram is open for that id — the bridge reports this
+/// as a real protocol error rather than silently answering against a
+/// different diagram.
+EngineeringGraph? instrumentBridgeGraphForInstance(WidgetRef ref, String diagramInstanceId) =>
+    ref.read(engineeringProjectServiceFamily(diagramInstanceId)).session?.graph;

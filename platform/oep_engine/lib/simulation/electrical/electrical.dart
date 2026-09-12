@@ -24,3 +24,4 @@ export '../../core/simulation/electrical/electrical_node_roles.dart';
 export '../../core/simulation/electrical/electrical_solver.dart';
 export '../../core/simulation/electrical/electrical_resistive_network.dart';
 export '../../core/simulation/electrical/electrical_measurement_query.dart';
+export 'reference/trx300_v2_switch_behaviors.dart';

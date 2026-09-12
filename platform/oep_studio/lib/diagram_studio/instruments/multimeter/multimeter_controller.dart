@@ -47,6 +47,66 @@ class MultimeterController extends ChangeNotifier {
 
   MeasurementResult? latestResult;
 
+  // ---- PRODUCT-READINESS-007 §6 -- native Engine measurement path -------
+  //
+  // Additive: everything above (measure()/latestResult/history/bookmarks/
+  // relatedFindings) is UNCHANGED and continues to serve a DISTINCT
+  // capability -- reachability-based verification/path-highlighting/
+  // comparison, built on `DiagramSimulationService`/`MeasurementEngine`,
+  // which this controller's own existing 10 tests already lock in. A real
+  // electrical DMM reading, by contrast, now comes ONLY from this new
+  // path: `ElectricalSolver` -> `SolvedElectricalState` ->
+  // `ElectricalMeasurementQuery` -> `ElectricalMeasurementResult` (§1's
+  // own authority chain) -- never from `SimulationEngine.measure()`.
+  // Both paths share the SAME `probeA`/`probeB`/`selectedType` selection
+  // state (§6.1/6.2/6.3 "maintain selected measurement mode/probe
+  // targets") rather than duplicating it.
+
+  ElectricalMeasurementResult? electricalResult;
+
+  /// PRODUCT-READINESS-007 §7 -- monotonic local request identity (never
+  /// wall-clock) guarding [measureElectrical] against a stale result
+  /// overwriting a newer one. The underlying [ElectricalSolver.solve]
+  /// call is synchronous today, so there is no real race yet -- this
+  /// guard exists so the architecture is correct NOW and stays correct if
+  /// solving ever becomes asynchronous (e.g. off the UI isolate), without
+  /// needing to be retrofitted later.
+  int _electricalRequestSeq = 0;
+
+  /// Takes one REAL electrical reading via the authoritative native
+  /// Engine (§1's own chain) for the CURRENT [probeA]/[probeB]/
+  /// [selectedType] selection. [solver] and [generationCounter] are
+  /// caller-supplied (never constructed here) so a caller with real,
+  /// richer source-voltage/reference-role resolvers (or a persistent,
+  /// per-diagram generation counter — §7/§26 generation semantics) can
+  /// supply them, exactly like [OipHostBridgeService] does for the OIP
+  /// path. A no-op when either probe is unset.
+  Future<void> measureElectrical({
+    required EngineeringGraph graph,
+    required ElectricalSolver solver,
+    required ElectricalSolutionGenerationCounter generationCounter,
+    ElectricalOperatingContext operatingContext = ElectricalOperatingContext.none,
+  }) async {
+    final a = probeA;
+    final b = probeB;
+    if (a == null || b == null) return;
+    final requestSeq = ++_electricalRequestSeq;
+
+    final solved = solver.solve(graph, operatingContext, generationCounter: generationCounter);
+    final result = const ElectricalMeasurementQuery().measure(
+      solved,
+      ElectricalMeasurementRequest(positiveTerminal: a, negativeTerminal: b, mode: selectedType),
+    );
+
+    // §7 stale-result protection: if `setProbeA`/`setProbeB`/`setType` (or
+    // another `measureElectrical` call) ran while this solve was in
+    // flight, `_electricalRequestSeq` has already moved on -- discard this
+    // now-superseded answer rather than overwrite a newer one.
+    if (requestSeq != _electricalRequestSeq) return;
+    electricalResult = result;
+    notifyListeners();
+  }
+
   /// Set only in [MeasurementMode.historical]: the history entry the
   /// live/manual result is being compared against.
   String? historicalCompareEntryId;
@@ -91,17 +151,30 @@ class MultimeterController extends ChangeNotifier {
 
   void setProbeA(ProbePoint? point) {
     probeA = point;
+    _invalidateElectricalResult();
     notifyListeners();
   }
 
   void setProbeB(ProbePoint? point) {
     probeB = point;
+    _invalidateElectricalResult();
     notifyListeners();
   }
 
   void setType(MeasurementType type) {
     selectedType = type;
+    _invalidateElectricalResult();
     notifyListeners();
+  }
+
+  /// §6.9 "clear/replace results when probes or mode change" — a stale
+  /// electrical reading taken under the PREVIOUS probe placement/mode must
+  /// never linger on screen looking current. Also bumps
+  /// [_electricalRequestSeq] so any [measureElectrical] call already in
+  /// flight for the old selection is discarded when it completes.
+  void _invalidateElectricalResult() {
+    electricalResult = null;
+    _electricalRequestSeq++;
   }
 
   void setMode(MeasurementMode mode) {

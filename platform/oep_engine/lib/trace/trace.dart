@@ -13,3 +13,5 @@ export '../core/trace/trace_diagnostic.dart';
 export '../core/trace/trace_path.dart';
 export '../core/trace/trace_result.dart';
 export '../core/trace/trace_engine.dart';
+export '../core/trace/circuit_summary.dart';
+export '../core/trace/circuit_branch_tree.dart';

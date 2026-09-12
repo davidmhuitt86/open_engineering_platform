@@ -11,6 +11,7 @@ import '../core/theme/studio_colors.dart';
 import '../diagram_studio/compare/compare_legacy_v2_webview.dart';
 import '../diagram_studio/compare/diagram_with_compare_pane.dart';
 import '../diagram_studio/controller/diagram_studio_controller_provider.dart';
+import '../diagram_studio/header/oep_studio_header.dart';
 import 'web_browser_settings_provider.dart';
 import 'web_surface.dart';
 import 'web_surface_tabs_controller.dart';
@@ -278,10 +279,21 @@ class _WebSurfacesHostPageState extends ConsumerState<WebSurfacesHostPage> {
     // detail, never product-facing UI text — see the class doc comment).
     final documentTitle = ref.watch(diagramStudioControllerProvider).valueOrNull?.document.metadata.title;
 
+    // OEP-STUDIO-BRANDING-V1 §20 — the new OEP header is scoped to
+    // Diagram Studio (+ its Compare pane's own second Diagram Studio
+    // instance) only, never shown while a generic Web Surface or a
+    // native OEP destination tab (Settings, Knowledge Studio, etc.) is
+    // active — every other Studio's branding is explicitly deferred, so
+    // this must not bleed into them just because they happen to share
+    // this host widget.
+    final showOepHeader = _activeTabId == WebSurfacesHostPage.legacyV2TabId ||
+        _activeTabId == WebSurfacesHostPage.compareTabId;
+
     return Container(
       color: StudioColors.background,
       child: Column(
         children: [
+          if (showOepHeader) const OepStudioHeader(),
           _TabStrip(
             surfaces: surfaces,
             nativeTabs: _nativeTabs,
@@ -570,14 +582,22 @@ class _TabChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // OEP-STUDIO-BRANDING-V1 — a light visual pass to match the new
+    // header's OEP palette (rounded-top active tab + accent underline),
+    // not a re-architecture: still the same InkWell/close-icon structure,
+    // same onTap/onClose wiring, same tab model underneath.
     return InkWell(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10),
+        margin: const EdgeInsets.only(top: 4, right: 2),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
         decoration: BoxDecoration(
           color: active ? StudioColors.selectedRowBackground : Colors.transparent,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
           border: Border(
-            right: const BorderSide(color: StudioColors.border),
+            top: BorderSide(color: active ? StudioColors.selection : Colors.transparent),
+            left: BorderSide(color: active ? StudioColors.selection.withValues(alpha: 0.4) : Colors.transparent),
+            right: BorderSide(color: active ? StudioColors.selection.withValues(alpha: 0.4) : Colors.transparent),
             bottom: BorderSide(color: active ? StudioColors.selection : Colors.transparent, width: 2),
           ),
         ),

@@ -90,7 +90,7 @@ class DiagramDocument {
     // something real to work with, without needing every existing saved
     // file re-saved first. Idempotent/non-destructive — see that
     // function's own doc comment.
-    final graph = backfillV2TerminalPorts(EngineeringGraph.fromJson(decoded['graph'] as Map<String, Object?>));
+    final graph = normalizeV2RelationshipPortReferences(backfillV2TerminalPorts(EngineeringGraph.fromJson(decoded['graph'] as Map<String, Object?>)));
     final layoutJson = decoded['layout'] as Map<String, Object?>?;
     final layout =
         layoutJson == null ? DiagramLayoutState.empty : DiagramLayoutState.fromJson(layoutJson);
@@ -226,7 +226,7 @@ class DiagramDocument {
   ) async {
     final file = File(candidate.autosaveFilePath);
     final decoded = jsonDecode(await file.readAsString()) as Map<String, Object?>;
-    final graph = backfillV2TerminalPorts(EngineeringGraph.fromJson(decoded['graph'] as Map<String, Object?>));
+    final graph = normalizeV2RelationshipPortReferences(backfillV2TerminalPorts(EngineeringGraph.fromJson(decoded['graph'] as Map<String, Object?>)));
     final layoutJson = decoded['layout'] as Map<String, Object?>?;
     final layout =
         layoutJson == null ? DiagramLayoutState.empty : DiagramLayoutState.fromJson(layoutJson);

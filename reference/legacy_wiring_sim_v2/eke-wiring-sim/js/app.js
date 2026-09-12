@@ -66,6 +66,15 @@ let pendingAddPosition = null;
 // decide which of its three placement modes applies.
 let ctxClickPoint = null;
 let tracedWires = new Set(), ctxTarget = null, mcX = 0, mcY = 0;
+// PRODUCT-READINESS-009 — set only by the native OEP bridge
+// (window.__oepBridgeApplyTraceHighlight, legacy_v2_bridge_script.dart)
+// while a native TraceMode.currentFlow trace is actively displayed: a
+// Map<wireId, +1|-1> of wires that genuinely carry solved current, in
+// which direction. `null` the rest of the time, in which case
+// wireHasFlow()/wireFlowDir() (diagram/renderer.js) fall back to their
+// original, unmodified legacy behavior untouched -- this never changes
+// any behavior for V2's own manual wire-tracer panel.
+let nativeFlowWires = null;
 let kbhOpen = false, mpOpen = false, srchOpen = false, legOpen = false;
 let selM = null;
 const fp   = $('fp');

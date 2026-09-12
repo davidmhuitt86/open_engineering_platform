@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:engineering_engine/engineering_engine.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,10 +10,14 @@ import 'package:webview_flutter_windows/webview_flutter_windows.dart';
 import '../../core/notifications/platform_notification_service.dart';
 import '../../core/services/engineering_project_service.dart';
 import '../../core/theme/studio_colors.dart';
+import '../compare/diagram_with_compare_pane.dart'
+    show dmmPanelVisibleProvider, tracePanelVisibleProvider;
 import '../controller/diagram_studio_controller.dart';
 import '../controller/diagram_studio_controller_provider.dart';
+import '../instruments/multimeter/multimeter_controller.dart';
 import '../simulation/diagram_simulation_service.dart';
 import '../tabs/diagram_tabs_storage.dart';
+import '../trace/trace_controller.dart';
 import 'legacy_v2_android_webview.dart';
 import 'legacy_v2_bridge_transport.dart';
 import 'legacy_v2_state_adapter.dart';
@@ -29,6 +34,22 @@ import 'legacy_v2_trust_boundary.dart';
 /// widget type in the tree either way, and every test in this repo runs
 /// on Windows, so the branch always resolves to the original
 /// implementation during `flutter test`.
+/// OEP-STUDIO-BRANDING-V1 — the narrow, real hook `OepStudioHeader`'s own
+/// view-swap control (lib/diagram_studio/header/oep_studio_header.dart)
+/// uses to actually flip the PRIMARY Diagram Studio instance's live V2
+/// page between its Diagram and Simulation view — calling V2's own,
+/// already-working `toggleSimPanel()` (`js/ui/sim-panel.js`) rather than
+/// only changing the header's own chrome. `null` whenever no primary
+/// instance is currently mounted/ready (header falls back to a
+/// chrome-only swap in that case — see its own doc comment). Only ever
+/// set by the primary instance (`instanceId == primaryDiagramInstanceId`)
+/// — a second/compare Diagram Studio tab never overwrites this, so the
+/// one shared header always controls the one primary session, matching
+/// [LegacyV2WebViewPage]'s own "instanceId == null is the primary
+/// instance" convention.
+final legacyV2ToggleSimulationViewProvider =
+    StateProvider<Future<void> Function()?>((ref) => null);
+
 class LegacyV2WebViewPage extends StatelessWidget {
   const LegacyV2WebViewPage({this.instanceId, super.key});
 
@@ -213,9 +234,94 @@ class _WindowsLegacyV2WebViewPageState
       await _controller.loadUrl(entryUrl);
       if (!mounted) return;
       setState(() => _ready = true);
+      // OEP-STUDIO-BRANDING-V1 — only the primary instance publishes the
+      // swap hook (§ legacyV2ToggleSimulationViewProvider's own doc
+      // comment).
+      if (_instanceId == primaryDiagramInstanceId) {
+        ref.read(legacyV2ToggleSimulationViewProvider.notifier).state =
+            () => _transport.executeRawScript('toggleSimPanel()');
+        // OEP-STUDIO-BRANDING-V1 — Trace/Measure are the only two
+        // engineering-toolbar groups backed by real FLUTTER logic
+        // (TraceController/MultimeterController) rather than a V2-native
+        // JS function; only the primary instance wires this, matching
+        // the swap hook just above (Compare/DMM/Trace are primary-only
+        // stopgap infrastructure, § DiagramWithComparePane's own doc
+        // comment).
+        _transport.onEngineeringCommand = _handleEngineeringCommand;
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() => _error = e.toString());
+    }
+  }
+
+  /// OEP-STUDIO-BRANDING-V1 — the engineering toolbar's Trace/Measure
+  /// dropdown items (index.html's `dd-trace`/`dd-measure`, via
+  /// `toolbarSendEngineeringCommand` in `js/ui/toolbar.js`) reach the
+  /// SAME real, already-existing [TraceController]/[MultimeterController]
+  /// the Trace Circuit/Multimeter workspace-action panels already use —
+  /// this only opens/drives them, never a second/parallel
+  /// implementation. `command` is always one of the fixed set this
+  /// method switches on; anything else is silently ignored (V2's own
+  /// toolbar never sends anything else — see the message's own doc
+  /// comment on [LegacyV2BridgeTransport.onEngineeringCommand]).
+  void _handleEngineeringCommand(String command) {
+    if (!mounted) return;
+    switch (command) {
+      case 'trace.physical':
+      case 'trace.conducting':
+      case 'trace.currentFlow':
+        final mode = switch (command) {
+          'trace.conducting' => TraceMode.conducting,
+          'trace.currentFlow' => TraceMode.currentFlow,
+          _ => TraceMode.physical,
+        };
+        ref.read(traceRuntimeServiceProvider)?.setMode(mode);
+        ref.read(tracePanelVisibleProvider.notifier).state = true;
+      case 'trace.fromSource':
+        // §29/§30 of trace_controller.dart — "trace from source" is the
+        // Trace Inspector panel's own toggle (`_traceFromSource`,
+        // private State inside `trace_inspector_panel.dart`, not a
+        // provider); this opens that real panel rather than
+        // reimplementing the toggle a second time here.
+        ref.read(tracePanelVisibleProvider.notifier).state = true;
+      case 'trace.clear':
+        ref.read(traceRuntimeServiceProvider)?.clear();
+      case 'measure.voltageDc':
+      case 'measure.voltageAc':
+      case 'measure.resistance':
+      case 'measure.continuity':
+      case 'measure.diode':
+        final type = switch (command) {
+          'measure.voltageAc' => MeasurementType.voltageAc,
+          'measure.resistance' => MeasurementType.resistance,
+          'measure.continuity' => MeasurementType.continuity,
+          'measure.diode' => MeasurementType.diode,
+          _ => MeasurementType.voltageDc,
+        };
+        ref.read(multimeterRuntimeServiceProvider)?.setType(type);
+        ref.read(dmmPanelVisibleProvider.notifier).state = true;
+      case 'measure.open':
+        ref.read(dmmPanelVisibleProvider.notifier).state = true;
+      // OEP-STUDIO-BRANDING-V1 — the engineering toolbar's own FILE
+      // dropdown (index.html's `dd-file`): the exact same pre-existing
+      // methods this file's old floating Load Previous/Open/Save/Save
+      // As buttons called directly, now reached the same way Trace/
+      // Measure are (§ this method's own class doc comment) instead of
+      // 4 separate always-visible overlay buttons that visibly collided
+      // with each other and this toolbar.
+      case 'file.new':
+        unawaited(_newDiagram(context));
+      case 'file.open':
+        unawaited(_openDocument(context));
+      case 'file.loadPrevious':
+        unawaited(_loadPreviousDocument(context));
+      case 'file.save':
+        final documentPath = ref.read(
+            engineeringProjectServiceFamily(_instanceId).select((s) => s.documentPath));
+        unawaited(_saveDocument(context, documentPath));
+      case 'file.saveAs':
+        unawaited(_saveDocumentAs(context));
     }
   }
 
@@ -253,6 +359,26 @@ class _WindowsLegacyV2WebViewPageState
     ref
         .read(engineeringProjectServiceFamily(_instanceId).notifier)
         .beforeSaveFlush = adapter.flushBeforeSave;
+    // PRODUCT-READINESS-008 — publish this adapter (and its live,
+    // translated operating context) so a sibling DMM instrument panel can
+    // reach the SAME live V2 state without this WebView page needing any
+    // awareness of the DMM at all. `_ensureAdapter` is called from
+    // `build()` (via `whenData`), so the actual provider write is
+    // deferred past the current frame — Riverpod disallows modifying a
+    // provider synchronously while another widget's build is in
+    // progress.
+    if (ref.read(legacyV2AdapterFamily(_instanceId)) != adapter) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        if (ref.read(legacyV2AdapterFamily(_instanceId)) != adapter) {
+          ref.read(legacyV2AdapterFamily(_instanceId).notifier).state = adapter;
+        }
+      });
+    }
+    adapter.onOperatingStateChanged = (context) {
+      if (!mounted) return;
+      ref.read(legacyV2OperatingContextFamily(_instanceId).notifier).state = context;
+    };
     return adapter;
   }
 
@@ -315,15 +441,41 @@ class _WindowsLegacyV2WebViewPageState
   /// the existing visible "Failed to load legacy V2" error screen instead
   /// of a diagram that quietly shows nothing.
   Future<void> _verifySeedLanded(LegacyV2StateAdapter adapter) async {
-    final expected = adapter.bridgedModuleCount;
-    if (expected == 0) return;
-    final result = await _transport.executeRawScript(
-        "typeof MODULES !== 'undefined' ? MODULES.length : -1");
-    final actual = result is num ? result.toInt() : -1;
-    if (actual != expected) {
+    final expectedModules = adapter.bridgedModuleCount;
+    if (expectedModules > 0) {
+      final result = await _transport.executeRawScript(
+          "typeof MODULES !== 'undefined' ? MODULES.length : -1");
+      final actual = result is num ? result.toInt() : -1;
+      if (actual != expectedModules) {
+        throw StateError(
+            'Diagram did not load into the wiring editor: expected $expectedModules '
+            'module(s) to appear but the editor shows $actual. The wiring '
+            'editor page likely was not ready to receive the diagram — try '
+            'reopening it.');
+      }
+    }
+    // AP-DIAGRAM-V2-BRIDGE-WIRE-VERIFY-001 — the module check above has
+    // existed since AP-OEP-DIAGRAM-OPEN-RACE-001, but nothing ever checked
+    // WIRES the same way: `restoreWire` is the same fire-and-forget
+    // `window.__oepBridgeRestoreWire && ...` shape as `restoreModule` (§
+    // `LegacyV2StateAdapter.bridgedWireCount`'s own doc comment), so a
+    // silent per-call failure on some wires (module count still matches,
+    // so the check above passes) produced a diagram that looked fully
+    // loaded but was missing most of its wires, with no error at all —
+    // confirmed live: replaying the exact same restore calls against the
+    // exact same document data in an isolated page landed every wire
+    // correctly, which rules out the data/JS logic and points at a
+    // runtime-only failure in the real seeding sequence — exactly the
+    // kind of gap this check exists to surface instead of hide.
+    final expectedWires = adapter.bridgedWireCount;
+    if (expectedWires == 0) return;
+    final wireResult = await _transport.executeRawScript(
+        "typeof WIRES !== 'undefined' ? WIRES.length : -1");
+    final actualWires = wireResult is num ? wireResult.toInt() : -1;
+    if (actualWires != expectedWires) {
       throw StateError(
-          'Diagram did not load into the wiring editor: expected $expected '
-          'module(s) to appear but the editor shows $actual. The wiring '
+          'Diagram did not load into the wiring editor: expected $expectedWires '
+          'wire(s) to appear but the editor shows $actualWires. The wiring '
           'editor page likely was not ready to receive the diagram — try '
           'reopening it.');
     }
@@ -470,6 +622,14 @@ class _WindowsLegacyV2WebViewPageState
           .read(engineeringProjectServiceFamily(_instanceId).notifier)
           .beforeSaveFlush = null;
     } catch (_) {}
+    // OEP-STUDIO-BRANDING-V1 — clear the swap hook so the header never
+    // calls into a disposed WebviewController; best-effort for the same
+    // reason as the `beforeSaveFlush` clear just above.
+    if (_instanceId == primaryDiagramInstanceId) {
+      try {
+        ref.read(legacyV2ToggleSimulationViewProvider.notifier).state = null;
+      } catch (_) {}
+    }
     unawaited(_transport.dispose());
     _controller.dispose();
     super.dispose();
@@ -572,9 +732,6 @@ class _WindowsLegacyV2WebViewPageState
     // this change) but may leave V2's on-screen module position stale
     // until the next V2-originated action re-syncs it — a real, minor,
     // documented gap, not a silently dropped one.
-    final documentPath = ref.watch(engineeringProjectServiceFamily(_instanceId)
-        .select((s) => s.documentPath));
-
     return Container(
       color: StudioColors.background,
       child: Stack(
@@ -615,27 +772,17 @@ class _WindowsLegacyV2WebViewPageState
               ),
             ],
           ),
-          if (_ready && _error == null)
-            Positioned(
-              top: 8,
-              right: 8,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _LoadPreviousButton(
-                      onPressed: () => _loadPreviousDocument(context)),
-                  const SizedBox(width: 8),
-                  _OpenButton(onPressed: () => _openDocument(context)),
-                  const SizedBox(width: 8),
-                  _SaveButton(
-                    hasPath: documentPath != null,
-                    onPressed: () => _saveDocument(context, documentPath),
-                  ),
-                  const SizedBox(width: 8),
-                  _SaveAsButton(onPressed: () => _saveDocumentAs(context)),
-                ],
-              ),
-            ),
+          // OEP-STUDIO-BRANDING-V1 — File used to live here as 4
+          // separate, always-visible floating buttons (Load Previous
+          // Diagram/Open/Save/Save As), which visibly collided with
+          // each other and with the engineering toolbar underneath
+          // (direct report: with no path yet, Save itself also read
+          // "Save As…", so two "Save As…" buttons showed at once). Now
+          // reachable from the engineering toolbar's own FILE dropdown
+          // (index.html's `dd-file`) instead, via the same
+          // engineeringCommand bridge Trace/Measure use (§
+          // _handleEngineeringCommand's own doc comment) — nothing
+          // floats over the canvas anymore.
         ],
       ),
     );
@@ -650,6 +797,15 @@ class _WindowsLegacyV2WebViewPageState
   /// back to nothing found rather than a second, different source of
   /// truth) — a fresh, standalone read at click time, not anything
   /// `bootstrap` computed earlier in this session.
+  /// OEP-STUDIO-BRANDING-V1 — the FILE dropdown's "New Diagram", same
+  /// real action `WebSurfacesHostPage._newDiagram()` already uses
+  /// (`engineeringProjectServiceProvider.notifier.newDocument()`) —
+  /// replaces the single current document rather than opening a second,
+  /// independent one, same rationale as that method's own doc comment.
+  Future<void> _newDiagram(BuildContext context) async {
+    await ref.read(engineeringProjectServiceProvider.notifier).newDocument();
+  }
+
   Future<void> _loadPreviousDocument(BuildContext context) async {
     final fileSuffix =
         _instanceId == primaryDiagramInstanceId ? '' : '_$_instanceId';
@@ -788,156 +944,3 @@ class _WindowsLegacyV2WebViewPageState
   }
 }
 
-class _LoadPreviousButton extends StatelessWidget {
-  const _LoadPreviousButton({required this.onPressed});
-
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: StudioColors.surfaceRaised,
-      borderRadius: BorderRadius.circular(4),
-      elevation: 2,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(4),
-        onTap: onPressed,
-        child: const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.history, size: 14, color: StudioColors.textPrimary),
-              SizedBox(width: 6),
-              Text(
-                'Load Previous Diagram',
-                style: TextStyle(
-                    fontSize: 12,
-                    color: StudioColors.textPrimary,
-                    fontWeight: FontWeight.w600),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _OpenButton extends StatelessWidget {
-  const _OpenButton({required this.onPressed});
-
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: StudioColors.surfaceRaised,
-      borderRadius: BorderRadius.circular(4),
-      elevation: 2,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(4),
-        onTap: onPressed,
-        child: const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.folder_open_outlined,
-                  size: 14, color: StudioColors.textPrimary),
-              SizedBox(width: 6),
-              Text(
-                'Open…',
-                style: TextStyle(
-                    fontSize: 12,
-                    color: StudioColors.textPrimary,
-                    fontWeight: FontWeight.w600),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SaveButton extends StatelessWidget {
-  const _SaveButton({required this.hasPath, required this.onPressed});
-
-  final bool hasPath;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: StudioColors.surfaceRaised,
-      borderRadius: BorderRadius.circular(4),
-      elevation: 2,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(4),
-        onTap: onPressed,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.save_outlined,
-                  size: 14, color: StudioColors.textPrimary),
-              const SizedBox(width: 6),
-              Text(
-                hasPath ? 'Save' : 'Save As…',
-                style: const TextStyle(
-                    fontSize: 12,
-                    color: StudioColors.textPrimary,
-                    fontWeight: FontWeight.w600),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// AP-OEP-DIAGRAM-SAVE-AS-002 — always-visible companion to [_SaveButton]:
-/// "save a modified copy without overwriting the original file" needs to
-/// be reachable regardless of whether the document already has a path
-/// (§ [_saveDocumentAs]'s own doc comment) — [_SaveButton] alone can't
-/// offer this once a document has a path, since it always overwrites
-/// that path at that point.
-class _SaveAsButton extends StatelessWidget {
-  const _SaveAsButton({required this.onPressed});
-
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: StudioColors.surfaceRaised,
-      borderRadius: BorderRadius.circular(4),
-      elevation: 2,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(4),
-        onTap: onPressed,
-        child: const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.save_as_outlined,
-                  size: 14, color: StudioColors.textPrimary),
-              SizedBox(width: 6),
-              Text(
-                'Save As…',
-                style: TextStyle(
-                    fontSize: 12,
-                    color: StudioColors.textPrimary,
-                    fontWeight: FontWeight.w600),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}

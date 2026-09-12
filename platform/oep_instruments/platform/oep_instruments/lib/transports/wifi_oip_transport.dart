@@ -32,21 +32,72 @@ class WifiOipTransport implements OipTransport {
   Socket? _socket;
   TransportConnectionState _state = TransportConnectionState.disconnected;
   final StreamController<OipMessage> _incoming = StreamController<OipMessage>.broadcast();
+  final StreamController<TransportConnectionState> _stateChanges = StreamController<TransportConnectionState>.broadcast();
   StreamSubscription<List<int>>? _socketSubscription;
   final StringBuffer _receiveBuffer = StringBuffer();
+
+  /// PRODUCT-READINESS-007 §20 — automatic, bounded-backoff reconnect.
+  /// `'host:port'` from the most recent [connect] call, so a later,
+  /// unexpected drop knows what to reconnect to. `null` before the first
+  /// successful [connect].
+  String? _lastDeviceId;
+
+  /// True only when [disconnect] was called directly by the caller (never
+  /// set by a socket-level `onDone`/`onError`) — distinguishes "the user/
+  /// Runtime asked to disconnect" (no reconnect attempted) from "the
+  /// connection dropped out from under us" (reconnect attempted). Reset
+  /// to `false` on every successful [connect].
+  bool _manualDisconnect = false;
+
+  /// Guards against ever running more than one reconnect loop at once
+  /// (§20 "do not create multiple simultaneous reconnect loops") — e.g. a
+  /// second `onDone`/`onError` firing while a reconnect attempt from the
+  /// first is still in flight.
+  bool _reconnecting = false;
+  Timer? _reconnectTimer;
+  int _reconnectAttempt = 0;
+
+  /// §20 "bounded retry/backoff" — doubles each attempt, capped at 16s,
+  /// so a genuinely offline Host is retried steadily without hammering
+  /// the network. Attempts themselves are unbounded in COUNT (a real DMM
+  /// session should keep trying for as long as it's plugged in / the app
+  /// is open) but always bounded in RATE.
+  static const List<Duration> _backoffSchedule = [
+    Duration(seconds: 1),
+    Duration(seconds: 2),
+    Duration(seconds: 4),
+    Duration(seconds: 8),
+    Duration(seconds: 16),
+  ];
 
   @override
   TransportConnectionState get state => _state;
 
+  /// Observable connection-state transitions (including the new
+  /// [TransportConnectionState.reconnecting] state this phase starts
+  /// actually using) — a UI can subscribe to show live connection status
+  /// rather than polling [state].
+  Stream<TransportConnectionState> get stateChanges => _stateChanges.stream;
+
+  void _setState(TransportConnectionState next) {
+    if (_state == next) return;
+    _state = next;
+    _stateChanges.add(next);
+  }
+
   @override
   Future<void> initialize() async {
-    _state = TransportConnectionState.disconnected;
+    _setState(TransportConnectionState.disconnected);
   }
 
   @override
   Future<void> shutdown() async {
+    _manualDisconnect = true;
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
     await disconnect();
     await _incoming.close();
+    await _stateChanges.close();
   }
 
   /// OIP-TRANSPORT-001 §8 — this transport does not implement network
@@ -70,16 +121,66 @@ class WifiOipTransport implements OipTransport {
     final host = parts[0];
     final port = int.parse(parts[1]);
 
-    _state = TransportConnectionState.connecting;
+    _setState(TransportConnectionState.connecting);
     _socket = await Socket.connect(host, port);
-    _state = TransportConnectionState.connected;
+    _lastDeviceId = deviceId;
+    _manualDisconnect = false;
+    _reconnectAttempt = 0;
+    _setState(TransportConnectionState.connected);
 
     _socketSubscription = _socket!.listen(
       _onData,
-      onDone: () => _state = TransportConnectionState.disconnected,
-      onError: (Object _) => _state = TransportConnectionState.disconnected,
+      onDone: _handleUnexpectedDisconnect,
+      onError: (Object _) => _handleUnexpectedDisconnect(),
       cancelOnError: false,
     );
+  }
+
+  /// §20 — a socket-level drop (server closed it, Wi-Fi dropped, ...),
+  /// distinct from a caller-initiated [disconnect]. Transitions to
+  /// [TransportConnectionState.disconnected] immediately (so a UI/caller
+  /// sees the real state right away) and, unless the caller asked to
+  /// disconnect on purpose, schedules a bounded-backoff reconnect attempt
+  /// — see [_scheduleReconnect] for why this never stacks more than one
+  /// reconnect loop.
+  void _handleUnexpectedDisconnect() {
+    _closeSocketResources();
+    _setState(TransportConnectionState.disconnected);
+    if (!_manualDisconnect) _scheduleReconnect();
+  }
+
+  void _scheduleReconnect() {
+    if (_reconnecting) return; // §20 — never more than one reconnect loop at once.
+    final deviceId = _lastDeviceId;
+    if (deviceId == null) return; // Never successfully connected — nothing to reconnect to.
+    _reconnecting = true;
+    final delay = _backoffSchedule[_reconnectAttempt.clamp(0, _backoffSchedule.length - 1)];
+    _reconnectAttempt++;
+    _setState(TransportConnectionState.reconnecting);
+    _reconnectTimer = Timer(delay, () async {
+      _reconnecting = false;
+      if (_manualDisconnect) return; // Disconnected on purpose while the backoff timer was pending.
+      try {
+        await connect(deviceId);
+        // §20 "do not duplicate requests" — reconnecting only restores the
+        // ABILITY to send/receive; it never replays anything that was
+        // in flight when the drop happened (there is nothing buffered to
+        // replay in the first place — `send` writes straight to the
+        // socket with no outbound queue).
+      } catch (_) {
+        // Still unreachable — try again, respecting the same bounded
+        // backoff schedule (capped, never a tight retry loop).
+        _setState(TransportConnectionState.disconnected);
+        if (!_manualDisconnect) _scheduleReconnect();
+      }
+    });
+  }
+
+  void _closeSocketResources() {
+    _socketSubscription?.cancel();
+    _socketSubscription = null;
+    _socket?.destroy();
+    _socket = null;
   }
 
   void _onData(List<int> chunk) {
@@ -100,28 +201,44 @@ class WifiOipTransport implements OipTransport {
       ..write(text);
   }
 
+  /// Caller-initiated disconnect (§20) — sets [_manualDisconnect] so no
+  /// automatic reconnect is attempted afterward, cancels any reconnect
+  /// backoff already pending, and closes the socket cleanly (a graceful
+  /// `close()`, not the abrupt `destroy()` an already-broken socket gets
+  /// in [_closeSocketResources]).
   @override
   Future<void> disconnect() async {
+    _manualDisconnect = true;
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
+    _reconnecting = false;
     await _socketSubscription?.cancel();
     _socketSubscription = null;
     await _socket?.close();
     _socket = null;
-    _state = TransportConnectionState.disconnected;
+    _setState(TransportConnectionState.disconnected);
   }
 
+  /// A manually-triggered reconnect using whatever address was last
+  /// connected to — still available for a caller that wants to force one
+  /// immediately rather than waiting for the automatic backoff schedule
+  /// (§20's own automatic reconnect, above, is now this transport's
+  /// default behavior on an unexpected drop; this method remains for an
+  /// explicit, caller-initiated retry, e.g. a "Reconnect now" UI action).
   @override
   Future<void> reconnect() async {
-    // Deliberately not automatic (§16's "Attempt reconnection" is a
-    // Runtime-level policy decision, not this transport's own job per
-    // OIP-TRANSPORT-001 §5: "Responsibilities Not Owned... these belong
-    // to higher layers") -- this method exists so the Runtime CAN
-    // trigger one, using whatever address it last connected with.
-    final socket = _socket;
-    if (socket == null) {
+    final deviceId = _lastDeviceId ?? (_socket == null ? null : '${_socket!.remoteAddress.address}:${_socket!.remotePort}');
+    if (deviceId == null) {
       throw StateError('WifiOipTransport.reconnect: no prior connection to reconnect to.');
     }
-    final deviceId = '${socket.remoteAddress.address}:${socket.remotePort}';
-    await disconnect();
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
+    _reconnecting = false;
+    _manualDisconnect = false;
+    await _socketSubscription?.cancel();
+    _socketSubscription = null;
+    await _socket?.close();
+    _socket = null;
     await connect(deviceId);
   }
 

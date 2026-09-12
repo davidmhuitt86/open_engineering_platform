@@ -90,6 +90,21 @@ const LiveSim = (function () {
     return { keyPosition: (typeof keyPos !== 'undefined') ? keyPos : 0, switchStates, multiSwitchStates, faults: new Map(), engineState: {} };
   }
 
+  // PRODUCT-READINESS-008 — a real, read-only snapshot of V2's own live
+  // switch/key state, for the Dart-side bridge to poll-diff and translate
+  // into an ElectricalOperatingContext (never computed/duplicated on the
+  // Dart side — this is the SAME generic switchStates/multiSwitchStates
+  // map `_conditions()` already feeds the solver from, just exposed
+  // read-only rather than left private to this module). keyPos is folded
+  // into multiSwitchStates already (setKey() -> setMultiSwitchGroup on the
+  // ignition switch's own 'power' group), so it is not duplicated here.
+  function getLiveOperatingState() {
+    return {
+      switchStates: Object.assign({}, switchStates),
+      multiSwitchStates: JSON.parse(JSON.stringify(multiSwitchStates)),
+    };
+  }
+
   function _applyLampVisual(m, lit) {
     const glow = document.querySelector(`.bgl[data-mid="${CSS.escape(m.id)}"]`);
     if (!glow) return;
@@ -223,6 +238,6 @@ const LiveSim = (function () {
 
   return {
     setSwitch, toggleSwitch, isClosed, isSwitchModule, refresh, scheduleRefresh, BULB_COLORS,
-    setMultiSwitchGroup, multiSwitchGroupValue, readWireMeasurement,
+    setMultiSwitchGroup, multiSwitchGroupValue, readWireMeasurement, getLiveOperatingState,
   };
 })();

@@ -7,6 +7,7 @@ import 'package:flutter/material.dart' show Material, MaterialType, showDialog;
 import 'package:flutter/widgets.dart';
 
 import '../../measurement/measurement.dart';
+import '../../measurement/measurement_range.dart';
 import '../../measurement/measurement_state.dart';
 import 'digital_multimeter_plugin.dart';
 import 'dmm_measurement_mode.dart';
@@ -427,10 +428,21 @@ class _MainDisplayCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final unavailable = measurement == null ||
-        measurement!.state == MeasurementState.unavailable ||
-        measurement!.state == MeasurementState.invalid;
-    final displayNum = unavailable ? null : relativeValue;
+    // PRODUCT-READINESS-007 §3/§18 — the Host's own structured electrical
+    // reading state, when present, is authoritative over the older,
+    // lifecycle-only [MeasurementState] check for deciding whether a
+    // NUMERIC value should be shown at all. `'valid'`/`null` (a Host that
+    // predates this field) fall through to the original check unchanged
+    // — this is additive, not a replacement of the existing rule.
+    final electricalState = measurement?.electricalState;
+    final legacyUnavailable =
+        measurement == null || measurement!.state == MeasurementState.unavailable || measurement!.state == MeasurementState.invalid;
+    final rangeValue = measurement?.value is MeasurementRange ? measurement!.value as MeasurementRange : null;
+    final isNonNumericElectricalState = electricalState != null && electricalState != 'valid';
+    final unavailable = isNonNumericElectricalState
+        ? (electricalState == 'unknown' || electricalState == 'unreached')
+        : legacyUnavailable;
+    final displayNum = (unavailable || isNonNumericElectricalState || rangeValue != null) ? null : relativeValue;
     final unit = measurement?.unit ?? '';
 
     return Container(
@@ -460,8 +472,13 @@ class _MainDisplayCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               Text(
-                _formatValue(displayNum),
-                style: const TextStyle(color: Color(0xFFE6E9EE), fontSize: 46, fontWeight: FontWeight.w600, fontFeatures: [FontFeature.tabularFigures()]),
+                _formatValue(displayNum, electricalState, rangeValue),
+                style: TextStyle(
+                  color: _isProblemState(electricalState) ? const Color(0xFFEF4444) : const Color(0xFFE6E9EE),
+                  fontSize: rangeValue != null ? 34 : 46,
+                  fontWeight: FontWeight.w600,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
               ),
               if (unit.isNotEmpty) ...[
                 const SizedBox(width: 6),
@@ -500,11 +517,38 @@ class _MainDisplayCard extends StatelessWidget {
     );
   }
 
-  String _formatValue(num? value) {
+  /// PRODUCT-READINESS-007 §3/§13/§18 — every distinct
+  /// `ElectricalReadingState` the Host may report gets its own real,
+  /// distinguishable label (never collapsed into the same `'----'`
+  /// placeholder as an unrelated state, and never a fabricated numeric
+  /// value): `open`/`overload` -> `OL` (the standard DMM out-of-range
+  /// indication), `fault` -> `FAULT`, `unsupported` -> `UNSUPP`.
+  /// `unknown`/`unreached` fall through to the plain `value == null`
+  /// branch below (`'----'`) — genuinely "no answer available", the same
+  /// label this panel already used for that case before this field
+  /// existed. A [MeasurementRange] renders as `"low-high"` built from the
+  /// real numeric bounds (§13) — never via string-parsing a pre-rendered
+  /// range string.
+  String _formatValue(num? value, String? electricalState, MeasurementRange? range) {
+    switch (electricalState) {
+      case 'open':
+      case 'overload':
+        return 'OL';
+      case 'fault':
+        return 'FAULT';
+      case 'unsupported':
+        return 'UNSUPP';
+    }
+    if (range != null) return '${_formatNum(range.low)}-${_formatNum(range.high)}';
     if (value == null) return '----';
     if (symbol == '•)))') return value != 0 ? 'BEEP' : 'OPEN';
-    return value.truncateToDouble() == value ? value.toStringAsFixed(0) : value.toStringAsFixed(3);
+    return _formatNum(value);
   }
+
+  static String _formatNum(num value) => value.truncateToDouble() == value ? value.toStringAsFixed(0) : value.toStringAsFixed(3);
+
+  static bool _isProblemState(String? electricalState) =>
+      electricalState == 'open' || electricalState == 'overload' || electricalState == 'fault' || electricalState == 'unsupported';
 }
 
 class _Bargraph extends StatelessWidget {

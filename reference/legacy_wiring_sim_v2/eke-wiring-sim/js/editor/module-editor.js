@@ -255,7 +255,13 @@ function toggleEdit() {
   // itself is off.
   vp.classList.toggle('edit-mode', editMode);
   $('edit-btn').classList.toggle('edit-on', editMode);
-  $('edit-btn').textContent     = editMode ? '✦ Done' : '✦ Edit';
+  // OEP-STUDIO-BRANDING-V1 — targets the label span, not the whole
+  // button: #edit-btn now also has a real SVG icon child
+  // (index.html's #tb-diagram), which a plain `.textContent =`
+  // assignment here would silently delete.
+  const editBtnLbl = $('edit-btn').querySelector('.tb-icon-btn-lbl');
+  if (editBtnLbl) editBtnLbl.textContent = editMode ? 'Done' : 'Edit';
+  else $('edit-btn').textContent = editMode ? '✦ Done' : '✦ Edit';
   $('edit-badge').style.display = editMode ? 'block' : 'none';
   // AP-MASTER-EDIT-001 — used to unconditionally clear the current wire
   // selection/panel the moment Edit Mode turned on, back when Edit Mode

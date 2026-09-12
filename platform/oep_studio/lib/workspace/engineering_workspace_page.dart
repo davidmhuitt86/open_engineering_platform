@@ -9,6 +9,7 @@ import '../core/surfaces/surface_registry.dart';
 import '../core/theme/studio_colors.dart';
 import '../diagram_studio/compare/diagram_with_compare_pane.dart';
 import '../diagram_studio/controller/diagram_studio_controller_provider.dart';
+import '../diagram_studio/header/oep_studio_header.dart';
 import '../diagram_studio/tabs/diagram_tabs_controller.dart';
 import '../diagram_studio/webview/legacy_v2_webview.dart';
 import 'workspace_tab.dart';
@@ -162,10 +163,24 @@ class EngineeringWorkspacePage extends ConsumerWidget {
     final activeId = tabsController.activeId;
     final secondTabId = tabsController.secondTabId;
 
+    // OEP-STUDIO-BRANDING-V1 §20 — this is the REAL, actually-reached
+    // tabbed workspace (AP-OEP-WORKSPACE-AS-PRIMARY-UI-001: the app boots
+    // straight into `/workspace` and nothing in the UI navigates to
+    // `WebSurfacesHostPage`'s own `/diagram` route anymore — confirmed by
+    // that class's own doc comment), so this is where the header actually
+    // needs to render, not there. Scoped to only the currently active tab
+    // being a Diagram tab (`WorkspaceTab.isDiagram`), so it never bleeds
+    // into Settings/Knowledge Studio/other Surface tabs sharing this same
+    // shell — the same §20 rule `WebSurfacesHostPage`'s own (unreached)
+    // copy of this condition already encoded.
+    final activeTab = _tabById(tabs, activeId);
+    final showOepHeader = activeTab?.isDiagram ?? false;
+
     return Container(
       color: StudioColors.background,
       child: Column(
         children: [
+          if (showOepHeader) const OepStudioHeader(),
           _WorkspaceTabStrip(
             tabs: tabs,
             activeId: activeId,
@@ -247,6 +262,18 @@ class EngineeringWorkspacePage extends ConsumerWidget {
     }
     return KeyedSubtree(key: ValueKey(tab.id), child: surface.build(context));
   }
+}
+
+/// OEP-STUDIO-BRANDING-V1 — `activeId` is only ever a real open tab's id
+/// or `null` (never a stale/dangling one — `WorkspaceTabsController` owns
+/// that invariant), so this is a plain lookup, not a defensive fallback
+/// search.
+WorkspaceTab? _tabById(List<WorkspaceTab> tabs, String? id) {
+  if (id == null) return null;
+  for (final tab in tabs) {
+    if (tab.id == id) return tab;
+  }
+  return null;
 }
 
 /// AP-OEP-WORKSPACE-SPLIT-VIEW-001 — the one place the audit's "single

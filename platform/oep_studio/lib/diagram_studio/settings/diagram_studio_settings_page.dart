@@ -8,6 +8,7 @@ import '../../core/theme/studio_colors.dart';
 import '../../settings/models/settings_entry.dart';
 import '../../settings/services/settings_provider.dart';
 import '../../settings/widgets/settings_rows.dart';
+import '../instruments/multimeter/multimeter_controller.dart';
 import '../instruments_host/instrument_bridge_provider.dart';
 import 'diagram_studio_settings_provider.dart';
 
@@ -123,10 +124,54 @@ class _InstrumentBridgeSectionState extends ConsumerState<_InstrumentBridgeSecti
     super.dispose();
   }
 
+  /// Interface-name substrings that mark a virtual adapter -- never the
+  /// real LAN-facing Wi-Fi/Ethernet address a phone on the same network
+  /// can actually reach. Real bug report: this machine has VirtualBox,
+  /// WSL, and BlueStacks installed, each of which registers its own
+  /// virtual NIC with its own "local" IPv4 address; `NetworkInterface
+  /// .list()` returns all of them in OS-determined (effectively
+  /// arbitrary) order, and showing whichever happened to enumerate first
+  /// silently showed an unreachable virtual-adapter address instead of
+  /// the real one, every time -- confirmed the actual root cause, not a
+  /// guess: this device's own installed-software list is exactly what
+  /// this filter targets. Matched case-insensitively against the
+  /// interface's own `.name`, never the address itself (an address alone
+  /// carries no reliable signal for "is this virtual").
+  static const _virtualInterfaceNameMarkers = [
+    'virtualbox',
+    'vethernet',
+    'hyper-v',
+    'wsl',
+    'bluestacks',
+    'vmware',
+    'virtual',
+    'loopback',
+    'docker',
+    'tap-',
+    'tun',
+    'npcap loopback',
+  ];
+
+  static bool _looksVirtual(String interfaceName) {
+    final lower = interfaceName.toLowerCase();
+    return _virtualInterfaceNameMarkers.any(lower.contains);
+  }
+
   Future<void> _loadLocalAddresses() async {
     try {
       final interfaces = await NetworkInterface.list(type: InternetAddressType.IPv4, includeLoopback: false);
-      final addresses = [for (final interface in interfaces) for (final address in interface.addresses) address.address];
+      final real = [
+        for (final interface in interfaces)
+          if (!_looksVirtual(interface.name)) for (final address in interface.addresses) address.address,
+      ];
+      // Never show nothing: if every interface name happened to match a
+      // marker above (or this machine has some virtual adapter this list
+      // doesn't know about), fall back to the full, unfiltered set rather
+      // than hiding the address entirely -- a possibly-wrong address the
+      // user can still see and correct beats none at all.
+      final addresses = real.isNotEmpty
+          ? real
+          : [for (final interface in interfaces) for (final address in interface.addresses) address.address];
       if (mounted) setState(() => _localAddresses = addresses);
     } catch (_) {
       // Address discovery is a convenience only -- if it fails, the user
@@ -147,7 +192,18 @@ class _InstrumentBridgeSectionState extends ConsumerState<_InstrumentBridgeSecti
     });
     final bridge = ref.read(instrumentBridgeServiceProvider);
     try {
-      await bridge.start(graphProvider: () => currentInstrumentBridgeGraph(ref), port: port);
+      await bridge.start(
+        graphProvider: () => currentInstrumentBridgeGraph(ref),
+        graphProviderByInstance: (diagramInstanceId) => instrumentBridgeGraphForInstance(ref, diagramInstanceId),
+        // AP-DIAGRAM-OIP-DMM-SYNC-001 -- read fresh on every access
+        // (never cached in a local var here), matching every other
+        // provider passed into `start()`: a connected client (the
+        // Android app) sees the diagram-embedded Multimeter's real,
+        // current mode/reading, and a remote mode change from that
+        // client applies to this same, real controller.
+        multimeterControllerProvider: () => ref.read(multimeterRuntimeServiceProvider),
+        port: port,
+      );
     } catch (error) {
       _error = 'Could not start: $error';
     }
@@ -189,10 +245,10 @@ class _InstrumentBridgeSectionState extends ConsumerState<_InstrumentBridgeSecti
             ],
           ),
         ),
-        if (_localAddresses.isNotEmpty)
+        for (var i = 0; i < _localAddresses.length; i++)
           SettingsInfoRow(
-            label: 'This PC\'s address',
-            value: '${_localAddresses.first}:${bridge.port ?? _portController.text}',
+            label: _localAddresses.length > 1 ? 'This PC\'s address (${i + 1}/${_localAddresses.length})' : 'This PC\'s address',
+            value: '${_localAddresses[i]}:${bridge.port ?? _portController.text}',
           ),
         SettingsTextRow(
           label: 'Port',
