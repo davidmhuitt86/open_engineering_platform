@@ -62,7 +62,18 @@ void main() {
     controller.addNode('battery', const Point2D(40, 40));
     final nodeId = controller.engine.editing.session.graph.nodes.keys.single;
 
-    expect(container.read(workspaceTabsControllerProvider).tabs, isEmpty, reason: 'source context: nothing open yet');
+    // PRODUCT-READINESS-013 — reading the provider kicks off
+    // `WorkspaceTabsController.restore()` (unawaited); whether its real,
+    // unmocked `dart:io` file load (and therefore `_ensureHomeIfEmpty`)
+    // has resolved by this exact synchronous point is a genuine race,
+    // not something this test controls or cares about — it asserts only
+    // that no Diagram tab exists yet, regardless of whether Home has
+    // already auto-opened alongside that.
+    expect(
+      container.read(workspaceTabsControllerProvider).tabs.map((t) => t.surfaceId),
+      isNot(contains(WorkspaceTab.diagramSurfaceId)),
+      reason: 'source context: Diagram not open yet',
+    );
 
     await tester.tap(find.text('trigger'));
     await tester.pumpAndSettle();
@@ -71,8 +82,12 @@ void main() {
     expect(controller.engine.registry.selection.current.nodeIds, {nodeId});
 
     // destination Surface opens as a workspace tab, not a route change.
+    // Exactly one Diagram tab — Home may or may not also be open
+    // (§ the race described above), which this test is deliberately
+    // agnostic to; the "Home coexists with Studio tabs" requirement
+    // itself is covered by `WorkspaceTabsController`'s own tests.
     final tabsController = container.read(workspaceTabsControllerProvider);
-    expect(tabsController.tabs, hasLength(1));
+    expect(tabsController.tabs.where((t) => t.surfaceId == WorkspaceTab.diagramSurfaceId), hasLength(1));
     expect(tabsController.active!.isDiagram, isTrue);
     expect(tabsController.active!.surfaceId, WorkspaceTab.diagramSurfaceId);
     expect(find.text('standalone-diagram'), findsNothing, reason: 'must not have navigated away from the Workspace route');
@@ -87,7 +102,11 @@ void main() {
     await tester.tap(find.text('trigger'));
     await tester.pumpAndSettle();
 
-    expect(container.read(workspaceTabsControllerProvider).tabs, hasLength(1));
+    // Exactly one Diagram tab, never a second one from triggering the
+    // workflow twice — independent of whether Home also auto-opened
+    // (§ the sibling test's own comment on that race).
+    final tabs = container.read(workspaceTabsControllerProvider).tabs;
+    expect(tabs.where((t) => t.surfaceId == WorkspaceTab.diagramSurfaceId), hasLength(1));
   });
 
   testWidgets('a pre-existing workspace tab is left intact when the Diagram tab is opened alongside it', (tester) async {
@@ -118,7 +137,15 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('standalone-diagram'), findsOneWidget);
-    expect(container.read(workspaceTabsControllerProvider).tabs, isEmpty, reason: 'the Workspace was never involved for this navigation');
+    // No Diagram tab was opened — whether Home has separately
+    // auto-opened via `restore()`'s own unrelated race (§ the earlier
+    // tests' comments) is not something this "workspace never involved"
+    // assertion needs to rule out.
+    expect(
+      container.read(workspaceTabsControllerProvider).tabs.map((t) => t.surfaceId),
+      isNot(contains(WorkspaceTab.diagramSurfaceId)),
+      reason: 'the Workspace was never involved for this navigation',
+    );
   });
 
   testWidgets('an engine that has not started yet fails safely: no tab opens, no crash, no navigation', (tester) async {
@@ -145,7 +172,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
-    expect(container.read(workspaceTabsControllerProvider).tabs, isEmpty);
+    expect(
+      container.read(workspaceTabsControllerProvider).tabs.map((t) => t.surfaceId),
+      isNot(contains(WorkspaceTab.diagramSurfaceId)),
+      reason: 'no Diagram tab opens when the engine has not started',
+    );
     expect(find.text('standalone-diagram'), findsNothing);
   });
 }

@@ -155,15 +155,32 @@ void main() {
       expect(controller.tabs, hasLength(1));
     });
 
-    test('closing the last remaining tab leaves no active tab', () {
+    test('closing the last remaining tab reopens Home instead of leaving no active tab (PRODUCT-READINESS-013)', () {
       final controller = WorkspaceTabsController();
       final id = controller.openSurface(SurfaceRegistry.all.first.id);
 
       controller.close(id);
 
-      expect(controller.tabs, isEmpty);
-      expect(controller.activeId, isNull);
-      expect(controller.active, isNull);
+      // The Workspace must never fall back to a completely empty state
+      // during normal operation — `close` synchronously reopens Home
+      // (`_ensureHomeIfEmpty`) rather than leaving `tabs` empty.
+      expect(controller.tabs, hasLength(1));
+      expect(controller.active?.surfaceId, SurfaceRegistry.homeSurfaceId);
+      expect(controller.activeId, isNotNull);
+    });
+
+    test('closing Home when it is the only tab immediately reopens it', () {
+      final controller = WorkspaceTabsController();
+      final id = controller.openSurface(SurfaceRegistry.homeSurfaceId);
+
+      controller.close(id);
+
+      expect(controller.tabs, hasLength(1));
+      expect(controller.active?.surfaceId, SurfaceRegistry.homeSurfaceId);
+      // `_ensureHomeIfEmpty` mints the same deterministic
+      // `'workspace-tab-home'` id `openSurface` itself would have used —
+      // a fresh WorkspaceTab instance, but an identical id string.
+      expect(controller.activeId, id);
     });
 
     test('closing an unknown id is a no-op', () {

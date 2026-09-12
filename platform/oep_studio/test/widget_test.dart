@@ -105,7 +105,7 @@ void main() {
   // in this file boots.
   setUp(useIsolatedSettingsStorage);
 
-  testWidgets('StudioApp boots directly into the empty tabbed Workspace', (
+  testWidgets('StudioApp boots directly into the tabbed Workspace, on the Home surface', (
     WidgetTester tester,
   ) async {
     // Flutter's default 800x600 test surface is narrower than this app's
@@ -123,8 +123,18 @@ void main() {
     // AP-OEP-WORKSPACE-AS-PRIMARY-UI-001 — no chrome (menu bar, toolbar,
     // ribbon, breadcrumb bar, sidebar, property inspector, output panel,
     // status bar) surrounds the Workspace; it's the entire screen.
-    expect(find.text('No tabs open — press "+" to open a Surface'), findsOneWidget);
+    //
+    // PRODUCT-READINESS-013 — a fresh launch (nothing persisted yet, per
+    // this file's own `useIsolatedSettingsStorage` isolation) no longer
+    // shows the empty "No tabs open" state; `WorkspaceTabsController`
+    // boots to Home instead (`_ensureHomeIfEmpty`).
+    expect(find.text('No tabs open — press "+" to open a Surface'), findsNothing);
     expect(find.byTooltip('New tab'), findsOneWidget);
+    expect(find.text('Home'), findsWidgets);
+    // `_Card` renders its title uppercased.
+    expect(find.text('CONTINUE WORK'), findsOneWidget);
+    expect(find.text('AVAILABLE STUDIOS'), findsOneWidget);
+    expect(find.text('SYSTEM STATUS'), findsOneWidget);
 
     await openWorkspaceTab(tester, 'Dashboard');
     expect(find.text('Welcome to OEP Studio'), findsOneWidget);

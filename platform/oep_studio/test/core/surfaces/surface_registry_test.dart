@@ -60,6 +60,11 @@ void main() {
     test('every surface title/icon matches its StudioDestination (single source of truth, no duplication)', () {
       final byId = {for (final descriptor in StudioRegistry.defaultRegistry.descriptors) descriptor.destination.name: descriptor.destination};
       for (final surface in SurfaceRegistry.all) {
+        // PRODUCT-READINESS-013 — Home, like Browser, is hand-registered
+        // with no `StudioDestination`/route of its own (§ `SurfaceRegistry
+        // .homeSurfaceId`'s own doc comment) — a real, intentional
+        // exception, not an oversight this check should catch.
+        if (surface.id == SurfaceRegistry.homeSurfaceId) continue;
         final destination = byId[surface.id];
         expect(destination, isNotNull, reason: 'Surface ${surface.id} has no matching StudioDestination');
         expect(surface.title, destination!.label);

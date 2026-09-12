@@ -163,7 +163,13 @@ void main() {
       // the active tab without closing anything").
       expect(find.text('Engineering Objects'), findsOneWidget);
       expect(tabsController.activeId, engineeringId);
-      expect(tabsController.tabs, hasLength(2), reason: 'switching tabs never closes the other one');
+      // PRODUCT-READINESS-013 — Home auto-opens once
+      // WorkspaceTabsController.restore() resolves (this test's own
+      // earlier `await tester.pump()` gives it time to, before the two
+      // `openSurface` calls above run) — Engineering + Instruments +
+      // Home, never fewer; still exactly the two Surfaces this test
+      // itself opened, plus the one it didn't close.
+      expect(tabsController.tabs, hasLength(3), reason: 'switching tabs never closes any open tab, including Home');
       expect(instrumentsId, isNot(engineeringId));
     });
   });

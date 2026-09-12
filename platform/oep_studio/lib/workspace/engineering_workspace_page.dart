@@ -43,9 +43,12 @@ import 'workspace_tabs_controller.dart';
 /// shell doesn't yet expose independently, e.g. Project Explorer's own
 /// internal state).
 ///
-/// **No tab persistence** (explicitly out of scope, Phase 3/11): every
-/// launch starts with zero open tabs — the user re-opens what they need
-/// via "+", exactly as this task's own constraints require.
+/// **Tab persistence** (`AP-OEP-WORKSPACE-PERSISTENCE-001`,
+/// `WorkspaceTabsController`/`WorkspaceTabsStorage`): the open tab list,
+/// active tab, and split-view second tab are restored across restarts.
+/// A launch with nothing persisted yet (or a session that last closed
+/// with zero tabs open) boots to Home instead of an empty Workspace —
+/// see `WorkspaceTabsController._ensureHomeIfEmpty` (PRODUCT-READINESS-013).
 ///
 /// **AP-OEP-WORKSPACE-UX-001** — no longer owns a page-local
 /// `WorkspaceTabsController`; it reads the single shared instance from
@@ -163,16 +166,9 @@ class EngineeringWorkspacePage extends ConsumerWidget {
     final activeId = tabsController.activeId;
     final secondTabId = tabsController.secondTabId;
 
-    // OEP-STUDIO-BRANDING-V1 §20 — this is the REAL, actually-reached
-    // tabbed workspace (AP-OEP-WORKSPACE-AS-PRIMARY-UI-001: the app boots
-    // straight into `/workspace` and nothing in the UI navigates to
-    // `WebSurfacesHostPage`'s own `/diagram` route anymore — confirmed by
-    // that class's own doc comment), so this is where the header actually
-    // needs to render, not there. Scoped to only the currently active tab
-    // being a Diagram tab (`WorkspaceTab.isDiagram`), so it never bleeds
-    // into Settings/Knowledge Studio/other Surface tabs sharing this same
-    // shell — the same §20 rule `WebSurfacesHostPage`'s own (unreached)
-    // copy of this condition already encoded.
+    // The OEP header renders here (the real, reached tabbed workspace —
+    // see AP-OEP-WORKSPACE-AS-PRIMARY-UI-001), scoped to Diagram tabs
+    // only so it never bleeds into Settings/Knowledge Studio/other tabs.
     final activeTab = _tabById(tabs, activeId);
     final showOepHeader = activeTab?.isDiagram ?? false;
 

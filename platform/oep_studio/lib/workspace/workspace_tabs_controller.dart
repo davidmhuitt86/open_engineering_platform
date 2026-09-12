@@ -240,8 +240,27 @@ class WorkspaceTabsController extends ChangeNotifier {
       _activeId = _tabs.isEmpty ? null : _tabs[index > 0 ? index - 1 : 0].id;
       if (_secondTabId != null && _secondTabId == _activeId) _secondTabId = null;
     }
+    // PRODUCT-READINESS-013 — the Workspace must never fall back to a
+    // completely empty "No tabs open" state during normal operation
+    // (§ `_ensureHomeIfEmpty`'s own doc comment).
+    _ensureHomeIfEmpty();
     notifyListeners();
     _persistIfChanged();
+  }
+
+  /// PRODUCT-READINESS-013 — if closing (or restoring) left zero tabs
+  /// open, opens Home (`SurfaceRegistry.homeSurfaceId`) as the one
+  /// guaranteed always-available landing tab — the same real Surface
+  /// mechanism [openSurface] already uses, inlined here (rather than
+  /// calling [openSurface] itself) only to avoid a redundant second
+  /// `notifyListeners()`/persist pair in the same synchronous operation
+  /// that already triggers its own. A no-op whenever [_tabs] is
+  /// non-empty, so this never overrides a real, already-open tab set.
+  void _ensureHomeIfEmpty() {
+    if (_tabs.isNotEmpty) return;
+    final home = WorkspaceTab(id: 'workspace-tab-${SurfaceRegistry.homeSurfaceId}', surfaceId: SurfaceRegistry.homeSurfaceId);
+    _tabs.add(home);
+    _activeId = home.id;
   }
 
   /// Loads persisted Workspace tab identity and restores it — called
@@ -317,6 +336,15 @@ class WorkspaceTabsController extends ChangeNotifier {
     // guard as `activeId` above: a real `splitWith`/`closeSplit` call
     // landing before this resolves wins over the persisted value.
     _secondTabId ??= (loaded.secondTabId != null && _tabs.any((t) => t.id == loaded.secondTabId)) ? loaded.secondTabId : null;
+
+    // PRODUCT-READINESS-013 — a genuinely fresh launch (nothing
+    // persisted yet) or a session that last persisted zero tabs must
+    // not boot to the empty "No tabs open" state; see
+    // `_ensureHomeIfEmpty`'s own doc comment. This intentionally runs
+    // AFTER the race-guard checks above (a real `openSurface`/
+    // `openNewInstance` call landing before restore() resolved already
+    // means `_tabs` is non-empty, so this stays a no-op then).
+    _ensureHomeIfEmpty();
 
     // Only re-persist if restoration actually changed the effective
     // state (dropped stale/corrupt entries, or fell back to a different

@@ -92,7 +92,7 @@ void main() {
     expect(find.byIcon(Icons.close), findsOneWidget, reason: 'reuse-if-open, not a duplicate tab');
   });
 
-  testWidgets('closing the only open tab returns to the empty state', (tester) async {
+  testWidgets('closing the only open tab reopens Home instead of the empty state (PRODUCT-READINESS-013)', (tester) async {
     await tester.pumpWidget(harness());
     await tester.pump();
 
@@ -102,10 +102,42 @@ void main() {
     await tester.tap(find.text(surface.title).last);
     await tester.pumpAndSettle();
 
+    expect(find.byIcon(Icons.close), findsOneWidget);
+
     await tester.tap(find.byIcon(Icons.close));
+    await tester.pumpAndSettle();
+
+    // `WorkspaceTabsController.close` calls `_ensureHomeIfEmpty`
+    // synchronously the moment the last tab is removed — this does not
+    // depend on `restore()`'s own async storage load ever resolving
+    // (it does not, within this harness's plain pump/pumpAndSettle
+    // calls, § the sibling test below), only on `close` itself.
+    expect(find.text('No tabs open — press "+" to open a Surface'), findsNothing);
+    expect(find.text('CONTINUE WORK'), findsOneWidget, reason: 'Home is the one remaining tab');
+    expect(find.byIcon(Icons.close), findsOneWidget, reason: 'Home tab itself remains, closable');
+  });
+
+  testWidgets('closing Home when it is the only tab immediately reopens it, never the empty state', (tester) async {
+    await tester.pumpWidget(harness());
     await tester.pump();
 
-    expect(find.text('No tabs open — press "+" to open a Surface'), findsOneWidget);
+    // Home is not auto-opened by `restore()` within this harness (its
+    // async storage load never resolves under plain pump/pumpAndSettle,
+    // unlike `widget_test.dart`'s real `StudioApp` boot path) — opened
+    // explicitly here instead, purely to reach "Home is the only tab"
+    // and exercise `close`'s own `_ensureHomeIfEmpty` reopening it.
+    final controller = ProviderScope.containerOf(tester.element(find.byType(Scaffold)), listen: false).read(workspaceTabsControllerProvider);
+    controller.openSurface(SurfaceRegistry.homeSurfaceId);
+    await tester.pumpAndSettle();
+
+    expect(find.text('CONTINUE WORK'), findsOneWidget);
+    expect(find.byIcon(Icons.close), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.close));
+    await tester.pumpAndSettle();
+
+    expect(find.text('No tabs open — press "+" to open a Surface'), findsNothing);
+    expect(find.text('CONTINUE WORK'), findsOneWidget, reason: '_ensureHomeIfEmpty reopens Home immediately');
   });
 
   group('split view (AP-OEP-WORKSPACE-SPLIT-VIEW-001)', () {

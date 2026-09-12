@@ -26,14 +26,18 @@ void main() {
   final b = SurfaceRegistry.all[1];
 
   group('WorkspaceTabsController persistence (in-memory fake storage)', () {
-    test('1. empty storage produces empty/default Workspace state', () async {
+    test('1. empty storage produces the default Home Workspace state (PRODUCT-READINESS-013)', () async {
       final storage = _FakeWorkspaceTabsStorage();
       final controller = WorkspaceTabsController(storage: storage);
 
       await controller.restore();
 
-      expect(controller.tabs, isEmpty);
-      expect(controller.activeId, isNull);
+      // A genuinely fresh launch (nothing ever persisted) boots to Home,
+      // never the old completely-empty state — see
+      // `WorkspaceTabsController._ensureHomeIfEmpty`'s own doc comment.
+      expect(controller.tabs, hasLength(1));
+      expect(controller.tabs.single.surfaceId, SurfaceRegistry.homeSurfaceId);
+      expect(controller.activeId, isNotNull);
     });
 
     test('2/3. persisting opened Surfaces restores them in the same order, with the same active Surface', () async {
@@ -123,7 +127,7 @@ void main() {
       expect(controller.active!.isDiagram, isTrue);
     });
 
-    test('10. all-invalid persisted state produces a valid empty/default Workspace, and the stale file self-heals', () async {
+    test('10. all-invalid persisted state produces a valid default Home Workspace, and the stale file self-heals', () async {
       final storage = _FakeWorkspaceTabsStorage()
         ..tabs = [(id: 'workspace-tab-bogus-1', surfaceId: 'bogus-1'), (id: 'workspace-tab-bogus-2', surfaceId: 'bogus-2')]
         ..activeId = 'workspace-tab-bogus-1';
@@ -131,13 +135,18 @@ void main() {
 
       await controller.restore();
 
-      expect(controller.tabs, isEmpty);
-      expect(controller.activeId, isNull);
+      // Dropping every invalid persisted tab leaves the effective state
+      // empty, which `_ensureHomeIfEmpty` then fills with Home
+      // (PRODUCT-READINESS-013) rather than leaving the Workspace with
+      // no tabs open at all.
+      expect(controller.tabs, hasLength(1));
+      expect(controller.tabs.single.surfaceId, SurfaceRegistry.homeSurfaceId);
+      expect(controller.activeId, isNotNull);
       // The invalid ids are not left to linger in the file forever —
-      // restoration re-persists the cleaned (now-empty) state, per this
-      // package's own "restoring state if restoration changes the
+      // restoration re-persists the cleaned (now Home-only) state, per
+      // this package's own "restoring state if restoration changes the
       // effective state" persistence trigger.
-      expect(storage.tabs, isEmpty);
+      expect(storage.tabs.map((t) => t.surfaceId).toList(), [SurfaceRegistry.homeSurfaceId]);
       expect(storage.saveCount, greaterThan(0));
     });
 

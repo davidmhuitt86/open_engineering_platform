@@ -22,6 +22,7 @@ import '../../workbench/perspectives/instruments_perspective.dart';
 import '../../web_surface/web_browser_settings_provider.dart';
 import '../../web_surface/web_surface.dart';
 import '../../web_surface/web_surface_view.dart';
+import '../../workspace/home/home_dashboard_page.dart';
 import '../routing/studio_destination.dart';
 import '../routing/studio_registry.dart';
 import 'surface_definition.dart';
@@ -86,6 +87,14 @@ abstract final class SurfaceRegistry {
   /// no special-casing needed anywhere in the Workspace rendering path.
   static const String browserSurfaceId = 'browser';
 
+  /// PRODUCT-READINESS-013 — the application-shell landing surface's
+  /// stable id. Hand-registered exactly like [browserSurfaceId] above
+  /// (no `StudioDestination`/route of its own — it exists only as a
+  /// Workspace tab). Singleton (reuse-if-open), unlike Browser: opened
+  /// via the ordinary [WorkspaceTabsController.openSurface], never
+  /// [WorkspaceTabsController.openNewInstance].
+  static const String homeSurfaceId = 'home';
+
   /// All Surfaces currently available for a generic, `openSurface`-based
   /// "+" / New Tab menu — deliberately **excludes** Browser: every
   /// existing consumer of this list (this shell's own "+" menu,
@@ -136,9 +145,27 @@ abstract final class SurfaceRegistry {
         build: builder,
       ));
     }
+    result.insert(0, _homeSurface());
     result.add(_browserSurface());
     return List.unmodifiable(result);
   }
+
+  /// PRODUCT-READINESS-013 — the application-shell landing surface.
+  /// Inserted first (§ [_build]) so it is the first entry offered
+  /// wherever [all] is listed. A real, ordinary [SurfaceDefinition] —
+  /// its content ([HomeDashboardPage]) is a plain `ConsumerWidget`, so
+  /// [SurfaceDefinition.build]'s `Widget Function(BuildContext)` is
+  /// already sufficient (no instance-id parameter needed, same
+  /// reasoning as [_browserSurface]'s own doc comment).
+  static SurfaceDefinition _homeSurface() => const SurfaceDefinition(
+        id: homeSurfaceId,
+        title: 'Home',
+        icon: Icons.home_outlined,
+        presentationTechnology: SurfacePresentationTechnology.native,
+        build: _buildHome,
+      );
+
+  static Widget _buildHome(BuildContext context) => const HomeDashboardPage();
 
   /// AP-OEP-WORKSPACE-BROWSER-001 — a brand-new, independent
   /// [WebSurfaceView] every time this is built (i.e. every time a new
