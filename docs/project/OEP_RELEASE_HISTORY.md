@@ -139,7 +139,7 @@ Audited whether the 8 preceding local commits are ready to become the next basel
 ### WP-EXC-012 — Exchange Client API Foundation
 
 **Status: LOCAL / NOT PUSHED.**
-**Commit:** `PLACEHOLDER`
+**Commit:** `986bf8d`
 **Message:** "WP-EXC-012: implement Exchange client API foundation"
 
 **Description**: implemented the real `@oep-exchange/exchange-client` (`ExchangeApiClient`, `ExchangeApiError`) WP-EXC-011 found genuinely unrecoverable from git history — new code, not a restoration, established entirely from `apps/exchange-api`'s existing routes and `apps/publisher-portal`'s own existing, unmodified consumer code/tests (e.g. `use-async.test.ts`'s pinned `ExchangeApiError(status, code, message)` constructor, `PublishersPage.test.tsx`'s pinned flat-array `publishers.list()` return). Uses the platform's native `fetch`; no new HTTP dependency. Every implemented client method maps to an existing backend route — no speculative endpoint. No file under `apps/publisher-portal/` was modified.
