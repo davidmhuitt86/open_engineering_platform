@@ -131,7 +131,7 @@ Audited whether the 8 preceding local commits are ready to become the next basel
 ### WP-EXC-011 — Exchange Workspace Reconstruction
 
 **Status: LOCAL / NOT PUSHED.**
-**Commit:** `55c4a4c`
+**Commit:** `d110ddf`
 **Message:** "WP-EXC-011: reconstruct Exchange workspace"
 
 **Description**: restored all 14 documented `services/exchange/packages/*` workspace packages byte-for-byte from the last known good upstream commit (`18484e3`, before their undocumented deletion in that repository's own final commit `c6dbb75`). Removed one dangling workspace reference (`package_cli`, which never had any implementation in either repository's history). Result: `npm install`/`tsc -b`/lint all pass with zero errors; `apps/exchange-api` and `apps/exchange-admin` build and typecheck cleanly; 83 test files now execute (up from 19 before restoration). One confirmed, historically-unrecoverable gap remains: `apps/publisher-portal` depends on a real `@oep-exchange/exchange-client` implementation that was never committed anywhere (TASK-EXC-0007's own scope, never completed upstream) — 7 test files / 12 tests fail for this one diagnosed reason. This is Exchange RC1's workspace *foundation*, not Exchange RC1 itself, which remains not started.
