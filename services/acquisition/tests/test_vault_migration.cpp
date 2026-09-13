@@ -1,5 +1,6 @@
 #include <catch2/catch_test_macros.hpp>
 
+#include <algorithm>
 #include <string>
 #include <vector>
 
@@ -69,4 +70,36 @@ TEST_CASE("V8 migration applies cleanly and produces the expected reference_vaul
       txn.exec("SELECT column_name FROM information_schema.columns "
                "WHERE table_name = 'reference_vault' AND column_name = 'deleted_at'");
   CHECK(deleted_at.empty());
+}
+
+TEST_CASE("V9 migration indexes every reference_vault foreign key",
+          "[vault][database][migration]") {
+  // WP-017 (EAM / Reference Vault Implementation Audit) Section 11 --
+  // every other domain table's Flyway migration indexes each of its own
+  // foreign key columns (idx_<table>_<fk_column>); V8 only indexed
+  // metadata_id (via its own UNIQUE constraint). This regression test
+  // demonstrates the gap is closed, not merely that V9 "runs".
+  const auto schema_error = reset_vault_schema();
+  if (schema_error.has_value()) {
+    SKIP("PostgreSQL test database unavailable: " << *schema_error);
+  }
+
+  pqxx::connection connection(Config{.database = test_database_config()}.database_connection_string());
+  pqxx::work txn(connection);
+
+  const auto indexes =
+      txn.exec("SELECT indexname FROM pg_indexes WHERE tablename = 'reference_vault'");
+  std::vector<std::string> index_names;
+  for (const auto& row : indexes) {
+    index_names.push_back(row[0].as<std::string>());
+  }
+
+  const std::vector<std::string> expected_fk_indexes = {
+      "idx_reference_vault_verification_id",
+      "idx_reference_vault_download_session_id",
+      "idx_reference_vault_source_id",
+  };
+  for (const auto& expected_index : expected_fk_indexes) {
+    CHECK(std::find(index_names.begin(), index_names.end(), expected_index) != index_names.end());
+  }
 }

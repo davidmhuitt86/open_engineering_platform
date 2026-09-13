@@ -60,6 +60,13 @@ std::optional<std::string> reset_vault_schema() {
     if (txn.exec("SELECT to_regclass('reference_vault')")[0][0].is_null()) {
       txn.exec(read_file(migrations_dir / "V8__reference_vault.sql"));
     }
+    // WP-017 Section 11 -- V9 only adds indexes to the table V8 already
+    // created, so it needs its own existence guard (keyed on one of the
+    // indexes it creates) rather than reusing V8's table-existence check,
+    // which would otherwise skip V9 forever once reference_vault exists.
+    if (txn.exec("SELECT to_regclass('idx_reference_vault_verification_id')")[0][0].is_null()) {
+      txn.exec(read_file(migrations_dir / "V9__reference_vault_fk_indexes.sql"));
+    }
 
     txn.exec(
         "TRUNCATE TABLE reference_vault, artifact_metadata, integrity_verifications, download_sessions, "

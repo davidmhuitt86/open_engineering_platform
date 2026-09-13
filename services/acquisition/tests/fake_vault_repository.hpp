@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdexcept>
 #include <unordered_map>
 
 #include "oep/acquisition/vault/vault_errors.hpp"
@@ -17,7 +18,19 @@ namespace oep::acquisition::test_support {
 /// to exercise it without a live database.
 class FakeVaultRepository : public vault::IVaultRepository {
  public:
+  /// WP-017 (EAM / Reference Vault Implementation Audit) Section 8 --
+  /// forces the *next* `create` call to throw, simulating a transient
+  /// repository failure (e.g. a dropped connection) so a test can verify
+  /// `ReferenceVaultService::publish` cleans up the file it just copied
+  /// rather than leaving an orphan. Never thrown by ordinary test flows
+  /// (default `false`), so this is purely additive to existing behavior.
+  bool fail_next_create = false;
+
   vault::VaultEntry create(const vault::VaultEntry& entry) override {
+    if (fail_next_create) {
+      fail_next_create = false;
+      throw std::runtime_error("FakeVaultRepository: simulated repository failure");
+    }
     for (const auto& [id, existing] : rows_) {
       if (existing.metadata_id == entry.metadata_id) {
         throw vault::AlreadyPublishedError(entry.metadata_id);

@@ -1,6 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <atomic>
+#include <chrono>
 #include <filesystem>
 #include <fstream>
 
@@ -43,9 +44,25 @@ AcquisitionJob make_job(JobStatus status = JobStatus::Created) {
 }
 
 std::filesystem::path make_workspace() {
+  // WP-017 (EAM / Reference Vault Implementation Audit) Section 15/16 --
+  // this workspace path used to be built from a counter alone, which is
+  // fully deterministic by test-execution order and therefore identical
+  // across *every separate run* of this compiled test binary (the OS
+  // temp directory is never cleaned up between runs). Combined with
+  // FakeAcquisitionJobRepository's own deterministic "fake-id-N" job
+  // ids, `resolve_destination`'s computed path was 100% reproducible
+  // run-to-run -- so a second invocation of this exact test found its
+  // own first invocation's leftover placeholder file still there, and
+  // StubConnector::fetch correctly (and safely) refused to overwrite it
+  // (`overwrite` defaults false), recording the download as Failed. This
+  // demonstrated, reproducible test-only defect (not a production bug --
+  // the refuse-to-overwrite behavior is correct) is fixed by folding a
+  // real-time nonce into the path, matching the same fix applied to
+  // test_reference_vault_service.cpp's own content-addressed test.
   static std::atomic<int> counter{0};
+  const auto nonce = std::chrono::steady_clock::now().time_since_epoch().count();
   auto path = std::filesystem::temp_directory_path() /
-              ("oep_download_service_test_" + std::to_string(counter++));
+              ("oep_download_service_test_" + std::to_string(nonce) + "_" + std::to_string(counter++));
   std::filesystem::create_directories(path);
   return path;
 }

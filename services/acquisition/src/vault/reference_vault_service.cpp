@@ -69,7 +69,12 @@ VaultEntry ReferenceVaultService::publish(const nlohmann::json& body) {
   }
 
   std::error_code error;
-  if (!std::filesystem::exists(vault_path)) {
+  // AUDIT WP-017 Section 8 -- tracked separately from "did the file already
+  // exist" so the catch block below can tell whether *this* call is the one
+  // that materialized the file (and must therefore clean it up on failure)
+  // versus a dedup hit against content another Vault Entry already owns.
+  const bool copied_by_this_call = !std::filesystem::exists(vault_path);
+  if (copied_by_this_call) {
     std::filesystem::create_directories(vault_path.parent_path(), error);
     if (error) {
       throw InvalidVaultPathError(vault_path.string());
@@ -103,7 +108,25 @@ VaultEntry ReferenceVaultService::publish(const nlohmann::json& body) {
   entry.status = VaultEntryStatus::Published;
   entry.published_at = common::current_timestamp_utc();
 
-  return vault_.create(entry);
+  // AUDIT WP-017 Section 8 -- the file copy above and this database insert
+  // are not one atomic operation (no distributed transaction spans a
+  // filesystem write and a PostgreSQL commit). If the insert throws after a
+  // fresh copy (e.g. a concurrent publish of the same metadata_id racing
+  // past the earlier `already_published` check and winning the database's
+  // own UNIQUE constraint, or a transient connection failure), the copy
+  // that already happened must not be left behind as a file with zero
+  // Vault Entry rows referencing it. Only the copy *this call* performed is
+  // removed -- a dedup hit reuses a file another, already-committed Vault
+  // Entry legitimately owns, and must never be deleted out from under it.
+  try {
+    return vault_.create(entry);
+  } catch (...) {
+    if (copied_by_this_call) {
+      std::error_code cleanup_error;
+      std::filesystem::remove(vault_path, cleanup_error);
+    }
+    throw;
+  }
 }
 
 std::optional<VaultEntry> ReferenceVaultService::get(const std::string& id) {
