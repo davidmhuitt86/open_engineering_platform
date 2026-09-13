@@ -1006,13 +1006,36 @@ Repository Install Bridge:
     services/exchange/docs/tasks/WP-EXC-013A.md,
     services/exchange/docs/audits/WP-EXC-013A-IMPLEMENTATION-REPORT.md.
 
+    VERIFIED END-TO-END BY WP-EXC-014 (2026-09-13, LOCAL / NOT PUSHED) —
+    Exchange RC1 End-to-End Verification: the full RC1 vertical slice
+    (search → package detail → download → checksum verification →
+    `ExchangeInstallBridge` → `FoundationBridge.installPackage` →
+    Foundation's installer → Repository registration → Engineering
+    Objects/Relationships → installed-package confirmation) is now
+    proven through a genuine end-to-end test
+    (`platform/oep_studio/test/exchange_rc1_e2e_test.dart`), driving the
+    real, unmodified production Studio orchestration
+    (`ExchangeRuntimeNotifier.search`/`.selectPackage`/`.installPackage`)
+    against a real socket-bound HTTP server, through the real,
+    WP-EXC-013A-synced `oep_foundation_bridge.dll`. Confirms: successful
+    install (real object/relationship counts, real installed-package
+    query), already-installed detection, corrupt-package rejection, and
+    checksum-mismatch rejection — all with no partial/misleading
+    repository state on any rejected path. A companion real-Postgres
+    backend test (`apps/exchange-api/src/e2e/exchange-rc1-vertical-slice.test.ts`)
+    independently proves the genuine Exchange server's own real
+    search/detail/download/checksum behavior, gated by this repository's
+    own pre-existing `describe.skipIf(!databaseAvailable)` convention
+    (skips in this sandbox — no live PostgreSQL role configured, the
+    same pre-existing condition already affecting 17 other test files,
+    not a new gap). Full detail: services/exchange/docs/tasks/WP-EXC-014.md,
+    services/exchange/docs/audits/WP-EXC-014-IMPLEMENTATION-REPORT.md.
+
 NOT PRESENT / NOT COMPLETE:
     - a publisher-facing upload/publish UI (neither publisher-portal nor
       Studio has one; a real, tested backend upload API already exists
       and needs no UI to prove the RC1 vertical slice)
     - production catalog / complete discovery at production scale
-    - a complete end-to-end Exchange RC1 scenario test (WP-EXC-014,
-      not yet started — the install bridge it depends on is now done)
     - production Exchange RC1
     - authentication (excluded from WP-EXC-001's own scope; the client
       has nothing to attach even if it existed)
@@ -1025,24 +1048,31 @@ NOT PRESENT / NOT COMPLETE:
 CURRENT DOCUMENTED WORK:
     WP-EXC-001 through WP-EXC-010 specifications exist. WP-EXC-011
     (Exchange Workspace Reconstruction), WP-EXC-012 (Exchange Client API
-    Foundation), WP-EXC-013 (Exchange → Repository Install Bridge), and
+    Foundation), WP-EXC-013 (Exchange → Repository Install Bridge),
     WP-EXC-013A (Foundation Bridge Artifact Synchronization &
-    Integration Test Gate) are all implemented, LOCAL / NOT PUSHED. A
-    WP-EXC-010 scope/readiness audit (2026-09-13) is also complete,
-    LOCAL / NOT PUSHED — Exchange RC1 itself has not been implemented,
-    only precisely scoped.
+    Integration Test Gate), and WP-EXC-014 (Exchange RC1 End-to-End
+    Verification) are all implemented, LOCAL / NOT PUSHED. A WP-EXC-010
+    scope/readiness audit (2026-09-13) is also complete, LOCAL / NOT
+    PUSHED — Exchange RC1 itself (production publisher UI, auth,
+    licensing, and the other items in "NOT PRESENT / NOT COMPLETE"
+    above) has not been implemented; what WP-EXC-014 proves is that the
+    vertical slice underneath those remaining features genuinely works
+    end to end, not that RC1 itself is complete.
 
 MAJOR REMAINING PROGRAM:
-    Implement WP-EXC-014, the full end-to-end Exchange RC1 scenario test
-    (search → detail → install → verified in a real Repository →
-    Engineering Object visible), building directly on WP-EXC-013's now-
-    proven install bridge and its Stored-ZIP test fixture.
+    The install bridge (WP-EXC-013), its reproducible test gate
+    (WP-EXC-013A), and its end-to-end proof (WP-EXC-014) are all done.
+    What remains for an actual Exchange RC1 release is the still-missing
+    surface area listed under "NOT PRESENT / NOT COMPLETE" above
+    (publisher-facing upload UI, authentication, etc.) — none of which
+    this work touched or was asked to touch.
 
 EXCHANGE RC1 IS NOT CURRENTLY A RELEASE-READY OEP SUBSYSTEM. Its
-FOUNDATION (workspace + client + Studio UI + a real, Foundation-verified
-install bridge), as of WP-EXC-013, is substantially more complete than
-previously documented — a full end-to-end scenario test (WP-EXC-014)
-remains before a genuine, provable RC1 vertical slice exists.
+FOUNDATION (workspace + client + Studio UI + a real, Foundation-verified,
+now end-to-end-proven install bridge), as of WP-EXC-014, is
+substantially more complete than previously documented — the remaining
+gap to an actual RC1 release is product surface area (publisher UI,
+auth, etc.), not architectural proof.
 
 ====================================================================
 13. OEP INSTRUMENTS
@@ -1390,9 +1420,14 @@ EAM
 EXCHANGE
     [x] Foundation (workspace + client, WP-EXC-011/012, LOCAL / NOT PUSHED)
     [x] Install bridge to Foundation's real installer (WP-EXC-013, LOCAL / NOT PUSHED)
-    [ ] RC1 (scoped, install bridge now implemented — full end-to-end scenario test is WP-EXC-014, not yet started)
+    [x] Reproducible Foundation bridge test gate (WP-EXC-013A, LOCAL / NOT PUSHED)
+    [x] End-to-end vertical-slice verification (WP-EXC-014, LOCAL / NOT PUSHED)
+    [ ] RC1 (vertical slice proven end to end; still missing production
+        publisher UI, authentication, and the other items in Section 12's
+        "NOT PRESENT / NOT COMPLETE" — those, not architectural proof, are
+        what remain before RC1 itself)
     [ ] Complete publisher workflow (backend API only, no UI)
-    [x] Consumer workflow (search/browse/detail/download/install — real, tested end to end through Foundation's real installer as of WP-EXC-013)
+    [x] Consumer workflow (search/browse/detail/download/install — real, tested end to end through Foundation's real installer, now with a genuine end-to-end test as of WP-EXC-014)
     [x] Studio integration (substantially built — full Exchange workspace, registered in StudioRegistry; the real-install bridge is now closed by WP-EXC-013, see Section 12)
 
 INSTRUMENTS
@@ -1580,10 +1615,12 @@ OVERALL OEP:
 6. Close high-value Foundation/API technical debt.
 
 7. Expand Engineering Exchange toward RC1 (WP-EXC-010) — its workspace,
-   client foundation, and real install bridge are now complete
-   (WP-EXC-011/012/013, LOCAL / NOT PUSHED), with the full workspace
-   building/typechecking/testing with zero failures. WP-EXC-014 (full
-   end-to-end scenario test) remains before RC1 itself is claimed.
+   client foundation, real install bridge, reproducible test gate, and
+   end-to-end verification are now all complete (WP-EXC-011/012/013/013A/014,
+   LOCAL / NOT PUSHED), with the full workspace building/typechecking/testing
+   with zero failures. What remains before RC1 itself is claimed is
+   product surface area (publisher UI, authentication, etc.), not
+   further architectural proof.
 
 8. Expand EAM/Vault into broader M2 (rich provenance metadata, custody
    events, connector security policy) — the Acquisition Record
@@ -1656,12 +1693,15 @@ CURRENT EKE STATE:
     INTERNAL v1.0 ARCHITECTURE FREEZE
 
 CURRENT EXCHANGE STATE:
-    WORKSPACE + CLIENT FOUNDATION + REAL INSTALL BRIDGE COMPLETE
-    (WP-EXC-011/012/013, LOCAL / NOT PUSHED)
+    WORKSPACE + CLIENT FOUNDATION + REAL INSTALL BRIDGE + REPRODUCIBLE
+    TEST GATE + END-TO-END VERIFICATION COMPLETE
+    (WP-EXC-011/012/013/013A/014, LOCAL / NOT PUSHED)
     STUDIO INTEGRATION ALREADY SUBSTANTIALLY BUILT (see Section 12) — the
-    install action now reaches Foundation's real, trust-verifying installer
-    RC1 SCOPED (WP-EXC-010-SCOPE.md); NOT YET CLAIMED COMPLETE — WP-EXC-014
-    (full end-to-end scenario test) remains
+    install action reaches Foundation's real, trust-verifying installer,
+    now proven end to end by a genuine E2E test
+    RC1 SCOPED (WP-EXC-010-SCOPE.md); NOT YET CLAIMED COMPLETE — the
+    vertical slice is architecturally proven; remaining product surface
+    (publisher UI, authentication, etc.) is what keeps RC1 itself unclaimed
 
 CURRENT OVERALL PLATFORM STATE:
     INTEGRATED ALPHA / PRE-BETA
