@@ -177,7 +177,7 @@ Audited whether the 8 preceding local commits are ready to become the next basel
 ### WP-EXC-014 — Exchange RC1 End-to-End Verification
 
 **Status: LOCAL / NOT PUSHED.**
-**Commit:** `PENDING` (recorded in a follow-up commit once created)
+**Commit:** `30e4a1f`
 **Message:** "WP-EXC-014: verify Exchange RC1 end-to-end installation"
 
 **Description**: proves the full RC1 vertical slice (search → package detail → download → checksum verification → `ExchangeInstallBridge` → `FoundationBridge.installPackage` → Foundation's installer → Repository registration → Engineering Objects/Relationships → installed-package confirmation) through the real integration boundaries WP-EXC-013/WP-EXC-013A established, not a fully mocked path. Two tiers: `platform/oep_studio/test/exchange_rc1_e2e_test.dart` drives the real, unmodified production `ExchangeRuntimeNotifier`/`ExchangeInstallBridge`/`FoundationBridge` chain against a real socket-bound local HTTP server standing in for the genuine Postgres-backed Exchange server (explicitly documented substitution — this sandbox's local PostgreSQL has no `oep_exchange` role configured, the same pre-existing condition already gating 17 other Exchange test files); `apps/exchange-api/src/e2e/exchange-rc1-vertical-slice.test.ts` independently proves the genuine server's own real search/detail/download/checksum behavior via Fastify's `.inject()`, gated by the same pre-existing `describe.skipIf(!databaseAvailable)` convention. Reuses WP-EXC-013's own Stored-ZIP fixture verbatim — no second package format. No production source touched anywhere.

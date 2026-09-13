@@ -5,7 +5,7 @@ STATUS:
 COMPLETE WITH CONDITIONS (Tier A legitimately skips in this sandbox — no live PostgreSQL role configured, an explicitly documented, pre-existing condition — see EXCHANGE TESTS below; Tier B, the primary genuine E2E proof, fully passes)
 
 COMMIT:
-Recorded after this report (single dedicated commit, per this WP's own git discipline).
+`30e4a1f6c0777bbcc8a30a3dc77dbf20eeabb34f` — "WP-EXC-014: verify Exchange RC1 end-to-end installation" (single dedicated commit, per this WP's own git discipline).
 
 PUSHED:
 NO — LOCAL / NOT PUSHED.
