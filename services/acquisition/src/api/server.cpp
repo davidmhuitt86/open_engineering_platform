@@ -22,10 +22,14 @@
 #include "oep/acquisition/integrity/validation.hpp"
 #include "oep/acquisition/integrity/verification_errors.hpp"
 #include "oep/acquisition/integrity/verification_json.hpp"
+#include "oep/acquisition/common/logger.hpp"
 #include "oep/acquisition/metadata/artifact_metadata_errors.hpp"
 #include "oep/acquisition/metadata/artifact_metadata_json.hpp"
 #include "oep/acquisition/metadata/metadata_extraction_service.hpp"
 #include "oep/acquisition/metadata/validation.hpp"
+#include "oep/acquisition/provenance/acquisition_record_json.hpp"
+#include "oep/acquisition/provenance/acquisition_record_repository.hpp"
+#include "oep/acquisition/provenance/acquisition_record_service.hpp"
 #include "oep/acquisition/registry/official_source_json.hpp"
 #include "oep/acquisition/registry/official_source_service.hpp"
 #include "oep/acquisition/registry/validation.hpp"
@@ -48,6 +52,8 @@ using integrity::IntegrityVerificationService;
 using integrity::VerificationFilter;
 using metadata::MetadataExtractionService;
 using metadata::MetadataFilter;
+using provenance::AcquisitionRecordFilter;
+using provenance::AcquisitionRecordService;
 using registry::OfficialSourceService;
 using registry::SourceFilter;
 using vault::ReferenceVaultService;
@@ -488,8 +494,26 @@ std::optional<DownloadFilter> parse_download_filter(const httplib::Request& requ
   return filter;
 }
 
-void register_downloads_routes(httplib::Server& server, DownloadService& service) {
-  server.Post("/downloads", [&service](const httplib::Request& request, httplib::Response& response) {
+// WP-018: best-effort call into `AcquisitionRecordService` after a
+// pipeline-stage service call returns. Never allowed to turn an otherwise-
+// successful (or otherwise-already-handled-as-a-domain-error) request into
+// a failure -- provenance bookkeeping is additive, not a new precondition
+// on any of WP-006/007/008/009's own existing contracts. `record_call`
+// itself may legitimately throw (e.g. a transient database error), which is
+// exactly the case this catches and logs rather than propagates.
+template <typename Fn>
+void record_provenance_best_effort(const char* stage, Fn&& record_call) {
+  try {
+    record_call();
+  } catch (const std::exception& ex) {
+    common::Logger::get().warn("acquisition record bookkeeping failed ({}): {}", stage, ex.what());
+  }
+}
+
+void register_downloads_routes(httplib::Server& server, DownloadService& service,
+                                AcquisitionRecordService* acquisition_record_service) {
+  server.Post("/downloads", [&service, acquisition_record_service](const httplib::Request& request,
+                                                                     httplib::Response& response) {
     nlohmann::json body;
     try {
       body = nlohmann::json::parse(request.body);
@@ -499,6 +523,11 @@ void register_downloads_routes(httplib::Server& server, DownloadService& service
     }
     guard_downloads(response, [&] {
       const auto created = service.start_download(body);
+      if (acquisition_record_service != nullptr) {
+        record_provenance_best_effort("download", [&] {
+          acquisition_record_service->record_download_outcome(created);
+        });
+      }
       response.set_header("Location", "/downloads/" + created.id);
       respond_json(response, 201, downloads::to_json(created));
     });
@@ -600,8 +629,10 @@ std::optional<VerificationFilter> parse_verification_filter(const httplib::Reque
   return filter;
 }
 
-void register_verifications_routes(httplib::Server& server, IntegrityVerificationService& service) {
-  server.Post("/verifications", [&service](const httplib::Request& request, httplib::Response& response) {
+void register_verifications_routes(httplib::Server& server, IntegrityVerificationService& service,
+                                    AcquisitionRecordService* acquisition_record_service) {
+  server.Post("/verifications", [&service, acquisition_record_service](const httplib::Request& request,
+                                                                         httplib::Response& response) {
     nlohmann::json body;
     try {
       body = nlohmann::json::parse(request.body);
@@ -611,6 +642,11 @@ void register_verifications_routes(httplib::Server& server, IntegrityVerificatio
     }
     guard_verifications(response, [&] {
       const auto created = service.verify(body);
+      if (acquisition_record_service != nullptr) {
+        record_provenance_best_effort("verification", [&] {
+          acquisition_record_service->record_verification_outcome(created);
+        });
+      }
       response.set_header("Location", "/verifications/" + created.id);
       respond_json(response, 201, integrity::to_json(created));
     });
@@ -706,8 +742,10 @@ std::optional<MetadataFilter> parse_metadata_filter(const httplib::Request& requ
   return filter;
 }
 
-void register_metadata_routes(httplib::Server& server, MetadataExtractionService& service) {
-  server.Post("/metadata", [&service](const httplib::Request& request, httplib::Response& response) {
+void register_metadata_routes(httplib::Server& server, MetadataExtractionService& service,
+                               AcquisitionRecordService* acquisition_record_service) {
+  server.Post("/metadata", [&service, acquisition_record_service](const httplib::Request& request,
+                                                                    httplib::Response& response) {
     nlohmann::json body;
     try {
       body = nlohmann::json::parse(request.body);
@@ -717,6 +755,11 @@ void register_metadata_routes(httplib::Server& server, MetadataExtractionService
     }
     guard_metadata(response, [&] {
       const auto created = service.extract(body);
+      if (acquisition_record_service != nullptr) {
+        record_provenance_best_effort("metadata", [&] {
+          acquisition_record_service->record_metadata_outcome(created);
+        });
+      }
       response.set_header("Location", "/metadata/" + created.id);
       respond_json(response, 201, metadata::to_json(created));
     });
@@ -824,8 +867,10 @@ std::optional<VaultFilter> parse_vault_filter(const httplib::Request& request, h
   return filter;
 }
 
-void register_vault_routes(httplib::Server& server, ReferenceVaultService& service) {
-  server.Post("/vault", [&service](const httplib::Request& request, httplib::Response& response) {
+void register_vault_routes(httplib::Server& server, ReferenceVaultService& service,
+                            AcquisitionRecordService* acquisition_record_service) {
+  server.Post("/vault", [&service, acquisition_record_service](const httplib::Request& request,
+                                                                 httplib::Response& response) {
     nlohmann::json body;
     try {
       body = nlohmann::json::parse(request.body);
@@ -835,6 +880,11 @@ void register_vault_routes(httplib::Server& server, ReferenceVaultService& servi
     }
     guard_vault(response, [&] {
       const auto created = service.publish(body);
+      if (acquisition_record_service != nullptr) {
+        record_provenance_best_effort("vault", [&] {
+          acquisition_record_service->record_vault_publication(created);
+        });
+      }
       response.set_header("Location", "/vault/" + created.id);
       respond_json(response, 201, vault::to_json(created));
     });
@@ -881,11 +931,86 @@ void register_vault_routes(httplib::Server& server, ReferenceVaultService& servi
   });
 }
 
+// `/acquisition-records` is entirely read-only (WP-018 Section 11: creation
+// and status transitions happen only as a side effect of
+// `record_provenance_best_effort` above, never directly through this API),
+// so the only failure mode besides "not found" is an unexpected exception --
+// mirroring guard_connectors.
+template <typename Fn>
+void guard_acquisition_records(httplib::Response& response, Fn&& fn) {
+  try {
+    fn();
+  } catch (const std::exception& ex) {
+    respond_error(response, 503, "service_unavailable", ex.what());
+  }
+}
+
+std::optional<AcquisitionRecordFilter> parse_acquisition_record_filter(const httplib::Request& request,
+                                                                        httplib::Response& response) {
+  AcquisitionRecordFilter filter;
+
+  if (request.has_param("status")) {
+    const auto status = provenance::acquisition_record_status_from_string(request.get_param_value("status"));
+    if (!status.has_value()) {
+      respond_error(response, 400, "invalid_query_parameter",
+                    "status is not a recognized Acquisition Record Status.");
+      return std::nullopt;
+    }
+    filter.status = status;
+  }
+
+  return filter;
+}
+
+void register_acquisition_records_routes(httplib::Server& server, AcquisitionRecordService& service) {
+  server.Get("/acquisition-records", [&service](const httplib::Request& request, httplib::Response& response) {
+    const auto filter = parse_acquisition_record_filter(request, response);
+    if (!filter.has_value()) {
+      return;  // parse_acquisition_record_filter already populated a 400 response.
+    }
+    guard_acquisition_records(response, [&] {
+      const auto records = service.list(*filter);
+      nlohmann::json body = nlohmann::json::array();
+      for (const auto& record : records) {
+        body.push_back(provenance::to_json(record));
+      }
+      respond_json(response, 200, body);
+    });
+  });
+
+  server.Get(R"(/acquisition-records/([^/]+))", [&service](const httplib::Request& request,
+                                                            httplib::Response& response) {
+    const std::string id = request.matches[1];
+    guard_acquisition_records(response, [&] {
+      const auto record = service.get(id);
+      if (!record.has_value()) {
+        respond_error(response, 404, "not_found", "No Acquisition Record exists with that id.");
+        return;
+      }
+      respond_json(response, 200, provenance::to_json(*record));
+    });
+  });
+
+  server.Get(R"(/acquisition-records/([^/]+)/provenance)", [&service](const httplib::Request& request,
+                                                                       httplib::Response& response) {
+    const std::string id = request.matches[1];
+    guard_acquisition_records(response, [&] {
+      const auto provenance_chain = service.get_provenance(id);
+      if (!provenance_chain.has_value()) {
+        respond_error(response, 404, "not_found", "No Acquisition Record exists with that id.");
+        return;
+      }
+      respond_json(response, 200, *provenance_chain);
+    });
+  });
+}
+
 void register_routes(httplib::Server& server, OfficialSourceService* source_service,
                       AcquisitionJobService* job_service, AcquisitionExecutionService* execution_service,
                       ConnectorRegistry* connector_registry, DownloadService* download_service,
                       IntegrityVerificationService* verification_service,
-                      MetadataExtractionService* metadata_service, ReferenceVaultService* vault_service) {
+                      MetadataExtractionService* metadata_service, ReferenceVaultService* vault_service,
+                      AcquisitionRecordService* acquisition_record_service) {
   server.Get("/health", [](const httplib::Request&, httplib::Response& response) {
     const nlohmann::json body{{"status", "ok"}};
     response.set_content(body.dump(), "application/json");
@@ -904,16 +1029,19 @@ void register_routes(httplib::Server& server, OfficialSourceService* source_serv
     register_connectors_routes(server, *connector_registry);
   }
   if (download_service != nullptr) {
-    register_downloads_routes(server, *download_service);
+    register_downloads_routes(server, *download_service, acquisition_record_service);
   }
   if (verification_service != nullptr) {
-    register_verifications_routes(server, *verification_service);
+    register_verifications_routes(server, *verification_service, acquisition_record_service);
   }
   if (metadata_service != nullptr) {
-    register_metadata_routes(server, *metadata_service);
+    register_metadata_routes(server, *metadata_service, acquisition_record_service);
   }
   if (vault_service != nullptr) {
-    register_vault_routes(server, *vault_service);
+    register_vault_routes(server, *vault_service, acquisition_record_service);
+  }
+  if (acquisition_record_service != nullptr) {
+    register_acquisition_records_routes(server, *acquisition_record_service);
   }
 }
 
@@ -926,7 +1054,8 @@ ApiServer::ApiServer(const common::ServerConfig& config, registry::OfficialSourc
                       downloads::DownloadService* download_service,
                       integrity::IntegrityVerificationService* verification_service,
                       metadata::MetadataExtractionService* metadata_service,
-                      vault::ReferenceVaultService* vault_service)
+                      vault::ReferenceVaultService* vault_service,
+                      provenance::AcquisitionRecordService* acquisition_record_service)
     : config_(config),
       source_service_(source_service),
       job_service_(job_service),
@@ -936,9 +1065,11 @@ ApiServer::ApiServer(const common::ServerConfig& config, registry::OfficialSourc
       verification_service_(verification_service),
       metadata_service_(metadata_service),
       vault_service_(vault_service),
+      acquisition_record_service_(acquisition_record_service),
       server_(std::make_unique<httplib::Server>()) {
   register_routes(*server_, source_service_, job_service_, execution_service_, connector_registry_,
-                   download_service_, verification_service_, metadata_service_, vault_service_);
+                   download_service_, verification_service_, metadata_service_, vault_service_,
+                   acquisition_record_service_);
 }
 
 ApiServer::~ApiServer() {

@@ -24,6 +24,8 @@
 #include "oep/acquisition/integrity/postgres_verification_repository.hpp"
 #include "oep/acquisition/metadata/metadata_extraction_service.hpp"
 #include "oep/acquisition/metadata/postgres_metadata_repository.hpp"
+#include "oep/acquisition/provenance/acquisition_record_service.hpp"
+#include "oep/acquisition/provenance/postgres_acquisition_record_repository.hpp"
 #include "oep/acquisition/registry/official_source_service.hpp"
 #include "oep/acquisition/registry/postgres_official_source_repository.hpp"
 #include "oep/acquisition/vault/postgres_vault_repository.hpp"
@@ -268,9 +270,43 @@ int main(int argc, char** argv) {
         "repository unavailable");
   }
 
+  // The Acquisition Record & Provenance Foundation (WP-018) needs the
+  // Download, Job, Execution History, Verification, Metadata, and Vault
+  // repositories (to traverse the full provenance chain outward from a
+  // Download Session) plus the Source repository (to resolve the Job's
+  // Official Source) and its own acquisition-record repository, so it is
+  // only constructed when every one of those already connected
+  // successfully -- same non-fatal-database precedent as every engine
+  // above. Unlike every other engine, it has no `config.storage` dependency
+  // -- it stores no artifact bytes of its own, only relationships between
+  // rows the other engines already created.
+  std::unique_ptr<oep::acquisition::provenance::PostgresAcquisitionRecordRepository> acquisition_record_repository;
+  std::unique_ptr<oep::acquisition::provenance::AcquisitionRecordService> acquisition_record_service;
+  if (source_repository && job_repository && execution_history_repository && download_repository &&
+      verification_repository && metadata_repository && vault_repository) {
+    try {
+      acquisition_record_repository =
+          std::make_unique<oep::acquisition::provenance::PostgresAcquisitionRecordRepository>(config.database);
+      acquisition_record_service = std::make_unique<oep::acquisition::provenance::AcquisitionRecordService>(
+          *acquisition_record_repository, *download_repository, *job_repository, *execution_history_repository,
+          *verification_repository, *metadata_repository, *vault_repository, *source_repository);
+      log.info("acquisition record & provenance foundation repository connected");
+    } catch (const std::exception& ex) {
+      log.warn(
+          "acquisition record & provenance foundation repository unavailable: {} -- /acquisition-records "
+          "routes disabled this run, and no provenance bookkeeping will occur on /downloads, "
+          "/verifications, /metadata, or /vault this run",
+          ex.what());
+    }
+  } else {
+    log.warn(
+        "acquisition record & provenance foundation disabled this run: one or more of source, job, "
+        "execution history, download, verification, metadata, and vault repositories unavailable");
+  }
+
   ApiServer server(config.server, source_service.get(), job_service.get(), execution_service.get(),
                     &connector_registry, download_service.get(), verification_service.get(),
-                    metadata_service.get(), vault_service.get());
+                    metadata_service.get(), vault_service.get(), acquisition_record_service.get());
   if (!server.start()) {
     log.error("failed to start API server on {}:{}", config.server.host, config.server.port);
     return 1;

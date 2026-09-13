@@ -40,6 +40,10 @@ namespace oep::acquisition::vault {
 class ReferenceVaultService;
 }
 
+namespace oep::acquisition::provenance {
+class AcquisitionRecordService;
+}
+
 namespace oep::acquisition::api {
 
 /// The Engineering Acquisition Manager's HTTP API.
@@ -63,6 +67,15 @@ namespace oep::acquisition::api {
 /// has no PostgreSQL dependency (WORK_PACKAGE_005 keeps connector
 /// registration in-memory) and so is effectively always non-null in
 /// practice.
+///
+/// `/acquisition-records` routes (WP-018) follow the same nullable-pointer
+/// precedent. Additionally, when `acquisition_record_service` is non-null,
+/// the `/downloads`, `/verifications`, `/metadata`, and `/vault` POST
+/// handlers each make one best-effort call into it after their own
+/// existing service call returns -- see `server.cpp`'s route registration
+/// functions and `provenance::AcquisitionRecordService`'s header comment
+/// for why this integration lives at the route layer rather than inside
+/// those four services themselves.
 class ApiServer {
  public:
   explicit ApiServer(const common::ServerConfig& config,
@@ -73,7 +86,8 @@ class ApiServer {
                       downloads::DownloadService* download_service = nullptr,
                       integrity::IntegrityVerificationService* verification_service = nullptr,
                       metadata::MetadataExtractionService* metadata_service = nullptr,
-                      vault::ReferenceVaultService* vault_service = nullptr);
+                      vault::ReferenceVaultService* vault_service = nullptr,
+                      provenance::AcquisitionRecordService* acquisition_record_service = nullptr);
   ~ApiServer();
 
   ApiServer(const ApiServer&) = delete;
@@ -105,6 +119,7 @@ class ApiServer {
   integrity::IntegrityVerificationService* verification_service_;
   metadata::MetadataExtractionService* metadata_service_;
   vault::ReferenceVaultService* vault_service_;
+  provenance::AcquisitionRecordService* acquisition_record_service_;
   std::unique_ptr<httplib::Server> server_;
   std::thread thread_;
   std::atomic<bool> running_{false};

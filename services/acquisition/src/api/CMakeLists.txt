@@ -17,6 +17,7 @@ target_link_libraries(oep_acquisition_api
     oep_acquisition_integrity
     oep_acquisition_metadata
     oep_acquisition_vault
+    oep_acquisition_provenance
   PRIVATE
     httplib::httplib
     nlohmann_json::nlohmann_json
