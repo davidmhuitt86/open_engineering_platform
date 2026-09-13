@@ -167,7 +167,7 @@ Audited whether the 8 preceding local commits are ready to become the next basel
 ### WP-EXC-013A — Foundation Bridge Artifact Synchronization & Integration Test Gate
 
 **Status: LOCAL / NOT PUSHED.**
-**Commit:** `PENDING` (recorded in a follow-up commit once created)
+**Commit:** `26ab396`
 **Message:** "WP-EXC-013A: synchronize Foundation bridge integration artifact"
 
 **Description**: eliminates the manual-DLL-swap limitation WP-EXC-013 documented. Root cause: the tracked `platform/oep_studio/oep_foundation_bridge.dll` (committed 2026-08-15) was never part of any build pipeline — the canonical `flutter build windows` pipeline produces its own copy under the git-ignored `build/windows/x64/runner/` tree — and had gone stale after `OEP_API_VERSION` moved to 21 (commit `1ef6fd6`, 2026-08-27, whose own message records the CMake module list had been broken and this DLL "had not been successfully rebuilt in some time"). Added `platform/oep_studio/tool/sync_foundation_bridge_dll.dart`, which copies the canonical build output over the tracked root copy. Also hardened `test/exchange_foundation_install_integration_test.dart`'s own environment handling to distinguish a genuinely absent DLL (legitimate skip) from a loaded-but-stale/incompatible one (now FAILS clearly instead of silently skipping). No Foundation source, no CMake file, and no `ExchangeInstallBridge` logic were modified.

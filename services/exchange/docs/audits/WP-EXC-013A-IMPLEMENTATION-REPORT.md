@@ -5,7 +5,7 @@ STATUS:
 COMPLETE WITH CONDITIONS (see §"Remaining gaps" — a pre-existing, unrelated test-file bug was exposed, not caused, by this WP's fix; documented rather than silently left unmentioned or fixed out of scope)
 
 COMMIT:
-Created immediately after this report (single dedicated commit, per the task's own git discipline).
+`26ab396b16663d3ae51591bbe9b78823fad22747` — "WP-EXC-013A: synchronize Foundation bridge integration artifact" (single dedicated commit, per the task's own git discipline).
 
 PUSHED:
 NO — LOCAL / NOT PUSHED.
