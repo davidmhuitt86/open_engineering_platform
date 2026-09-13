@@ -18,29 +18,41 @@ import 'fixtures/oep_package_fixture.dart';
 /// does not re-test Foundation's installer logic; it tests that this
 /// bridge's own call into it is wired correctly.
 ///
-/// Skips (rather than failing) if the DLL cannot be loaded in this
-/// environment (e.g. a CI runner without the native build), per
-/// WP-EXC-013's own instruction to document honestly rather than fake a
-/// pass -- see `docs/tasks/WP-EXC-013.md` §11 for the exact outcome
-/// observed when this was last run.
+/// WP-EXC-013A hardened this file's own environment handling: it used to
+/// skip unconditionally whenever `FoundationBridge.create()` threw, which
+/// let a genuinely stale, tracked `oep_foundation_bridge.dll` masquerade
+/// as "Foundation just isn't built here" indefinitely. It now distinguishes
+/// the two `dart:ffi` failure shapes that condition actually produces:
+///
+/// - `DynamicLibrary.open` itself failing ("Failed to load dynamic
+///   library ... error code: 126" on Windows) means the DLL is genuinely
+///   absent -- a real "not built in this environment" case (e.g. a CI
+///   runner with no native Windows toolchain). Skips.
+/// - A successful `open` followed by a symbol-lookup failure ("Failed to
+///   lookup symbol ... error code: 127") means a DLL exists but is stale
+///   or incompatible with the current `oep_api.h` -- exactly the failure
+///   mode `tool/sync_foundation_bridge_dll.dart` exists to prevent. This
+///   is a real defect in the checked-out repository state, not an
+///   unavailable environment, so it now FAILS clearly instead of quietly
+///   reporting green. See `docs/tasks/WP-EXC-013A.md` for the full
+///   reproduction procedure (`flutter build windows --debug` then `dart
+///   run tool/sync_foundation_bridge_dll.dart`).
 void main() {
   FoundationBridge? bridge;
   Directory? repoRoot;
+  Object? staleOrIncompatibleError;
 
   setUp(() {
+    staleOrIncompatibleError = null;
     try {
       bridge = FoundationBridge.create();
-    } catch (_) {
-      // Known gap (WP-EXC-013 §11/docs): the `oep_foundation_bridge.dll`
-      // checked in at this package's root is a stale build (missing
-      // symbols a current `oep_api.h` declares) relative to the fresh
-      // build under `build/windows/x64/runner/Debug/`. Refreshing that
-      // checked-in binary is out of this task's scope (it is an
-      // unrelated, pre-existing tracked artifact, not something
-      // WP-EXC-013 should modify) -- see the implementation report for
-      // how this was verified once locally by swapping in the fresh
-      // build. These tests skip rather than fail so CI stays green
-      // until that artifact is refreshed by whatever process owns it.
+    } catch (error) {
+      final message = error.toString();
+      if (message.contains('Failed to lookup symbol')) {
+        // A DLL loaded, but doesn't export what current oep_api.h
+        // requires -- stale/incompatible, not "environment not built".
+        staleOrIncompatibleError = error;
+      }
       bridge = null;
     }
   });
@@ -74,11 +86,8 @@ void main() {
   }
 
   test('a valid package genuinely installs through the real Foundation runtime', () async {
-    final foundation = bridge;
-    if (foundation == null) {
-      markTestSkipped('oep_foundation_bridge.dll could not be loaded in this environment');
-      return;
-    }
+    final foundation = _requireFoundation(bridge, staleOrIncompatibleError);
+    if (foundation == null) return;
 
     repoRoot = createRepository(foundation.foundationVersion);
     foundation.openRepository(repoRoot!.path);
@@ -105,11 +114,8 @@ void main() {
   });
 
   test('checksum mismatch is rejected before Foundation is ever invoked', () async {
-    final foundation = bridge;
-    if (foundation == null) {
-      markTestSkipped('oep_foundation_bridge.dll could not be loaded in this environment');
-      return;
-    }
+    final foundation = _requireFoundation(bridge, staleOrIncompatibleError);
+    if (foundation == null) return;
 
     repoRoot = createRepository(foundation.foundationVersion);
     foundation.openRepository(repoRoot!.path);
@@ -130,11 +136,8 @@ void main() {
   });
 
   test('a corrupt package is rejected by the real Foundation installer', () async {
-    final foundation = bridge;
-    if (foundation == null) {
-      markTestSkipped('oep_foundation_bridge.dll could not be loaded in this environment');
-      return;
-    }
+    final foundation = _requireFoundation(bridge, staleOrIncompatibleError);
+    if (foundation == null) return;
 
     repoRoot = createRepository(foundation.foundationVersion);
     foundation.openRepository(repoRoot!.path);
@@ -154,11 +157,8 @@ void main() {
   });
 
   test('installing the same package twice reports the real already-installed outcome', () async {
-    final foundation = bridge;
-    if (foundation == null) {
-      markTestSkipped('oep_foundation_bridge.dll could not be loaded in this environment');
-      return;
-    }
+    final foundation = _requireFoundation(bridge, staleOrIncompatibleError);
+    if (foundation == null) return;
 
     repoRoot = createRepository(foundation.foundationVersion);
     foundation.openRepository(repoRoot!.path);
@@ -182,4 +182,27 @@ void main() {
     expect(second.success, isFalse);
     expect(second.failureCategory, InstallFailureCategory.alreadyInstalled);
   });
+}
+
+/// WP-EXC-013A §7: distinguishes "Foundation genuinely isn't built in
+/// this environment" (legitimate skip) from "a bridge DLL loaded but is
+/// stale/incompatible with the current API" (a real defect -- fails the
+/// test with a clear, actionable message instead of masquerading as an
+/// unavailable environment). Returns the live [FoundationBridge] to use,
+/// or `null` after calling `markTestSkipped` for the legitimate case.
+FoundationBridge? _requireFoundation(FoundationBridge? bridge, Object? staleOrIncompatibleError) {
+  if (staleOrIncompatibleError != null) {
+    fail(
+      'oep_foundation_bridge.dll loaded but is stale/incompatible with the current Foundation API '
+      '($staleOrIncompatibleError). Run `flutter build windows --debug` then `dart run '
+      'tool/sync_foundation_bridge_dll.dart` to synchronize it -- see docs/tasks/WP-EXC-013A.md.',
+    );
+  }
+  if (bridge == null) {
+    markTestSkipped(
+      'oep_foundation_bridge.dll is not present in this environment (Foundation was not built here).',
+    );
+    return null;
+  }
+  return bridge;
 }

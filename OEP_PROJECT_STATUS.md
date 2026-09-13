@@ -983,6 +983,29 @@ Repository Install Bridge:
     implementation. Full detail: services/exchange/docs/tasks/WP-EXC-013.md,
     services/exchange/docs/audits/WP-EXC-013-IMPLEMENTATION-REPORT.md.
 
+    HARDENED BY WP-EXC-013A (2026-09-13, LOCAL / NOT PUSHED) — Foundation
+    Bridge Artifact Synchronization & Integration Test Gate: WP-EXC-013's
+    own real-Foundation integration test could previously only be made to
+    pass by manually swapping a fresh `oep_foundation_bridge.dll` over a
+    stale, tracked copy at `platform/oep_studio/` root and then reverting
+    it — not reproducible from a normal checkout. Root cause: the tracked
+    root copy (committed 2026-08-15) was never part of any build
+    pipeline (the canonical `flutter build windows` pipeline produces its
+    own copy under the git-ignored `build/windows/x64/runner/` tree) and
+    had gone stale after the Foundation API moved on
+    (`OEP_API_VERSION` 21). Added `tool/sync_foundation_bridge_dll.dart`,
+    which copies the canonical build output over the tracked root copy;
+    ran the real pipeline (`flutter build windows --debug` then the sync
+    script) and confirmed the real integration test now passes with zero
+    manual file manipulation. Also hardened the test's own failure
+    handling so a stale/incompatible bridge FAILS clearly instead of
+    silently skipping, while a genuinely absent DLL (Foundation not built
+    in that environment) still legitimately skips — both paths verified
+    directly. No Foundation source, no `ExchangeInstallBridge` logic, and
+    no CMake file were modified. Full detail:
+    services/exchange/docs/tasks/WP-EXC-013A.md,
+    services/exchange/docs/audits/WP-EXC-013A-IMPLEMENTATION-REPORT.md.
+
 NOT PRESENT / NOT COMPLETE:
     - a publisher-facing upload/publish UI (neither publisher-portal nor
       Studio has one; a real, tested backend upload API already exists
@@ -1002,10 +1025,12 @@ NOT PRESENT / NOT COMPLETE:
 CURRENT DOCUMENTED WORK:
     WP-EXC-001 through WP-EXC-010 specifications exist. WP-EXC-011
     (Exchange Workspace Reconstruction), WP-EXC-012 (Exchange Client API
-    Foundation), and WP-EXC-013 (Exchange → Repository Install Bridge)
-    are all implemented, LOCAL / NOT PUSHED. A WP-EXC-010 scope/readiness
-    audit (2026-09-13) is also complete, LOCAL / NOT PUSHED — Exchange
-    RC1 itself has not been implemented, only precisely scoped.
+    Foundation), WP-EXC-013 (Exchange → Repository Install Bridge), and
+    WP-EXC-013A (Foundation Bridge Artifact Synchronization &
+    Integration Test Gate) are all implemented, LOCAL / NOT PUSHED. A
+    WP-EXC-010 scope/readiness audit (2026-09-13) is also complete,
+    LOCAL / NOT PUSHED — Exchange RC1 itself has not been implemented,
+    only precisely scoped.
 
 MAJOR REMAINING PROGRAM:
     Implement WP-EXC-014, the full end-to-end Exchange RC1 scenario test
