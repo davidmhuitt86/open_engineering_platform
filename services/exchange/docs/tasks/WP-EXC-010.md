@@ -2,6 +2,17 @@
 # Engineering Exchange Release Candidate 1
 # Validation & OEP Studio Integration
 
+> **Superseded scope, historical record preserved as-is.** A 2026-09-13
+> scope/readiness audit found this document's assumptions materially
+> stale (it assumes Studio integration has not started, when a
+> substantial Exchange workspace already exists in
+> `platform/oep_studio/lib/exchange/`; it assumes the Repository/install
+> chain already works, when it is currently fully simulated). The
+> current, evidence-based proposed scope is
+> `docs/tasks/WP-EXC-010-SCOPE.md`; the full audit is
+> `docs/audits/WP-EXC-010-SCOPE-AND-READINESS-AUDIT.md`. This document's
+> own content below is left unmodified for historical reference.
+
 **Work Package:** WP-EXC-010
 
 **Repository:**

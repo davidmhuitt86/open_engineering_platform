@@ -937,36 +937,68 @@ ACTUALLY VERIFIED PRESENT (post-WP-EXC-011):
       of these actually implemented; WP-EXC-002 through WP-EXC-010 remain
       specifications only.
 
+IMPORTANT CORRECTION (2026-09-13, WP-EXC-010 Scope & Readiness Audit):
+    OEP Studio already has a substantial, working Exchange integration —
+    confirmed by direct source inspection, not previously reflected in
+    this document. `platform/oep_studio/lib/exchange/` contains a full
+    `ExchangeStudioPage` workspace (Marketplace Home, Search, My Library,
+    Downloads, Publishing sections; package/publisher detail drill-downs),
+    a real Dart `ExchangeApiClient`, persistent local library/download
+    storage, and a Settings page — all already registered in
+    `StudioRegistry`/`SurfaceRegistry`/the command palette/global search,
+    exactly like any other Studio destination. This is far more mature
+    than "not started."
+
+    The one genuine, well-evidenced gap: Studio's Exchange "Install"
+    action calls only Exchange's own REST API, which defaults to a
+    `StubRepositoryClient` that fabricates a fake result — it never
+    reaches a real OEP Repository. Foundation's Public C API already has
+    a real, working, already-Dart-FFI-bound install capability
+    (`oep_package_install`/`FoundationBridge.installPackage`, already
+    used by an unrelated manual "Package Manager" Studio page), which
+    already performs genuine Ed25519 trust verification before install
+    (WP-REP-004) — but nothing in the Exchange flow calls it yet. Closing
+    this one connection, not building new architecture, is the crux of
+    what remains for a genuine RC1 vertical slice. Full detail:
+    services/exchange/docs/audits/WP-EXC-010-SCOPE-AND-READINESS-AUDIT.md,
+    services/exchange/docs/tasks/WP-EXC-010-SCOPE.md.
+
 NOT PRESENT / NOT COMPLETE:
-    - complete publisher workflow
-    - complete package publication
-    - production catalog
-    - complete discovery
-    - complete download/install workflow (the pieces exist and are now
-      individually exercised by a working client; a full, product-level
-      end-to-end workflow was not built or validated as one experience)
-    - full Studio integration
+    - a publisher-facing upload/publish UI (neither publisher-portal nor
+      Studio has one; a real, tested backend upload API already exists
+      and needs no UI to prove the RC1 vertical slice)
+    - production catalog / complete discovery at production scale
+    - a REAL (non-simulated) Exchange-to-Repository install path (the
+      one identified gap above)
     - production Exchange RC1
     - authentication (excluded from WP-EXC-001's own scope; the client
       has nothing to attach even if it existed)
     - licensing, payments, reviews (explicitly excluded from WP-EXC-001's
       own scope, per that task's own Scope section — restored only as
       their original inert scaffolds, not implemented)
+    - dependency resolution, package updates, uninstall-via-Exchange
+      (unimplemented scaffolds, not required to prove the architecture)
 
 CURRENT DOCUMENTED WORK:
     WP-EXC-001 through WP-EXC-010 specifications exist. WP-EXC-011
     (Exchange Workspace Reconstruction) and WP-EXC-012 (Exchange Client
-    API Foundation) are both implemented, LOCAL / NOT PUSHED. Exchange
-    RC1 itself (WP-EXC-010's own objective) has not been started.
+    API Foundation) are both implemented, LOCAL / NOT PUSHED. A
+    WP-EXC-010 scope/readiness audit (2026-09-13) is also complete,
+    LOCAL / NOT PUSHED — Exchange RC1 itself has not been implemented,
+    only precisely scoped.
 
 MAJOR REMAINING PROGRAM:
-    WP-EXC-010 (Exchange RC1 + Studio integration) itself — its
-    foundation (workspace + client) is now fully built, typechecked,
-    linted, and tested with zero failures, but WP-EXC-010 has its own
-    separate scope, entry criteria, and decisions still to be made.
+    Implement the Exchange → Repository install bridge (proposed
+    WP-EXC-013 in the scope audit above) — wiring Studio's already-built
+    Exchange install action to Foundation's already-built, already-
+    trust-verifying installer — plus one genuine end-to-end test. This
+    is a small, well-evidenced connection between two already-working
+    systems, not a from-scratch build.
 
 EXCHANGE RC1 IS NOT CURRENTLY A RELEASE-READY OEP SUBSYSTEM. Its
-FOUNDATION (workspace + client), as of WP-EXC-012, now is.
+FOUNDATION (workspace + client + Studio UI), as of this audit, is far
+more complete than previously documented — one identified, scoped
+connection remains before a genuine end-to-end vertical slice exists.
 
 ====================================================================
 13. OEP INSTRUMENTS
@@ -1312,11 +1344,11 @@ EAM
     [ ] Network connector security decision (ADR-0003)
 
 EXCHANGE
-    [x] Foundation
-    [ ] RC1
-    [ ] Complete publisher workflow
-    [ ] Complete consumer workflow
-    [ ] Studio integration
+    [x] Foundation (workspace + client, WP-EXC-011/012, LOCAL / NOT PUSHED)
+    [ ] RC1 (scoped, not implemented — see WP-EXC-010-SCOPE.md)
+    [ ] Complete publisher workflow (backend API only, no UI)
+    [x] Consumer workflow (search/browse/detail/download/install-request — real, tested; the "install" step itself is still simulated server-side, see Section 12)
+    [x] Studio integration (substantially built — full Exchange workspace, registered in StudioRegistry; the one gap is the real-install bridge, see Section 12)
 
 INSTRUMENTS
     [x] OIP foundation
@@ -1579,7 +1611,9 @@ CURRENT EKE STATE:
 
 CURRENT EXCHANGE STATE:
     WORKSPACE + CLIENT FOUNDATION COMPLETE (WP-EXC-011/012, LOCAL / NOT PUSHED)
-    RC1 NOT STARTED
+    STUDIO INTEGRATION ALREADY SUBSTANTIALLY BUILT (see Section 12) — one
+    real-install bridge remains before a genuine end-to-end vertical slice
+    RC1 SCOPED (WP-EXC-010-SCOPE.md), NOT IMPLEMENTED
 
 CURRENT OVERALL PLATFORM STATE:
     INTEGRATED ALPHA / PRE-BETA
