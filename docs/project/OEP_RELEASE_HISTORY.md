@@ -157,7 +157,7 @@ Audited whether the 8 preceding local commits are ready to become the next basel
 ### WP-EXC-013 — Exchange → Repository Install Bridge
 
 **Status: LOCAL / NOT PUSHED.**
-**Commit:** `PENDING` (recorded in a follow-up commit once created — see the next entry in this file if present)
+**Commit:** `e1211c4`
 **Message:** "WP-EXC-013: connect Exchange to Foundation installer"
 
 **Description**: closed the one gap the WP-EXC-010 scope audit identified — Studio's Exchange "Install" action never reached a real OEP Repository. Added `ExchangeInstallBridge` (`platform/oep_studio/lib/exchange/services/exchange_install_bridge.dart`), which downloads the real package artifact (`ExchangeApiClient.downloadArtifact`, new — reads the `X-Checksum-Sha256` header `apps/exchange-api`'s download route already sent but Studio never read), verifies its SHA-256 checksum, and installs it through Foundation's real, unmodified `oep_package_install` via the same `FoundationBridge.installPackage` FFI path the manual Package Manager page already used. `ExchangeRuntimeNotifier.installPackage`'s outward contract is unchanged; only the source of truth for the resulting `Installation.status`/`.errorMessage`/`.repositoryPackageId` changed, from Exchange's simulated `StubRepositoryClient` result to Foundation's genuine outcome. Zero Foundation source changed; zero new Exchange API endpoints; zero new repository implementation.

@@ -5,7 +5,7 @@ STATUS:
 COMPLETE
 
 COMMIT:
-LOCAL ONLY — see COMMIT MESSAGE below. Not yet made at time of writing this report; created immediately after (single dedicated commit, per §28 of the task).
+`e1211c4799ce16a17a7ebb0b69c2661d674c9196` — "WP-EXC-013: connect Exchange to Foundation installer" (single dedicated commit, per §28 of the task).
 
 PUSHED:
 NO — LOCAL / NOT PUSHED.
