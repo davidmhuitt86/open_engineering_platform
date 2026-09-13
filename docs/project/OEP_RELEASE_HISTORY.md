@@ -149,7 +149,7 @@ Audited whether the 8 preceding local commits are ready to become the next basel
 ### WP-EXC-010 Scope & Readiness Audit
 
 **Status: LOCAL / NOT PUSHED.** Audit/documentation only — no source code changed.
-**Commit:** `PLACEHOLDER`
+**Commit:** `9b2cb13`
 **Message:** "WP-EXC-010: scope and readiness audit for Exchange RC1 + Studio integration"
 
 **Description**: a scope/architecture readiness audit (not an implementation) for WP-EXC-010, now that WP-EXC-011/012 are complete. Its central finding: **OEP Studio already has a substantial, working Exchange integration** (`platform/oep_studio/lib/exchange/` — a full workspace, panels, a real Dart API client, persistent storage, Settings, already registered in `StudioRegistry`/`SurfaceRegistry`) — far more mature than the original `docs/tasks/WP-EXC-010.md` ("Status: Planned") describes. The one genuine, well-evidenced gap: Studio's Exchange "Install" action calls only Exchange's own REST API, which defaults to a `StubRepositoryClient` that fabricates a fake result — it never reaches Foundation's real, already-working, already-trust-verifying `oep_package_install`/`FoundationBridge.installPackage` (already used by an unrelated manual "Package Manager" Studio page). Closing that one connection — not new architecture — is identified as the crux of a genuine RC1 vertical slice. Proposes a revised, evidence-based WP-EXC-010 scope (`docs/tasks/WP-EXC-010-SCOPE.md`) and a small work-package breakdown (WP-EXC-013 install bridge, WP-EXC-014 end-to-end verification, WP-EXC-015 Studio test depth). See `services/exchange/docs/audits/WP-EXC-010-SCOPE-AND-READINESS-AUDIT.md` for the full evidence.
