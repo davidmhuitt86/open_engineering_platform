@@ -4,6 +4,14 @@
 
 Version: 1.0
 
+> **Historical / subsystem-scoped.** The canonical, current, whole-platform
+> OEP project status is maintained at
+> [`/OEP_PROJECT_STATUS.md`](../../OEP_PROJECT_STATUS.md) (repository root).
+> This document is retained for Foundation-subsystem context and history —
+> it is not the authoritative current record for OEP as a whole, and may
+> be out of date relative to the root status file. See
+> `docs/project/README.md` for the full documentation hierarchy.
+
 ---
 
 # Purpose

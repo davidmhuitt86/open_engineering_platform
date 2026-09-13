@@ -1,10 +1,27 @@
 # TECHNICAL_DEBT.md
 
+> **Predates the monorepo migration and the canonical OEP project-status
+> system.** This document was written when `oep_foundation` was its own
+> top-level repository (Public C API at version 19; now 21 — see
+> [`/OEP_PROJECT_STATUS.md`](../../../../OEP_PROJECT_STATUS.md) and
+> `docs/project/OEP_VERSIONING_POLICY.md` at the repository root). The
+> current, canonical, whole-platform status — including this document's
+> own item 1 below, which a 2026-09-13 audit could not corroborate against
+> the current repository — is maintained at `/OEP_PROJECT_STATUS.md`.
+> This document is retained for historical/subsystem context.
+
 Ranked by severity: **Critical** (fix before further work builds on it) → **High** → **Medium** → **Low**.
 
 ## Critical
 
 1. **Plaintext API key committed in `oep_studio/anthropic_api_key.env`.** A live-looking credential sitting in the working tree. Rotate immediately and verify it is git-ignored (not confirmed either way by this review — verify separately). This is a security issue, not merely a code-quality one, and takes priority over everything else in this document.
+   >
+   > **2026-09-13 audit note**: a full filesystem search and a search of
+   > every commit in this repository's git history found no trace of this
+   > file. See `/OEP_PROJECT_STATUS.md` Section 16 for the full finding —
+   > this is now classified documentation drift, not a corroborated
+   > current exposure, though the founder should still personally confirm
+   > no copy exists on any other machine and rotate the key if in doubt.
 
 ## High
 

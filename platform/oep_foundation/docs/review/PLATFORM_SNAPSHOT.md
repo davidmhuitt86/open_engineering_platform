@@ -1,5 +1,16 @@
 # PLATFORM_SNAPSHOT.md
 
+> **Predates the monorepo migration and the canonical OEP project-status
+> system.** Written when `oep_foundation`, `oep_studio`, `oep_engine`,
+> `oep_exchange`, etc. were separate top-level repositories, since imported
+> into this monorepo (see `docs/migrations/MONOREPO-INTEGRATION-001.md` at
+> the repository root). The current, canonical, whole-platform status is
+> maintained at
+> [`/OEP_PROJECT_STATUS.md`](../../../../OEP_PROJECT_STATUS.md) — including
+> the credential-exposure item this document flags (line 29), which a
+> 2026-09-13 audit could not corroborate against the current repository
+> (see that file's Section 16). Retained for historical/subsystem context.
+
 **Scope of this review.** The top-level `platform/` directory contains multiple independent repositories: `oep_foundation` (C++23 runtime — the primary subject of this review), `oep_studio` (Flutter/Dart client), and several additional siblings discovered during inspection but outside this session's build history: `oep_engine`, `oep_acquisition`, `oep_architecture`, `oep_exchange` (Node/TS marketplace backend), `oep_reference` (Python reference implementation), `engine_reference_only` (a Node/Python prototype), plus `OEP_SNAPSHOT/` and `PLATFORM_CONSTITUTION/` documentation trees. **This document, and the rest of this review, is scoped to `oep_foundation` and `oep_studio`** — the two systems that "Foundation Runtime v1.0" and "Engineering Knowledge Engine v1.0" actually refer to. The sibling repositories are noted where relevant but not audited in depth; see the Documentation Audit for the naming-collision risk this creates (a separate top-level `oep_engine` repo exists alongside `oep_foundation/platform/oep_engine`, the actual built module).
 
 ---

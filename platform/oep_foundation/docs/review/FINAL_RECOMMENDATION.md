@@ -1,5 +1,14 @@
 # FINAL_RECOMMENDATION.md
 
+> **Predates the monorepo migration and the canonical OEP project-status
+> system.** Written when `oep_foundation` was its own top-level repository
+> (Public C API at version 19; now 21). The current, canonical,
+> whole-platform status is maintained at
+> [`/OEP_PROJECT_STATUS.md`](../../../../OEP_PROJECT_STATUS.md) — including
+> this document's own credential-exposure recommendation (line 40), which
+> a 2026-09-13 audit could not corroborate against the current repository
+> (see that file's Section 16). Retained for historical/subsystem context.
+
 This is an engineering assessment, not a status re-statement. It draws on the nine companion documents in this review (`PLATFORM_SNAPSHOT.md`, `ARCHITECTURAL_REVIEW.md`, `IMPLEMENTATION_STATUS.md`, `ROADMAP_REVIEW.md`, `APPLICATION_READINESS.md`, `TECHNICAL_DEBT.md`, `API_AUDIT.md`, `TEST_COVERAGE.md`, `DOCUMENTATION_AUDIT.md`), all produced from direct repository inspection rather than prior summaries.
 
 ## Is Foundation Runtime architecturally complete?
