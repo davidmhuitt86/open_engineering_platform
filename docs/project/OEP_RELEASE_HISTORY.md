@@ -17,23 +17,28 @@ No entry in this document should be read as implying a commit is on GitHub main 
 
 ## Current GitHub main
 
-Verified via `git log origin/main -1 --oneline` on 2026-09-13:
+Verified via `git log origin/main -1 --oneline` on 2026-09-13 (WP-CTRL-001 reconciliation, after the push below):
 
+```
+4798912  ADR-0003: record final commit hash in release history
+```
+
+**This is the current, verified state of the shared repository.** All 24 entries below (PR-014 through the ADR-0003 follow-up), previously recorded here as LOCAL / NOT PUSHED at the time each was written, are now confirmed present on `origin/main` — each entry's own "Status:" line has been corrected accordingly. The prior baseline this section recorded (`78ee8b0`, "Boot the Workspace to a real Home/Dashboard surface instead of empty") is preserved below for history.
+
+Prior baseline (superseded by the push above):
 ```
 78ee8b0  Boot the Workspace to a real Home/Dashboard surface instead of empty
 ```
 
-**This is the current, verified state of the shared repository.** Everything below this line, until explicitly marked GITHUB MAIN again in a future audit, is local-only.
-
 ---
 
-## Local commits ahead of GitHub main (verified via `git rev-list --count origin/main..HEAD`; was 7 on the original 2026-09-13 audit, since grown as further local-only work landed the same day — see the entries below for each addition)
+## Commits landed on GitHub main this session (originally recorded as "local commits ahead of GitHub main"; all 24 pushed 2026-09-13 — see WP-CTRL-001 below)
 
 Listed oldest to newest (the order they'd be pushed in):
 
 ### PR-014 — Stabilize Diagram Studio WebView lifetime
 
-**Status: LOCAL / NOT PUSHED.**
+**Status: PUSHED (verified on origin/main by WP-CTRL-001, 2026-09-13).**
 **Commit:** `1a97358`
 **Message:** "PR-014: stabilize Diagram Studio WebView lifetime"
 
@@ -47,7 +52,7 @@ Listed oldest to newest (the order they'd be pushed in):
 
 ### PR-015 — Diagram Studio human UX/UI acceptance test system
 
-**Status: LOCAL / NOT PUSHED.**
+**Status: PUSHED (verified on origin/main by WP-CTRL-001, 2026-09-13).**
 **Commit:** `8634276`
 **Message:** "PR-015: add Diagram Studio human UX/UI acceptance test system"
 
@@ -60,7 +65,7 @@ The human acceptance test itself has **not** been executed. Status is READY FOR 
 
 ### PR-016 — Prepare Diagram Studio human acceptance testing
 
-**Status: LOCAL / NOT PUSHED.**
+**Status: PUSHED (verified on origin/main by WP-CTRL-001, 2026-09-13).**
 **Commit:** `5c231b5`
 **Message:** "PR-016: prepare Diagram Studio human acceptance testing"
 
@@ -68,7 +73,7 @@ Created `platform/oep_studio/docs/testing/DIAGRAM-STUDIO-HUMAN-UX-UI-TESTER-STAR
 
 ### PR-016A — Interactive Diagram Studio human acceptance tester
 
-**Status: LOCAL / NOT PUSHED.**
+**Status: PUSHED (verified on origin/main by WP-CTRL-001, 2026-09-13).**
 **Commit:** `84564de`
 **Message:** "PR-016A: add interactive Diagram Studio human acceptance tester"
 
@@ -76,7 +81,7 @@ Created a standalone, interactive HTML acceptance-test tool (`diagram-studio-hum
 
 ### Sidebar nav-order fix
 
-**Status: LOCAL / NOT PUSHED.**
+**Status: PUSHED (verified on origin/main by WP-CTRL-001, 2026-09-13).**
 **Commit:** `bead021`
 **Message:** "Fix HTML acceptance tester sidebar nav order (N between M and O)"
 
@@ -84,7 +89,7 @@ Small bugfix to the PR-016A HTML tool.
 
 ### WP-017 — EAM / Reference Vault Completion & M2 Readiness audit
 
-**Status: LOCAL / NOT PUSHED.**
+**Status: PUSHED (verified on origin/main by WP-CTRL-001, 2026-09-13).**
 **Commit:** `8c6185c`
 **Message:** "WP-017: EAM/Reference Vault implementation audit and hardening"
 
@@ -93,7 +98,7 @@ Small bugfix to the PR-016A HTML tool.
 **Result: READY WITH CONDITIONS.**
 
 **Findings**:
-- HttpConnector performs real outbound HTTP, contradicting the documented WP-005/WP-006 "no real network communication" exclusion and README's own claims — SSRF-shaped gap, no host-allowlisting against the Official Source Registry. Documented in `services/acquisition/docs/decisions/ADR-0003-HTTPCONNECTOR-SCOPE-DISCREPANCY.md`, presenting three options; **not resolved**.
+- HttpConnector performs real outbound HTTP, contradicting the documented WP-005/WP-006 "no real network communication" exclusion and README's own claims — SSRF-shaped gap, no host-allowlisting against the Official Source Registry. Documented in `services/acquisition/docs/decisions/ADR-0003-HTTPCONNECTOR-SCOPE-DISCREPANCY.md`, presenting three options; **not resolved at the time of this audit** (2026-09-12) — **subsequently resolved 2026-09-13, see the ADR-0003 entry below**.
 - Reference Vault publish orphan-file race (filesystem copy + DB insert not atomic) — **fixed**, with regression tests.
 - `reference_vault`'s foreign keys were missing indexes — **fixed** via additive migration V9, with a regression test.
 - Two test-fixture defects (non-idempotent scratch paths across process runs) — **fixed**, discovered by actually executing the suite twice.
@@ -102,7 +107,7 @@ Small bugfix to the PR-016A HTML tool.
 
 ### WP-018 — Acquisition Record & Provenance Foundation
 
-**Status: LOCAL / NOT PUSHED.**
+**Status: PUSHED (verified on origin/main by WP-CTRL-001, 2026-09-13).**
 **Commit:** `0494e25`
 **Message:** "WP-018: implement Acquisition Record and provenance foundation"
 
@@ -114,7 +119,7 @@ Small bugfix to the PR-016A HTML tool.
 
 ### Project-control documentation system
 
-**Status: LOCAL / NOT PUSHED.**
+**Status: PUSHED (verified on origin/main by WP-CTRL-001, 2026-09-13).**
 **Commit:** `1474c0e`
 **Message:** "Establish canonical OEP project-control, versioning & master status system"
 
@@ -122,7 +127,7 @@ Created this documentation hierarchy (`OEP_PROJECT_STATUS.md` and everything und
 
 ### OEP Release Boundary & Repository Integrity Audit
 
-**Status: LOCAL / NOT PUSHED.**
+**Status: PUSHED (verified on origin/main by WP-CTRL-001, 2026-09-13).**
 **Commit:** `b44f860`
 **Message:** "Add OEP release boundary & repository integrity audit"
 
@@ -130,7 +135,7 @@ Audited whether the 8 preceding local commits are ready to become the next basel
 
 ### WP-EXC-011 — Exchange Workspace Reconstruction
 
-**Status: LOCAL / NOT PUSHED.**
+**Status: PUSHED (verified on origin/main by WP-CTRL-001, 2026-09-13).**
 **Commit:** `d110ddf`
 **Message:** "WP-EXC-011: reconstruct Exchange workspace"
 
@@ -138,7 +143,7 @@ Audited whether the 8 preceding local commits are ready to become the next basel
 
 ### WP-EXC-012 — Exchange Client API Foundation
 
-**Status: LOCAL / NOT PUSHED.**
+**Status: PUSHED (verified on origin/main by WP-CTRL-001, 2026-09-13).**
 **Commit:** `986bf8d`
 **Message:** "WP-EXC-012: implement Exchange client API foundation"
 
@@ -148,7 +153,7 @@ Audited whether the 8 preceding local commits are ready to become the next basel
 
 ### WP-EXC-010 Scope & Readiness Audit
 
-**Status: LOCAL / NOT PUSHED.** Audit/documentation only — no source code changed.
+**Status: PUSHED (verified on origin/main by WP-CTRL-001, 2026-09-13).** Audit/documentation only — no source code changed.
 **Commit:** `9b2cb13`
 **Message:** "WP-EXC-010: scope and readiness audit for Exchange RC1 + Studio integration"
 
@@ -156,7 +161,7 @@ Audited whether the 8 preceding local commits are ready to become the next basel
 
 ### WP-EXC-013 — Exchange → Repository Install Bridge
 
-**Status: LOCAL / NOT PUSHED.**
+**Status: PUSHED (verified on origin/main by WP-CTRL-001, 2026-09-13).**
 **Commit:** `e1211c4`
 **Message:** "WP-EXC-013: connect Exchange to Foundation installer"
 
@@ -166,7 +171,7 @@ Audited whether the 8 preceding local commits are ready to become the next basel
 
 ### WP-EXC-013A — Foundation Bridge Artifact Synchronization & Integration Test Gate
 
-**Status: LOCAL / NOT PUSHED.**
+**Status: PUSHED (verified on origin/main by WP-CTRL-001, 2026-09-13).**
 **Commit:** `26ab396`
 **Message:** "WP-EXC-013A: synchronize Foundation bridge integration artifact"
 
@@ -176,7 +181,7 @@ Audited whether the 8 preceding local commits are ready to become the next basel
 
 ### WP-EXC-014 — Exchange RC1 End-to-End Verification
 
-**Status: LOCAL / NOT PUSHED.**
+**Status: PUSHED (verified on origin/main by WP-CTRL-001, 2026-09-13).**
 **Commit:** `30e4a1f`
 **Message:** "WP-EXC-014: verify Exchange RC1 end-to-end installation"
 
@@ -186,7 +191,7 @@ Audited whether the 8 preceding local commits are ready to become the next basel
 
 ### WP-EAM-LOCAL-SERVICE-001 — Local EAM Service Launcher
 
-**Status: LOCAL / NOT PUSHED.**
+**Status: PUSHED (verified on origin/main by WP-CTRL-001, 2026-09-13).**
 **Commit:** `be34235`
 **Message:** "EAM: add local service launcher to Settings"
 
@@ -196,7 +201,7 @@ Audited whether the 8 preceding local commits are ready to become the next basel
 
 ### ADR-0003 — HttpConnector Security, Scope, and SSRF Resolution
 
-**Status: LOCAL / NOT PUSHED.**
+**Status: PUSHED (verified on origin/main by WP-CTRL-001, 2026-09-13).**
 **Commit:** `d7df760`
 **Message:** "ADR-0003: resolve HttpConnector security and scope"
 

@@ -22,13 +22,32 @@ CANONICAL:
 0. REPOSITORY BASELINE — GITHUB MAIN vs. LOCAL WORKING TREE
 ====================================================================
 
-GITHUB main (origin/main), verified via `git log origin/main -1`:
-    78ee8b0  "Boot the Workspace to a real Home/Dashboard surface
-              instead of empty"
+GITHUB main (origin/main), verified via `git log origin/main -1`
+(WP-CTRL-001, 2026-09-13 reconciliation pass):
+    4798912  "ADR-0003: record final commit hash in release history"
 
-LOCAL working tree (this machine), verified via `git log --oneline`:
-    7 commits ahead of origin/main, none pushed:
+The 24 commits below (PR-014 through the ADR-0003 follow-up) are now
+**PUSHED** to origin/main as of this reconciliation — they are no
+longer "local only" and any "LOCAL / NOT PUSHED" label attached to the
+work they contain has been corrected throughout this document:
 
+    4798912  ADR-0003: record final commit hash in release history
+    d7df760  ADR-0003: resolve HttpConnector security and scope
+    be34235  EAM: add local service launcher to Settings
+    44ded51  WP-EXC-014: record final commit hash in release history
+    30e4a1f  WP-EXC-014: verify Exchange RC1 end-to-end installation
+    9ec2bc7  WP-EXC-013A: record final commit hash in release history
+    26ab396  WP-EXC-013A: synchronize Foundation bridge integration artifact
+    706e73f  WP-EXC-013: record final commit hash in release history
+    e1211c4  WP-EXC-013: connect Exchange to Foundation installer
+    d12f2a8  WP-EXC-010: record final commit hash in release history
+    9b2cb13  WP-EXC-010: scope and readiness audit for Exchange RC1 + Studio integration
+    3da4486  WP-EXC-012: record final commit hash in release history
+    986bf8d  WP-EXC-012: implement Exchange client API foundation
+    8c14572  WP-EXC-011: record final commit hash in release history
+    d110ddf  WP-EXC-011: reconstruct Exchange workspace
+    b44f860  Add OEP release boundary & repository integrity audit
+    1474c0e  Establish canonical OEP project-control, versioning & master status system
     0494e25  WP-018: implement Acquisition Record and provenance foundation
     8c6185c  WP-017: EAM/Reference Vault implementation audit and hardening
     bead021  Fix HTML acceptance tester sidebar nav order (N between M and O)
@@ -38,11 +57,15 @@ LOCAL working tree (this machine), verified via `git log --oneline`:
     1a97358  PR-014: stabilize Diagram Studio WebView lifetime
 
 RULE:
-    Every status in this document that depends on local-only commits is
-    explicitly labeled "LOCAL / NOT PUSHED." Nothing in this document
-    should be read as a claim about what exists on GitHub main beyond
-    78ee8b0 unless labeled otherwise. See docs/project/OEP_RELEASE_HISTORY.md
-    for the full chronological record.
+    A status label of "LOCAL / NOT PUSHED" anywhere below this line
+    means exactly that: as of this document's own LAST AUDITED date, no
+    commit in the list above (or any commit made after it) has reached
+    origin/main. Once verified pushed (as the 24 commits above now are),
+    the label is removed or replaced with "PUSHED" — it is never left in
+    place merely as historical narration. See
+    docs/project/OEP_RELEASE_HISTORY.md for the full chronological
+    record, including each commit's own push status at the time it was
+    made.
 
 ====================================================================
 1. PURPOSE
@@ -722,14 +745,17 @@ IMPORTANT:
 
 STATUS:
     GREEN / MILESTONE 1 COMPLETE
-    GREEN / M2 FOUNDATION (ACQUISITION RECORD) COMPLETE — LOCAL / NOT PUSHED
-    YELLOW / M2 BROADER SCOPE (CONNECTOR SECURITY, RICH PROVENANCE) REQUIRED
+    GREEN / M2 FOUNDATION (ACQUISITION RECORD) COMPLETE — PUSHED (commit 0494e25)
+    YELLOW / M2 BROADER SCOPE (RICH PROVENANCE, API AUTHENTICATION) REQUIRED
+    (Connector security itself is resolved — see ADR-0003 below; the
+    still-open item is EAM API authentication, a separate gap ADR-0003
+    was never scoped to close.)
 
 WP-001 through WP-009:
     M1 implemented.
 
 WP-018 (Acquisition Record & Provenance Foundation):
-    Complete — LOCAL / NOT PUSHED (commit 0494e25). See Section 11.2.
+    Complete — PUSHED (commit 0494e25). See Section 11.2.
 
 PIPELINE:
     Official Source
@@ -763,7 +789,7 @@ FIXES MADE IN WP-017:
     - Reference Vault FK indexes
     - test fixture collision defects
 
-RESOLVED (2026-09-13, ADR-0003, LOCAL / NOT PUSHED):
+RESOLVED (2026-09-13, ADR-0003, PUSHED — commit d7df760):
     HttpConnector performs real outbound HTTP -- ratified as an
     approved, in-scope capability (Option A). Its SSRF-shaped behavior
     (no destination/redirect restrictions) was confirmed as a real,
@@ -783,7 +809,7 @@ ADR:
 
 EAM FOUNDATION WORK PACKAGE:
     WP-018 — Acquisition Record & Provenance Foundation
-    STATUS: COMPLETE — LOCAL / NOT PUSHED (commit 0494e25)
+    STATUS: COMPLETE — PUSHED (commit 0494e25)
     See Section 11.2 below and docs/project/OEP_RELEASE_HISTORY.md.
 
 ------------------------------------------------------------
@@ -823,7 +849,7 @@ These are M2/future capabilities, not evidence that WP-009 failed.
 ------------------------------------------------------------
 
 STATUS:
-    GREEN / COMPLETE WITH BOUNDED GAPS — LOCAL / NOT PUSHED (commit 0494e25)
+    GREEN / COMPLETE WITH BOUNDED GAPS — PUSHED (commit 0494e25)
 
 WP-017 identified this as the largest architectural gap in EAM (no
 persistent entity corresponded to SDD-R015's "Acquisition Record"). WP-018
@@ -858,20 +884,21 @@ EVIDENCE:
     services/acquisition/docs/audits/WP-018-IMPLEMENTATION-REPORT.md
 
 NEXT DEPENDENCY:
-    Push to GitHub main once release-worthy (not a WP-018 blocker itself
-    — a project-control/release-management decision). ADR-0003 (HttpConnector
-    security/scope) is now resolved (2026-09-13, LOCAL / NOT PUSHED, see
-    Section 11 above) and was always independent of this work regardless.
+    WP-018 itself is now pushed to GitHub main (commit 0494e25, verified
+    2026-09-13 as part of WP-CTRL-001's reconciliation). ADR-0003
+    (HttpConnector security/scope) is likewise resolved and pushed
+    (commit d7df760, see Section 11 above) and was always independent
+    of this work regardless.
 
 ====================================================================
 12. ENGINEERING EXCHANGE
 ====================================================================
 
 STATUS:
-    GREEN — EXCHANGE WORKSPACE + CLIENT FOUNDATION COMPLETE (LOCAL / NOT PUSHED)
+    GREEN — EXCHANGE WORKSPACE + CLIENT FOUNDATION COMPLETE (PUSHED)
     Exchange RC1 itself remains ORANGE / NOT STARTED.
 
-WORKSPACE FOUNDATION — RESTORED BY WP-EXC-011 (2026-09-13, LOCAL / NOT PUSHED):
+WORKSPACE FOUNDATION — RESTORED BY WP-EXC-011 (2026-09-13, PUSHED — commit d110ddf):
     A prior audit (2026-09-13 Release Boundary Audit) found that Exchange's
     own architecture documentation described a 14-package npm workspace
     under `services/exchange/packages/*` that did not exist anywhere in
@@ -892,7 +919,7 @@ WORKSPACE FOUNDATION — RESTORED BY WP-EXC-011 (2026-09-13, LOCAL / NOT PUSHED)
     420 tests, 284 passed / 12 failed / 124 skipped.
 
     THE ONE GAP WP-EXC-011 LEFT OPEN — CLOSED BY WP-EXC-012 (2026-09-13,
-    LOCAL / NOT PUSHED): `apps/publisher-portal` depended on a real
+    PUSHED — commit 986bf8d): `apps/publisher-portal` depended on a real
     `@oep-exchange/exchange-client` (`ExchangeApiClient`/`ExchangeApiError`)
     implementation that was never committed anywhere, in either
     repository, at any commit (TASK-EXC-0007's own scope, never
@@ -971,7 +998,7 @@ IMPORTANT CORRECTION (2026-09-13, WP-EXC-010 Scope & Readiness Audit):
     services/exchange/docs/audits/WP-EXC-010-SCOPE-AND-READINESS-AUDIT.md,
     services/exchange/docs/tasks/WP-EXC-010-SCOPE.md.
 
-RESOLVED BY WP-EXC-013 (2026-09-13, LOCAL / NOT PUSHED) — Exchange →
+RESOLVED BY WP-EXC-013 (2026-09-13, PUSHED — commit e1211c4) — Exchange →
 Repository Install Bridge:
     The one gap identified directly above (Studio's Exchange "Install"
     action never reaching a real OEP Repository) is closed. Studio's
@@ -991,7 +1018,7 @@ Repository Install Bridge:
     implementation. Full detail: services/exchange/docs/tasks/WP-EXC-013.md,
     services/exchange/docs/audits/WP-EXC-013-IMPLEMENTATION-REPORT.md.
 
-    HARDENED BY WP-EXC-013A (2026-09-13, LOCAL / NOT PUSHED) — Foundation
+    HARDENED BY WP-EXC-013A (2026-09-13, PUSHED — commit 26ab396) — Foundation
     Bridge Artifact Synchronization & Integration Test Gate: WP-EXC-013's
     own real-Foundation integration test could previously only be made to
     pass by manually swapping a fresh `oep_foundation_bridge.dll` over a
@@ -1014,7 +1041,7 @@ Repository Install Bridge:
     services/exchange/docs/tasks/WP-EXC-013A.md,
     services/exchange/docs/audits/WP-EXC-013A-IMPLEMENTATION-REPORT.md.
 
-    VERIFIED END-TO-END BY WP-EXC-014 (2026-09-13, LOCAL / NOT PUSHED) —
+    VERIFIED END-TO-END BY WP-EXC-014 (2026-09-13, PUSHED — commit 30e4a1f) —
     Exchange RC1 End-to-End Verification: the full RC1 vertical slice
     (search → package detail → download → checksum verification →
     `ExchangeInstallBridge` → `FoundationBridge.installPackage` →
@@ -1059,9 +1086,9 @@ CURRENT DOCUMENTED WORK:
     Foundation), WP-EXC-013 (Exchange → Repository Install Bridge),
     WP-EXC-013A (Foundation Bridge Artifact Synchronization &
     Integration Test Gate), and WP-EXC-014 (Exchange RC1 End-to-End
-    Verification) are all implemented, LOCAL / NOT PUSHED. A WP-EXC-010
-    scope/readiness audit (2026-09-13) is also complete, LOCAL / NOT
-    PUSHED — Exchange RC1 itself (production publisher UI, auth,
+    Verification) are all implemented and PUSHED. A WP-EXC-010
+    scope/readiness audit (2026-09-13) is also complete and PUSHED
+    (commit 9b2cb13) — Exchange RC1 itself (production publisher UI, auth,
     licensing, and the other items in "NOT PRESENT / NOT COMPLETE"
     above) has not been implemented; what WP-EXC-014 proves is that the
     vertical slice underneath those remaining features genuinely works
@@ -1203,7 +1230,7 @@ CREDENTIAL-EXPOSURE CLAIM — VERIFIED AGAINST CURRENT REPOSITORY (2026-09-13):
     to a cloud drive) even though it was never pushed to GitHub main or
     committed to this repository's history.
 
-RESOLVED (2026-09-13, ADR-0003, LOCAL / NOT PUSHED):
+RESOLVED (2026-09-13, ADR-0003, PUSHED — commit d7df760):
     - HttpConnector SSRF-shaped behavior -- destination validation
       (loopback/RFC1918/link-local/multicast, IPv4 and IPv6, DNS-rebinding
       pinning, per-hop redirect validation, response-size cap) now
@@ -1295,7 +1322,7 @@ P0 / CRITICAL
 P1 / HIGH
 
 2. HttpConnector SSRF-shaped behavior.
-   RESOLVED 2026-09-13 (ADR-0003, LOCAL / NOT PUSHED) -- destination
+   RESOLVED 2026-09-13 (ADR-0003, PUSHED — commit d7df760) -- destination
    validation now structurally enforced; see Section 11.
 
 3. GraphML placeholder exposed through public API.
@@ -1357,23 +1384,24 @@ COMPLETED / VERIFIED (LOCAL — see Section 0 for what is/is not on GitHub main)
     PR-015 testing system
     PR-016 human-test preparation
     Home/Dashboard integration
-    WP-017 (EAM / Reference Vault audit) — READY WITH CONDITIONS, commit 8c6185c, NOT PUSHED
-    WP-018 (Acquisition Record & Provenance Foundation) — COMPLETE, commit 0494e25, NOT PUSHED
+    WP-017 (EAM / Reference Vault audit) — READY WITH CONDITIONS, commit 8c6185c, PUSHED
+    WP-018 (Acquisition Record & Provenance Foundation) — COMPLETE, commit 0494e25, PUSHED
 
 CURRENT / IMMEDIATE:
 
-    This documentation/project-control task (OEP_PROJECT_STATUS.md and the
-    docs/project/ canonical documentation system).
+    This documentation/project-control reconciliation task (WP-CTRL-001,
+    2026-09-13 — OEP_PROJECT_STATUS.md brought back into agreement with
+    the actual, verified origin/main state after the push below).
 
 NEXT (see Section 25 for the full recommended priority order):
 
     1. Credential/security exposure verification (Section 16 — claim not
        corroborated by current repository inspection; verify and close out)
     2. Diagram Studio human UX/UI acceptance execution
-    3. Push local commits to GitHub main once a release/merge decision
-       is made — this is a project-control decision, not a WP blocker
+    3. EAM API authentication (Section 16/11 — the one security gap
+       ADR-0003 was never scoped to close)
 
-RESOLVED (2026-09-13, LOCAL / NOT PUSHED):
+RESOLVED AND PUSHED (2026-09-13, commit 4798912, origin/main HEAD):
 
     ADR-0003
         HttpConnector security/scope decision — see Section 11.
@@ -1429,14 +1457,14 @@ EAM
     [x] Verification
     [x] Metadata
     [x] Reference Vault M1
-    [x] Acquisition Record (LOCAL / NOT PUSHED — commit 0494e25)
-    [x] Network connector security decision (ADR-0003, LOCAL / NOT PUSHED)
+    [x] Acquisition Record (PUSHED — commit 0494e25)
+    [x] Network connector security decision (ADR-0003, PUSHED — commit d7df760)
 
 EXCHANGE
-    [x] Foundation (workspace + client, WP-EXC-011/012, LOCAL / NOT PUSHED)
-    [x] Install bridge to Foundation's real installer (WP-EXC-013, LOCAL / NOT PUSHED)
-    [x] Reproducible Foundation bridge test gate (WP-EXC-013A, LOCAL / NOT PUSHED)
-    [x] End-to-end vertical-slice verification (WP-EXC-014, LOCAL / NOT PUSHED)
+    [x] Foundation (workspace + client, WP-EXC-011/012, PUSHED)
+    [x] Install bridge to Foundation's real installer (WP-EXC-013, PUSHED)
+    [x] Reproducible Foundation bridge test gate (WP-EXC-013A, PUSHED)
+    [x] End-to-end vertical-slice verification (WP-EXC-014, PUSHED)
     [ ] RC1 (vertical slice proven end to end; still missing production
         publisher UI, authentication, and the other items in Section 12's
         "NOT PRESENT / NOT COMPLETE" — those, not architectural proof, are
@@ -1534,7 +1562,7 @@ KNOWLEDGE
 EAM
     [ ] production connector policy
     [ ] secure acquisition
-    [x] Acquisition Record foundation (LOCAL / NOT PUSHED)
+    [x] Acquisition Record foundation (PUSHED — commit 0494e25)
     [ ] complete provenance (rich per-acquisition metadata, custody events remain FUTURE)
     [ ] production Vault
 
@@ -1591,7 +1619,7 @@ EAM / VAULT
     ████████████████░░░░  M1 COMPLETE / M2 REQUIRED
 
 ENGINEERING EXCHANGE
-    █████████░░░░░░░░░░░  WORKSPACE + CLIENT FOUNDATION COMPLETE (LOCAL) / RC1 NOT STARTED
+    █████████░░░░░░░░░░░  WORKSPACE + CLIENT FOUNDATION + INSTALL BRIDGE COMPLETE (PUSHED) / RC1 NOT STARTED
 
 SECURITY
     ███████░░░░░░░░░░░░░  HARDENING REQUIRED
@@ -1614,8 +1642,8 @@ OVERALL OEP:
    repository/filesystem inspection did not find; confirm no residual
    exposure and rotate if any doubt remains.
 
-2. ~~Resolve ADR-0003: HttpConnector scope + security.~~ RESOLVED
-   2026-09-13, LOCAL / NOT PUSHED — see Section 11.
+2. ~~Resolve ADR-0003: HttpConnector scope + security.~~ RESOLVED AND
+   PUSHED 2026-09-13, commit d7df760 — see Section 11.
 
 3. Complete Diagram Studio human UX/UI acceptance.
 
@@ -1631,21 +1659,24 @@ OVERALL OEP:
 
 7. Expand Engineering Exchange toward RC1 (WP-EXC-010) — its workspace,
    client foundation, real install bridge, reproducible test gate, and
-   end-to-end verification are now all complete (WP-EXC-011/012/013/013A/014,
-   LOCAL / NOT PUSHED), with the full workspace building/typechecking/testing
-   with zero failures. What remains before RC1 itself is claimed is
-   product surface area (publisher UI, authentication, etc.), not
-   further architectural proof.
+   end-to-end verification are now all complete and PUSHED
+   (WP-EXC-011/012/013/013A/014), with the full workspace
+   building/typechecking/testing with zero failures. What remains before
+   RC1 itself is claimed is product surface area (publisher UI,
+   authentication, etc.), not further architectural proof.
 
 8. Expand EAM/Vault into broader M2 (rich provenance metadata, custody
-   events, connector security policy) — the Acquisition Record
-   foundation itself (WP-018) is now complete, LOCAL / NOT PUSHED.
+   events, API authentication) — the Acquisition Record foundation
+   itself (WP-018) is now complete and PUSHED (commit 0494e25); connector
+   destination-security policy is likewise resolved and pushed
+   (ADR-0003) — API authentication remains the one open EAM security item.
 
 9. Establish formal performance/security/release gates.
 
-10. Decide when/how to push local commits (PR-014 through WP-018) to
-    GitHub main — a release-management decision, not a blocker on any
-    of the above.
+10. ~~Decide when/how to push local commits (PR-014 through WP-018) to
+    GitHub main.~~ DONE — all 24 commits through the ADR-0003 follow-up
+    are on origin/main as of this reconciliation (WP-CTRL-001,
+    2026-09-13); see Section 0.
 
 ====================================================================
 26. MASTER RULE FOR FUTURE WORK
@@ -1692,13 +1723,14 @@ NEXT TARGET:
 
 CURRENT MAJOR ACTIVE WORK:
     OEP project-control/versioning/master-status documentation system
-    (this record and docs/project/) — WP-018 is COMPLETE, LOCAL / NOT
-    PUSHED (commit 0494e25).
+    (this record and docs/project/) — WP-018 is COMPLETE and PUSHED
+    (commit 0494e25).
 
 CURRENT EAM STATE:
     M1 COMPLETE
-    Acquisition Record foundation (WP-018) COMPLETE, LOCAL / NOT PUSHED
-    Broader M2 (connector security, rich provenance) READY WITH CONDITIONS
+    Acquisition Record foundation (WP-018) COMPLETE, PUSHED
+    Connector destination-security (ADR-0003) RESOLVED, PUSHED
+    Broader M2 (API authentication, rich provenance) READY WITH CONDITIONS
 
 CURRENT DIAGRAM STUDIO STATE:
     FUNCTIONAL VERTICAL SLICE
@@ -1710,7 +1742,7 @@ CURRENT EKE STATE:
 CURRENT EXCHANGE STATE:
     WORKSPACE + CLIENT FOUNDATION + REAL INSTALL BRIDGE + REPRODUCIBLE
     TEST GATE + END-TO-END VERIFICATION COMPLETE
-    (WP-EXC-011/012/013/013A/014, LOCAL / NOT PUSHED)
+    (WP-EXC-011/012/013/013A/014, PUSHED)
     STUDIO INTEGRATION ALREADY SUBSTANTIALLY BUILT (see Section 12) — the
     install action reaches Foundation's real, trust-verifying installer,
     now proven end to end by a genuine E2E test

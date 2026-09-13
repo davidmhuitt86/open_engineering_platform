@@ -2,6 +2,8 @@
 
 Point-in-time audit record. This document preserves the full audit-level detail behind [`OEP_PROJECT_STATUS.md`](../../../OEP_PROJECT_STATUS.md), the concise, canonical, current-state document. Where this audit and the root status file overlap, the root status file is kept current going forward; this document is a frozen record of what this specific audit found on this specific date.
 
+> **Superseded-by-events addendum (WP-CTRL-001, 2026-09-13, added without altering the frozen record below):** the 7 unpushed commits this audit describes (Section 3) grew, through further same-day work, to 24 commits — including WP-EXC-010 through WP-EXC-014, the EAM local service launcher, and ADR-0003's resolution — and all 24 were pushed to `origin/main` (now at commit `4798912`) as of this addendum. Every "unresolved"/"LOCAL / NOT PUSHED" statement below describing ADR-0003 or WP-018 reflects this audit's own point-in-time finding on 2026-09-13, not current state. See [`OEP_PROJECT_STATUS.md`](../../../OEP_PROJECT_STATUS.md) and [`OEP_RELEASE_HISTORY.md`](../OEP_RELEASE_HISTORY.md) for the current, reconciled record.
+
 ---
 
 ## 1. Audit purpose

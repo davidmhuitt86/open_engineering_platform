@@ -2,6 +2,8 @@
 
 Point-in-time audit. Companion to [`/OEP_PROJECT_STATUS.md`](../../../OEP_PROJECT_STATUS.md) and [`2026-09-13-OEP-MASTER-AUDIT.md`](2026-09-13-OEP-MASTER-AUDIT.md). This audit's purpose is narrower and more operational than the master audit: determine whether the 8 local, unpushed commits should become the next official baseline, and what — if anything — must happen before pushing them to `origin/main`.
 
+> **Resolved (WP-CTRL-001, 2026-09-13, added without altering the frozen record below):** this audit's own central question — push-readiness of the local commits — is answered. Those commits (grown, through further same-day work, from 8 to 24) were pushed to `origin/main` (now at commit `4798912`), verified via `git fetch`/`git log origin/main`/`git rev-list --left-right --count`. See [`OEP_PROJECT_STATUS.md`](../../../OEP_PROJECT_STATUS.md) and [`OEP_RELEASE_HISTORY.md`](../OEP_RELEASE_HISTORY.md) for the current, reconciled record.
+
 **No commits were pushed. No history was rewritten. No production source code was modified. No versions were bumped.**
 
 ---
