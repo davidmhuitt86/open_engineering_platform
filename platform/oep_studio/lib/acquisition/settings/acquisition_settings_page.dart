@@ -6,6 +6,8 @@ import '../../settings/services/settings_provider.dart';
 import '../../settings/widgets/settings_rows.dart';
 import '../models/acquisition_connection_status.dart';
 import '../services/acquisition_runtime_service.dart';
+import '../services/acquisition_service_launcher.dart';
+import '../services/acquisition_service_launcher_state.dart';
 import 'acquisition_settings_provider.dart';
 
 /// Settings > Engineering Acquisition (WP-PLAT-020) — one more
@@ -48,6 +50,9 @@ class AcquisitionSettingsPage extends ConsumerWidget {
     final notifier = ref.read(acquisitionSettingsProvider.notifier);
     final runtime = ref.watch(acquisitionRuntimeServiceProvider);
     final runtimeNotifier = ref.read(acquisitionRuntimeServiceProvider.notifier);
+    final launcher = ref.watch(acquisitionServiceLauncherProvider);
+    final launcherNotifier = ref.read(acquisitionServiceLauncherProvider.notifier);
+    final isLocal = isLocalServiceAddress(settings.apiBaseUrl);
 
     return ListView(
       padding: const EdgeInsets.all(24),
@@ -86,6 +91,52 @@ class AcquisitionSettingsPage extends ConsumerWidget {
             ),
           ],
         ),
+        if (isLocal)
+          SettingsSection(
+            title: 'Local EAM Service',
+            description:
+                'A convenience for local development only -- starts the real, unmodified EAM backend '
+                '(oep_acquisition.exe) as a child process of Studio, so a separate terminal is not required. '
+                'The service remains reachable only through the REST API above; this does not change the '
+                'Service Address or the Acquisition API contract.',
+            children: [
+              SettingsInfoRow(
+                label: 'Status',
+                value: switch (launcher.status) {
+                  AcquisitionServiceLauncherStatus.stopped => 'Stopped',
+                  AcquisitionServiceLauncherStatus.starting => 'Starting',
+                  AcquisitionServiceLauncherStatus.running => 'Running',
+                  AcquisitionServiceLauncherStatus.error => launcher.errorMessage ?? 'Error',
+                },
+              ),
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Wrap(
+                    spacing: 8,
+                    children: [
+                      if (launcher.status == AcquisitionServiceLauncherStatus.running) ...[
+                        FilledButton.tonal(
+                          onPressed: launcherNotifier.stop,
+                          child: const Text('Stop Local Service'),
+                        ),
+                        OutlinedButton(
+                          onPressed: launcherNotifier.restart,
+                          child: const Text('Restart Local Service'),
+                        ),
+                      ] else
+                        FilledButton.tonal(
+                          onPressed:
+                              launcher.status == AcquisitionServiceLauncherStatus.starting ? null : launcherNotifier.start,
+                          child: const Text('Start Local Service'),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
       ],
     );
   }
