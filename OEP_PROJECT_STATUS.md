@@ -860,7 +860,7 @@ NEXT DEPENDENCY:
 ====================================================================
 
 STATUS:
-    YELLOW — EXCHANGE WORKSPACE FOUNDATION RESTORED (LOCAL / NOT PUSHED)
+    GREEN — EXCHANGE WORKSPACE + CLIENT FOUNDATION COMPLETE (LOCAL / NOT PUSHED)
     Exchange RC1 itself remains ORANGE / NOT STARTED.
 
 WORKSPACE FOUNDATION — RESTORED BY WP-EXC-011 (2026-09-13, LOCAL / NOT PUSHED):
@@ -883,19 +883,29 @@ WORKSPACE FOUNDATION — RESTORED BY WP-EXC-011 (2026-09-13, LOCAL / NOT PUSHED)
     (self-skipping Postgres-gated tests, pre-existing and unrelated);
     420 tests, 284 passed / 12 failed / 124 skipped.
 
-    ONE CONFIRMED, UNRECOVERABLE GAP: `apps/publisher-portal` fails to
-    build/typecheck and accounts for all 7 failing test files / 12
-    failing tests. Its own consumer code (added in the same upstream
-    `c6dbb75` commit that deleted the packages) depends on a real
-    `@oep-exchange/exchange-client` `ExchangeApiClient`/`ExchangeApiError`
-    implementation that was **never committed anywhere, in either
-    repository, at any commit** (TASK-EXC-0007's own scope, never
-    historically completed). This is not a WP-EXC-011 defect — there is
-    nothing further to restore — and implementing it now would be new
-    Exchange feature work, explicitly out of that WP's scope.
+    THE ONE GAP WP-EXC-011 LEFT OPEN — CLOSED BY WP-EXC-012 (2026-09-13,
+    LOCAL / NOT PUSHED): `apps/publisher-portal` depended on a real
+    `@oep-exchange/exchange-client` (`ExchangeApiClient`/`ExchangeApiError`)
+    implementation that was never committed anywhere, in either
+    repository, at any commit (TASK-EXC-0007's own scope, never
+    historically completed) — not something WP-EXC-011 could restore.
+    WP-EXC-012 implemented the minimum real client, established entirely
+    from `apps/exchange-api`'s existing routes and `apps/publisher-portal`'s
+    own existing, unmodified consumer code/tests — new code closing a
+    historical gap, not a restoration and not Exchange RC1 feature work.
+
+    Result: the full Exchange workspace now builds, typechecks, lints,
+    and tests cleanly end to end. 86 test files (69 passed, 17 skipped —
+    the same pre-existing, Postgres-gated `exchange-api` tests, unrelated
+    to this work), 443 tests (319 passed, 124 skipped), **0 failed**,
+    up from WP-EXC-011's 7 failing files / 12 failing tests. No file
+    under `apps/publisher-portal/` was modified — its existing contract
+    was satisfied as-is.
 
     Full detail: services/exchange/docs/tasks/WP-EXC-011.md,
-    services/exchange/docs/audits/WP-EXC-011-IMPLEMENTATION-REPORT.md.
+    services/exchange/docs/audits/WP-EXC-011-IMPLEMENTATION-REPORT.md,
+    services/exchange/docs/tasks/WP-EXC-012.md,
+    services/exchange/docs/audits/WP-EXC-012-IMPLEMENTATION-REPORT.md.
 
 ACTUALLY VERIFIED PRESENT (post-WP-EXC-011):
     - All 14 documented packages (`core`, `api-contracts`, `manifest`,
@@ -908,47 +918,55 @@ ACTUALLY VERIFIED PRESENT (post-WP-EXC-011):
       scaffolds — not implementations, and not required by the current
       apps' build.
     - `apps/exchange-api` — real Fastify app source, one working route
-      (`GET /api/v1/health`), OpenAPI generation wired, now builds
+      (`GET /api/v1/health`), OpenAPI generation wired, builds cleanly
+      against its restored package dependencies.
+    - `apps/exchange-admin` — React/Vite app, builds and typechecks
       cleanly against its restored package dependencies.
-    - `apps/exchange-admin` — React/Vite app, now builds and typechecks
-      cleanly against its restored package dependencies.
+    - `apps/publisher-portal` — React/Vite app, now builds, typechecks,
+      and tests cleanly against a real, working `@oep-exchange/exchange-client`
+      (WP-EXC-012).
+    - `@oep-exchange/exchange-client` — real `ExchangeApiClient`/
+      `ExchangeApiError` implementation (WP-EXC-012), covering every
+      method `publisher-portal` actually calls (search, packages,
+      publishers, installations, downloads), each mapped to an existing
+      `apps/exchange-api` route — no speculative endpoint.
     - `db/migrations` — Flyway-style migrations directory exists.
-    - WP-EXC-001 through WP-EXC-010 (specifications) and WP-EXC-011
-      (this workspace restoration) task documents
-      (services/exchange/docs/tasks/) — WP-EXC-011 is the only one of
-      these actually implemented; WP-EXC-002 through WP-EXC-010 remain
+    - WP-EXC-001 through WP-EXC-010 (specifications) and WP-EXC-011/012
+      (workspace + client foundation) task documents
+      (services/exchange/docs/tasks/) — WP-EXC-011/012 are the only ones
+      of these actually implemented; WP-EXC-002 through WP-EXC-010 remain
       specifications only.
 
 NOT PRESENT / NOT COMPLETE:
-    - `apps/publisher-portal`'s own build (blocked on the confirmed,
-      unrecoverable `exchange_client` gap above)
     - complete publisher workflow
     - complete package publication
     - production catalog
     - complete discovery
-    - complete download/install workflow
+    - complete download/install workflow (the pieces exist and are now
+      individually exercised by a working client; a full, product-level
+      end-to-end workflow was not built or validated as one experience)
     - full Studio integration
     - production Exchange RC1
+    - authentication (excluded from WP-EXC-001's own scope; the client
+      has nothing to attach even if it existed)
     - licensing, payments, reviews (explicitly excluded from WP-EXC-001's
       own scope, per that task's own Scope section — restored only as
       their original inert scaffolds, not implemented)
 
 CURRENT DOCUMENTED WORK:
     WP-EXC-001 through WP-EXC-010 specifications exist. WP-EXC-011
-    (Exchange Workspace Reconstruction) is implemented, LOCAL / NOT
-    PUSHED. Exchange RC1 itself (WP-EXC-010's own objective) has not
-    been started.
+    (Exchange Workspace Reconstruction) and WP-EXC-012 (Exchange Client
+    API Foundation) are both implemented, LOCAL / NOT PUSHED. Exchange
+    RC1 itself (WP-EXC-010's own objective) has not been started.
 
 MAJOR REMAINING PROGRAM:
-    Resolve the `exchange_client`/TASK-EXC-0007 gap (a scoped follow-up,
-    not yet a numbered work package) before `publisher-portal`-specific
-    feature work proceeds; then WP-EXC-010 (Exchange RC1 + Studio
-    integration) itself. `exchange-api` and `exchange-admin` have no such
-    blocker and are ready for further work today.
+    WP-EXC-010 (Exchange RC1 + Studio integration) itself — its
+    foundation (workspace + client) is now fully built, typechecked,
+    linted, and tested with zero failures, but WP-EXC-010 has its own
+    separate scope, entry criteria, and decisions still to be made.
 
 EXCHANGE RC1 IS NOT CURRENTLY A RELEASE-READY OEP SUBSYSTEM. Its
-workspace FOUNDATION, as of WP-EXC-011, now is (with the one named
-exception above).
+FOUNDATION (workspace + client), as of WP-EXC-012, now is.
 
 ====================================================================
 13. OEP INSTRUMENTS
@@ -1446,7 +1464,7 @@ EAM / VAULT
     ████████████████░░░░  M1 COMPLETE / M2 REQUIRED
 
 ENGINEERING EXCHANGE
-    ████████░░░░░░░░░░░░  WORKSPACE FOUNDATION RESTORED (LOCAL) / RC1 NOT STARTED
+    █████████░░░░░░░░░░░  WORKSPACE + CLIENT FOUNDATION COMPLETE (LOCAL) / RC1 NOT STARTED
 
 SECURITY
     ███████░░░░░░░░░░░░░  HARDENING REQUIRED
@@ -1484,9 +1502,10 @@ OVERALL OEP:
 
 6. Close high-value Foundation/API technical debt.
 
-7. Resolve the `exchange_client`/TASK-EXC-0007 gap (Section 12), then
-   expand Engineering Exchange toward RC1 (WP-EXC-010) — the workspace
-   foundation itself is now restored (WP-EXC-011, LOCAL / NOT PUSHED).
+7. Expand Engineering Exchange toward RC1 (WP-EXC-010) — its workspace
+   and client foundation are now both complete (WP-EXC-011/012, LOCAL /
+   NOT PUSHED), with the full workspace building/typechecking/testing
+   with zero failures.
 
 8. Expand EAM/Vault into broader M2 (rich provenance metadata, custody
    events, connector security policy) — the Acquisition Record
@@ -1559,7 +1578,7 @@ CURRENT EKE STATE:
     INTERNAL v1.0 ARCHITECTURE FREEZE
 
 CURRENT EXCHANGE STATE:
-    WORKSPACE FOUNDATION RESTORED (WP-EXC-011, LOCAL / NOT PUSHED)
+    WORKSPACE + CLIENT FOUNDATION COMPLETE (WP-EXC-011/012, LOCAL / NOT PUSHED)
     RC1 NOT STARTED
 
 CURRENT OVERALL PLATFORM STATE:

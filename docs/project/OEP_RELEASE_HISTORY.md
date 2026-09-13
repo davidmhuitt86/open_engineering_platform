@@ -136,6 +136,16 @@ Audited whether the 8 preceding local commits are ready to become the next basel
 
 **Description**: restored all 14 documented `services/exchange/packages/*` workspace packages byte-for-byte from the last known good upstream commit (`18484e3`, before their undocumented deletion in that repository's own final commit `c6dbb75`). Removed one dangling workspace reference (`package_cli`, which never had any implementation in either repository's history). Result: `npm install`/`tsc -b`/lint all pass with zero errors; `apps/exchange-api` and `apps/exchange-admin` build and typecheck cleanly; 83 test files now execute (up from 19 before restoration). One confirmed, historically-unrecoverable gap remains: `apps/publisher-portal` depends on a real `@oep-exchange/exchange-client` implementation that was never committed anywhere (TASK-EXC-0007's own scope, never completed upstream) — 7 test files / 12 tests fail for this one diagnosed reason. This is Exchange RC1's workspace *foundation*, not Exchange RC1 itself, which remains not started.
 
+### WP-EXC-012 — Exchange Client API Foundation
+
+**Status: LOCAL / NOT PUSHED.**
+**Commit:** `PLACEHOLDER`
+**Message:** "WP-EXC-012: implement Exchange client API foundation"
+
+**Description**: implemented the real `@oep-exchange/exchange-client` (`ExchangeApiClient`, `ExchangeApiError`) WP-EXC-011 found genuinely unrecoverable from git history — new code, not a restoration, established entirely from `apps/exchange-api`'s existing routes and `apps/publisher-portal`'s own existing, unmodified consumer code/tests (e.g. `use-async.test.ts`'s pinned `ExchangeApiError(status, code, message)` constructor, `PublishersPage.test.tsx`'s pinned flat-array `publishers.list()` return). Uses the platform's native `fetch`; no new HTTP dependency. Every implemented client method maps to an existing backend route — no speculative endpoint. No file under `apps/publisher-portal/` was modified.
+
+**Result**: full Exchange workspace build/typecheck/lint/test now all pass with zero failures — 86 test files (69 passed, 17 pre-existing Postgres-gated skips), 443 tests (319 passed, 124 skipped, **0 failed**), up from WP-EXC-011's 7 failing files / 12 failing tests. Exchange RC1 (WP-EXC-010) remains not started; its foundation (workspace + client) is now complete.
+
 ---
 
 ## Uncommitted local working-tree changes (as of 2026-09-13, not yet committed)
