@@ -50,10 +50,13 @@ own `POST /downloads`. WORK_PACKAGE_006 (Engineering Downloader) retrieves
 engineering artifacts exclusively through the Source Connector
 Framework's `fetch` operation (ADR-0008), validates the requesting Job
 and Connector, stores the artifact in a configurable local workspace, and
-tracks progress/history -- but, like every work package before it,
-`StubConnector` remains the only connector type and performs no real
-network communication (`fetch` writes a small placeholder file locally).
-Everything the Engineering Knowledge Engine covers (Milestone 2) is
+tracks progress/history. **Corrected 2026-09-13 (ADR-0003):** two
+connector types are registered at startup -- `StubConnector` (`fetch`
+writes a small placeholder file locally, no network communication) and
+`HttpConnector` (`connector_id: "http-source"`), which performs real
+HTTP/HTTPS retrieval with SSRF-hardened destination validation; see
+`docs/decisions/ADR-0003-HTTPCONNECTOR-SCOPE-DISCREPANCY.md` for the
+full security decision record. Everything the Engineering Knowledge Engine covers (Milestone 2) is
 explicitly out of scope for Milestone 1; browser automation and license
 management also remain out of scope -- see `docs/tasks/WORK_PACKAGE_001.md`
 through `docs/tasks/WORK_PACKAGE_009.md` and
@@ -228,11 +231,14 @@ GET /connectors/{id}/health          That connector's current health check resul
 curl http://127.0.0.1:8080/connectors
 ```
 
-The process registers one example connector of type `"stub"` at
-startup (`StubConnector` -- performs no real network communication,
-proves the framework end to end) so `/connectors` is never empty in a
-fresh checkout. All four routes return `404` for an unknown connector
-id.
+The process registers two connectors at startup: one example connector
+of type `"stub"` (`StubConnector` -- performs no real network
+communication, proves the framework end to end), and one real connector
+of type `"http"` (`connector_id: "http-source"`, `HttpConnector` --
+performs genuine HTTP/HTTPS retrieval; see
+`docs/decisions/ADR-0003-HTTPCONNECTOR-SCOPE-DISCREPANCY.md` for its
+security model) -- so `/connectors` is never empty in a fresh checkout.
+All four routes return `404` for an unknown connector id.
 
 `IConnector` also exposes `fetch(const AcquisitionRequest&) ->
 AcquisitionResult` (ADR-0008) -- there is still no REST route for it on
@@ -785,19 +791,27 @@ six capabilities WORK_PACKAGE-005 lists as examples are provided as
 named `constexpr` string constants (`connector.hpp`'s `capability::`
 namespace) purely for convenience and typo-safety, not as a closed set.
 
-**`StubConnector` is the only connector type this work package ships,
-and is explicitly a framework-validation vehicle, not a preview of a
-real connector.** WORK_PACKAGE-005 excludes an HTTP client, FTP client,
-browser automation, and authentication protocols, and states "No
-implementation shall perform actual network communication" -- so
-whatever concrete `IConnector` exists here cannot do real work. Naming
-it `"stub"` rather than something like `"http"` (with a subset of real
-HTTP-connector fields) avoids presupposing a future work package's
-design for a real transport; its `connect`/`disconnect` only toggle an
-in-memory flag, and its `health_check`/`capabilities` are entirely
-driven by `ConnectorConfig::settings` so tests (and this framework's own
+**`StubConnector` is the only connector type WORK_PACKAGE-005 itself
+shipped, and was explicitly a framework-validation vehicle, not a
+preview of a real connector** (historical, describing that work
+package's own scope decision at the time). WORK_PACKAGE-005 excludes an
+HTTP client, FTP client, browser automation, and authentication
+protocols, and states "No implementation shall perform actual network
+communication" -- so whatever concrete `IConnector` existed *there*
+could not do real work. Naming it `"stub"` rather than something like
+`"http"` (with a subset of real HTTP-connector fields) avoided
+presupposing a future work package's design for a real transport; its
+`connect`/`disconnect` only toggle an in-memory flag, and its
+`health_check`/`capabilities` are entirely driven by
+`ConnectorConfig::settings` so tests (and this framework's own
 `GET /connectors/{id}/health` route) can exercise every response shape
-without a real check ever existing.
+without a real check ever existing. **A real transport (`HttpConnector`,
+type `"http"`) was already present in the codebase since this
+repository's own import commit and is registered alongside
+`StubConnector` today -- see ADR-0003
+(`docs/decisions/ADR-0003-HTTPCONNECTOR-SCOPE-DISCREPANCY.md`) for its
+scope resolution and security model; `StubConnector` is no longer the
+only connector type, current as of 2026-09-13.**
 
 **Connectors are not yet associated with Official Sources or
 Acquisition Jobs.** WORK_PACKAGE-005's own text never mentions
@@ -1305,9 +1319,14 @@ purposes.
   whether connector management needs its own write API (and, if so,
   whether that revisits the "no persistence" decision above) or remains
   purely a startup-time/configuration-file concern.
-- `StubConnector` is the only registered connector type; real transports
-  (HTTP, FTP, browser automation) are explicitly excluded from
-  WORK_PACKAGE-005 and remain future work.
+- **Corrected 2026-09-13 (ADR-0003):** `StubConnector` is no longer the
+  only registered connector type -- `HttpConnector` (type `"http"`,
+  `connector_id: "http-source"`) performs real HTTP/HTTPS retrieval and
+  is registered alongside it at startup; see
+  `docs/decisions/ADR-0003-HTTPCONNECTOR-SCOPE-DISCREPANCY.md` for its
+  scope resolution and SSRF-hardened security model. FTP and browser
+  automation remain excluded/future work, as WORK_PACKAGE-005 originally
+  stated.
 - A connection pool for `PostgresOfficialSourceRepository`,
   `PostgresAcquisitionJobRepository`, `PostgresJobExecutionHistoryRepository`,
   `PostgresDownloadRepository`, `PostgresVerificationRepository`,

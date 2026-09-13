@@ -763,16 +763,23 @@ FIXES MADE IN WP-017:
     - Reference Vault FK indexes
     - test fixture collision defects
 
-CRITICAL OUTSTANDING ISSUE:
-    HttpConnector performs real outbound HTTP despite the earlier
-    documented M1 exclusion.
-
-SECURITY CONCERN:
-    SSRF-shaped behavior due to insufficient destination/redirect
-    restrictions and lack of authentication.
+RESOLVED (2026-09-13, ADR-0003, LOCAL / NOT PUSHED):
+    HttpConnector performs real outbound HTTP -- ratified as an
+    approved, in-scope capability (Option A). Its SSRF-shaped behavior
+    (no destination/redirect restrictions) was confirmed as a real,
+    reproducible exploit against the running service, then closed
+    structurally: every destination (initial and every redirect hop) is
+    resolved and validated against loopback/RFC1918/link-local/
+    multicast/unspecified ranges (IPv4 and IPv6, including IPv4-mapped
+    IPv6), with the validated address pinned against DNS rebinding, a
+    redirect-hop cap, and a response-size cap. No authentication exists
+    on the EAM API itself -- that remains a separate, undecided gap
+    (see below), not something ADR-0003 was scoped to add. Full detail:
+    services/acquisition/docs/decisions/ADR-0003-HTTPCONNECTOR-SCOPE-DISCREPANCY.md,
+    docs/project/audits/2026-09-13-OEP-ADR-0003-HTTPCONNECTOR-RESOLUTION-AUDIT.md.
 
 ADR:
-    ADR-0003 requires explicit resolution.
+    ADR-0003 — RESOLVED 2026-09-13 (see above).
 
 EAM FOUNDATION WORK PACKAGE:
     WP-018 — Acquisition Record & Provenance Foundation
@@ -852,8 +859,9 @@ EVIDENCE:
 
 NEXT DEPENDENCY:
     Push to GitHub main once release-worthy (not a WP-018 blocker itself
-    — a project-control/release-management decision). ADR-0003 remains
-    unresolved and independent of this work.
+    — a project-control/release-management decision). ADR-0003 (HttpConnector
+    security/scope) is now resolved (2026-09-13, LOCAL / NOT PUSHED, see
+    Section 11 above) and was always independent of this work regardless.
 
 ====================================================================
 12. ENGINEERING EXCHANGE
@@ -1195,16 +1203,25 @@ CREDENTIAL-EXPOSURE CLAIM — VERIFIED AGAINST CURRENT REPOSITORY (2026-09-13):
     to a cloud drive) even though it was never pushed to GitHub main or
     committed to this repository's history.
 
+RESOLVED (2026-09-13, ADR-0003, LOCAL / NOT PUSHED):
+    - HttpConnector SSRF-shaped behavior -- destination validation
+      (loopback/RFC1918/link-local/multicast, IPv4 and IPv6, DNS-rebinding
+      pinning, per-hop redirect validation, response-size cap) now
+      structurally enforced; see Section 11 and
+      services/acquisition/docs/decisions/ADR-0003-HTTPCONNECTOR-SCOPE-DISCREPANCY.md.
+
 OTHER, UNCHANGED:
-    - API authentication not mature
-    - HttpConnector SSRF-shaped behavior (ADR-0003 unresolved)
+    - API authentication not mature (EAM's REST API still has none --
+      ADR-0003 closed the SSRF-shaped destination gap but was not
+      scoped to add authentication; a separate, still-open gate)
     - connector authorization not complete
     - trust-store architecture incomplete (Ed25519 not implemented)
     - production security boundary incomplete
 
 SECURITY IS A RELEASE GATE FOR OEP 1.0. This section must not be marked
-GREEN until ADR-0003 is resolved, API authentication exists, and the
-credential-exposure claim above is personally confirmed closed.
+GREEN until API authentication exists and the credential-exposure claim
+above is personally confirmed closed. ADR-0003 itself is now resolved,
+but does not by itself close this gate.
 
 ====================================================================
 17. PERFORMANCE
@@ -1278,8 +1295,8 @@ P0 / CRITICAL
 P1 / HIGH
 
 2. HttpConnector SSRF-shaped behavior.
-   ACTION:
-       Resolve ADR-0003 before expanding network acquisition.
+   RESOLVED 2026-09-13 (ADR-0003, LOCAL / NOT PUSHED) -- destination
+   validation now structurally enforced; see Section 11.
 
 3. GraphML placeholder exposed through public API.
    ACTION:
@@ -1352,16 +1369,14 @@ NEXT (see Section 25 for the full recommended priority order):
 
     1. Credential/security exposure verification (Section 16 — claim not
        corroborated by current repository inspection; verify and close out)
-    2. ADR-0003 — HttpConnector scope/security decision
-    3. Diagram Studio human UX/UI acceptance execution
-    4. Push local commits (PR-014 through WP-018) to GitHub main once a
-       release/merge decision is made — this is a project-control decision,
-       not a WP-018 blocker
+    2. Diagram Studio human UX/UI acceptance execution
+    3. Push local commits to GitHub main once a release/merge decision
+       is made — this is a project-control decision, not a WP blocker
 
-PARALLEL / GATED:
+RESOLVED (2026-09-13, LOCAL / NOT PUSHED):
 
     ADR-0003
-        HttpConnector scope/security decision
+        HttpConnector security/scope decision — see Section 11.
 
 PENDING HUMAN:
 
@@ -1415,7 +1430,7 @@ EAM
     [x] Metadata
     [x] Reference Vault M1
     [x] Acquisition Record (LOCAL / NOT PUSHED — commit 0494e25)
-    [ ] Network connector security decision (ADR-0003)
+    [x] Network connector security decision (ADR-0003, LOCAL / NOT PUSHED)
 
 EXCHANGE
     [x] Foundation (workspace + client, WP-EXC-011/012, LOCAL / NOT PUSHED)
@@ -1599,8 +1614,8 @@ OVERALL OEP:
    repository/filesystem inspection did not find; confirm no residual
    exposure and rotate if any doubt remains.
 
-2. Resolve ADR-0003:
-       HttpConnector scope + security.
+2. ~~Resolve ADR-0003: HttpConnector scope + security.~~ RESOLVED
+   2026-09-13, LOCAL / NOT PUSHED — see Section 11.
 
 3. Complete Diagram Studio human UX/UI acceptance.
 
