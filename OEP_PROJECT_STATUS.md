@@ -860,58 +860,68 @@ NEXT DEPENDENCY:
 ====================================================================
 
 STATUS:
-    ORANGE / STARTED — INCOMPLETE, WITH A CONFIRMED PRE-EXISTING BROKEN BUILD
+    YELLOW — EXCHANGE WORKSPACE FOUNDATION RESTORED (LOCAL / NOT PUSHED)
+    Exchange RC1 itself remains ORANGE / NOT STARTED.
 
-IMPORTANT VERIFIED FINDING (2026-09-13):
-    Exchange's own architecture documentation
-    (services/exchange/docs/architecture/REPOSITORY_STRUCTURE.md,
-    ADR-0001-Repository-Structure.md, COMPONENT_GUIDE.md) describes an
-    npm-workspace `packages/*` layout (14 packages: core, api-contracts,
-    manifest, signing, search, package_manager, package_cli,
-    exchange_client, dependency_resolver, installer, update_service,
-    licensing, payments, reviews, interfaces) as already implemented,
-    with real dependency graphs and per-package tests.
+WORKSPACE FOUNDATION — RESTORED BY WP-EXC-011 (2026-09-13, LOCAL / NOT PUSHED):
+    A prior audit (2026-09-13 Release Boundary Audit) found that Exchange's
+    own architecture documentation described a 14-package npm workspace
+    under `services/exchange/packages/*` that did not exist anywhere in
+    this repository. WP-EXC-011 investigated the upstream `oep_exchange`
+    repository directly and found the packages were deleted in that
+    repository's own final commit (`c6dbb75`, message "v2", no stated
+    rationale) before the monorepo migration ever touched the code — a
+    genuine, pre-existing, undocumented deletion, not migration-induced.
 
-    Direct repository inspection (`git ls-tree -r HEAD -- services/exchange`,
-    `git log --all -- services/exchange/packages`, and a filesystem
-    search) found ZERO evidence this `packages/` directory has ever
-    existed anywhere in this repository's git history. This audit's
-    finding is independently corroborated by
-    docs/migrations/MONOREPO-INTEGRATION-001.md Section 9, a prior,
-    separate migration-verification pass, which root-caused this
-    identically: all 14 packages are absent, `npm run build` fails
-    with `TS6053`/`TS5083` on every one of them, and `npm run test`
-    passes only 39/39 tests in the 19 test files that do not depend on
-    a missing package — the other 41 test files fail identically. That
-    same record confirms this is **PRE-EXISTING**, not introduced by the
-    monorepo migration: it reproduces identically against the original,
-    un-migrated `oep_exchange` source repository.
+    WP-EXC-011 restored all 14 packages byte-for-byte from the last known
+    good upstream commit (`18484e3`). Result: `npm install` succeeds;
+    the root TypeScript composite build (`tsc -b`, covering all 14
+    packages + `apps/exchange-api`) succeeds with zero errors;
+    `apps/exchange-admin` builds and typechecks cleanly; `npm run lint`
+    passes with zero errors. Test suite: 83 test files now execute
+    (up from 19 before restoration), 59 passed / 7 failed / 17 skipped
+    (self-skipping Postgres-gated tests, pre-existing and unrelated);
+    420 tests, 284 passed / 12 failed / 124 skipped.
 
-    CONCLUSION: Exchange's own documentation describes a substantially
-    more mature, working state than what exists on disk. Only
-    `apps/exchange-admin`, `apps/exchange-api`, `apps/publisher-portal`
-    (each with real source under `apps/*/src/`, and `exchange-api`
-    specifically has a real, if minimal, Fastify server with a `/health`
-    route and OpenAPI docs) plus `db/migrations` and a `demo/` folder
-    currently exist. Every one of those apps' `package.json` depends on
-    one or more of the 14 missing `packages/*`, so **none of them can
-    currently build or fully test** in this repository as checked out.
+    ONE CONFIRMED, UNRECOVERABLE GAP: `apps/publisher-portal` fails to
+    build/typecheck and accounts for all 7 failing test files / 12
+    failing tests. Its own consumer code (added in the same upstream
+    `c6dbb75` commit that deleted the packages) depends on a real
+    `@oep-exchange/exchange-client` `ExchangeApiClient`/`ExchangeApiError`
+    implementation that was **never committed anywhere, in either
+    repository, at any commit** (TASK-EXC-0007's own scope, never
+    historically completed). This is not a WP-EXC-011 defect — there is
+    nothing further to restore — and implementing it now would be new
+    Exchange feature work, explicitly out of that WP's scope.
 
-ACTUALLY VERIFIED PRESENT:
-    - `apps/exchange-api` — real Fastify app source (`app.ts`,
-      `server.ts`, `error-handler.ts`), one working route (`GET
-      /api/v1/health`), OpenAPI generation wired — but cannot build
-      without its missing `@oep-exchange/core`/`@oep-exchange/api-contracts`
-      dependencies
-    - `apps/exchange-admin`, `apps/publisher-portal` — React/Vite scaffolds
-    - `db/migrations` — Flyway-style migrations directory exists
-    - WP-EXC-001 through WP-EXC-010 task specification documents
-      (services/exchange/docs/tasks/) — specifications only
+    Full detail: services/exchange/docs/tasks/WP-EXC-011.md,
+    services/exchange/docs/audits/WP-EXC-011-IMPLEMENTATION-REPORT.md.
+
+ACTUALLY VERIFIED PRESENT (post-WP-EXC-011):
+    - All 14 documented packages (`core`, `api-contracts`, `manifest`,
+      `signing`, `search`, `package_manager`, `exchange_client`,
+      `installer`, `interfaces`, `dependency_resolver`, `update_service`,
+      `licensing`, `payments`, `reviews`) — restored, historically
+      authentic, building/typechecking/linting cleanly. Five of these
+      (`dependency_resolver`, `update_service`, `licensing`, `payments`,
+      `reviews`) remain, as they always were, inert single-export
+      scaffolds — not implementations, and not required by the current
+      apps' build.
+    - `apps/exchange-api` — real Fastify app source, one working route
+      (`GET /api/v1/health`), OpenAPI generation wired, now builds
+      cleanly against its restored package dependencies.
+    - `apps/exchange-admin` — React/Vite app, now builds and typechecks
+      cleanly against its restored package dependencies.
+    - `db/migrations` — Flyway-style migrations directory exists.
+    - WP-EXC-001 through WP-EXC-010 (specifications) and WP-EXC-011
+      (this workspace restoration) task documents
+      (services/exchange/docs/tasks/) — WP-EXC-011 is the only one of
+      these actually implemented; WP-EXC-002 through WP-EXC-010 remain
+      specifications only.
 
 NOT PRESENT / NOT COMPLETE:
-    - the entire `packages/*` workspace (core, api-contracts, manifest,
-      signing, search, package manager, installer, exchange client,
-      dependency resolver, update service — all missing)
+    - `apps/publisher-portal`'s own build (blocked on the confirmed,
+      unrecoverable `exchange_client` gap above)
     - complete publisher workflow
     - complete package publication
     - production catalog
@@ -920,20 +930,25 @@ NOT PRESENT / NOT COMPLETE:
     - full Studio integration
     - production Exchange RC1
     - licensing, payments, reviews (explicitly excluded from WP-EXC-001's
-      own scope, per that task's own Scope section — not merely
-      unimplemented)
+      own scope, per that task's own Scope section — restored only as
+      their original inert scaffolds, not implemented)
 
 CURRENT DOCUMENTED WORK:
-    WP-EXC-001 through WP-EXC-010 specifications exist. Actual
-    implementation is materially behind what those specifications and
-    Exchange's own architecture documentation describe.
+    WP-EXC-001 through WP-EXC-010 specifications exist. WP-EXC-011
+    (Exchange Workspace Reconstruction) is implemented, LOCAL / NOT
+    PUSHED. Exchange RC1 itself (WP-EXC-010's own objective) has not
+    been started.
 
 MAJOR REMAINING PROGRAM:
-    Recreate or re-import the missing `packages/*` workspace before any
-    of WP-EXC-002 through WP-EXC-010 can be meaningfully continued, then
-    WP-EXC-010 (Exchange RC1 + Studio integration) itself.
+    Resolve the `exchange_client`/TASK-EXC-0007 gap (a scoped follow-up,
+    not yet a numbered work package) before `publisher-portal`-specific
+    feature work proceeds; then WP-EXC-010 (Exchange RC1 + Studio
+    integration) itself. `exchange-api` and `exchange-admin` have no such
+    blocker and are ready for further work today.
 
-EXCHANGE IS NOT CURRENTLY A RELEASE-READY OEP SUBSYSTEM.
+EXCHANGE RC1 IS NOT CURRENTLY A RELEASE-READY OEP SUBSYSTEM. Its
+workspace FOUNDATION, as of WP-EXC-011, now is (with the one named
+exception above).
 
 ====================================================================
 13. OEP INSTRUMENTS
@@ -1431,7 +1446,7 @@ EAM / VAULT
     ████████████████░░░░  M1 COMPLETE / M2 REQUIRED
 
 ENGINEERING EXCHANGE
-    █████░░░░░░░░░░░░░░░  EARLY FOUNDATION
+    ████████░░░░░░░░░░░░  WORKSPACE FOUNDATION RESTORED (LOCAL) / RC1 NOT STARTED
 
 SECURITY
     ███████░░░░░░░░░░░░░  HARDENING REQUIRED
@@ -1469,7 +1484,9 @@ OVERALL OEP:
 
 6. Close high-value Foundation/API technical debt.
 
-7. Expand Engineering Exchange toward RC1 (WP-EXC-010).
+7. Resolve the `exchange_client`/TASK-EXC-0007 gap (Section 12), then
+   expand Engineering Exchange toward RC1 (WP-EXC-010) — the workspace
+   foundation itself is now restored (WP-EXC-011, LOCAL / NOT PUSHED).
 
 8. Expand EAM/Vault into broader M2 (rich provenance metadata, custody
    events, connector security policy) — the Acquisition Record
@@ -1542,7 +1559,8 @@ CURRENT EKE STATE:
     INTERNAL v1.0 ARCHITECTURE FREEZE
 
 CURRENT EXCHANGE STATE:
-    EARLY FOUNDATION
+    WORKSPACE FOUNDATION RESTORED (WP-EXC-011, LOCAL / NOT PUSHED)
+    RC1 NOT STARTED
 
 CURRENT OVERALL PLATFORM STATE:
     INTEGRATED ALPHA / PRE-BETA

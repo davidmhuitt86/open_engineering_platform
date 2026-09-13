@@ -27,7 +27,7 @@ Verified via `git log origin/main -1 --oneline` on 2026-09-13:
 
 ---
 
-## Local commits ahead of GitHub main (verified via `git rev-list --count origin/main..HEAD` = 7, on 2026-09-13)
+## Local commits ahead of GitHub main (verified via `git rev-list --count origin/main..HEAD`; was 7 on the original 2026-09-13 audit, since grown as further local-only work landed the same day — see the entries below for each addition)
 
 Listed oldest to newest (the order they'd be pushed in):
 
@@ -111,6 +111,30 @@ Small bugfix to the PR-016A HTML tool.
 **Test results, verified twice consecutively against real PostgreSQL 18**: 235/235 test cases, 1090/1090 assertions, 0 skipped, 0 failed (up from WP-017's 221/981 — 14 new test cases, 109 new assertions, all added by WP-018).
 
 **Not implemented** (explicitly deferred): rich per-acquisition metadata (Workstation, DNS, TLS, Referrer/Redirect Chain, licensing), SHA-512/BLAKE3, a full chain-of-custody event log, the `Archived` lifecycle state. Full detail: `services/acquisition/docs/audits/ACQUISITION_RECORD_IMPLEMENTATION_AUDIT.md` and `WP-018-IMPLEMENTATION-REPORT.md`.
+
+### Project-control documentation system
+
+**Status: LOCAL / NOT PUSHED.**
+**Commit:** `1474c0e`
+**Message:** "Establish canonical OEP project-control, versioning & master status system"
+
+Created this documentation hierarchy (`OEP_PROJECT_STATUS.md` and everything under `docs/project/`). No source code changed.
+
+### OEP Release Boundary & Repository Integrity Audit
+
+**Status: LOCAL / NOT PUSHED.**
+**Commit:** `b44f860`
+**Message:** "Add OEP release boundary & repository integrity audit"
+
+Audited whether the 8 preceding local commits are ready to become the next baseline (yes, at the Git level — pure fast-forward, zero conflicts) and independently re-confirmed (by fetching the original `oep_exchange` upstream repository directly) that its `packages/*` workspace was deleted in that repository's own final commit before the monorepo migration ever touched it. Recommended a dedicated Exchange workspace-reconstruction work package. See `docs/project/audits/2026-09-13-OEP-RELEASE-BOUNDARY-AUDIT.md`. No source code changed.
+
+### WP-EXC-011 — Exchange Workspace Reconstruction
+
+**Status: LOCAL / NOT PUSHED.**
+**Commit:** `55c4a4c`
+**Message:** "WP-EXC-011: reconstruct Exchange workspace"
+
+**Description**: restored all 14 documented `services/exchange/packages/*` workspace packages byte-for-byte from the last known good upstream commit (`18484e3`, before their undocumented deletion in that repository's own final commit `c6dbb75`). Removed one dangling workspace reference (`package_cli`, which never had any implementation in either repository's history). Result: `npm install`/`tsc -b`/lint all pass with zero errors; `apps/exchange-api` and `apps/exchange-admin` build and typecheck cleanly; 83 test files now execute (up from 19 before restoration). One confirmed, historically-unrecoverable gap remains: `apps/publisher-portal` depends on a real `@oep-exchange/exchange-client` implementation that was never committed anywhere (TASK-EXC-0007's own scope, never completed upstream) — 7 test files / 12 tests fail for this one diagnosed reason. This is Exchange RC1's workspace *foundation*, not Exchange RC1 itself, which remains not started.
 
 ---
 
