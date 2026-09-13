@@ -33,6 +33,29 @@ class Installation {
   bool get isFailed => status == 'failed';
   bool get isPending => status == 'pending';
 
+  /// WP-EXC-013 -- lets [ExchangeRuntimeNotifier.installPackage] correct
+  /// this record's `status`/`errorMessage`/`repositoryPackageId` once the
+  /// real Foundation-side install result is known, without fabricating a
+  /// new model. `id`/`packageId`/`version`/`requestedAt` never change --
+  /// those are Exchange's own, already-real Installation identity.
+  Installation copyWith({
+    String? status,
+    String? errorMessage,
+    bool clearErrorMessage = false,
+    String? repositoryPackageId,
+    String? completedAt,
+  }) =>
+      Installation(
+        id: id,
+        packageId: packageId,
+        version: version,
+        status: status ?? this.status,
+        repositoryPackageId: repositoryPackageId ?? this.repositoryPackageId,
+        errorMessage: clearErrorMessage ? null : (errorMessage ?? this.errorMessage),
+        requestedAt: requestedAt,
+        completedAt: completedAt ?? this.completedAt,
+      );
+
   factory Installation.fromJson(Map<String, Object?> json) => Installation(
         id: json['id'] as String? ?? '',
         packageId: json['packageId'] as String? ?? '',

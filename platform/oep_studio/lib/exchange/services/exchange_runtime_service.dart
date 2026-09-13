@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/events/platform_event.dart';
 import '../../core/events/platform_event_bus.dart';
+import '../../core/services/foundation_runtime_service.dart';
 import '../models/exchange_connection_status.dart';
 import '../models/exchange_package.dart';
 import '../models/installation.dart';
@@ -13,6 +14,7 @@ import '../models/search_result_item.dart';
 import '../settings/exchange_settings_provider.dart';
 import 'exchange_api_client.dart';
 import 'exchange_api_exception.dart';
+import 'exchange_install_bridge.dart';
 import 'exchange_library_storage.dart';
 import 'exchange_runtime_state.dart';
 
@@ -133,21 +135,34 @@ class ExchangeRuntimeNotifier extends Notifier<ExchangeServiceState> {
 
   void clearSelectedPublisher() => state = state.copyWith(clearSelectedPublisher: true);
 
-  /// Install Package (WP-EXC-010 §6) -- calls the Exchange's own
-  /// already-built Installation REST API (TASK-EXC-0008), then records
-  /// the attempt into My Library and publishes an [OperationEvent] so
+  /// Install Package (WP-EXC-010 §6, corrected by WP-EXC-013): calls the
+  /// Exchange's own Installation REST API (TASK-EXC-0008) for Exchange's
+  /// own bookkeeping (the `Installation` id `MyLibraryPage`'s "Refresh
+  /// status" and this same method's own re-verification rely on), then —
+  /// unless Exchange's own record already failed outright — downloads
+  /// the real archive, verifies its checksum, and hands it to
+  /// [ExchangeInstallBridge], which calls Foundation's real
+  /// `oep_package_install` (via the same `FoundationBridge.installPackage`
+  /// path `package_manager_page.dart` already uses for a manually-selected
+  /// file). The `Installation` recorded into My Library and this state's
+  /// `selectedPackageInstallation` reflects the REAL Foundation outcome —
+  /// not Exchange's own simulated one — since that is the one that
+  /// actually determines whether the package exists in the open
+  /// Repository. Publishes an [OperationEvent] so
   /// `OperationManager`/`StudioStatusBar` show install progress the same
-  /// way an Acquisition download does. The Exchange API resolves
-  /// synchronously to a `completed`/`failed` result (no polling needed
-  /// server-side; mirrors `PackageDetailPage`'s own Install button in
-  /// `apps/publisher-portal`).
+  /// way an Acquisition download does.
   Future<void> installPackage(String packageId, String displayName, {String? version}) async {
     final operationId = 'exchange.install.$packageId.${DateTime.now().microsecondsSinceEpoch}';
     final bus = PlatformEventBus.instance;
     bus.publish(OperationEvent(id: operationId, kind: OperationEventKind.started, label: 'Installing $displayName…'));
     await _runAction(() async {
       final response = await _api.install(packageId, version: version);
-      final installation = Installation.fromJson(response);
+      var installation = Installation.fromJson(response);
+
+      if (!installation.isFailed) {
+        installation = await _installIntoFoundation(installation, packageId, version);
+      }
+
       final entry = LibraryEntry(
         packageId: installation.packageId,
         displayName: displayName,
@@ -179,6 +194,24 @@ class ExchangeRuntimeNotifier extends Notifier<ExchangeServiceState> {
     if (state.lastError != null) {
       bus.publish(OperationEvent(id: operationId, kind: OperationEventKind.failed, label: state.lastError!));
     }
+  }
+
+  /// WP-EXC-013's own bridge step — thin glue between this notifier's
+  /// real dependencies (the live [_api], and whatever [FoundationBridge]
+  /// `FoundationRuntimeNotifier` currently holds, if any) and
+  /// [applyFoundationInstall], which does the actual work and is what
+  /// `test/exchange_install_bridge_test.dart` and
+  /// `test/exchange_runtime_install_bridge_orchestration_test.dart` test
+  /// directly, with fakes, rather than through this method.
+  Future<Installation> _installIntoFoundation(Installation installation, String packageId, String? version) {
+    final foundationBridge = ref.read(foundationRuntimeServiceProvider.notifier).bridge;
+    return applyFoundationInstall(
+      installation: installation,
+      packageId: packageId,
+      version: version,
+      downloadArtifact: _api.downloadArtifact,
+      installer: foundationBridge?.installPackage,
+    );
   }
 
   /// Show Installation Status (WP-EXC-010 §6) -- re-fetches the real

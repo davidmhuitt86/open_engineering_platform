@@ -5,6 +5,15 @@ import 'package:http/http.dart' as http;
 
 import 'exchange_api_exception.dart';
 
+/// Real archive bytes plus the SHA-256 checksum the server reported for
+/// them (WP-EXC-013) -- returned by [ExchangeApiClient.downloadArtifact].
+class DownloadedArtifact {
+  const DownloadedArtifact({required this.bytes, required this.sha256});
+
+  final List<int> bytes;
+  final String sha256;
+}
+
 /// The Studio-side REST client for the Engineering Exchange
 /// (`oep_exchange`) (WP-EXC-010). Mirrors `AcquisitionApiClient`'s own
 /// role and shape exactly: the Exchange is an autonomous domain service
@@ -170,6 +179,27 @@ class ExchangeApiClient {
         : '/packages/${Uri.encodeComponent(packageId)}/download';
     final response = await _send(() => _client.get(_uri(path)));
     return response.bodyBytes;
+  }
+
+  /// Fetches the real artifact bytes plus the SHA-256 checksum the server
+  /// already sends alongside them (`X-Checksum-Sha256`,
+  /// `apps/exchange-api/src/routes/download.ts`'s `sendArtifact`) -- used
+  /// by [ExchangeInstallBridge] (WP-EXC-013) to verify the download
+  /// before installing it. Not a new API contract: the header already
+  /// exists on every download response; [downloadBytes] simply never
+  /// read it, since nothing needed it before this WP.
+  Future<DownloadedArtifact> downloadArtifact(String packageId, {String? version}) async {
+    final path = version != null
+        ? '/packages/${Uri.encodeComponent(packageId)}/versions/${Uri.encodeComponent(version)}/download'
+        : '/packages/${Uri.encodeComponent(packageId)}/download';
+    final response = await _send(() => _client.get(_uri(path)));
+    final sha256 = response.headers['x-checksum-sha256'];
+    if (sha256 == null || sha256.isEmpty) {
+      throw ExchangeApiException.network(
+        'The Exchange download response for "$packageId" did not include an X-Checksum-Sha256 header.',
+      );
+    }
+    return DownloadedArtifact(bytes: response.bodyBytes, sha256: sha256);
   }
 
   void dispose() => _client.close();

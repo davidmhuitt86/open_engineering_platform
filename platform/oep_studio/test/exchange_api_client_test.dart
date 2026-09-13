@@ -101,5 +101,47 @@ void main() {
         throwsA(isA<ExchangeApiException>().having((e) => e.statusCode, 'statusCode', isNull)),
       );
     });
+
+    group('downloadArtifact (WP-EXC-013)', () {
+      test('returns the body bytes and the X-Checksum-Sha256 header', () async {
+        final client = ExchangeApiClient(
+          baseUrl: 'http://fake/api/v1',
+          client: MockClient((request) async {
+            expect(request.url.toString(), 'http://fake/api/v1/packages/pkg-1/download');
+            return http.Response.bytes(
+              [1, 2, 3, 4],
+              200,
+              headers: {'x-checksum-sha256': 'abc123'},
+            );
+          }),
+        );
+        final artifact = await client.downloadArtifact('pkg-1');
+        expect(artifact.bytes, [1, 2, 3, 4]);
+        expect(artifact.sha256, 'abc123');
+      });
+
+      test('requests the versioned download route when a version is given', () async {
+        final client = ExchangeApiClient(
+          baseUrl: 'http://fake/api/v1',
+          client: MockClient((request) async {
+            expect(request.url.toString(), 'http://fake/api/v1/packages/pkg-1/versions/2.0.0/download');
+            return http.Response.bytes([9], 200, headers: {'x-checksum-sha256': 'deadbeef'});
+          }),
+        );
+        final artifact = await client.downloadArtifact('pkg-1', version: '2.0.0');
+        expect(artifact.sha256, 'deadbeef');
+      });
+
+      test('throws a network ExchangeApiException when the checksum header is missing', () async {
+        final client = ExchangeApiClient(
+          baseUrl: 'http://fake/api/v1',
+          client: MockClient((request) async => http.Response.bytes([1], 200)),
+        );
+        await expectLater(
+          client.downloadArtifact('pkg-1'),
+          throwsA(isA<ExchangeApiException>().having((e) => e.statusCode, 'statusCode', isNull)),
+        );
+      });
+    });
   });
 }

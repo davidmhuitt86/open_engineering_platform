@@ -931,11 +931,11 @@ ACTUALLY VERIFIED PRESENT (post-WP-EXC-011):
       publishers, installations, downloads), each mapped to an existing
       `apps/exchange-api` route — no speculative endpoint.
     - `db/migrations` — Flyway-style migrations directory exists.
-    - WP-EXC-001 through WP-EXC-010 (specifications) and WP-EXC-011/012
-      (workspace + client foundation) task documents
-      (services/exchange/docs/tasks/) — WP-EXC-011/012 are the only ones
-      of these actually implemented; WP-EXC-002 through WP-EXC-010 remain
-      specifications only.
+    - WP-EXC-001 through WP-EXC-010 (specifications) and WP-EXC-011/012/013
+      (workspace + client foundation + install bridge) task documents
+      (services/exchange/docs/tasks/) — WP-EXC-011/012/013 are the only
+      ones of these actually implemented; WP-EXC-002 through WP-EXC-010
+      remain specifications only.
 
 IMPORTANT CORRECTION (2026-09-13, WP-EXC-010 Scope & Readiness Audit):
     OEP Studio already has a substantial, working Exchange integration —
@@ -963,13 +963,33 @@ IMPORTANT CORRECTION (2026-09-13, WP-EXC-010 Scope & Readiness Audit):
     services/exchange/docs/audits/WP-EXC-010-SCOPE-AND-READINESS-AUDIT.md,
     services/exchange/docs/tasks/WP-EXC-010-SCOPE.md.
 
+RESOLVED BY WP-EXC-013 (2026-09-13, LOCAL / NOT PUSHED) — Exchange →
+Repository Install Bridge:
+    The one gap identified directly above (Studio's Exchange "Install"
+    action never reaching a real OEP Repository) is closed. Studio's
+    `ExchangeRuntimeNotifier.installPackage` now downloads the real
+    package artifact, verifies its SHA-256 checksum (Exchange's download
+    route already sent an `X-Checksum-Sha256` header Studio simply never
+    read), and installs it through a new `ExchangeInstallBridge` that
+    calls Foundation's real, unmodified `oep_package_install` via the
+    same `FoundationBridge.installPackage` FFI path the manual Package
+    Manager page already used. Verified against the genuine Foundation
+    runtime (real `oep_foundation_bridge.dll`, not a fake): a valid
+    package installs and its object/relationship counts are read back
+    from Foundation itself; a checksum mismatch is rejected before
+    Foundation is ever called; a corrupt archive and a duplicate install
+    both produce Foundation's own real failure outcomes. Zero Foundation
+    source changed; zero new Exchange API endpoints; zero new repository
+    implementation. Full detail: services/exchange/docs/tasks/WP-EXC-013.md,
+    services/exchange/docs/audits/WP-EXC-013-IMPLEMENTATION-REPORT.md.
+
 NOT PRESENT / NOT COMPLETE:
     - a publisher-facing upload/publish UI (neither publisher-portal nor
       Studio has one; a real, tested backend upload API already exists
       and needs no UI to prove the RC1 vertical slice)
     - production catalog / complete discovery at production scale
-    - a REAL (non-simulated) Exchange-to-Repository install path (the
-      one identified gap above)
+    - a complete end-to-end Exchange RC1 scenario test (WP-EXC-014,
+      not yet started — the install bridge it depends on is now done)
     - production Exchange RC1
     - authentication (excluded from WP-EXC-001's own scope; the client
       has nothing to attach even if it existed)
@@ -981,24 +1001,23 @@ NOT PRESENT / NOT COMPLETE:
 
 CURRENT DOCUMENTED WORK:
     WP-EXC-001 through WP-EXC-010 specifications exist. WP-EXC-011
-    (Exchange Workspace Reconstruction) and WP-EXC-012 (Exchange Client
-    API Foundation) are both implemented, LOCAL / NOT PUSHED. A
-    WP-EXC-010 scope/readiness audit (2026-09-13) is also complete,
-    LOCAL / NOT PUSHED — Exchange RC1 itself has not been implemented,
-    only precisely scoped.
+    (Exchange Workspace Reconstruction), WP-EXC-012 (Exchange Client API
+    Foundation), and WP-EXC-013 (Exchange → Repository Install Bridge)
+    are all implemented, LOCAL / NOT PUSHED. A WP-EXC-010 scope/readiness
+    audit (2026-09-13) is also complete, LOCAL / NOT PUSHED — Exchange
+    RC1 itself has not been implemented, only precisely scoped.
 
 MAJOR REMAINING PROGRAM:
-    Implement the Exchange → Repository install bridge (proposed
-    WP-EXC-013 in the scope audit above) — wiring Studio's already-built
-    Exchange install action to Foundation's already-built, already-
-    trust-verifying installer — plus one genuine end-to-end test. This
-    is a small, well-evidenced connection between two already-working
-    systems, not a from-scratch build.
+    Implement WP-EXC-014, the full end-to-end Exchange RC1 scenario test
+    (search → detail → install → verified in a real Repository →
+    Engineering Object visible), building directly on WP-EXC-013's now-
+    proven install bridge and its Stored-ZIP test fixture.
 
 EXCHANGE RC1 IS NOT CURRENTLY A RELEASE-READY OEP SUBSYSTEM. Its
-FOUNDATION (workspace + client + Studio UI), as of this audit, is far
-more complete than previously documented — one identified, scoped
-connection remains before a genuine end-to-end vertical slice exists.
+FOUNDATION (workspace + client + Studio UI + a real, Foundation-verified
+install bridge), as of WP-EXC-013, is substantially more complete than
+previously documented — a full end-to-end scenario test (WP-EXC-014)
+remains before a genuine, provable RC1 vertical slice exists.
 
 ====================================================================
 13. OEP INSTRUMENTS
@@ -1345,10 +1364,11 @@ EAM
 
 EXCHANGE
     [x] Foundation (workspace + client, WP-EXC-011/012, LOCAL / NOT PUSHED)
-    [ ] RC1 (scoped, not implemented — see WP-EXC-010-SCOPE.md)
+    [x] Install bridge to Foundation's real installer (WP-EXC-013, LOCAL / NOT PUSHED)
+    [ ] RC1 (scoped, install bridge now implemented — full end-to-end scenario test is WP-EXC-014, not yet started)
     [ ] Complete publisher workflow (backend API only, no UI)
-    [x] Consumer workflow (search/browse/detail/download/install-request — real, tested; the "install" step itself is still simulated server-side, see Section 12)
-    [x] Studio integration (substantially built — full Exchange workspace, registered in StudioRegistry; the one gap is the real-install bridge, see Section 12)
+    [x] Consumer workflow (search/browse/detail/download/install — real, tested end to end through Foundation's real installer as of WP-EXC-013)
+    [x] Studio integration (substantially built — full Exchange workspace, registered in StudioRegistry; the real-install bridge is now closed by WP-EXC-013, see Section 12)
 
 INSTRUMENTS
     [x] OIP foundation
@@ -1534,10 +1554,11 @@ OVERALL OEP:
 
 6. Close high-value Foundation/API technical debt.
 
-7. Expand Engineering Exchange toward RC1 (WP-EXC-010) — its workspace
-   and client foundation are now both complete (WP-EXC-011/012, LOCAL /
-   NOT PUSHED), with the full workspace building/typechecking/testing
-   with zero failures.
+7. Expand Engineering Exchange toward RC1 (WP-EXC-010) — its workspace,
+   client foundation, and real install bridge are now complete
+   (WP-EXC-011/012/013, LOCAL / NOT PUSHED), with the full workspace
+   building/typechecking/testing with zero failures. WP-EXC-014 (full
+   end-to-end scenario test) remains before RC1 itself is claimed.
 
 8. Expand EAM/Vault into broader M2 (rich provenance metadata, custody
    events, connector security policy) — the Acquisition Record
@@ -1610,10 +1631,12 @@ CURRENT EKE STATE:
     INTERNAL v1.0 ARCHITECTURE FREEZE
 
 CURRENT EXCHANGE STATE:
-    WORKSPACE + CLIENT FOUNDATION COMPLETE (WP-EXC-011/012, LOCAL / NOT PUSHED)
-    STUDIO INTEGRATION ALREADY SUBSTANTIALLY BUILT (see Section 12) — one
-    real-install bridge remains before a genuine end-to-end vertical slice
-    RC1 SCOPED (WP-EXC-010-SCOPE.md), NOT IMPLEMENTED
+    WORKSPACE + CLIENT FOUNDATION + REAL INSTALL BRIDGE COMPLETE
+    (WP-EXC-011/012/013, LOCAL / NOT PUSHED)
+    STUDIO INTEGRATION ALREADY SUBSTANTIALLY BUILT (see Section 12) — the
+    install action now reaches Foundation's real, trust-verifying installer
+    RC1 SCOPED (WP-EXC-010-SCOPE.md); NOT YET CLAIMED COMPLETE — WP-EXC-014
+    (full end-to-end scenario test) remains
 
 CURRENT OVERALL PLATFORM STATE:
     INTEGRATED ALPHA / PRE-BETA
