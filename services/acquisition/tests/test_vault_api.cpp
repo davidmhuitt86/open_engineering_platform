@@ -83,7 +83,9 @@ TEST_CASE("Engineering Reference Vault REST API", "[api][vault][database]") {
     CHECK(body.at("status") == "published");
     CHECK(body.at("sha256_hash") == seeded.sha256_hash);
     CHECK(body.at("source_id") == seeded.source_id);
-    CHECK(std::filesystem::exists(body.at("vault_path").get<std::string>()));
+    // WP-SRV-002: `vault_path` is a server-local filesystem path and must
+    // never appear in the public API (ADR-0001 Section 6).
+    CHECK_FALSE(body.contains("vault_path"));
     CHECK(response->get_header_value("Location") == "/vault/" + body.at("id").get<std::string>());
   }
 
@@ -141,6 +143,35 @@ TEST_CASE("Engineering Reference Vault REST API", "[api][vault][database]") {
     const auto body = nlohmann::json::parse(response->body);
     CHECK(body.at("status") == "published");
     CHECK_FALSE(body.at("sha256_hash").get<std::string>().empty());
+  }
+
+  SECTION("GET /vault/{id} never leaks vault_path even when listed") {
+    client.Post("/vault", publish_body(seeded.id).dump(), "application/json");
+    const auto response = client.Get("/vault");
+    REQUIRE(response != nullptr);
+    const auto body = nlohmann::json::parse(response->body);
+    REQUIRE(body.size() == 1);
+    CHECK_FALSE(body.at(0).contains("vault_path"));
+  }
+
+  SECTION("GET /vault/{id}/artifact returns the raw artifact bytes with checksum headers") {
+    const auto create_response = client.Post("/vault", publish_body(seeded.id).dump(), "application/json");
+    const auto created = nlohmann::json::parse(create_response->body);
+    const auto id = created.at("id").get<std::string>();
+
+    const auto response = client.Get("/vault/" + id + "/artifact");
+    REQUIRE(response != nullptr);
+    CHECK(response->status == 200);
+    CHECK(response->body == "some plain text content");
+    CHECK(response->get_header_value("X-Checksum-Sha256") == seeded.sha256_hash);
+    CHECK_FALSE(response->get_header_value("Content-Type").empty());
+    CHECK_FALSE(response->get_header_value("Content-Length").empty());
+  }
+
+  SECTION("GET /vault/{id}/artifact returns 404 for an unknown id") {
+    const auto response = client.Get("/vault/00000000-0000-0000-0000-000000000000/artifact");
+    REQUIRE(response != nullptr);
+    CHECK(response->status == 404);
   }
 
   SECTION("GET /vault lists published entries and supports filtering by metadata_id") {

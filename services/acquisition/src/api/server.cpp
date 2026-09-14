@@ -1,5 +1,6 @@
 #include "oep/acquisition/api/server.hpp"
 
+#include <filesystem>
 #include <optional>
 #include <string>
 #include <vector>
@@ -927,6 +928,37 @@ void register_vault_routes(httplib::Server& server, ReferenceVaultService& servi
         return;
       }
       respond_json(response, 200, vault::status_to_json(*entry));
+    });
+  });
+
+  // WP-SRV-002: the artifact-transfer contract from ADR-0001 Section 6
+  // (modeled on Exchange's `/packages/{id}/download` -- see
+  // `services/exchange/apps/exchange-api/src/routes/download.ts`).
+  // `entry.vault_path` is resolved here, server-side, and never appears in
+  // any response -- only the raw bytes and the three headers below do. The
+  // client is expected to compute its own SHA-256 over the body and reject
+  // the response on a mismatch against `X-Checksum-Sha256`.
+  server.Get(R"(/vault/([^/]+)/artifact)", [&service](const httplib::Request& request,
+                                                          httplib::Response& response) {
+    const std::string id = request.matches[1];
+    guard_vault(response, [&] {
+      const auto entry = service.get(id);
+      if (!entry.has_value()) {
+        respond_error(response, 404, "not_found", "No vault entry exists with that id.");
+        return;
+      }
+      if (!std::filesystem::exists(entry->vault_path)) {
+        // The VaultEntry row exists but its content-addressable file does
+        // not -- a server-side data-integrity condition, not a client
+        // error, so this is a 500, distinct from the 404s above.
+        respond_error(response, 500, "artifact_missing",
+                       "The Vault entry's artifact could not be found in storage.");
+        return;
+      }
+      response.set_header("X-Checksum-Sha256", entry->sha256_hash);
+      // set_file_content streams the file and derives Content-Length from
+      // its size; Content-Type is set from the stored mime_type.
+      response.set_file_content(entry->vault_path, entry->mime_type);
     });
   });
 }

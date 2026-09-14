@@ -108,6 +108,9 @@ TEST_CASE("Engineering Downloader REST API", "[api][downloads][database]") {
     CHECK_FALSE(body.at("id").get<std::string>().empty());
     CHECK(body.at("status") == "completed");
     CHECK(body.at("progress_percentage") == 100);
+    // WP-SRV-002: `local_storage_path` is a server-local filesystem path
+    // and must never appear in the public API (ADR-0001 Section 6).
+    CHECK_FALSE(body.contains("local_storage_path"));
     CHECK(response->get_header_value("Location") == "/downloads/" + body.at("id").get<std::string>());
   }
 
