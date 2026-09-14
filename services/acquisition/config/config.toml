@@ -22,6 +22,13 @@ console = true
 root_path = "./data/vault"
 workspace_path = "./data/workspace"
 
+# WP-SRV-004: host defaults to loopback-only. The supported production
+# topology terminates TLS in front of this process (see
+# docs/architecture/decisions/ADR-0003-OEP-REFERENCE-SERVER-TLS-BOUNDARY.md)
+# and proxies to it over 127.0.0.1 -- the plaintext listener itself is not
+# meant to be directly reachable from an untrusted network. Set this to
+# 0.0.0.0 only for local-only development where no TLS boundary is in front
+# of it and the network itself is already trusted.
 [server]
-host = "0.0.0.0"
+host = "127.0.0.1"
 port = 8080

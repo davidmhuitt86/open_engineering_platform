@@ -45,7 +45,11 @@ struct StorageConfig {
 };
 
 struct ServerConfig {
-  std::string host = "0.0.0.0";
+  // WP-SRV-004: defaults to loopback-only -- the supported production
+  // topology terminates TLS in front of this process and proxies to it
+  // over 127.0.0.1 (see ADR-0003). This listener itself is not meant to
+  // be directly reachable from an untrusted network by default.
+  std::string host = "127.0.0.1";
   std::uint16_t port = 8080;
 };
 

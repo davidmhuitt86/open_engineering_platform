@@ -66,7 +66,8 @@ TEST_CASE("Config defaults apply when only some fields in a section are set", "[
   )toml");
 
   CHECK(config.server.port == 9999);
-  CHECK(config.server.host == "0.0.0.0");  // default, untouched
+  // WP-SRV-004: the default changed from "0.0.0.0" to "127.0.0.1".
+  CHECK(config.server.host == "127.0.0.1");  // default, untouched
 }
 
 TEST_CASE("Config::load_from_string throws ConfigError on malformed TOML", "[config]") {
