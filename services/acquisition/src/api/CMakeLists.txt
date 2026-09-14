@@ -1,4 +1,5 @@
 add_library(oep_acquisition_api STATIC
+  auth.cpp
   server.cpp
 )
 

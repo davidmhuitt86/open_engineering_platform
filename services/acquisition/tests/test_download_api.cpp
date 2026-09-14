@@ -26,6 +26,7 @@ using oep::acquisition::connectors::ConnectorConfig;
 using oep::acquisition::connectors::ConnectorFactory;
 using oep::acquisition::connectors::ConnectorRegistry;
 using oep::acquisition::connectors::StubConnector;
+using oep::acquisition::test_support::kTestApiToken;
 using oep::acquisition::test_support::reset_downloads_schema;
 using oep::acquisition::test_support::seed_official_source;
 using oep::acquisition::test_support::test_database_config;
@@ -73,9 +74,10 @@ TEST_CASE("Engineering Downloader REST API", "[api][downloads][database]") {
   server_config.host = "127.0.0.1";
   server_config.port = 0;
 
-  ApiServer server(server_config, nullptr, nullptr, nullptr, nullptr, &service);
+  ApiServer server(server_config, kTestApiToken, nullptr, nullptr, nullptr, nullptr, &service);
   REQUIRE(server.start());
   httplib::Client client(server_config.host, server.bound_port());
+  client.set_bearer_token_auth(kTestApiToken);
 
   const auto create_job = [&](JobStatus status) {
     AcquisitionJob job;
@@ -96,6 +98,14 @@ TEST_CASE("Engineering Downloader REST API", "[api][downloads][database]") {
     const auto response = client.Get("/health");
     REQUIRE(response != nullptr);
     CHECK(response->status == 200);
+  }
+
+  SECTION("GET /downloads without an Authorization header returns 401") {
+    httplib::Client unauthenticated(server_config.host, server.bound_port());
+    const auto response = unauthenticated.Get("/downloads");
+    REQUIRE(response != nullptr);
+    CHECK(response->status == 401);
+    CHECK(nlohmann::json::parse(response->body).at("error") == "unauthorized");
   }
 
   SECTION("POST /downloads completes a download and returns 201 with a Location header") {

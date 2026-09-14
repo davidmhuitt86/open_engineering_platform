@@ -3,6 +3,7 @@
 #include <atomic>
 #include <cstdint>
 #include <memory>
+#include <string>
 #include <thread>
 
 #include "oep/acquisition/common/config.hpp"
@@ -76,9 +77,22 @@ namespace oep::acquisition::api {
 /// functions and `provenance::AcquisitionRecordService`'s header comment
 /// for why this integration lives at the route layer rather than inside
 /// those four services themselves.
+///
+/// WP-SRV-003: `api_token` is required (never defaulted, never empty) --
+/// every route this class registers except `GET /health` requires an
+/// `Authorization: Bearer <api_token>` header, enforced once, at this
+/// class's own boundary, via `httplib::Server::set_pre_routing_handler`
+/// rather than inside each individual route handler (see ADR-0002). This
+/// is deliberately the only place that check exists: a future Knowledge or
+/// Exchange route registered on this same `ApiServer` inherits the same
+/// enforcement automatically, and there is nowhere else in this class for
+/// a route to accidentally bypass it. Callers (production `main.cpp` and
+/// every test) must supply a real, non-empty token explicitly -- there is
+/// no default and no way to construct an unauthenticated-by-default
+/// instance short of registering no routes at all.
 class ApiServer {
  public:
-  explicit ApiServer(const common::ServerConfig& config,
+  explicit ApiServer(const common::ServerConfig& config, std::string api_token,
                       registry::OfficialSourceService* source_service = nullptr,
                       acquisition::AcquisitionJobService* job_service = nullptr,
                       acquisition::AcquisitionExecutionService* execution_service = nullptr,
@@ -111,6 +125,7 @@ class ApiServer {
 
  private:
   common::ServerConfig config_;
+  std::string api_token_;
   registry::OfficialSourceService* source_service_;
   acquisition::AcquisitionJobService* job_service_;
   acquisition::AcquisitionExecutionService* execution_service_;

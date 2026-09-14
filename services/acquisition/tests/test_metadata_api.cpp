@@ -17,6 +17,7 @@ using namespace oep::acquisition::metadata;
 using oep::acquisition::api::ApiServer;
 using oep::acquisition::downloads::PostgresDownloadRepository;
 using oep::acquisition::integrity::PostgresVerificationRepository;
+using oep::acquisition::test_support::kTestApiToken;
 using oep::acquisition::test_support::reset_metadata_schema;
 using oep::acquisition::test_support::seed_verified_download;
 using oep::acquisition::test_support::test_database_config;
@@ -45,9 +46,10 @@ TEST_CASE("Engineering Metadata Extraction Engine REST API", "[api][metadata][da
   server_config.host = "127.0.0.1";
   server_config.port = 0;
 
-  ApiServer server(server_config, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, &service);
+  ApiServer server(server_config, kTestApiToken, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, &service);
   REQUIRE(server.start());
   httplib::Client client(server_config.host, server.bound_port());
+  client.set_bearer_token_auth(kTestApiToken);
 
   SECTION("GET /health still responds when only metadata is registered") {
     const auto response = client.Get("/health");

@@ -23,6 +23,7 @@ using oep::acquisition::api::ApiServer;
 using oep::acquisition::downloads::PostgresDownloadRepository;
 using oep::acquisition::integrity::PostgresVerificationRepository;
 using oep::acquisition::metadata::PostgresMetadataRepository;
+using oep::acquisition::test_support::kTestApiToken;
 using oep::acquisition::test_support::reset_vault_schema;
 using oep::acquisition::test_support::seed_extracted_metadata;
 using oep::acquisition::test_support::test_database_config;
@@ -63,14 +64,56 @@ TEST_CASE("Engineering Reference Vault REST API", "[api][vault][database]") {
   server_config.host = "127.0.0.1";
   server_config.port = 0;
 
-  ApiServer server(server_config, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, &service);
+  ApiServer server(server_config, kTestApiToken, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+                   &service);
   REQUIRE(server.start());
   httplib::Client client(server_config.host, server.bound_port());
+  client.set_bearer_token_auth(kTestApiToken);
 
   SECTION("GET /health still responds when only vault is registered") {
     const auto response = client.Get("/health");
     REQUIRE(response != nullptr);
     CHECK(response->status == 200);
+  }
+
+  SECTION("GET /vault without an Authorization header returns 401") {
+    httplib::Client unauthenticated(server_config.host, server.bound_port());
+    const auto response = unauthenticated.Get("/vault");
+    REQUIRE(response != nullptr);
+    CHECK(response->status == 401);
+    CHECK(nlohmann::json::parse(response->body).at("error") == "unauthorized");
+    CHECK(response->get_header_value("WWW-Authenticate") == "Bearer");
+  }
+
+  SECTION("GET /vault with a malformed Authorization header returns 401") {
+    httplib::Client malformed(server_config.host, server.bound_port());
+    malformed.set_default_headers({{"Authorization", "not-a-bearer-token"}});
+    const auto response = malformed.Get("/vault");
+    REQUIRE(response != nullptr);
+    CHECK(response->status == 401);
+  }
+
+  SECTION("GET /vault with the wrong token returns 401, identically to no token at all") {
+    httplib::Client wrong_token(server_config.host, server.bound_port());
+    wrong_token.set_bearer_token_auth("definitely-the-wrong-token");
+    const auto wrong = wrong_token.Get("/vault");
+    httplib::Client no_token(server_config.host, server.bound_port());
+    const auto missing = no_token.Get("/vault");
+
+    REQUIRE(wrong != nullptr);
+    REQUIRE(missing != nullptr);
+    CHECK(wrong->status == missing->status);
+    CHECK(wrong->body == missing->body);
+  }
+
+  SECTION("GET /vault/{id}/artifact without a token returns 401") {
+    const auto create_response = client.Post("/vault", publish_body(seeded.id).dump(), "application/json");
+    const auto created = nlohmann::json::parse(create_response->body);
+
+    httplib::Client unauthenticated(server_config.host, server.bound_port());
+    const auto response = unauthenticated.Get("/vault/" + created.at("id").get<std::string>() + "/artifact");
+    REQUIRE(response != nullptr);
+    CHECK(response->status == 401);
   }
 
   SECTION("POST /vault publishes a real artifact end to end and returns 201") {

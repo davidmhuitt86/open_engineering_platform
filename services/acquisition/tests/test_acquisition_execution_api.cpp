@@ -21,6 +21,7 @@ using oep::acquisition::acquisition::PostgresAcquisitionJobRepository;
 using oep::acquisition::acquisition::PostgresJobExecutionHistoryRepository;
 using oep::acquisition::api::ApiServer;
 using oep::acquisition::registry::PostgresOfficialSourceRepository;
+using oep::acquisition::test_support::kTestApiToken;
 using oep::acquisition::test_support::reset_execution_schema;
 using oep::acquisition::test_support::seed_official_source;
 using oep::acquisition::test_support::test_database_config;
@@ -54,9 +55,10 @@ TEST_CASE("Acquisition Execution Engine REST API", "[api][execution][database]")
   server_config.host = "127.0.0.1";
   server_config.port = 0;
 
-  ApiServer server(server_config, nullptr, &job_service, &execution_service);
+  ApiServer server(server_config, kTestApiToken, nullptr, &job_service, &execution_service);
   REQUIRE(server.start());
   httplib::Client client(server_config.host, server.bound_port());
+  client.set_bearer_token_auth(kTestApiToken);
 
   const auto create_job = [&] {
     const auto response = client.Post("/jobs", valid_job_body(source_id).dump(), "application/json");

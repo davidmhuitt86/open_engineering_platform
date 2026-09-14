@@ -7,6 +7,12 @@
 
 namespace oep::acquisition::test_support {
 
+/// WP-SRV-003: a fixed, obviously-fake bearer token used only to construct
+/// `ApiServer` instances in tests. Never read from the environment and
+/// never printed -- tests that need to exercise "wrong token" behavior use
+/// a different literal instead of this one.
+inline const std::string kTestApiToken = "test-only-wp-srv-003-fake-token";
+
 /// Reads `OEP_TEST_DB_{HOST,PORT,NAME,USER,PASSWORD}` environment variables,
 /// falling back to `common::DatabaseConfig`'s own defaults (which match
 /// `config/config.toml`) for anything unset. Lets Repository/API/migration

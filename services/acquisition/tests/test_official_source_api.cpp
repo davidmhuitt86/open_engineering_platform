@@ -13,6 +13,7 @@
 using oep::acquisition::api::ApiServer;
 using oep::acquisition::registry::OfficialSourceService;
 using oep::acquisition::registry::PostgresOfficialSourceRepository;
+using oep::acquisition::test_support::kTestApiToken;
 using oep::acquisition::test_support::reset_official_sources_table;
 using oep::acquisition::test_support::test_database_config;
 
@@ -43,9 +44,10 @@ TEST_CASE("Official Source Registry REST API", "[api][registry][database]") {
   server_config.host = "127.0.0.1";
   server_config.port = 0;
 
-  ApiServer server(server_config, &service);
+  ApiServer server(server_config, kTestApiToken, &service);
   REQUIRE(server.start());
   httplib::Client client(server_config.host, server.bound_port());
+  client.set_bearer_token_auth(kTestApiToken);
 
   SECTION("GET /health still responds when /sources is also registered") {
     const auto response = client.Get("/health");

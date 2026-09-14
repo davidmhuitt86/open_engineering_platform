@@ -14,6 +14,7 @@
 using oep::acquisition::acquisition::AcquisitionJobService;
 using oep::acquisition::acquisition::PostgresAcquisitionJobRepository;
 using oep::acquisition::api::ApiServer;
+using oep::acquisition::test_support::kTestApiToken;
 using oep::acquisition::test_support::reset_acquisition_jobs_schema;
 using oep::acquisition::test_support::seed_official_source;
 using oep::acquisition::test_support::test_database_config;
@@ -46,9 +47,10 @@ TEST_CASE("Acquisition Job Engine REST API", "[api][jobs][database]") {
   server_config.host = "127.0.0.1";
   server_config.port = 0;
 
-  ApiServer server(server_config, nullptr, &service);
+  ApiServer server(server_config, kTestApiToken, nullptr, &service);
   REQUIRE(server.start());
   httplib::Client client(server_config.host, server.bound_port());
+  client.set_bearer_token_auth(kTestApiToken);
 
   SECTION("GET /health still responds when /jobs is registered without /sources") {
     const auto response = client.Get("/health");

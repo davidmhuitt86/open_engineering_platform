@@ -7,9 +7,11 @@
 #include "oep/acquisition/connectors/connector_factory.hpp"
 #include "oep/acquisition/connectors/connector_registry.hpp"
 #include "oep/acquisition/connectors/stub_connector.hpp"
+#include "registry_test_support.hpp"
 
 using namespace oep::acquisition::connectors;
 using oep::acquisition::api::ApiServer;
+using oep::acquisition::test_support::kTestApiToken;
 
 namespace {
 
@@ -41,9 +43,10 @@ TEST_CASE("Connector Framework REST API", "[api][connectors]") {
   server_config.host = "127.0.0.1";
   server_config.port = 0;
 
-  ApiServer server(server_config, nullptr, nullptr, nullptr, &registry);
+  ApiServer server(server_config, kTestApiToken, nullptr, nullptr, nullptr, &registry);
   REQUIRE(server.start());
   httplib::Client client(server_config.host, server.bound_port());
+  client.set_bearer_token_auth(kTestApiToken);
 
   SECTION("GET /health still responds when only connectors is registered") {
     const auto response = client.Get("/health");

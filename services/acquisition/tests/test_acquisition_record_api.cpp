@@ -49,6 +49,7 @@ using oep::acquisition::integrity::PostgresVerificationRepository;
 using oep::acquisition::metadata::MetadataExtractionService;
 using oep::acquisition::metadata::PostgresMetadataRepository;
 using oep::acquisition::registry::PostgresOfficialSourceRepository;
+using oep::acquisition::test_support::kTestApiToken;
 using oep::acquisition::test_support::reset_provenance_schema;
 using oep::acquisition::test_support::seed_official_source;
 using oep::acquisition::test_support::test_database_config;
@@ -112,10 +113,11 @@ TEST_CASE("Acquisition Record & Provenance Foundation REST API and full-pipeline
   server_config.host = "127.0.0.1";
   server_config.port = 0;
 
-  ApiServer server(server_config, nullptr, nullptr, nullptr, &connector_registry, &download_service,
-                   &verification_service, &metadata_service, &vault_service, &record_service);
+  ApiServer server(server_config, kTestApiToken, nullptr, nullptr, nullptr, &connector_registry,
+                   &download_service, &verification_service, &metadata_service, &vault_service, &record_service);
   REQUIRE(server.start());
   httplib::Client client(server_config.host, server.bound_port());
+  client.set_bearer_token_auth(kTestApiToken);
 
   const auto create_job = [&] {
     AcquisitionJob job;

@@ -2,8 +2,10 @@
 #include <chrono>
 #include <csignal>
 #include <cstdio>
+#include <cstdlib>
 #include <filesystem>
 #include <memory>
+#include <string>
 #include <thread>
 
 #include "oep/acquisition/acquisition/acquisition_execution_service.hpp"
@@ -63,11 +65,33 @@ int main(int argc, char** argv) {
   using oep::acquisition::common::Logger;
   using oep::acquisition::database::DatabaseConnection;
 
+  // WP-SRV-003: the API token is a secret, so it is read only from the
+  // environment -- never from `config.toml` (which is checked into the
+  // repository) and never given a default. A missing or empty
+  // `OEP_API_TOKEN` fails startup immediately, before anything else is
+  // initialized: silently falling back to "authentication disabled"
+  // would be indistinguishable, from the outside, from a correctly
+  // configured but insecure deployment (see ADR-0002 Section
+  // "Configuration"). Logging is not initialized yet at this point, so
+  // this goes straight to stderr, mirroring `load_configuration`'s own
+  // pre-logger error path below -- and this message never includes the
+  // token itself, only the fact that it is missing.
+  const char* api_token_env = std::getenv("OEP_API_TOKEN");
+  if (api_token_env == nullptr || *api_token_env == '\0') {
+    std::fprintf(stderr,
+                 "[oep_acquisition] OEP_API_TOKEN environment variable is not set (or is empty) -- refusing "
+                 "to start without an explicit API authentication token. Set OEP_API_TOKEN to a real "
+                 "secret and restart.\n");
+    return 1;
+  }
+  const std::string api_token(api_token_env);
+
   const auto config = load_configuration(argc, argv);
   Logger::initialize(config.logging);
   auto& log = Logger::get();
 
   log.info("OEP Acquisition Manager starting up");
+  log.info("API authentication token configured (length {})", api_token.size());
 
   // Connection only, per WORK_PACKAGE_001 -- a failed connection is
   // logged, never fatal, since no schema or repositories exist yet for
@@ -304,7 +328,7 @@ int main(int argc, char** argv) {
         "execution history, download, verification, metadata, and vault repositories unavailable");
   }
 
-  ApiServer server(config.server, source_service.get(), job_service.get(), execution_service.get(),
+  ApiServer server(config.server, api_token, source_service.get(), job_service.get(), execution_service.get(),
                     &connector_registry, download_service.get(), verification_service.get(),
                     metadata_service.get(), vault_service.get(), acquisition_record_service.get());
   if (!server.start()) {

@@ -15,6 +15,7 @@
 using namespace oep::acquisition::integrity;
 using oep::acquisition::api::ApiServer;
 using oep::acquisition::downloads::PostgresDownloadRepository;
+using oep::acquisition::test_support::kTestApiToken;
 using oep::acquisition::test_support::reset_integrity_schema;
 using oep::acquisition::test_support::seed_completed_download;
 using oep::acquisition::test_support::test_database_config;
@@ -42,9 +43,10 @@ TEST_CASE("Engineering Integrity Verification Engine REST API", "[api][integrity
   server_config.host = "127.0.0.1";
   server_config.port = 0;
 
-  ApiServer server(server_config, nullptr, nullptr, nullptr, nullptr, nullptr, &service);
+  ApiServer server(server_config, kTestApiToken, nullptr, nullptr, nullptr, nullptr, nullptr, &service);
   REQUIRE(server.start());
   httplib::Client client(server_config.host, server.bound_port());
+  client.set_bearer_token_auth(kTestApiToken);
 
   SECTION("GET /health still responds when only verifications is registered") {
     const auto response = client.Get("/health");

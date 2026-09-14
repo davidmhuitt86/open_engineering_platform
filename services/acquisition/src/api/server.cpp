@@ -2,12 +2,14 @@
 
 #include <filesystem>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
 #include <httplib.h>
 #include <nlohmann/json.hpp>
 
+#include "oep/acquisition/api/auth.hpp"
 #include "oep/acquisition/acquisition/acquisition_execution_json.hpp"
 #include "oep/acquisition/acquisition/acquisition_execution_service.hpp"
 #include "oep/acquisition/acquisition/acquisition_job_json.hpp"
@@ -68,6 +70,44 @@ void respond_json(httplib::Response& response, int status, const nlohmann::json&
 void respond_error(httplib::Response& response, int status, const std::string& code,
                     const std::string& message) {
   respond_json(response, status, nlohmann::json{{"error", code}, {"message", message}});
+}
+
+void respond_unauthorized(httplib::Response& response) {
+  // Deliberately identical for every failure reason (missing header,
+  // malformed header, wrong token) -- ADR-0002 Section "401 Behavior"
+  // requires these to be indistinguishable to the caller. Never includes
+  // the configured token, the caller's header value, or anything else that
+  // could help an attacker narrow down the real credential.
+  response.set_header("WWW-Authenticate", "Bearer");
+  respond_error(response, 401, "unauthorized", "Authentication required.");
+}
+
+// The sole authentication gate for this process's entire API surface,
+// installed once via `httplib::Server::set_pre_routing_handler` (ADR-0002
+// Section "Authentication Mechanism") rather than duplicated inside every
+// route handler -- see `server.hpp`'s class comment for why. Returning
+// `Handled` short-circuits routing entirely (the real route handler, if
+// any exists for this path, never runs); `Unhandled` lets normal routing
+// proceed exactly as before this WP.
+httplib::Server::HandlerResponse authenticate_request(const std::string& api_token,
+                                                          const httplib::Request& request,
+                                                          httplib::Response& response) {
+  // WP-SRV-003 / ADR-0002 Section "Public Health Route": the one path
+  // exempted from authentication -- every other path, matched or not,
+  // continues on to the checks below.
+  if (request.path == "/health") {
+    return httplib::Server::HandlerResponse::Unhandled;
+  }
+  if (!request.has_header("Authorization")) {
+    respond_unauthorized(response);
+    return httplib::Server::HandlerResponse::Handled;
+  }
+  const auto token = parse_bearer_token(request.get_header_value("Authorization"));
+  if (!token.has_value() || !constant_time_equals(*token, api_token)) {
+    respond_unauthorized(response);
+    return httplib::Server::HandlerResponse::Handled;
+  }
+  return httplib::Server::HandlerResponse::Unhandled;
 }
 
 void respond_validation_error(httplib::Response& response, const std::vector<std::string>& violations) {
@@ -1079,7 +1119,8 @@ void register_routes(httplib::Server& server, OfficialSourceService* source_serv
 
 }  // namespace
 
-ApiServer::ApiServer(const common::ServerConfig& config, registry::OfficialSourceService* source_service,
+ApiServer::ApiServer(const common::ServerConfig& config, std::string api_token,
+                      registry::OfficialSourceService* source_service,
                       acquisition::AcquisitionJobService* job_service,
                       acquisition::AcquisitionExecutionService* execution_service,
                       connectors::ConnectorRegistry* connector_registry,
@@ -1089,6 +1130,7 @@ ApiServer::ApiServer(const common::ServerConfig& config, registry::OfficialSourc
                       vault::ReferenceVaultService* vault_service,
                       provenance::AcquisitionRecordService* acquisition_record_service)
     : config_(config),
+      api_token_(std::move(api_token)),
       source_service_(source_service),
       job_service_(job_service),
       execution_service_(execution_service),
@@ -1099,6 +1141,21 @@ ApiServer::ApiServer(const common::ServerConfig& config, registry::OfficialSourc
       vault_service_(vault_service),
       acquisition_record_service_(acquisition_record_service),
       server_(std::make_unique<httplib::Server>()) {
+  if (api_token_.empty()) {
+    // WP-SRV-003: an empty token must never silently mean "auth
+    // disabled" -- with an empty configured token, no client-supplied
+    // token (which `parse_bearer_token` never lets be empty) could ever
+    // match, so every non-health route would become permanently
+    // unauthenticatable instead. Fail loudly and immediately instead.
+    throw std::invalid_argument("ApiServer: api_token must not be empty");
+  }
+  // WP-SRV-003: installed once, ahead of every route this class registers
+  // -- see this function's own header comment on `authenticate_request`
+  // and `server.hpp`'s class comment for why this is the only place the
+  // check exists.
+  server_->set_pre_routing_handler([this](const httplib::Request& request, httplib::Response& response) {
+    return authenticate_request(api_token_, request, response);
+  });
   register_routes(*server_, source_service_, job_service_, execution_service_, connector_registry_,
                    download_service_, verification_service_, metadata_service_, vault_service_,
                    acquisition_record_service_);

@@ -3,6 +3,7 @@ add_executable(oep_acquisition_tests
   test_config.cpp
   test_database_connection.cpp
   test_server.cpp
+  test_auth.cpp
   registry_test_support.cpp
   test_official_source_validation.cpp
   test_official_source_service.cpp
