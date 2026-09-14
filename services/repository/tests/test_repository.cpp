@@ -58,7 +58,7 @@ TEST_CASE("Repository creation, retrieval, idempotency, and audit association", 
 
   SECTION("create and retrieve a repository") {
     const std::string operation_id = generate_uuid_v4();
-    const auto response = client.Post("/repositories", create_body(operation_id, "Repo A").dump(), "application/json");
+    const auto response = client.Post("/api/v1/repositories", create_body(operation_id, "Repo A").dump(), "application/json");
     REQUIRE(response != nullptr);
     CHECK(response->status == 201);
     const auto body = nlohmann::json::parse(response->body);
@@ -66,7 +66,7 @@ TEST_CASE("Repository creation, retrieval, idempotency, and audit association", 
     CHECK_FALSE(repository_id.empty());
     CHECK(body.at("name") == "Repo A");
 
-    const auto get_response = client.Get("/repositories/" + repository_id);
+    const auto get_response = client.Get("/api/v1/repositories/" + repository_id);
     REQUIRE(get_response != nullptr);
     CHECK(get_response->status == 200);
     CHECK(nlohmann::json::parse(get_response->body).at("id") == repository_id);
@@ -74,7 +74,7 @@ TEST_CASE("Repository creation, retrieval, idempotency, and audit association", 
 
   SECTION("repository-creation audit association") {
     const std::string operation_id = generate_uuid_v4();
-    const auto response = client.Post("/repositories", create_body(operation_id, "Audited Repo").dump(),
+    const auto response = client.Post("/api/v1/repositories", create_body(operation_id, "Audited Repo").dump(),
                                         "application/json");
     REQUIRE(response != nullptr);
     const std::string repository_id = nlohmann::json::parse(response->body).at("id").get<std::string>();
@@ -85,12 +85,12 @@ TEST_CASE("Repository creation, retrieval, idempotency, and audit association", 
     const std::string operation_id = generate_uuid_v4();
     const auto body = create_body(operation_id, "Idempotent Repo");
 
-    const auto first = client.Post("/repositories", body.dump(), "application/json");
+    const auto first = client.Post("/api/v1/repositories", body.dump(), "application/json");
     REQUIRE(first != nullptr);
     CHECK(first->status == 201);
     const std::string first_id = nlohmann::json::parse(first->body).at("id").get<std::string>();
 
-    const auto second = client.Post("/repositories", body.dump(), "application/json");
+    const auto second = client.Post("/api/v1/repositories", body.dump(), "application/json");
     REQUIRE(second != nullptr);
     CHECK(second->status == 201);
     const std::string second_id = nlohmann::json::parse(second->body).at("id").get<std::string>();
@@ -108,12 +108,12 @@ TEST_CASE("Repository creation, retrieval, idempotency, and audit association", 
 
   SECTION("reusing an operation_id with materially different content is an idempotency conflict") {
     const std::string operation_id = generate_uuid_v4();
-    const auto first = client.Post("/repositories", create_body(operation_id, "Original Name").dump(),
+    const auto first = client.Post("/api/v1/repositories", create_body(operation_id, "Original Name").dump(),
                                      "application/json");
     REQUIRE(first != nullptr);
     CHECK(first->status == 201);
 
-    const auto second = client.Post("/repositories", create_body(operation_id, "Different Name").dump(),
+    const auto second = client.Post("/api/v1/repositories", create_body(operation_id, "Different Name").dump(),
                                       "application/json");
     REQUIRE(second != nullptr);
     CHECK(second->status == 409);
@@ -153,7 +153,7 @@ TEST_CASE("Repository-creation idempotency survives a restart", "[api][repositor
     client.set_bearer_token_auth(kTestApiToken);
 
     const auto response =
-        client.Post("/repositories", create_body(operation_id, "Restart Repo").dump(), "application/json");
+        client.Post("/api/v1/repositories", create_body(operation_id, "Restart Repo").dump(), "application/json");
     REQUIRE(response != nullptr);
     REQUIRE(response->status == 201);
     original_repository_id = nlohmann::json::parse(response->body).at("id").get<std::string>();
@@ -171,13 +171,13 @@ TEST_CASE("Repository-creation idempotency survives a restart", "[api][repositor
     client.set_bearer_token_auth(kTestApiToken);
 
     const auto retry =
-        client.Post("/repositories", create_body(operation_id, "Restart Repo").dump(), "application/json");
+        client.Post("/api/v1/repositories", create_body(operation_id, "Restart Repo").dump(), "application/json");
     REQUIRE(retry != nullptr);
     CHECK(retry->status == 201);
     CHECK(nlohmann::json::parse(retry->body).at("id") == original_repository_id);
 
     // The previously-created repository itself is also still there.
-    const auto get_response = client.Get("/repositories/" + original_repository_id);
+    const auto get_response = client.Get("/api/v1/repositories/" + original_repository_id);
     REQUIRE(get_response != nullptr);
     CHECK(get_response->status == 200);
 

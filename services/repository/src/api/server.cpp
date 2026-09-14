@@ -116,6 +116,30 @@ nlohmann::json relationship_to_json(const Relationship& relationship) {
   };
 }
 
+nlohmann::json objects_to_json(const std::vector<EngineeringObject>& objects) {
+  nlohmann::json array = nlohmann::json::array();
+  for (const auto& object : objects) {
+    array.push_back(object_to_json(object));
+  }
+  return array;
+}
+
+nlohmann::json relationships_to_json(const std::vector<Relationship>& relationships) {
+  nlohmann::json array = nlohmann::json::array();
+  for (const auto& relationship : relationships) {
+    array.push_back(relationship_to_json(relationship));
+  }
+  return array;
+}
+
+nlohmann::json repositories_to_json(const std::vector<RepositoryMetadata>& repositories) {
+  nlohmann::json array = nlohmann::json::array();
+  for (const auto& repository : repositories) {
+    array.push_back(repository_to_json(repository));
+  }
+  return array;
+}
+
 nlohmann::json commit_result_to_json(const CommitResult& result) {
   nlohmann::json object_results = nlohmann::json::array();
   for (const auto& mutation : result.object_results) {
@@ -328,12 +352,28 @@ std::optional<std::int64_t> parse_revision_param(const std::string& text) {
   }
 }
 
+// ADR-0006 SS23/SS28 (WP-SRV-011B correction): "API version MUST appear
+// at the wire boundary." This service adopts the existing OEP Exchange
+// precedent -- an `/api/v1/` route prefix -- rather than a response
+// header/field, matching the mechanism Exchange already established
+// (ADR-0006 permits either; nothing about this service's own contract
+// favors the header alternative). `/health` is deliberately exempted:
+// it is not part of the authenticated resource surface (ADR-0002), and
+// ADR-0006 does not require an unauthenticated liveness probe to carry
+// a resource API version.
+constexpr auto kApiPrefix = "/api/v1";
+
 void register_routes(httplib::Server& server, ServerRepositoryStore& store) {
   server.Get("/health", [](const httplib::Request&, httplib::Response& response) {
     respond_json(response, 200, nlohmann::json{{"status", "ok"}});
   });
 
-  server.Post("/repositories", [&store](const httplib::Request& request, httplib::Response& response) {
+  server.Get(kApiPrefix + std::string("/repositories"),
+              [&store](const httplib::Request&, httplib::Response& response) {
+                guard(response, [&] { respond_json(response, 200, repositories_to_json(store.list_repositories())); });
+              });
+
+  server.Post(kApiPrefix + std::string("/repositories"), [&store](const httplib::Request& request, httplib::Response& response) {
     nlohmann::json body;
     try {
       body = nlohmann::json::parse(request.body);
@@ -364,7 +404,8 @@ void register_routes(httplib::Server& server, ServerRepositoryStore& store) {
     });
   });
 
-  server.Get(R"(/repositories/([^/]+))", [&store](const httplib::Request& request, httplib::Response& response) {
+  server.Get(kApiPrefix + std::string(R"(/repositories/([^/]+))"),
+              [&store](const httplib::Request& request, httplib::Response& response) {
     const std::string repository_id = request.matches[1];
     guard(response, [&] {
       const auto repository = store.get_repository(repository_id);
@@ -376,7 +417,7 @@ void register_routes(httplib::Server& server, ServerRepositoryStore& store) {
     });
   });
 
-  server.Post(R"(/repositories/([^/]+)/commits)", [&store](const httplib::Request& request,
+  server.Post(kApiPrefix + std::string(R"(/repositories/([^/]+)/commits)"), [&store](const httplib::Request& request,
                                                                httplib::Response& response) {
     const std::string repository_id = request.matches[1];
     nlohmann::json body;
@@ -398,7 +439,7 @@ void register_routes(httplib::Server& server, ServerRepositoryStore& store) {
     });
   });
 
-  server.Get(R"(/repositories/([^/]+)/objects/([^/]+)/revisions/([^/]+))",
+  server.Get(kApiPrefix + std::string(R"(/repositories/([^/]+)/objects/([^/]+)/revisions/([^/]+))"),
               [&store](const httplib::Request& request, httplib::Response& response) {
                 const std::string repository_id = request.matches[1];
                 const std::string object_id = request.matches[2];
@@ -417,7 +458,7 @@ void register_routes(httplib::Server& server, ServerRepositoryStore& store) {
                 });
               });
 
-  server.Get(R"(/repositories/([^/]+)/objects/([^/]+))", [&store](const httplib::Request& request,
+  server.Get(kApiPrefix + std::string(R"(/repositories/([^/]+)/objects/([^/]+))"), [&store](const httplib::Request& request,
                                                                       httplib::Response& response) {
     const std::string repository_id = request.matches[1];
     const std::string object_id = request.matches[2];
@@ -431,7 +472,13 @@ void register_routes(httplib::Server& server, ServerRepositoryStore& store) {
     });
   });
 
-  server.Get(R"(/repositories/([^/]+)/relationships/([^/]+)/revisions/([^/]+))",
+  server.Get(kApiPrefix + std::string(R"(/repositories/([^/]+)/objects)"),
+              [&store](const httplib::Request& request, httplib::Response& response) {
+                const std::string repository_id = request.matches[1];
+                guard(response, [&] { respond_json(response, 200, objects_to_json(store.list_objects(repository_id))); });
+              });
+
+  server.Get(kApiPrefix + std::string(R"(/repositories/([^/]+)/relationships/([^/]+)/revisions/([^/]+))"),
               [&store](const httplib::Request& request, httplib::Response& response) {
                 const std::string repository_id = request.matches[1];
                 const std::string relationship_id = request.matches[2];
@@ -450,7 +497,7 @@ void register_routes(httplib::Server& server, ServerRepositoryStore& store) {
                 });
               });
 
-  server.Get(R"(/repositories/([^/]+)/relationships/([^/]+))", [&store](const httplib::Request& request,
+  server.Get(kApiPrefix + std::string(R"(/repositories/([^/]+)/relationships/([^/]+))"), [&store](const httplib::Request& request,
                                                                             httplib::Response& response) {
     const std::string repository_id = request.matches[1];
     const std::string relationship_id = request.matches[2];
@@ -464,7 +511,14 @@ void register_routes(httplib::Server& server, ServerRepositoryStore& store) {
     });
   });
 
-  server.Get(R"(/repositories/([^/]+)/commits/([^/]+))", [&store](const httplib::Request& request,
+  server.Get(kApiPrefix + std::string(R"(/repositories/([^/]+)/relationships)"),
+              [&store](const httplib::Request& request, httplib::Response& response) {
+                const std::string repository_id = request.matches[1];
+                guard(response,
+                      [&] { respond_json(response, 200, relationships_to_json(store.list_relationships(repository_id))); });
+              });
+
+  server.Get(kApiPrefix + std::string(R"(/repositories/([^/]+)/commits/([^/]+))"), [&store](const httplib::Request& request,
                                                                       httplib::Response& response) {
     const std::string repository_id = request.matches[1];
     const std::string commit_id = request.matches[2];

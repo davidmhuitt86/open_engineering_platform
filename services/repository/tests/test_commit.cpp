@@ -76,14 +76,14 @@ TEST_CASE("Atomic commits: object/relationship creation, revisions, updates, con
 
   const std::string repository_id = [&] {
     const auto response = client.Post(
-        "/repositories", nlohmann::json{{"operation_id", generate_uuid_v4()}, {"name", "Commit Test Repo"}}.dump(),
+        "/api/v1/repositories", nlohmann::json{{"operation_id", generate_uuid_v4()}, {"name", "Commit Test Repo"}}.dump(),
         "application/json");
     return nlohmann::json::parse(response->body).at("id").get<std::string>();
   }();
 
   SECTION("object creation through commit, revision 1, retrievable current and historical") {
     const std::string object_id = generate_uuid_v4();
-    const auto response = client.Post("/repositories/" + repository_id + "/commits",
+    const auto response = client.Post("/api/v1/repositories/" + repository_id + "/commits",
                                         commit_body(generate_uuid_v4(), {object_create_mutation(object_id, "Doc A")}).dump(),
                                         "application/json");
     REQUIRE(response != nullptr);
@@ -92,13 +92,13 @@ TEST_CASE("Atomic commits: object/relationship creation, revisions, updates, con
     CHECK(result.at("object_results")[0].at("object_id") == object_id);
     CHECK(result.at("object_results")[0].at("revision") == 1);
 
-    const auto current = client.Get("/repositories/" + repository_id + "/objects/" + object_id);
+    const auto current = client.Get("/api/v1/repositories/" + repository_id + "/objects/" + object_id);
     REQUIRE(current != nullptr);
     CHECK(current->status == 200);
     CHECK(nlohmann::json::parse(current->body).at("revision") == 1);
     CHECK(nlohmann::json::parse(current->body).at("name") == "Doc A");
 
-    const auto historical = client.Get("/repositories/" + repository_id + "/objects/" + object_id + "/revisions/1");
+    const auto historical = client.Get("/api/v1/repositories/" + repository_id + "/objects/" + object_id + "/revisions/1");
     REQUIRE(historical != nullptr);
     CHECK(historical->status == 200);
     CHECK(nlohmann::json::parse(historical->body).at("name") == "Doc A");
@@ -109,7 +109,7 @@ TEST_CASE("Atomic commits: object/relationship creation, revisions, updates, con
     const std::string object_b = generate_uuid_v4();
     const std::string relationship_id = generate_uuid_v4();
     const auto response = client.Post(
-        "/repositories/" + repository_id + "/commits",
+        "/api/v1/repositories/" + repository_id + "/commits",
         commit_body(generate_uuid_v4(), {object_create_mutation(object_a, "A"), object_create_mutation(object_b, "B"),
                                             relationship_create_mutation(relationship_id, object_a, object_b)})
             .dump(),
@@ -121,7 +121,7 @@ TEST_CASE("Atomic commits: object/relationship creation, revisions, updates, con
     CHECK(result.at("relationship_results").size() == 1);
     CHECK(result.at("relationship_results")[0].at("relationship_id") == relationship_id);
 
-    const auto relationship = client.Get("/repositories/" + repository_id + "/relationships/" + relationship_id);
+    const auto relationship = client.Get("/api/v1/repositories/" + repository_id + "/relationships/" + relationship_id);
     REQUIRE(relationship != nullptr);
     CHECK(relationship->status == 200);
     CHECK(nlohmann::json::parse(relationship->body).at("source_object_id") == object_a);
@@ -133,7 +133,7 @@ TEST_CASE("Atomic commits: object/relationship creation, revisions, updates, con
     const std::string nonexistent = generate_uuid_v4();
     const std::string relationship_id = generate_uuid_v4();
     const auto response = client.Post(
-        "/repositories/" + repository_id + "/commits",
+        "/api/v1/repositories/" + repository_id + "/commits",
         commit_body(generate_uuid_v4(), {object_create_mutation(object_a, "A"),
                                             relationship_create_mutation(relationship_id, object_a, nonexistent)})
             .dump(),
@@ -145,30 +145,30 @@ TEST_CASE("Atomic commits: object/relationship creation, revisions, updates, con
     // Failed transaction leaves no partial mutation: object_a must NOT
     // exist either, even though it appeared earlier in the same commit
     // and would, on its own, have been perfectly valid.
-    const auto object_check = client.Get("/repositories/" + repository_id + "/objects/" + object_a);
+    const auto object_check = client.Get("/api/v1/repositories/" + repository_id + "/objects/" + object_a);
     REQUIRE(object_check != nullptr);
     CHECK(object_check->status == 404);
   }
 
   SECTION("object update with a correct expected_revision succeeds and creates revision 2") {
     const std::string object_id = generate_uuid_v4();
-    client.Post("/repositories/" + repository_id + "/commits",
+    client.Post("/api/v1/repositories/" + repository_id + "/commits",
                  commit_body(generate_uuid_v4(), {object_create_mutation(object_id, "v1")}).dump(),
                  "application/json");
 
     const auto response = client.Post(
-        "/repositories/" + repository_id + "/commits",
+        "/api/v1/repositories/" + repository_id + "/commits",
         commit_body(generate_uuid_v4(), {object_update_mutation(object_id, 1, "v2")}).dump(), "application/json");
     REQUIRE(response != nullptr);
     CHECK(response->status == 201);
     CHECK(nlohmann::json::parse(response->body).at("object_results")[0].at("revision") == 2);
 
-    const auto current = client.Get("/repositories/" + repository_id + "/objects/" + object_id);
+    const auto current = client.Get("/api/v1/repositories/" + repository_id + "/objects/" + object_id);
     CHECK(nlohmann::json::parse(current->body).at("name") == "v2");
     CHECK(nlohmann::json::parse(current->body).at("revision") == 2);
 
     // Revision 1 remains retrievable, unchanged.
-    const auto rev1 = client.Get("/repositories/" + repository_id + "/objects/" + object_id + "/revisions/1");
+    const auto rev1 = client.Get("/api/v1/repositories/" + repository_id + "/objects/" + object_id + "/revisions/1");
     CHECK(nlohmann::json::parse(rev1->body).at("name") == "v1");
   }
 
@@ -176,7 +176,7 @@ TEST_CASE("Atomic commits: object/relationship creation, revisions, updates, con
     const std::string object_a = generate_uuid_v4();
     const std::string object_b = generate_uuid_v4();
     const std::string relationship_id = generate_uuid_v4();
-    client.Post("/repositories/" + repository_id + "/commits",
+    client.Post("/api/v1/repositories/" + repository_id + "/commits",
                  commit_body(generate_uuid_v4(), {object_create_mutation(object_a, "A"), object_create_mutation(object_b, "B"),
                                                      relationship_create_mutation(relationship_id, object_a, object_b)})
                      .dump(),
@@ -190,37 +190,37 @@ TEST_CASE("Atomic commits: object/relationship creation, revisions, updates, con
                                             {"relationship_type", "documents"}, {"description", "updated"},
                                             {"author", "wp-srv-011"}}},
     };
-    const auto response = client.Post("/repositories/" + repository_id + "/commits",
+    const auto response = client.Post("/api/v1/repositories/" + repository_id + "/commits",
                                         commit_body(generate_uuid_v4(), {update}).dump(), "application/json");
     REQUIRE(response != nullptr);
     CHECK(response->status == 201);
 
-    const auto current = client.Get("/repositories/" + repository_id + "/relationships/" + relationship_id);
+    const auto current = client.Get("/api/v1/repositories/" + repository_id + "/relationships/" + relationship_id);
     CHECK(nlohmann::json::parse(current->body).at("relationship_type") == "documents");
     CHECK(nlohmann::json::parse(current->body).at("revision") == 2);
   }
 
   SECTION("stale expected_revision is rejected as a concurrency conflict, state unchanged") {
     const std::string object_id = generate_uuid_v4();
-    client.Post("/repositories/" + repository_id + "/commits",
+    client.Post("/api/v1/repositories/" + repository_id + "/commits",
                  commit_body(generate_uuid_v4(), {object_create_mutation(object_id, "v1")}).dump(),
                  "application/json");
 
     // Client A reads revision 1, Client B updates 1 -> 2 first.
-    client.Post("/repositories/" + repository_id + "/commits",
+    client.Post("/api/v1/repositories/" + repository_id + "/commits",
                  commit_body(generate_uuid_v4(), {object_update_mutation(object_id, 1, "from-B")}).dump(),
                  "application/json");
 
     // Client A now submits its own update still believing revision 1 is current.
     const auto stale = client.Post(
-        "/repositories/" + repository_id + "/commits",
+        "/api/v1/repositories/" + repository_id + "/commits",
         commit_body(generate_uuid_v4(), {object_update_mutation(object_id, 1, "from-A")}).dump(), "application/json");
     REQUIRE(stale != nullptr);
     CHECK(stale->status == 409);
     CHECK(nlohmann::json::parse(stale->body).at("error") == "CONCURRENCY_CONFLICT");
 
     // State reflects only Client B's successful update.
-    const auto current = client.Get("/repositories/" + repository_id + "/objects/" + object_id);
+    const auto current = client.Get("/api/v1/repositories/" + repository_id + "/objects/" + object_id);
     CHECK(nlohmann::json::parse(current->body).at("name") == "from-B");
     CHECK(nlohmann::json::parse(current->body).at("revision") == 2);
   }
@@ -230,18 +230,18 @@ TEST_CASE("Atomic commits: object/relationship creation, revisions, updates, con
     const std::string operation_id = generate_uuid_v4();
     const auto body = commit_body(operation_id, {object_create_mutation(object_id, "Once")});
 
-    const auto first = client.Post("/repositories/" + repository_id + "/commits", body.dump(), "application/json");
+    const auto first = client.Post("/api/v1/repositories/" + repository_id + "/commits", body.dump(), "application/json");
     REQUIRE(first != nullptr);
     CHECK(first->status == 201);
     const std::string commit_id = nlohmann::json::parse(first->body).at("commit_id").get<std::string>();
 
-    const auto second = client.Post("/repositories/" + repository_id + "/commits", body.dump(), "application/json");
+    const auto second = client.Post("/api/v1/repositories/" + repository_id + "/commits", body.dump(), "application/json");
     REQUIRE(second != nullptr);
     CHECK(second->status == 201);
     CHECK(nlohmann::json::parse(second->body).at("commit_id") == commit_id);
 
     // Exactly one revision exists for this object -- the mutation was not reapplied.
-    const auto current = client.Get("/repositories/" + repository_id + "/objects/" + object_id);
+    const auto current = client.Get("/api/v1/repositories/" + repository_id + "/objects/" + object_id);
     CHECK(nlohmann::json::parse(current->body).at("revision") == 1);
   }
 
@@ -250,14 +250,14 @@ TEST_CASE("Atomic commits: object/relationship creation, revisions, updates, con
     const std::string object_id_1 = generate_uuid_v4();
     const std::string object_id_2 = generate_uuid_v4();
 
-    const auto first = client.Post("/repositories/" + repository_id + "/commits",
+    const auto first = client.Post("/api/v1/repositories/" + repository_id + "/commits",
                                      commit_body(operation_id, {object_create_mutation(object_id_1, "First")}).dump(),
                                      "application/json");
     REQUIRE(first != nullptr);
     CHECK(first->status == 201);
 
     const auto second = client.Post(
-        "/repositories/" + repository_id + "/commits",
+        "/api/v1/repositories/" + repository_id + "/commits",
         commit_body(operation_id, {object_create_mutation(object_id_2, "Different")}).dump(), "application/json");
     REQUIRE(second != nullptr);
     CHECK(second->status == 409);
@@ -270,7 +270,7 @@ TEST_CASE("Atomic commits: object/relationship creation, revisions, updates, con
     const std::string bad_relationship = generate_uuid_v4();
 
     const auto failed = client.Post(
-        "/repositories/" + repository_id + "/commits",
+        "/api/v1/repositories/" + repository_id + "/commits",
         commit_body(operation_id, {relationship_create_mutation(bad_relationship, object_a, generate_uuid_v4())})
             .dump(),
         "application/json");
@@ -280,7 +280,7 @@ TEST_CASE("Atomic commits: object/relationship creation, revisions, updates, con
     // Retry the SAME operation_id after fixing the request (creating the
     // object first) -- must succeed, not be blocked as a stale duplicate.
     const auto fixed = client.Post(
-        "/repositories/" + repository_id + "/commits",
+        "/api/v1/repositories/" + repository_id + "/commits",
         commit_body(operation_id, {object_create_mutation(object_a, "Fixed")}).dump(), "application/json");
     REQUIRE(fixed != nullptr);
     CHECK(fixed->status == 201);
@@ -288,7 +288,7 @@ TEST_CASE("Atomic commits: object/relationship creation, revisions, updates, con
 
   SECTION("commit audit association") {
     const std::string object_id = generate_uuid_v4();
-    const auto response = client.Post("/repositories/" + repository_id + "/commits",
+    const auto response = client.Post("/api/v1/repositories/" + repository_id + "/commits",
                                         commit_body(generate_uuid_v4(), {object_create_mutation(object_id, "Audited")}).dump(),
                                         "application/json");
     const std::string commit_id = nlohmann::json::parse(response->body).at("commit_id").get<std::string>();
@@ -304,14 +304,49 @@ TEST_CASE("Atomic commits: object/relationship creation, revisions, updates, con
     CHECK(result[0][0].as<int>() == 1);
   }
 
+  SECTION("WP-SRV-011B: list objects and list relationships enumerate the repository's current entities") {
+    const std::string object_a = generate_uuid_v4();
+    const std::string object_b = generate_uuid_v4();
+    const std::string relationship_id = generate_uuid_v4();
+    client.Post("/api/v1/repositories/" + repository_id + "/commits",
+                 commit_body(generate_uuid_v4(), {object_create_mutation(object_a, "List A"),
+                                                     object_create_mutation(object_b, "List B"),
+                                                     relationship_create_mutation(relationship_id, object_a, object_b)})
+                     .dump(),
+                 "application/json");
+
+    const auto objects_response = client.Get("/api/v1/repositories/" + repository_id + "/objects");
+    REQUIRE(objects_response != nullptr);
+    CHECK(objects_response->status == 200);
+    const auto objects_body = nlohmann::json::parse(objects_response->body);
+    CHECK(objects_body.is_array());
+    CHECK(objects_body.size() == 2);
+    bool found_a = false;
+    bool found_b = false;
+    for (const auto& object : objects_body) {
+      if (object.at("id") == object_a) found_a = true;
+      if (object.at("id") == object_b) found_b = true;
+    }
+    CHECK(found_a);
+    CHECK(found_b);
+
+    const auto relationships_response = client.Get("/api/v1/repositories/" + repository_id + "/relationships");
+    REQUIRE(relationships_response != nullptr);
+    CHECK(relationships_response->status == 200);
+    const auto relationships_body = nlohmann::json::parse(relationships_response->body);
+    CHECK(relationships_body.is_array());
+    CHECK(relationships_body.size() == 1);
+    CHECK(relationships_body[0].at("id") == relationship_id);
+  }
+
   SECTION("GET commit result returns the full recorded outcome") {
     const std::string object_id = generate_uuid_v4();
-    const auto response = client.Post("/repositories/" + repository_id + "/commits",
+    const auto response = client.Post("/api/v1/repositories/" + repository_id + "/commits",
                                         commit_body(generate_uuid_v4(), {object_create_mutation(object_id, "X")}).dump(),
                                         "application/json");
     const std::string commit_id = nlohmann::json::parse(response->body).at("commit_id").get<std::string>();
 
-    const auto get_response = client.Get("/repositories/" + repository_id + "/commits/" + commit_id);
+    const auto get_response = client.Get("/api/v1/repositories/" + repository_id + "/commits/" + commit_id);
     REQUIRE(get_response != nullptr);
     CHECK(get_response->status == 200);
     const auto body = nlohmann::json::parse(get_response->body);
@@ -344,12 +379,12 @@ TEST_CASE("Commit idempotency survives a restart", "[api][commit][database]") {
     client.set_bearer_token_auth(kTestApiToken);
 
     const auto repo_response = client.Post(
-        "/repositories", nlohmann::json{{"operation_id", generate_uuid_v4()}, {"name", "Restart Commit Repo"}}.dump(),
+        "/api/v1/repositories", nlohmann::json{{"operation_id", generate_uuid_v4()}, {"name", "Restart Commit Repo"}}.dump(),
         "application/json");
     repository_id = nlohmann::json::parse(repo_response->body).at("id").get<std::string>();
 
     const auto commit_response =
-        client.Post("/repositories/" + repository_id + "/commits",
+        client.Post("/api/v1/repositories/" + repository_id + "/commits",
                      commit_body(operation_id, {object_create_mutation(object_id, "Persisted")}).dump(),
                      "application/json");
     REQUIRE(commit_response != nullptr);
@@ -371,14 +406,14 @@ TEST_CASE("Commit idempotency survives a restart", "[api][commit][database]") {
     client.set_bearer_token_auth(kTestApiToken);
 
     const auto retry =
-        client.Post("/repositories/" + repository_id + "/commits",
+        client.Post("/api/v1/repositories/" + repository_id + "/commits",
                      commit_body(operation_id, {object_create_mutation(object_id, "Persisted")}).dump(),
                      "application/json");
     REQUIRE(retry != nullptr);
     CHECK(retry->status == 201);
     CHECK(nlohmann::json::parse(retry->body).at("commit_id") == original_commit_id);
 
-    const auto current = client.Get("/repositories/" + repository_id + "/objects/" + object_id);
+    const auto current = client.Get("/api/v1/repositories/" + repository_id + "/objects/" + object_id);
     REQUIRE(current != nullptr);
     CHECK(current->status == 200);
     CHECK(nlohmann::json::parse(current->body).at("revision") == 1);

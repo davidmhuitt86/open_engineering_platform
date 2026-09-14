@@ -66,14 +66,14 @@ TEST_CASE(
 
   const std::string repository_id = [&] {
     const auto response = setup_client.Post(
-        "/repositories", nlohmann::json{{"operation_id", generate_uuid_v4()}, {"name", "Concurrency Repo"}}.dump(),
+        "/api/v1/repositories", nlohmann::json{{"operation_id", generate_uuid_v4()}, {"name", "Concurrency Repo"}}.dump(),
         "application/json");
     return nlohmann::json::parse(response->body).at("id").get<std::string>();
   }();
 
   const std::string object_id = [&] {
     const auto response =
-        setup_client.Post("/repositories/" + repository_id + "/commits",
+        setup_client.Post("/api/v1/repositories/" + repository_id + "/commits",
                             nlohmann::json{{"operation_id", generate_uuid_v4()},
                                              {"mutations", {object_create_mutation(generate_uuid_v4(), "concurrent")}}}
                                 .dump(),
@@ -114,7 +114,7 @@ TEST_CASE(
       go.wait();
 
       const auto response = client.Post(
-          "/repositories/" + repository_id + "/commits",
+          "/api/v1/repositories/" + repository_id + "/commits",
           nlohmann::json{{"operation_id", generate_uuid_v4()},
                            {"mutations", {object_update_mutation(object_id, 1, "writer-" + std::to_string(i))}}}
               .dump(),
@@ -148,7 +148,7 @@ TEST_CASE(
 
   httplib::Client verify_client(config.host, server.bound_port());
   verify_client.set_bearer_token_auth(kTestApiToken);
-  const auto current = verify_client.Get("/repositories/" + repository_id + "/objects/" + object_id);
+  const auto current = verify_client.Get("/api/v1/repositories/" + repository_id + "/objects/" + object_id);
   REQUIRE(current != nullptr);
   CHECK(current->status == 200);
   const auto current_body = nlohmann::json::parse(current->body);
@@ -165,13 +165,13 @@ TEST_CASE(
   // The rejected writers' content must not appear even transiently in the
   // object's own revision history: only revision 1 (the original create)
   // and revision 2 (the single winner) may exist.
-  const auto revision_1 = verify_client.Get("/repositories/" + repository_id + "/objects/" + object_id +
+  const auto revision_1 = verify_client.Get("/api/v1/repositories/" + repository_id + "/objects/" + object_id +
                                               "/revisions/1");
   REQUIRE(revision_1 != nullptr);
   CHECK(revision_1->status == 200);
   CHECK(nlohmann::json::parse(revision_1->body).at("name") == "concurrent");
 
-  const auto revision_3 = verify_client.Get("/repositories/" + repository_id + "/objects/" + object_id +
+  const auto revision_3 = verify_client.Get("/api/v1/repositories/" + repository_id + "/objects/" + object_id +
                                               "/revisions/3");
   REQUIRE(revision_3 != nullptr);
   CHECK(revision_3->status == 404);

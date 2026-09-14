@@ -95,10 +95,20 @@ class ServerRepositoryStore {
                                                                                 const std::string& object_id,
                                                                                 std::int64_t revision);
 
+  // ADR-0006 SS7/SS18: "List objects" -- simple enumeration of the
+  // repository's current objects, no pagination/filtering/sorting
+  // (explicitly out of this slice's scope). Throws NotFoundError if
+  // repository_id does not exist, matching every other repository-scoped
+  // method here.
+  [[nodiscard]] std::vector<domain::EngineeringObject> list_objects(const std::string& repository_id);
+
   [[nodiscard]] std::optional<domain::Relationship> get_relationship(const std::string& repository_id,
                                                                         const std::string& relationship_id);
   [[nodiscard]] std::optional<domain::Relationship> get_relationship_revision(
       const std::string& repository_id, const std::string& relationship_id, std::int64_t revision);
+
+  // ADR-0006 SS7/SS18: "List relationships" -- same shape as list_objects.
+  [[nodiscard]] std::vector<domain::Relationship> list_relationships(const std::string& repository_id);
 
   [[nodiscard]] std::optional<domain::CommitResult> get_commit(const std::string& repository_id,
                                                                    const std::string& commit_id);

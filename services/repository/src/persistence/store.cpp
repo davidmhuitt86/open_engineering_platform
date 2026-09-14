@@ -501,6 +501,33 @@ std::optional<domain::EngineeringObject> ServerRepositoryStore::get_object_revis
   return row_to_object(result[0]);
 }
 
+std::vector<domain::EngineeringObject> ServerRepositoryStore::list_objects(const std::string& repository_id) {
+  auto lease = pool_->acquire();
+  pqxx::work txn(lease.get());
+  const pqxx::result repo_check =
+      txn.exec_params("SELECT 1 FROM repositories WHERE id = $1::uuid", pqxx::params{repository_id});
+  if (repo_check.empty()) {
+    throw NotFoundError("no repository exists with that id");
+  }
+  // Same correlated-subquery shape as get_object -- each row's current
+  // revision is looked up against object_heads without joining it (and
+  // therefore without object_heads' identically-named columns making the
+  // shared kObjectSelectColumns list ambiguous).
+  const pqxx::result result = txn.exec_params(
+      std::string("SELECT ") + kObjectSelectColumns +
+          " FROM objects WHERE repository_id = $1::uuid AND revision = "
+          "(SELECT current_revision FROM object_heads WHERE object_heads.object_id = objects.object_id) "
+          "ORDER BY created_at ASC",
+      pqxx::params{repository_id});
+  txn.commit();
+  std::vector<domain::EngineeringObject> objects;
+  objects.reserve(result.size());
+  for (const auto& row : result) {
+    objects.push_back(row_to_object(row));
+  }
+  return objects;
+}
+
 std::optional<domain::Relationship> ServerRepositoryStore::get_relationship(const std::string& repository_id,
                                                                                 const std::string& relationship_id) {
   if (!common::is_uuid_like(repository_id) || !common::is_uuid_like(relationship_id)) {
@@ -537,6 +564,29 @@ std::optional<domain::Relationship> ServerRepositoryStore::get_relationship_revi
     return std::nullopt;
   }
   return row_to_relationship(result[0]);
+}
+
+std::vector<domain::Relationship> ServerRepositoryStore::list_relationships(const std::string& repository_id) {
+  auto lease = pool_->acquire();
+  pqxx::work txn(lease.get());
+  const pqxx::result repo_check =
+      txn.exec_params("SELECT 1 FROM repositories WHERE id = $1::uuid", pqxx::params{repository_id});
+  if (repo_check.empty()) {
+    throw NotFoundError("no repository exists with that id");
+  }
+  const pqxx::result result = txn.exec_params(
+      std::string("SELECT ") + kRelationshipSelectColumns +
+          " FROM relationships WHERE repository_id = $1::uuid AND revision = "
+          "(SELECT current_revision FROM relationship_heads WHERE relationship_heads.relationship_id = "
+          "relationships.relationship_id) ORDER BY created_at ASC",
+      pqxx::params{repository_id});
+  txn.commit();
+  std::vector<domain::Relationship> relationships;
+  relationships.reserve(result.size());
+  for (const auto& row : result) {
+    relationships.push_back(row_to_relationship(row));
+  }
+  return relationships;
 }
 
 std::optional<domain::CommitResult> ServerRepositoryStore::get_commit(const std::string& repository_id,

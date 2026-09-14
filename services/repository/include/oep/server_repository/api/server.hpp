@@ -18,13 +18,17 @@ class ServerRepositoryStore;
 
 namespace oep::server_repository::api {
 
-/// The Server Repository's HTTP API (WP-SRV-011 / ADR-0006 SS7).
+/// The Server Repository's HTTP API (WP-SRV-011 / WP-SRV-011B / ADR-0006 SS7).
 ///
-/// Exactly the 8 routes ADR-0006 SS7/SS29 authorize -- no undocumented
+/// Exactly the routes ADR-0006 SS7/SS29 authorize, all under the
+/// `/api/v1/` wire-version prefix (ADR-0006's own "API version MUST
+/// appear at the wire boundary" requirement, satisfied via the existing
+/// OEP Exchange `/api/v1/` precedent -- WP-SRV-011B) -- no undocumented
 /// mutation route exists; every object/relationship mutation goes
-/// through `POST /repositories/{repository_id}/commits`. Every route
-/// except this instance's own equivalent of `GET /health` requires the
-/// same bearer-token pre-routing check EAM already uses (ADR-0002 SS3,
+/// through `POST /api/v1/repositories/{repository_id}/commits`. `GET
+/// /health` is the one deliberately unversioned, unauthenticated
+/// exception (ADR-0002). Every other route requires the same
+/// bearer-token pre-routing check EAM already uses (ADR-0002 SS3,
 /// ADR-0006 SS12), installed once, the same way `ApiServer`
 /// (services/acquisition) already does -- see this class's own `.cpp`.
 class ApiServer {
