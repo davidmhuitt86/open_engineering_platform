@@ -98,6 +98,7 @@ nlohmann::json object_to_json(const EngineeringObject& object) {
       {"author", object.author},          {"tags", tags_to_json(object.tags)},
       {"content", object.content},        {"version", object.version},
       {"commit_id", object.commit_id},    {"created_at", object.created_at},
+      {"tombstoned", object.is_tombstoned},
   };
 }
 
@@ -113,6 +114,7 @@ nlohmann::json relationship_to_json(const Relationship& relationship) {
       {"author", relationship.author},
       {"commit_id", relationship.commit_id},
       {"created_at", relationship.created_at},
+      {"tombstoned", relationship.is_tombstoned},
   };
 }
 
@@ -226,20 +228,28 @@ void guard(httplib::Response& response, Fn&& fn) {
   }
 }
 
-std::optional<ObjectMutation> parse_object_mutation(const nlohmann::json& item, bool is_update, std::string& error) {
+// WP-SRV-012 / ADR-0006 SS10 SS101: a delete mutation carries only
+// `object_id`/`expected_revision` -- no nested `object` body, since the
+// tombstone revision's content is copied forward server-side, never
+// supplied by the client.
+std::optional<ObjectMutation> parse_object_mutation(const nlohmann::json& item, domain::MutationKind kind,
+                                                        std::string& error) {
   ObjectMutation mutation;
-  mutation.is_update = is_update;
+  mutation.kind = kind;
   mutation.object_id = get_string(item, "object_id");
   if (!common::is_uuid_like(mutation.object_id)) {
     error = "object mutation requires a valid object_id";
     return std::nullopt;
   }
-  if (is_update) {
+  if (kind == domain::MutationKind::Update || kind == domain::MutationKind::Delete) {
     if (!item.contains("expected_revision") || !item.at("expected_revision").is_number_integer()) {
-      error = "object update mutation requires an integer expected_revision";
+      error = "object update/delete mutation requires an integer expected_revision";
       return std::nullopt;
     }
     mutation.expected_revision = item.at("expected_revision").get<std::int64_t>();
+  }
+  if (kind == domain::MutationKind::Delete) {
+    return mutation;
   }
   if (!item.contains("object") || !item.at("object").is_object()) {
     error = "object mutation requires an 'object' body";
@@ -265,21 +275,26 @@ std::optional<ObjectMutation> parse_object_mutation(const nlohmann::json& item, 
   return mutation;
 }
 
-std::optional<RelationshipMutation> parse_relationship_mutation(const nlohmann::json& item, bool is_update,
+// Same "delete carries only the identity + expected_revision" shape as
+// `parse_object_mutation` above.
+std::optional<RelationshipMutation> parse_relationship_mutation(const nlohmann::json& item, domain::MutationKind kind,
                                                                     std::string& error) {
   RelationshipMutation mutation;
-  mutation.is_update = is_update;
+  mutation.kind = kind;
   mutation.relationship_id = get_string(item, "relationship_id");
   if (!common::is_uuid_like(mutation.relationship_id)) {
     error = "relationship mutation requires a valid relationship_id";
     return std::nullopt;
   }
-  if (is_update) {
+  if (kind == domain::MutationKind::Update || kind == domain::MutationKind::Delete) {
     if (!item.contains("expected_revision") || !item.at("expected_revision").is_number_integer()) {
-      error = "relationship update mutation requires an integer expected_revision";
+      error = "relationship update/delete mutation requires an integer expected_revision";
       return std::nullopt;
     }
     mutation.expected_revision = item.at("expected_revision").get<std::int64_t>();
+  }
+  if (kind == domain::MutationKind::Delete) {
+    return mutation;
   }
   if (!item.contains("relationship") || !item.at("relationship").is_object()) {
     error = "relationship mutation requires a 'relationship' body";
@@ -316,20 +331,28 @@ std::optional<CommitRequest> parse_commit_request(const nlohmann::json& body, st
   }
   for (const auto& item : body.at("mutations")) {
     const std::string kind = get_string(item, "kind");
-    if (kind == "object_create" || kind == "object_update") {
-      auto mutation = parse_object_mutation(item, kind == "object_update", error);
+    if (kind == "object_create" || kind == "object_update" || kind == "object_delete") {
+      const auto mutation_kind = kind == "object_create"   ? domain::MutationKind::Create
+                                    : kind == "object_update" ? domain::MutationKind::Update
+                                                                 : domain::MutationKind::Delete;
+      auto mutation = parse_object_mutation(item, mutation_kind, error);
       if (!mutation.has_value()) {
         return std::nullopt;
       }
       request.object_mutations.push_back(*mutation);
-    } else if (kind == "relationship_create" || kind == "relationship_update") {
-      auto mutation = parse_relationship_mutation(item, kind == "relationship_update", error);
+    } else if (kind == "relationship_create" || kind == "relationship_update" || kind == "relationship_delete") {
+      const auto mutation_kind = kind == "relationship_create"   ? domain::MutationKind::Create
+                                    : kind == "relationship_update" ? domain::MutationKind::Update
+                                                                       : domain::MutationKind::Delete;
+      auto mutation = parse_relationship_mutation(item, mutation_kind, error);
       if (!mutation.has_value()) {
         return std::nullopt;
       }
       request.relationship_mutations.push_back(*mutation);
     } else {
-      error = "mutation kind must be one of object_create, object_update, relationship_create, relationship_update";
+      error =
+          "mutation kind must be one of object_create, object_update, object_delete, relationship_create, "
+          "relationship_update, relationship_delete";
       return std::nullopt;
     }
   }
@@ -468,6 +491,19 @@ void register_routes(httplib::Server& server, ServerRepositoryStore& store) {
         respond_error(response, 404, "NOT_FOUND", "No object exists with that id.");
         return;
       }
+      // WP-SRV-012 / ADR-0006 SS10: current-state retrieval of a
+      // tombstoned object must not present it as live. ADR-0006 SS13's
+      // error category list is closed and has no distinct "tombstoned"
+      // category or SS14 status code for it -- NOT_FOUND/404 already
+      // covers "no live current state exists for that id" exactly, so
+      // this reuses that existing category (with a distinguishing
+      // message) rather than inventing a new one. The revision this
+      // object was tombstoned at remains fully retrievable via the
+      // historical-revision route below.
+      if (object->is_tombstoned) {
+        respond_error(response, 404, "NOT_FOUND", "This object has been deleted.");
+        return;
+      }
       respond_json(response, 200, object_to_json(*object));
     });
   });
@@ -505,6 +541,11 @@ void register_routes(httplib::Server& server, ServerRepositoryStore& store) {
       const auto relationship = store.get_relationship(repository_id, relationship_id);
       if (!relationship.has_value()) {
         respond_error(response, 404, "NOT_FOUND", "No relationship exists with that id.");
+        return;
+      }
+      // Same tombstone handling as the object route above.
+      if (relationship->is_tombstoned) {
+        respond_error(response, 404, "NOT_FOUND", "This relationship has been deleted.");
         return;
       }
       respond_json(response, 200, relationship_to_json(*relationship));

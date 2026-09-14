@@ -3,6 +3,7 @@
 #include <condition_variable>
 #include <deque>
 #include <mutex>
+#include <set>
 #include <sstream>
 
 #include <picosha2.h>
@@ -82,8 +83,22 @@ constexpr std::size_t kConnectionPoolSize = 16;
 
 using domain::ConcurrencyConflictError;
 using domain::IdempotencyConflictError;
+using domain::MutationKind;
 using domain::NotFoundError;
 using domain::ValidationError;
+
+// WP-SRV-012: the wire/fingerprint spelling of each mutation kind.
+const char* kind_str(MutationKind kind) {
+  switch (kind) {
+    case MutationKind::Create:
+      return "create";
+    case MutationKind::Update:
+      return "update";
+    case MutationKind::Delete:
+      return "delete";
+  }
+  return "create";
+}
 
 // WP-SRV-011 / ADR-0006 SS9/SS21: a stable fingerprint of a request's
 // *content* (never including the operation_id itself), used to
@@ -111,14 +126,14 @@ std::string fingerprint_of(const domain::RepositoryCreateRequest& request) {
 std::string fingerprint_of(const domain::CommitRequest& request) {
   std::ostringstream out;
   for (const auto& mutation : request.object_mutations) {
-    out << "obj\x1f" << (mutation.is_update ? "update" : "create") << "\x1f" << mutation.object_id << "\x1f"
+    out << "obj\x1f" << kind_str(mutation.kind) << "\x1f" << mutation.object_id << "\x1f"
         << (mutation.expected_revision.has_value() ? std::to_string(*mutation.expected_revision) : "-") << "\x1f"
         << domain::to_string(mutation.object_type) << "\x1f" << mutation.name << "\x1f" << mutation.description
         << "\x1f" << mutation.author << "\x1f" << mutation.tags << "\x1f" << mutation.content << "\x1f"
         << mutation.version << "\x1e";
   }
   for (const auto& mutation : request.relationship_mutations) {
-    out << "rel\x1f" << (mutation.is_update ? "update" : "create") << "\x1f" << mutation.relationship_id << "\x1f"
+    out << "rel\x1f" << kind_str(mutation.kind) << "\x1f" << mutation.relationship_id << "\x1f"
         << (mutation.expected_revision.has_value() ? std::to_string(*mutation.expected_revision) : "-") << "\x1f"
         << mutation.source_object_id << "\x1f" << mutation.target_object_id << "\x1f"
         << domain::to_string(mutation.relationship_type) << "\x1f" << mutation.description << "\x1f"
@@ -160,13 +175,14 @@ domain::EngineeringObject row_to_object(const pqxx::row& row) {
   object.version = row["version"].as<std::string>();
   object.commit_id = row["commit_id"].as<std::string>();
   object.created_at = row["created_at_text"].as<std::string>();
+  object.is_tombstoned = row["is_tombstoned"].as<bool>();
   return object;
 }
 
 constexpr auto kObjectSelectColumns =
     "object_id::text AS object_id, repository_id::text AS repository_id, revision, object_type, name, "
     "description, author, tags, content, version, commit_id::text AS commit_id, "
-    "to_char(created_at at time zone 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"') AS created_at_text";
+    "to_char(created_at at time zone 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"') AS created_at_text, is_tombstoned";
 
 domain::Relationship row_to_relationship(const pqxx::row& row) {
   domain::Relationship relationship;
@@ -181,6 +197,7 @@ domain::Relationship row_to_relationship(const pqxx::row& row) {
   relationship.author = row["author"].as<std::string>();
   relationship.commit_id = row["commit_id"].as<std::string>();
   relationship.created_at = row["created_at_text"].as<std::string>();
+  relationship.is_tombstoned = row["is_tombstoned"].as<bool>();
   return relationship;
 }
 
@@ -188,7 +205,7 @@ constexpr auto kRelationshipSelectColumns =
     "relationship_id::text AS relationship_id, repository_id::text AS repository_id, revision, "
     "source_object_id::text AS source_object_id, target_object_id::text AS target_object_id, "
     "relationship_type, description, author, commit_id::text AS commit_id, "
-    "to_char(created_at at time zone 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"') AS created_at_text";
+    "to_char(created_at at time zone 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"') AS created_at_text, is_tombstoned";
 
 }  // namespace
 
@@ -335,6 +352,19 @@ domain::CommitResult ServerRepositoryStore::submit_commit(const std::string& rep
       "VALUES ($1::uuid,$2::uuid,$3::uuid,$4,$5::uuid)",
       pqxx::params{result.commit_id, repository_id, request.operation_id, fingerprint, result.audit_event_id});
 
+  // WP-SRV-012 / ADR-0006 SS10: the relationship_ids THIS SAME commit
+  // also deletes -- known directly from the request, independent of
+  // processing order, so an object-delete mutation (processed below,
+  // before relationships) can recognize "this live relationship IS being
+  // deleted in this same commit" without needing relationships to be
+  // processed first (the object A + relationships R1/R2 example, SS10).
+  std::set<std::string> relationship_deletes_in_commit;
+  for (const auto& mutation : request.relationship_mutations) {
+    if (mutation.kind == MutationKind::Delete) {
+      relationship_deletes_in_commit.insert(mutation.relationship_id);
+    }
+  }
+
   // Objects first, then relationships -- so a relationship created in
   // the same commit as its endpoint objects sees those objects' just-
   // inserted `object_heads` rows (read-your-own-writes, within this one
@@ -342,8 +372,78 @@ domain::CommitResult ServerRepositoryStore::submit_commit(const std::string& rep
   // connect it in one atomic step" requirement without any special
   // casing.
   for (const auto& mutation : request.object_mutations) {
+    if (mutation.kind == MutationKind::Delete) {
+      const pqxx::result head = txn.exec_params(
+          "SELECT current_revision FROM object_heads WHERE object_id = $1::uuid AND repository_id = $2::uuid "
+          "FOR UPDATE",
+          pqxx::params{mutation.object_id, repository_id});
+      if (head.empty()) {
+        throw ValidationError("object does not exist: cannot delete a nonexistent object");
+      }
+      const std::int64_t current_revision = head[0]["current_revision"].as<std::int64_t>();
+      if (!mutation.expected_revision.has_value() || *mutation.expected_revision != current_revision) {
+        throw ConcurrencyConflictError("expected_revision does not match the current revision for object");
+      }
+
+      // ADR-0006 SS10: an object may not be tombstoned while a live
+      // relationship still references it as source or target, unless
+      // that relationship is ALSO deleted atomically in this same
+      // commit. `FOR UPDATE OF h` locks each live candidate's
+      // relationship_heads row for the rest of this transaction, and the
+      // relationship create/update path below takes a matching lock on
+      // this object's own object_heads row -- together they close the
+      // race where a concurrent commit tries to create/leave a live
+      // relationship pointing at this object while it is being deleted.
+      const pqxx::result live_relationships = txn.exec_params(
+          "SELECT h.relationship_id::text AS relationship_id FROM relationship_heads h "
+          "JOIN relationships r ON r.relationship_id = h.relationship_id AND r.revision = h.current_revision "
+          "WHERE h.repository_id = $2::uuid AND h.is_tombstoned = false "
+          "AND (r.source_object_id = $1::uuid OR r.target_object_id = $1::uuid) "
+          "FOR UPDATE OF h",
+          pqxx::params{mutation.object_id, repository_id});
+      for (const auto& row : live_relationships) {
+        if (!relationship_deletes_in_commit.count(row["relationship_id"].as<std::string>())) {
+          throw ValidationError(
+              "cannot delete object: a live relationship still references it and is not deleted in this same "
+              "commit");
+        }
+      }
+
+      const std::int64_t new_revision = current_revision + 1;
+
+      // The tombstone revision's content is copied forward from the
+      // current revision -- the client supplies only object_id/
+      // expected_revision for a delete (ADR-0006 SS10/SS101).
+      const pqxx::result current_row = txn.exec_params(
+          std::string("SELECT ") + kObjectSelectColumns +
+              " FROM objects WHERE object_id = $1::uuid AND repository_id = $2::uuid AND revision = $3",
+          pqxx::params{mutation.object_id, repository_id, current_revision});
+      const domain::EngineeringObject current_object = row_to_object(current_row[0]);
+
+      txn.exec_params(
+          "UPDATE object_heads SET current_revision = $1, is_tombstoned = true WHERE object_id = $2::uuid",
+          pqxx::params{new_revision, mutation.object_id});
+
+      txn.exec_params(
+          "INSERT INTO objects (object_id, revision, repository_id, object_type, name, description, author, "
+          "tags, content, version, commit_id, is_tombstoned) "
+          "VALUES ($1::uuid,$2,$3::uuid,$4,$5,$6,$7,$8,$9,$10,$11::uuid,true)",
+          pqxx::params{mutation.object_id, new_revision, repository_id,
+                        domain::to_string(current_object.object_type), current_object.name,
+                        current_object.description, current_object.author, current_object.tags,
+                        current_object.content, current_object.version, result.commit_id});
+
+      txn.exec_params(
+          "INSERT INTO commit_mutations (commit_id, seq, is_relationship, entity_id, resulting_revision, "
+          "is_delete) VALUES ($1::uuid,$2,false,$3::uuid,$4,true)",
+          pqxx::params{result.commit_id, seq++, mutation.object_id, new_revision});
+
+      result.object_results.push_back(domain::MutationResult{false, mutation.object_id, new_revision});
+      continue;
+    }
+
     std::int64_t new_revision = 1;
-    if (mutation.is_update) {
+    if (mutation.kind == MutationKind::Update) {
       const pqxx::result head = txn.exec_params(
           "SELECT current_revision FROM object_heads WHERE object_id = $1::uuid AND repository_id = $2::uuid "
           "FOR UPDATE",
@@ -356,12 +456,18 @@ domain::CommitResult ServerRepositoryStore::submit_commit(const std::string& rep
         throw ConcurrencyConflictError("expected_revision does not match the current revision for object");
       }
       new_revision = current_revision + 1;
-      txn.exec_params("UPDATE object_heads SET current_revision = $1 WHERE object_id = $2::uuid",
-                        pqxx::params{new_revision, mutation.object_id});
+      // WP-SRV-012 / ADR-0006 SS10: an ordinary update mutation applied
+      // against a currently-tombstoned identity is how restoration is
+      // expressed -- it always produces a LIVE new revision regardless
+      // of the previous revision's tombstone state, with no separate
+      // restore operation needed or invented.
+      txn.exec_params(
+          "UPDATE object_heads SET current_revision = $1, is_tombstoned = false WHERE object_id = $2::uuid",
+          pqxx::params{new_revision, mutation.object_id});
     } else {
       try {
-        txn.exec_params("INSERT INTO object_heads (object_id, repository_id, current_revision) "
-                          "VALUES ($1::uuid,$2::uuid,1)",
+        txn.exec_params("INSERT INTO object_heads (object_id, repository_id, current_revision, is_tombstoned) "
+                          "VALUES ($1::uuid,$2::uuid,1,false)",
                           pqxx::params{mutation.object_id, repository_id});
       } catch (const pqxx::unique_violation&) {
         throw ValidationError("an object with that id already exists");
@@ -370,39 +476,104 @@ domain::CommitResult ServerRepositoryStore::submit_commit(const std::string& rep
 
     txn.exec_params(
         "INSERT INTO objects (object_id, revision, repository_id, object_type, name, description, author, "
-        "tags, content, version, commit_id) VALUES ($1::uuid,$2,$3::uuid,$4,$5,$6,$7,$8,$9,$10,$11::uuid)",
+        "tags, content, version, commit_id, is_tombstoned) "
+        "VALUES ($1::uuid,$2,$3::uuid,$4,$5,$6,$7,$8,$9,$10,$11::uuid,false)",
         pqxx::params{mutation.object_id, new_revision, repository_id, domain::to_string(mutation.object_type),
                       mutation.name, mutation.description, mutation.author, mutation.tags, mutation.content,
                       mutation.version, result.commit_id});
 
     txn.exec_params(
-        "INSERT INTO commit_mutations (commit_id, seq, is_relationship, entity_id, resulting_revision) "
-        "VALUES ($1::uuid,$2,false,$3::uuid,$4)",
+        "INSERT INTO commit_mutations (commit_id, seq, is_relationship, entity_id, resulting_revision, "
+        "is_delete) VALUES ($1::uuid,$2,false,$3::uuid,$4,false)",
         pqxx::params{result.commit_id, seq++, mutation.object_id, new_revision});
 
     result.object_results.push_back(domain::MutationResult{false, mutation.object_id, new_revision});
   }
 
   for (const auto& mutation : request.relationship_mutations) {
+    if (mutation.kind == MutationKind::Delete) {
+      const pqxx::result head = txn.exec_params(
+          "SELECT current_revision FROM relationship_heads WHERE relationship_id = $1::uuid AND "
+          "repository_id = $2::uuid FOR UPDATE",
+          pqxx::params{mutation.relationship_id, repository_id});
+      if (head.empty()) {
+        throw ValidationError("relationship does not exist: cannot delete a nonexistent relationship");
+      }
+      const std::int64_t current_revision = head[0]["current_revision"].as<std::int64_t>();
+      if (!mutation.expected_revision.has_value() || *mutation.expected_revision != current_revision) {
+        throw ConcurrencyConflictError("expected_revision does not match the current revision for relationship");
+      }
+      const std::int64_t new_revision = current_revision + 1;
+
+      const pqxx::result current_row = txn.exec_params(
+          std::string("SELECT ") + kRelationshipSelectColumns +
+              " FROM relationships WHERE relationship_id = $1::uuid AND repository_id = $2::uuid AND revision = $3",
+          pqxx::params{mutation.relationship_id, repository_id, current_revision});
+      const domain::Relationship current_relationship = row_to_relationship(current_row[0]);
+
+      txn.exec_params(
+          "UPDATE relationship_heads SET current_revision = $1, is_tombstoned = true WHERE relationship_id = "
+          "$2::uuid",
+          pqxx::params{new_revision, mutation.relationship_id});
+
+      txn.exec_params(
+          "INSERT INTO relationships (relationship_id, revision, repository_id, source_object_id, "
+          "target_object_id, relationship_type, description, author, commit_id, is_tombstoned) "
+          "VALUES ($1::uuid,$2,$3::uuid,$4::uuid,$5::uuid,$6,$7,$8,$9::uuid,true)",
+          pqxx::params{mutation.relationship_id, new_revision, repository_id,
+                        current_relationship.source_object_id, current_relationship.target_object_id,
+                        domain::to_string(current_relationship.relationship_type),
+                        current_relationship.description, current_relationship.author, result.commit_id});
+
+      txn.exec_params(
+          "INSERT INTO commit_mutations (commit_id, seq, is_relationship, entity_id, resulting_revision, "
+          "is_delete) VALUES ($1::uuid,$2,true,$3::uuid,$4,true)",
+          pqxx::params{result.commit_id, seq++, mutation.relationship_id, new_revision});
+
+      result.relationship_results.push_back(domain::MutationResult{true, mutation.relationship_id, new_revision});
+      continue;
+    }
+
     if (mutation.source_object_id == mutation.target_object_id) {
       throw ValidationError("a relationship's source and target must differ");
     }
 
-    const pqxx::result source_exists =
-        txn.exec_params("SELECT 1 FROM object_heads WHERE object_id = $1::uuid AND repository_id = $2::uuid",
-                          pqxx::params{mutation.source_object_id, repository_id});
-    if (source_exists.empty()) {
-      throw ValidationError("relationship source_object_id does not exist in this repository");
+    // WP-SRV-012: locks both endpoint objects' head rows (in a single
+    // query, ascending object_id order -- a consistent lock order across
+    // every caller of this code path, so two concurrent relationship
+    // mutations touching the same two objects in opposite roles cannot
+    // deadlock each other) FOR UPDATE, not a plain SELECT. This
+    // serializes relationship create/update against a concurrent commit
+    // that is tombstoning one of these same objects (which takes the
+    // matching lock on its own object_heads row above), so "does this
+    // endpoint currently exist and is it live" cannot go stale before
+    // this transaction commits.
+    const pqxx::result endpoints = txn.exec_params(
+        "SELECT object_id::text AS object_id, is_tombstoned FROM object_heads "
+        "WHERE repository_id = $1::uuid AND object_id IN ($2::uuid, $3::uuid) "
+        "ORDER BY object_id FOR UPDATE",
+        pqxx::params{repository_id, mutation.source_object_id, mutation.target_object_id});
+    bool source_live = false;
+    bool target_live = false;
+    for (const auto& row : endpoints) {
+      const std::string id = row["object_id"].as<std::string>();
+      const bool tombstoned = row["is_tombstoned"].as<bool>();
+      if (id == mutation.source_object_id && !tombstoned) {
+        source_live = true;
+      }
+      if (id == mutation.target_object_id && !tombstoned) {
+        target_live = true;
+      }
     }
-    const pqxx::result target_exists =
-        txn.exec_params("SELECT 1 FROM object_heads WHERE object_id = $1::uuid AND repository_id = $2::uuid",
-                          pqxx::params{mutation.target_object_id, repository_id});
-    if (target_exists.empty()) {
-      throw ValidationError("relationship target_object_id does not exist in this repository");
+    if (!source_live) {
+      throw ValidationError("relationship source_object_id does not exist (or has been deleted) in this repository");
+    }
+    if (!target_live) {
+      throw ValidationError("relationship target_object_id does not exist (or has been deleted) in this repository");
     }
 
     std::int64_t new_revision = 1;
-    if (mutation.is_update) {
+    if (mutation.kind == MutationKind::Update) {
       const pqxx::result head = txn.exec_params(
           "SELECT current_revision FROM relationship_heads WHERE relationship_id = $1::uuid AND "
           "repository_id = $2::uuid FOR UPDATE",
@@ -415,13 +586,17 @@ domain::CommitResult ServerRepositoryStore::submit_commit(const std::string& rep
         throw ConcurrencyConflictError("expected_revision does not match the current revision for relationship");
       }
       new_revision = current_revision + 1;
-      txn.exec_params("UPDATE relationship_heads SET current_revision = $1 WHERE relationship_id = $2::uuid",
-                        pqxx::params{new_revision, mutation.relationship_id});
+      // Restoration, symmetric with the object path above.
+      txn.exec_params(
+          "UPDATE relationship_heads SET current_revision = $1, is_tombstoned = false WHERE relationship_id = "
+          "$2::uuid",
+          pqxx::params{new_revision, mutation.relationship_id});
     } else {
       try {
-        txn.exec_params("INSERT INTO relationship_heads (relationship_id, repository_id, current_revision) "
-                          "VALUES ($1::uuid,$2::uuid,1)",
-                          pqxx::params{mutation.relationship_id, repository_id});
+        txn.exec_params(
+            "INSERT INTO relationship_heads (relationship_id, repository_id, current_revision, is_tombstoned) "
+            "VALUES ($1::uuid,$2::uuid,1,false)",
+            pqxx::params{mutation.relationship_id, repository_id});
       } catch (const pqxx::unique_violation&) {
         throw ValidationError("a relationship with that id already exists");
       }
@@ -429,15 +604,15 @@ domain::CommitResult ServerRepositoryStore::submit_commit(const std::string& rep
 
     txn.exec_params(
         "INSERT INTO relationships (relationship_id, revision, repository_id, source_object_id, "
-        "target_object_id, relationship_type, description, author, commit_id) "
-        "VALUES ($1::uuid,$2,$3::uuid,$4::uuid,$5::uuid,$6,$7,$8,$9::uuid)",
+        "target_object_id, relationship_type, description, author, commit_id, is_tombstoned) "
+        "VALUES ($1::uuid,$2,$3::uuid,$4::uuid,$5::uuid,$6,$7,$8,$9::uuid,false)",
         pqxx::params{mutation.relationship_id, new_revision, repository_id, mutation.source_object_id,
                       mutation.target_object_id, domain::to_string(mutation.relationship_type),
                       mutation.description, mutation.author, result.commit_id});
 
     txn.exec_params(
-        "INSERT INTO commit_mutations (commit_id, seq, is_relationship, entity_id, resulting_revision) "
-        "VALUES ($1::uuid,$2,true,$3::uuid,$4)",
+        "INSERT INTO commit_mutations (commit_id, seq, is_relationship, entity_id, resulting_revision, "
+        "is_delete) VALUES ($1::uuid,$2,true,$3::uuid,$4,false)",
         pqxx::params{result.commit_id, seq++, mutation.relationship_id, new_revision});
 
     result.relationship_results.push_back(domain::MutationResult{true, mutation.relationship_id, new_revision});
@@ -512,10 +687,17 @@ std::vector<domain::EngineeringObject> ServerRepositoryStore::list_objects(const
   // Same correlated-subquery shape as get_object -- each row's current
   // revision is looked up against object_heads without joining it (and
   // therefore without object_heads' identically-named columns making the
-  // shared kObjectSelectColumns list ambiguous).
+  // shared kObjectSelectColumns list ambiguous). WP-SRV-012: a tombstoned
+  // object is excluded here -- this route enumerates the repository's
+  // *current, live* objects (WP-SRV-011B), and a tombstoned object has no
+  // live current state, exactly as single-object GET now also treats it.
+  // The head's and its current revision row's `is_tombstoned` are always
+  // written together (every INSERT/UPDATE pair below keeps them in sync),
+  // so filtering on the row's own column is equivalent to filtering on
+  // the head's and needs no extra join.
   const pqxx::result result = txn.exec_params(
       std::string("SELECT ") + kObjectSelectColumns +
-          " FROM objects WHERE repository_id = $1::uuid AND revision = "
+          " FROM objects WHERE repository_id = $1::uuid AND NOT is_tombstoned AND revision = "
           "(SELECT current_revision FROM object_heads WHERE object_heads.object_id = objects.object_id) "
           "ORDER BY created_at ASC",
       pqxx::params{repository_id});
@@ -574,9 +756,11 @@ std::vector<domain::Relationship> ServerRepositoryStore::list_relationships(cons
   if (repo_check.empty()) {
     throw NotFoundError("no repository exists with that id");
   }
+  // WP-SRV-012: excludes tombstoned relationships -- see list_objects'
+  // own comment above for why.
   const pqxx::result result = txn.exec_params(
       std::string("SELECT ") + kRelationshipSelectColumns +
-          " FROM relationships WHERE repository_id = $1::uuid AND revision = "
+          " FROM relationships WHERE repository_id = $1::uuid AND NOT is_tombstoned AND revision = "
           "(SELECT current_revision FROM relationship_heads WHERE relationship_heads.relationship_id = "
           "relationships.relationship_id) ORDER BY created_at ASC",
       pqxx::params{repository_id});

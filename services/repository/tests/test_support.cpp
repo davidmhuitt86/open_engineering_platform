@@ -45,12 +45,25 @@ std::optional<std::string> reset_schema() {
     pqxx::connection connection(common::Config{.database = test_database_config()}.database_connection_string());
     pqxx::work txn(connection);
 
+    const std::filesystem::path migrations_dir = OEP_SERVER_REPOSITORY_MIGRATIONS_DIR;
+
     const auto exists = txn.exec("SELECT to_regclass('repositories')");
     if (exists[0][0].is_null()) {
-      const std::filesystem::path migrations_dir = OEP_SERVER_REPOSITORY_MIGRATIONS_DIR;
       txn.exec(read_file(migrations_dir / "V1__initial_schema.sql"));
     } else {
       txn.exec("TRUNCATE repositories CASCADE");
+    }
+
+    // WP-SRV-012: applied verbatim, exactly like V1 above, the first time
+    // this test database doesn't yet have it (an already-migrated V1-only
+    // database from before this WP, or a brand new one that just got V1
+    // applied above) -- mirrors how the real Flyway migration path picks
+    // up V2 automatically, without duplicating Flyway itself here.
+    const auto has_tombstone_column = txn.exec(
+        "SELECT 1 FROM information_schema.columns "
+        "WHERE table_name = 'object_heads' AND column_name = 'is_tombstoned'");
+    if (has_tombstone_column.empty()) {
+      txn.exec(read_file(migrations_dir / "V2__tombstone_semantics.sql"));
     }
 
     txn.commit();

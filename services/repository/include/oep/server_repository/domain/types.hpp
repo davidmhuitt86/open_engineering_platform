@@ -80,6 +80,11 @@ struct EngineeringObject {
   std::string version = "1.0.0";
   std::string commit_id;
   std::string created_at;
+  // WP-SRV-012 / ADR-0006 SS10: true iff THIS revision is the tombstone
+  // revision (a delete mutation). Never true for revisions before the
+  // delete, and false again for any later revision that restores the
+  // object (a normal, non-delete mutation applied after a tombstone).
+  bool is_tombstoned = false;
 };
 
 /// A server-resident Relationship at a specific revision (ADR-0004 SS7,
@@ -95,13 +100,27 @@ struct Relationship {
   std::string author;
   std::string commit_id;
   std::string created_at;
+  bool is_tombstoned = false;
 };
+
+/// WP-SRV-012 / ADR-0006 SS10: a mutation is one of three kinds. `Delete`
+/// creates a tombstone revision -- a specific kind of mutation, not a
+/// different, non-revisioned operation (ADR-0006 SS10) -- and, symmetrically,
+/// a `Create`/`Update` mutation applied against a currently-tombstoned
+/// identity is how restoration is expressed (ADR-0006 SS10: "restored...
+/// by a subsequent create-shaped mutation"): no separate restore operation
+/// exists or is needed.
+enum class MutationKind { Create, Update, Delete };
 
 /// One mutation within a commit (ADR-0006 SS8). `expected_revision`
 /// absent means "must not already exist" (a create); present means "must
-/// currently be at this revision" (an update, ADR-0004 SS10).
+/// currently be at this revision" (an update or delete, ADR-0004 SS10).
+/// A `Delete` mutation carries only `object_id`/`expected_revision` --
+/// the remaining fields are unused (the tombstone revision's content is
+/// copied forward from the current revision by the server, not supplied
+/// by the client, ADR-0006 SS10).
 struct ObjectMutation {
-  bool is_update = false;
+  MutationKind kind = MutationKind::Create;
   std::string object_id;
   std::optional<std::int64_t> expected_revision;
   ObjectType object_type = ObjectType::Document;
@@ -113,8 +132,10 @@ struct ObjectMutation {
   std::string version = "1.0.0";
 };
 
+/// Same shape as `ObjectMutation`; a `Delete` mutation carries only
+/// `relationship_id`/`expected_revision`.
 struct RelationshipMutation {
-  bool is_update = false;
+  MutationKind kind = MutationKind::Create;
   std::string relationship_id;
   std::optional<std::int64_t> expected_revision;
   std::string source_object_id;
@@ -126,8 +147,6 @@ struct RelationshipMutation {
 
 /// A single atomic commit request (ADR-0006 SS8): a client-generated,
 /// repository-scoped operation identity plus the mutations it covers.
-/// Delete mutations are explicitly out of scope for this first slice
-/// (WP-SRV-011 Scope Exclusions).
 struct CommitRequest {
   std::string operation_id;
   std::vector<ObjectMutation> object_mutations;
