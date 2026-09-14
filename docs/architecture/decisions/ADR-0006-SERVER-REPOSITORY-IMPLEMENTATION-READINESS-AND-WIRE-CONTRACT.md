@@ -110,7 +110,22 @@ This illustration is not the wire schema; it exists only to make §6-§9's seman
 Resolving ADR-0005 §10's deferred mechanics, per Task 5:
 
 - **Operation identity format**: **MUST** be a UUIDv4, reusing the exact identity format already established throughout this system (repositories, objects, relationships) rather than inventing a second identity type, per Task 5's own explicit instruction to prefer reuse over invention.
-- **Uniqueness scope**: an operation identity **MUST** be unique within the Server Repository it targets (not globally across every repository on the server — a UUIDv4's own collision probability already makes cross-repository uniqueness a practical non-issue, and scoping the uniqueness check to one repository keeps the implementation's lookup cheap).
+- **Uniqueness scope is not one single namespace — it MUST be split by operation kind, because the two kinds of operation this ADR defines do not share a target at the time the operation is first received**:
+  - **Repository-creation operation identities are SERVER-SCOPED.** `POST /repositories` (§7/§21) is the operation that *creates* `repository_id` — there is no repository namespace yet for the identity to be scoped into at the moment the server first receives the request. The server **MUST** therefore check a repository-creation operation identity for prior use against a single, server-wide namespace of repository-creation attempts, not against any one repository's own records.
+  - **Commit operation identities remain REPOSITORY-SCOPED**, unchanged from the original decision below: a commit always targets an already-existing `repository_id` (it is submitted to `POST /repositories/{repository_id}/commits`, §7/§8), so scoping its idempotency check to that one repository is both correct and, as originally reasoned, keeps the lookup cheap.
+  - These are **two distinct namespaces**, not one identity space split by convention — a server-scoped repository-creation operation identity and a repository-scoped commit operation identity are never compared against each other, even if (by coincidence) the same UUID value were ever reused across the two kinds of operation. This ADR does **not** introduce a distributed or global identity service to support the server-scoped namespace — "server-scoped" here means "checked against this one server process's/deployment's own record of repository-creation attempts," the same kind of scope the server already has authority over for everything else in this contract, not a new cross-server coordination mechanism.
+  - Original reasoning for the repository-scoped commit case, unchanged: a UUIDv4's own collision probability already makes even-broader uniqueness a practical non-issue, and scoping the check to one repository keeps the implementation's lookup cheap.
+
+  **Required repository-creation retry behavior, made explicit:**
+  1. Client sends a repository-creation request carrying operation identity `X`.
+  2. Server successfully creates repository `R`.
+  3. Client loses the response (any of the failure shapes in §24).
+  4. Client retries repository creation with the same operation identity `X`.
+  5. Server recognizes `X` in the **server-scoped** repository-creation namespace.
+  6. Server returns the original repository-creation result (including `R`'s `repository_id`) as a no-op success, per the same retry rule §9 already establishes for commits.
+  7. Server **MUST NOT** create a second repository `R2`.
+
+  If a repository-creation operation identity is reused with materially different request content (e.g. a different `repository_name`), the server **MUST** return `IDEMPOTENCY_CONFLICT` (§13), exactly as an equivalent reuse-with-different-content already does for commits.
 - **Lifetime requirement**: the server **MUST** retain enough record of a given operation identity's outcome to answer "was this already applied, and if so, with what result" for at least as long as a reasonable client retry window. This ADR does not fix an exact retention duration (**UNDECIDED** — an implementation detail, not an architectural one) but **MUST NOT** be shorter than a small number of minutes (long enough to cover realistic network-partition/timeout retry behavior) and **SHOULD** be retained indefinitely alongside the commit/audit history it corresponds to (§23), since that history is already required to be retained.
 - **May the same operation identity be retried?** Yes — that is the entire purpose of this mechanism. A retry with the **identical** mutation set **MUST** be treated as a no-op success, returning the original result (§19), not reapplied.
 - **What happens if the same operation identity is reused with genuinely different content?** This **MUST** be rejected — a new `IDEMPOTENCY_CONFLICT` category (§13) distinct from `VALIDATION_FAILED`/`CONCURRENCY_CONFLICT`, since it represents neither a bad request nor a stale read, but a client-side identity-reuse error. The server **MUST NOT** silently apply the "second" version of a reused identity.
@@ -273,7 +288,7 @@ Per Task 17:
 - **Metadata requirements at creation**: at minimum a `repository_name` (mirroring the existing, real `RepositoryMetadata.repository_name` requirement) — other fields (`description`, `author`, `organization`, `tags`) **MAY** be supplied and **SHOULD** default sensibly (empty/absent) if not, mirroring `RepositoryMetadata`'s own existing optionality where it already treats fields as optional.
 - **Initial revision/state**: a newly created repository **MUST** start with zero objects and zero relationships — there is no "seed content" concept in repository creation.
 - **Initial audit event**: repository creation **MUST** produce an audit record (§23, mirroring the existing local precedent — Foundation's own `AuditEventType::RepositoryCreated`, real today, directly reused as the conceptual model for this server-side equivalent).
-- **Idempotency**: repository creation **MUST** support the same operation-identity mechanism as commits (§9) — creating a repository is itself an operation that could be lost-response-then-retried, and the identical retry-safety requirement applies.
+- **Idempotency**: repository creation **MUST** support the same client-generated-operation-identity *mechanism* as commits (§9) — creating a repository is itself an operation that could be lost-response-then-retried, and the identical retry-safety requirement applies — **but not the same uniqueness *scope***. Per §9's server-scoped/repository-scoped split: a repository-creation operation identity **MUST** be checked against the server-wide repository-creation namespace, not against any individual `repository_id` (none exists yet at the moment the identity is first received). This is the correction that makes repository creation itself retry-safe; see §9 for the full rule and the required retry-behavior sequence.
 - **Empty repositories are valid** and remain valid indefinitely — there is no requirement that a repository ever contain any objects/relationships to be considered legitimate.
 
 ## 22. Historical Revision Retrieval
@@ -331,9 +346,47 @@ Per Task 22, translating ADR-0004's atomicity into implementation-facing require
 - A failed commit **MUST** leave repository state unchanged — the transaction is rolled back in full on any validation failure, concurrency conflict, or internal error encountered mid-commit.
 - **Optimistic concurrency checks MUST occur inside the same atomic boundary that commits the mutation** — a read-then-check-then-write sequence split across multiple transactions (or performed outside any transaction at all) would reopen exactly the race condition optimistic concurrency exists to close. The expected-revision check for every mutation in a commit and the write that applies it **MUST** be part of one transaction.
 
+**Idempotency state MUST be part of that same atomic boundary, not a separate write.** This is a correction to, and a strengthening of, the atomicity contract above — restated here explicitly because it is easy to implement incorrectly as two sequential writes rather than one:
+
+For **every** successful commit, the following **MUST** be persisted within the **same atomic persistence boundary** as the mutation itself — the same transaction named above, not a follow-up write after that transaction commits:
+
+- The object mutations.
+- The relationship mutations.
+- The resulting object revisions.
+- The resulting relationship revisions.
+- The commit identity (§6).
+- The commit record (§23's content).
+- The operation identity (§9).
+- The idempotency outcome/result that a future retry of that same operation identity must be able to find and return (§9).
+- The required audit association (§27).
+
+**An implementation MUST NOT expose a successful mutation (i.e. return a success response, or make the new revision visible to any other read) before its idempotency outcome is durably associated with that mutation, in the same atomic write.** Concretely, the architecture **MUST** guarantee the following sequence:
+
+1. Client submits a commit carrying operation identity `X`.
+2. Server accepts and evaluates the commit.
+3. The mutation, its resulting revisions, the commit record, the operation identity, its idempotency outcome, and the audit association **all commit together, atomically**, in one persistence transaction.
+4. Client loses the response (any of the failure shapes in §24).
+5. Client retries with the same operation identity `X`.
+6. Server finds the existing idempotency result (because step 3 already durably recorded it, as part of the same transaction that applied the mutation — it cannot be missing).
+7. Server returns the original commit result as a no-op success (§9).
+8. The mutation is **not** applied a second time.
+
+**This ADR explicitly prohibits the following failure mode**, which splitting the mutation write from the idempotency-record write across two transactions (or two non-atomic steps) would allow:
+
+1. The mutation commits (durably).
+2. The idempotency record does **not** commit (e.g. a crash or error between the two separate writes).
+3. The client, having received no response, retries with the same operation identity.
+4. The server, finding no idempotency record for that identity, incorrectly treats the retry as a brand-new commit and applies the mutation again.
+
+Preventing exactly this sequence is the entire purpose of requiring one shared atomic boundary rather than two sequential writes — an implementation that writes the mutation first and the idempotency record second (in a separate transaction, "best effort," or "usually right after") does **not** satisfy this ADR, regardless of how rarely the gap between the two writes is actually hit in practice.
+
+No PostgreSQL table layout, SQL statement, locking strategy, or transaction isolation level is prescribed by this requirement — it is a semantic guarantee an implementation must satisfy, by whatever concrete mechanism its chosen persistence technology offers for atomic multi-write commits (an ordinary multi-statement PostgreSQL transaction already satisfies it without requiring any special technique).
+
 ## 27. Audit Boundary
 
 Per Task 23, minimum requirements — **not** an enterprise audit subsystem, and **not** a duplicate of EAM's acquisition-provenance model (ADR-0004 §15 already forbids conflating the two; reaffirmed, not re-designed, here):
+
+Per §26's atomicity correction: for a successful commit, this audit association **MUST** be persisted within the same atomic persistence boundary as the mutation and its idempotency outcome — not written separately, and not written after the fact.
 
 A successful commit **MUST** have an auditable association with:
 
