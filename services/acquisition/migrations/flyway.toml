@@ -1,10 +1,23 @@
-# Flyway configuration (WORK_PACKAGE_001: "Create migration structure...
-# Placeholder only"). Not invoked as part of the build or test suite --
-# running migrations against a real PostgreSQL instance is left to a
-# developer/operator, documented in README.md "Database Migrations".
+# Flyway configuration (WORK_PACKAGE_001, updated WP-SRV-005).
+#
+# WP-SRV-005: rewritten to Flyway's current `[environments.*]` schema --
+# the previous flat `[flyway] url/user/password` form is from Flyway's
+# pre-10.x configuration format and is rejected outright by the Flyway
+# 10.20.1 CLI ("Failed to configure parameters"), which is almost
+# certainly why README.md's own "Not yet invoked by any automated
+# process" note was still true as of WP-SRV-004 -- the file had never
+# actually been run against a real Flyway CLI. Verified working with
+# `flyway -configFiles=migrations/flyway.toml -environment=default migrate`
+# from `services/acquisition/`.
+#
+# Credentials are never stored here -- supply `FLYWAY_USER` and
+# `FLYWAY_PASSWORD` as environment variables at invocation time (Flyway's
+# own environment-variable convention, distinct from this application's
+# own `OEP_API_TOKEN`/`OEP_TEST_DB_*` conventions but serving the same
+# "never commit a secret" purpose).
+[environments.default]
+url = "jdbc:postgresql://localhost:5432/oep_acquisition"
 
 [flyway]
-url = "jdbc:postgresql://localhost:5432/oep_acquisition"
-user = "oep_acquisition"
-password = ""
+environment = "default"
 locations = ["filesystem:./migrations"]

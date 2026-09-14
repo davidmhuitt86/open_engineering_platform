@@ -883,6 +883,12 @@ void guard_vault(httplib::Response& response, Fn&& fn) {
     respond_error(response, 409, "artifact_hash_mismatch", ex.what());
   } catch (const vault::InvalidVaultPathError& ex) {
     respond_error(response, 422, "invalid_vault_path", ex.what());
+  } catch (const std::filesystem::filesystem_error&) {
+    // WP-SRV-005: caught explicitly, ahead of the generic std::exception
+    // handler below -- `filesystem_error::what()` embeds the offending
+    // path (discovered live, via a storage-permission test performed as
+    // part of this WP), which must never reach the HTTP response.
+    respond_error(response, 503, "service_unavailable", "A storage error occurred.");
   } catch (const std::exception& ex) {
     respond_error(response, 503, "service_unavailable", ex.what());
   }

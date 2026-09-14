@@ -1214,16 +1214,83 @@ purposes.
   interpretation, and semantic classification -- per
   `docs/architecture/SDD-R013` through `SDD-R019`. Milestone 1 (Engineering
   Acquisition MVP, WORK_PACKAGE_001 through WORK_PACKAGE_009) is complete.
-- `migrations/flyway.toml` is still not invoked by any automated
-  process (see Future Considerations below).
+- `migrations/flyway.toml` is now genuinely working, verified against a
+  real Flyway CLI (WP-SRV-005) -- see "Database Provisioning &
+  Migrations" below. It still is not wired into an automated build or
+  deployment step; running it remains a manual/operator action.
+
+## Database Provisioning & Migrations (WP-SRV-005)
+
+**Role/database**: the application connects as a dedicated, least-privilege
+PostgreSQL role (`oep_acquisition` by convention -- not a superuser, no
+`CREATEDB`/`CREATEROLE`/`REPLICATION`), which owns its own database (also
+`oep_acquisition` by convention). A separate, identically-provisioned
+database (`oep_acquisition_test` by convention) is recommended for the
+automated test suite (`OEP_TEST_DB_NAME`), so `TRUNCATE`-based test
+fixtures never touch data you want to keep. Neither name is special-cased
+in code -- `common::DatabaseConfig` accepts whatever `config.toml` (or an
+operator-supplied override file, see "Configuration" below) specifies.
+
+**Credentials**: supplied via `config.toml`'s `[database]` section --
+this repository's one pre-existing configuration mechanism for the
+database (there is no environment-variable override for it today, unlike
+`OEP_API_TOKEN`). Because `config.toml` is a tracked file, a real
+deployment should invoke the binary with an explicit, untracked config
+path instead of relying on the committed default (`main.cpp`'s
+`load_configuration` already supports this: `oep_acquisition
+/path/to/a/real/config.toml`) -- keep that file outside the repository
+entirely (e.g. alongside other VM-local infrastructure configuration,
+per the Reference Server bring-up precedent) so the real password is
+never committed.
+
+**Migrations**: `migrations/flyway.toml` uses Flyway's current
+`[environments.*]` schema (rewritten by WP-SRV-005 -- the previous flat
+`[flyway] url/user/password` form predates Flyway 10.x and is rejected
+outright by a modern Flyway CLI, "Failed to configure parameters"; this
+is almost certainly why it had never actually been run against a real
+one before). Apply all ten migrations with:
+
+```bash
+cd services/acquisition
+FLYWAY_USER=oep_acquisition FLYWAY_PASSWORD=<the real password> \
+  flyway -configFiles=migrations/flyway.toml -environment=default migrate
+```
+
+(`FLYWAY_USER`/`FLYWAY_PASSWORD` are Flyway's own environment-variable
+convention, kept separate from `OEP_TEST_DB_*`/`OEP_API_TOKEN`, and never
+committed anywhere.) `flyway info` (same flags) shows pending/applied
+state without changing anything. Verified clean against a fresh database
+with no manual SQL beyond `CREATE ROLE`/`CREATE DATABASE` (WP-SRV-005).
+
+**Schema audit** (WP-SRV-005): every foreign key across all ten
+migrations has a covering index (queried directly against
+`information_schema`/`pg_indexes`, zero gaps found) -- the FK-index gaps
+`V9__reference_vault_fk_indexes.sql`'s name references were already
+fully closed by that migration; `V7`/`V10` never had the gap to begin
+with.
+
+**Backup**: `pg_dump -Fc` for the database, plus a plain `tar` of the
+Reference Vault's `storage.root_path` directory (artifact bytes live on
+the filesystem, not in PostgreSQL -- a database-only backup is
+insufficient on its own). Both were exercised end-to-end, including a
+full restore into a separate, throwaway database with `pg_restore`
+(WP-SRV-005) -- known rows and known artifact bytes were both confirmed
+retrievable afterward, byte-for-byte identical.
+
+**Known concurrency limitation** (WP-SRV-005): each repository class
+(`Postgres*Repository`) owns exactly one `pqxx::connection` -- not a
+connection pool, and not safe for concurrent use from multiple threads.
+Under concurrent load (verified directly: 5 simultaneous `POST /sources`
+requests), some requests fail (either a clean application-level error or
+an upstream-timeout-shaped failure at a fronting reverse proxy) rather
+than being queued and served safely one at a time. This is a real,
+observed limitation of the current one-connection-per-repository design,
+not a new one introduced by WP-SRV-005 -- recording it here rather than
+redesigning connection management, which is out of that WP's scope. A
+future work package addressing this should consider either a connection
+pool per repository or explicit request-level serialization.
 
 ## Future Considerations
-
-- `migrations/flyway.toml` is not yet invoked by any automated process
-  -- a future work package should wire `flyway migrate` into the build
-  or a deployment step. Repository/API/migration tests currently apply
-  `V1__initial_schema.sql` through `V8__reference_vault.sql`
-  verbatim themselves (see "Test" above) as a stand-in.
 - The Reference Vault has no verification-at-rest / periodic
   fixity-checking mechanism -- once an artifact is copied in, nothing
   re-reads it later to confirm the file on disk still matches its

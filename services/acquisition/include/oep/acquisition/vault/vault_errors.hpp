@@ -53,10 +53,18 @@ class VerificationNotSuccessfulError : public std::runtime_error {
 /// Unlike WORK_PACKAGE-007/008's equivalent checks, this rejects the
 /// publish request rather than recording a Failed VaultEntry -- see
 /// `vault_entry.hpp` and README.md "Implementation Decisions".
+///
+/// WP-SRV-005: deliberately does NOT include `path` in the exception
+/// message -- `guard_vault` (server.cpp) passes `what()` straight through
+/// to the HTTP response, and a server-local filesystem path must never
+/// appear there (ADR-0001 Section 6, WP-SRV-002). `path` is still taken
+/// as a constructor parameter (every call site already has it available
+/// and it costs nothing to keep the signature descriptive), simply
+/// unused in the resulting message.
 class ArtifactNotFoundError : public std::runtime_error {
  public:
-  explicit ArtifactNotFoundError(const std::string& path)
-      : std::runtime_error("Published artifact does not exist or could not be read: " + path) {}
+  explicit ArtifactNotFoundError(const std::string& /*path*/)
+      : std::runtime_error("Published artifact does not exist or could not be read.") {}
 };
 
 /// Thrown when the artifact's freshly-recomputed SHA-256 does not match
@@ -73,10 +81,14 @@ class ArtifactHashMismatchError : public std::runtime_error {
 /// Thrown when the computed content-addressable Vault path cannot be
 /// created/written (WORK_PACKAGE-009 Validation Rules: "Vault path shall
 /// validate"), mirroring `downloads::InvalidDestinationError`.
+///
+/// WP-SRV-005: same path-leak fix as `ArtifactNotFoundError` above --
+/// `vault_path` is a server-local path and must not reach the client via
+/// `guard_vault`'s `ex.what()` passthrough.
 class InvalidVaultPathError : public std::runtime_error {
  public:
-  explicit InvalidVaultPathError(const std::string& vault_path)
-      : std::runtime_error("Vault path did not validate: " + vault_path) {}
+  explicit InvalidVaultPathError(const std::string& /*vault_path*/)
+      : std::runtime_error("Vault path did not validate.") {}
 };
 
 }  // namespace oep::acquisition::vault

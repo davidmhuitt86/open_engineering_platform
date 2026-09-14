@@ -50,7 +50,15 @@ VaultEntry ReferenceVaultService::publish(const nlohmann::json& body) {
   const std::filesystem::path artifact_path =
       download.has_value() ? std::filesystem::path(download->local_storage_path) : std::filesystem::path();
 
-  if (artifact_path.empty() || !std::filesystem::exists(artifact_path)) {
+  // WP-SRV-005: the non-throwing overload (an `std::error_code` out-param,
+  // never an exception) -- the throwing overload's `filesystem_error`
+  // embeds the path in `what()`, which `guard_vault` would otherwise pass
+  // straight through to the HTTP response (discovered live, by a storage-
+  // permission test performed as part of this WP). A permission-denied
+  // error here is treated identically to "does not exist" -- both mean
+  // the artifact cannot currently be read.
+  std::error_code exists_error;
+  if (artifact_path.empty() || !std::filesystem::exists(artifact_path, exists_error)) {
     throw ArtifactNotFoundError(artifact_path.string());
   }
 
@@ -73,7 +81,16 @@ VaultEntry ReferenceVaultService::publish(const nlohmann::json& body) {
   // exist" so the catch block below can tell whether *this* call is the one
   // that materialized the file (and must therefore clean it up on failure)
   // versus a dedup hit against content another Vault Entry already owns.
-  const bool copied_by_this_call = !std::filesystem::exists(vault_path);
+  //
+  // WP-SRV-005: non-throwing overload, same reasoning as the
+  // `artifact_path` check above -- a permission-denied error while
+  // checking the Vault's own storage directory must not leak that path
+  // via an uncaught `filesystem_error`. A check-time error here is
+  // treated as "not yet copied," which naturally routes into the
+  // `create_directories`/`copy_file` calls below and their own existing,
+  // path-free `InvalidVaultPathError`.
+  std::error_code vault_exists_error;
+  const bool copied_by_this_call = !std::filesystem::exists(vault_path, vault_exists_error);
   if (copied_by_this_call) {
     std::filesystem::create_directories(vault_path.parent_path(), error);
     if (error) {
