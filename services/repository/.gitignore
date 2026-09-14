@@ -1,0 +1,20 @@
+build/
+dist/
+__pycache__/
+
+# CMake / C++ build artifacts
+out/
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+*.obj
+*.o
+*.lib
+*.exp
+*.pdb
+*.ilk
+*.exe
+
+# FetchContent-downloaded third-party sources land under the build tree,
+# never under third_party/ -- see CMakeLists.txt.
+_deps/

@@ -1,0 +1,13 @@
+# WP-SRV-011: Server Repository migrations. Mirrors
+# services/acquisition/migrations/flyway.toml's already-corrected,
+# working Flyway 10.x `[environments.*]` schema (WP-SRV-005) -- a
+# separate migration history from EAM's own, per ADR-0006 SS25.
+#
+# Credentials are never stored here -- supply FLYWAY_USER / FLYWAY_PASSWORD
+# as environment variables at invocation time.
+[environments.default]
+url = "jdbc:postgresql://localhost:5432/oep_server_repository"
+
+[flyway]
+environment = "default"
+locations = ["filesystem:./migrations"]

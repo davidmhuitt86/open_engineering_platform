@@ -1,0 +1,21 @@
+# OEP Server Repository -- local development defaults (WP-SRV-011).
+# A real deployment MUST supply the real database password via an
+# untracked config file passed as argv[1], exactly as
+# services/acquisition/README.md and ADR-0006 SS25 already establish for
+# EAM -- never committed here.
+
+[database]
+host = "localhost"
+port = 5432
+name = "oep_server_repository"
+user = "oep_server_repository"
+password = ""
+sslmode = "prefer"
+
+[logging]
+level = "info"
+console = true
+
+[server]
+host = "127.0.0.1"
+port = 8081
