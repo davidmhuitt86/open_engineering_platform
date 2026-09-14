@@ -291,6 +291,22 @@ Per Task 17:
 - **Idempotency**: repository creation **MUST** support the same client-generated-operation-identity *mechanism* as commits (§9) — creating a repository is itself an operation that could be lost-response-then-retried, and the identical retry-safety requirement applies — **but not the same uniqueness *scope***. Per §9's server-scoped/repository-scoped split: a repository-creation operation identity **MUST** be checked against the server-wide repository-creation namespace, not against any individual `repository_id` (none exists yet at the moment the identity is first received). This is the correction that makes repository creation itself retry-safe; see §9 for the full rule and the required retry-behavior sequence.
 - **Empty repositories are valid** and remain valid indefinitely — there is no requirement that a repository ever contain any objects/relationships to be considered legitimate.
 
+**Atomic persistence of repository creation** (a further correction, extending §26's commit-atomicity requirement to this operation specifically — repository creation is its own, distinct operation from a commit, §7, and does not inherit §26's guarantee automatically merely by analogy; it is stated here as its own binding requirement):
+
+A successful repository-creation operation **MUST** atomically persist, within the same persistence boundary:
+
+- The repository identity (`repository_id`).
+- The repository's metadata/state (§21 above).
+- The repository-created audit association (mirroring the audit-association requirement §27 already establishes for commits).
+- The repository-creation operation identity (§9).
+- The idempotency outcome/result for that operation identity.
+
+**A repository MUST NOT become visible as successfully created before its corresponding repository-creation idempotency outcome is durably associated with it** — the identical "don't expose success before the idempotency record is durably attached" rule §26 already establishes for commits, restated here as binding on repository creation specifically, since it is a separate operation with its own atomicity boundary, not a special case of a commit.
+
+**Required retry behavior, restated as binding**: if the client loses the response and retries with the same operation identity, the server **MUST** return the original repository-creation result and **MUST NOT** create another repository — this is the same guarantee §9's seven-step sequence already describes, restated here as a direct consequence of the atomicity requirement above (the retry can only be answered correctly because the idempotency outcome was durably persisted atomically with the repository itself in step 3 of that sequence — an implementation that persisted them separately could not guarantee this).
+
+**The server-scoped repository-creation idempotency namespace (§9) MUST itself be durable across server restart, and MUST belong to the Server Repository service's own persistence boundary — not to the memory of an individual running server process.** An implementation that tracks repository-creation operation identities only in-process (e.g. an in-memory map cleared on restart) does not satisfy this ADR: a server restart between a client's original request and its retry is exactly the kind of failure §20/§24 already requires the architecture to tolerate, and an in-memory-only namespace would silently lose that guarantee across a restart. This durability requirement is the same one §11 of ADR-0005 already established for persistence generally (durability across restart); it is restated here specifically because the repository-creation idempotency namespace is new enough, and easy enough to implement as an in-memory convenience, that it needs its own explicit statement rather than relying on an implementer to infer it from the general persistence-durability requirement alone.
+
 ## 22. Historical Revision Retrieval
 
 Per Task 18:
