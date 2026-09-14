@@ -1,5 +1,7 @@
 #include "oep/server_repository/persistence/store.hpp"
 
+#include <condition_variable>
+#include <deque>
 #include <mutex>
 #include <sstream>
 
@@ -13,7 +15,70 @@
 
 namespace oep::server_repository::persistence {
 
+// WP-SRV-011A: a small, fixed-size pool of independent `pqxx::connection`s.
+// `acquire()` blocks (via a condition variable, not a busy-wait) until a
+// connection is free, hands it out wrapped in a move-only RAII lease, and
+// the lease's destructor returns the connection to the pool -- so a
+// connection can never leak even if the caller throws mid-transaction
+// (`pqxx::work`'s own destructor already rolls back an uncommitted
+// transaction on that connection before the lease returns it). Sized well
+// above this WP's 8-writer concurrency test so genuinely independent
+// transactions are never artificially re-serialized by pool exhaustion.
+class ServerRepositoryStore::ConnectionPool {
+ public:
+  ConnectionPool(const common::DatabaseConfig& config, std::size_t size) {
+    const std::string connection_string = common::Config{.database = config}.database_connection_string();
+    for (std::size_t i = 0; i < size; ++i) {
+      connections_.push_back(std::make_unique<pqxx::connection>(connection_string));
+    }
+  }
+
+  class Lease {
+   public:
+    Lease(ConnectionPool& pool, std::unique_ptr<pqxx::connection> connection)
+        : pool_(&pool), connection_(std::move(connection)) {}
+    ~Lease() {
+      if (connection_) {
+        pool_->release(std::move(connection_));
+      }
+    }
+    Lease(const Lease&) = delete;
+    Lease& operator=(const Lease&) = delete;
+    Lease(Lease&&) = default;
+    Lease& operator=(Lease&&) = default;
+
+    pqxx::connection& get() { return *connection_; }
+
+   private:
+    ConnectionPool* pool_;
+    std::unique_ptr<pqxx::connection> connection_;
+  };
+
+  Lease acquire() {
+    std::unique_lock<std::mutex> lock(mutex_);
+    cv_.wait(lock, [this] { return !connections_.empty(); });
+    std::unique_ptr<pqxx::connection> connection = std::move(connections_.back());
+    connections_.pop_back();
+    return Lease(*this, std::move(connection));
+  }
+
+ private:
+  void release(std::unique_ptr<pqxx::connection> connection) {
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      connections_.push_back(std::move(connection));
+    }
+    cv_.notify_one();
+  }
+
+  std::mutex mutex_;
+  std::condition_variable cv_;
+  std::deque<std::unique_ptr<pqxx::connection>> connections_;
+};
+
 namespace {
+
+constexpr std::size_t kConnectionPoolSize = 16;
 
 using domain::ConcurrencyConflictError;
 using domain::IdempotencyConflictError;
@@ -128,15 +193,15 @@ constexpr auto kRelationshipSelectColumns =
 }  // namespace
 
 ServerRepositoryStore::ServerRepositoryStore(const common::DatabaseConfig& config)
-    : connection_(std::make_unique<pqxx::connection>(common::Config{.database = config}.database_connection_string())) {}
+    : pool_(std::make_unique<ConnectionPool>(config, kConnectionPoolSize)) {}
 
 ServerRepositoryStore::~ServerRepositoryStore() = default;
 
 domain::RepositoryMetadata ServerRepositoryStore::create_repository(const domain::RepositoryCreateRequest& request) {
-  std::lock_guard<std::mutex> lock(mutex_);
   const std::string fingerprint = fingerprint_of(request);
 
-  pqxx::work txn(*connection_);
+  auto lease = pool_->acquire();
+  pqxx::work txn(lease.get());
 
   // ADR-0006 SS9/SS21: SERVER-SCOPED idempotency check -- keyed only on
   // operation_id, not on any repository_id (none exists yet).
@@ -190,8 +255,8 @@ std::optional<domain::RepositoryMetadata> ServerRepositoryStore::get_repository(
   if (!common::is_uuid_like(repository_id)) {
     return std::nullopt;
   }
-  std::lock_guard<std::mutex> lock(mutex_);
-  pqxx::work txn(*connection_);
+  auto lease = pool_->acquire();
+  pqxx::work txn(lease.get());
   const pqxx::result result = txn.exec_params(
       std::string("SELECT ") + kRepositorySelectColumns + " FROM repositories WHERE id = $1::uuid",
       pqxx::params{repository_id});
@@ -203,8 +268,8 @@ std::optional<domain::RepositoryMetadata> ServerRepositoryStore::get_repository(
 }
 
 std::vector<domain::RepositoryMetadata> ServerRepositoryStore::list_repositories() {
-  std::lock_guard<std::mutex> lock(mutex_);
-  pqxx::work txn(*connection_);
+  auto lease = pool_->acquire();
+  pqxx::work txn(lease.get());
   const pqxx::result result =
       txn.exec(std::string("SELECT ") + kRepositorySelectColumns + " FROM repositories ORDER BY created_at ASC");
   txn.commit();
@@ -218,10 +283,10 @@ std::vector<domain::RepositoryMetadata> ServerRepositoryStore::list_repositories
 
 domain::CommitResult ServerRepositoryStore::submit_commit(const std::string& repository_id,
                                                               const domain::CommitRequest& request) {
-  std::lock_guard<std::mutex> lock(mutex_);
   const std::string fingerprint = fingerprint_of(request);
 
-  pqxx::work txn(*connection_);
+  auto lease = pool_->acquire();
+  pqxx::work txn(lease.get());
 
   const pqxx::result repo_check =
       txn.exec_params("SELECT 1 FROM repositories WHERE id = $1::uuid", pqxx::params{repository_id});
@@ -240,7 +305,7 @@ domain::CommitResult ServerRepositoryStore::submit_commit(const std::string& rep
     }
     const std::string commit_id = existing_commit[0]["commit_id"].as<std::string>();
     txn.commit();
-    auto result = get_commit_locked(repository_id, commit_id);
+    auto result = get_commit_with_connection(lease.get(), repository_id, commit_id);
     if (!result.has_value()) {
       throw std::runtime_error("idempotent commit record vanished unexpectedly");
     }
@@ -394,8 +459,8 @@ std::optional<domain::EngineeringObject> ServerRepositoryStore::get_object(const
   if (!common::is_uuid_like(repository_id) || !common::is_uuid_like(object_id)) {
     return std::nullopt;
   }
-  std::lock_guard<std::mutex> lock(mutex_);
-  pqxx::work txn(*connection_);
+  auto lease = pool_->acquire();
+  pqxx::work txn(lease.get());
   // Bug fixed live, WP-SRV-011: the original query joined `objects` and
   // `object_heads` in the FROM clause, but `kObjectSelectColumns`'
   // unqualified column list (`object_id::text AS object_id`, etc.) is
@@ -423,8 +488,8 @@ std::optional<domain::EngineeringObject> ServerRepositoryStore::get_object_revis
   if (!common::is_uuid_like(repository_id) || !common::is_uuid_like(object_id)) {
     return std::nullopt;
   }
-  std::lock_guard<std::mutex> lock(mutex_);
-  pqxx::work txn(*connection_);
+  auto lease = pool_->acquire();
+  pqxx::work txn(lease.get());
   const pqxx::result result = txn.exec_params(
       std::string("SELECT ") + kObjectSelectColumns +
           " FROM objects WHERE object_id = $1::uuid AND repository_id = $2::uuid AND revision = $3",
@@ -441,8 +506,8 @@ std::optional<domain::Relationship> ServerRepositoryStore::get_relationship(cons
   if (!common::is_uuid_like(repository_id) || !common::is_uuid_like(relationship_id)) {
     return std::nullopt;
   }
-  std::lock_guard<std::mutex> lock(mutex_);
-  pqxx::work txn(*connection_);
+  auto lease = pool_->acquire();
+  pqxx::work txn(lease.get());
   // Same ambiguous-column fix as get_object above.
   const pqxx::result result = txn.exec_params(
       std::string("SELECT ") + kRelationshipSelectColumns +
@@ -461,8 +526,8 @@ std::optional<domain::Relationship> ServerRepositoryStore::get_relationship_revi
   if (!common::is_uuid_like(repository_id) || !common::is_uuid_like(relationship_id)) {
     return std::nullopt;
   }
-  std::lock_guard<std::mutex> lock(mutex_);
-  pqxx::work txn(*connection_);
+  auto lease = pool_->acquire();
+  pqxx::work txn(lease.get());
   const pqxx::result result = txn.exec_params(
       std::string("SELECT ") + kRelationshipSelectColumns +
           " FROM relationships WHERE relationship_id = $1::uuid AND repository_id = $2::uuid AND revision = $3",
@@ -476,16 +541,16 @@ std::optional<domain::Relationship> ServerRepositoryStore::get_relationship_revi
 
 std::optional<domain::CommitResult> ServerRepositoryStore::get_commit(const std::string& repository_id,
                                                                           const std::string& commit_id) {
-  std::lock_guard<std::mutex> lock(mutex_);
-  return get_commit_locked(repository_id, commit_id);
+  auto lease = pool_->acquire();
+  return get_commit_with_connection(lease.get(), repository_id, commit_id);
 }
 
-std::optional<domain::CommitResult> ServerRepositoryStore::get_commit_locked(const std::string& repository_id,
-                                                                                 const std::string& commit_id) {
+std::optional<domain::CommitResult> ServerRepositoryStore::get_commit_with_connection(
+    pqxx::connection& connection, const std::string& repository_id, const std::string& commit_id) {
   if (!common::is_uuid_like(repository_id) || !common::is_uuid_like(commit_id)) {
     return std::nullopt;
   }
-  pqxx::work txn(*connection_);
+  pqxx::work txn(connection);
   const pqxx::result commit_row = txn.exec_params(
       "SELECT commit_id::text AS commit_id, repository_id::text AS repository_id, operation_id::text AS "
       "operation_id, audit_event_id::text AS audit_event_id, "

@@ -1,7 +1,6 @@
 #pragma once
 
 #include <memory>
-#include <mutex>
 #include <optional>
 #include <string>
 #include <vector>
@@ -32,21 +31,29 @@ namespace oep::server_repository::persistence {
 /// exception, a SQL string, or a connection detail to a caller -- see
 /// `domain/errors.hpp` and ADR-0006 SS13).
 ///
-/// Holds exactly one `pqxx::connection` (mirroring EAM's own
-/// `Postgres*Repository` classes, and the exact concurrency limitation
-/// WP-SRV-005's own audit already documented for that pattern: a single
-/// libpqxx connection is not safe for concurrent use from multiple
-/// threads). Unlike EAM's repositories, this class guards every access
-/// to that connection with an internal mutex, so concurrent HTTP
-/// requests (this service's `httplib::Server` uses a multi-threaded
-/// pool, same as EAM's) are serialized safely at the persistence layer
-/// rather than racing on the same connection object. This is what makes
-/// this WP's own required concurrent-writer test (multiple real threads
-/// submitting conflicting commits at once) safe to run at all -- without
-/// it, concurrent access would be undefined behavior, not merely a
-/// missed optimization. A connection pool (removing the serialization
-/// bottleneck this mutex introduces) is a reasonable future improvement,
-/// not required by ADR-0006 for this first slice.
+/// WP-SRV-011A correction: the first slice (WP-SRV-011) held exactly one
+/// `pqxx::connection` behind a `std::mutex`, so every method -- including
+/// `submit_commit` -- executed on a single shared connection. That made
+/// concurrent HTTP requests *safe*, but it also meant every concurrent
+/// commit was serialized by the process-wide mutex before PostgreSQL ever
+/// saw a second transaction: the required optimistic-concurrency guarantee
+/// (real competing transactions racing for the same `object_heads` row,
+/// resolved by `SELECT ... FOR UPDATE` plus the `expected_revision` check)
+/// was never actually exercised at the database layer, only simulated by
+/// application-level serialization.
+///
+/// This class now owns a small internal connection pool instead of one
+/// connection: each public method leases its own `pqxx::connection` for
+/// the duration of its one transaction and returns it to the pool
+/// afterward. Concurrent HTTP requests therefore run on genuinely
+/// independent connections/transactions and compete for the same
+/// `object_heads`/`relationship_heads` row at the PostgreSQL row-lock
+/// level, which is what `SELECT ... FOR UPDATE` is actually for. The pool
+/// is deliberately the smallest structure that achieves this (a
+/// mutex+condition-variable-guarded free list of connections, defined
+/// entirely in store.cpp) rather than a general-purpose pooling library --
+/// still no cross-thread sharing of a single `pqxx::connection`, still no
+/// architectural change to the atomicity model documented above.
 class ServerRepositoryStore {
  public:
   explicit ServerRepositoryStore(const common::DatabaseConfig& config);
@@ -97,15 +104,17 @@ class ServerRepositoryStore {
                                                                    const std::string& commit_id);
 
  private:
-  // Used internally by `submit_commit`'s idempotent-retry path (which
-  // already holds `mutex_`) to avoid recursive-locking a plain
-  // `std::mutex` -- identical logic to the public `get_commit`, just
-  // without acquiring the lock itself.
-  [[nodiscard]] std::optional<domain::CommitResult> get_commit_locked(const std::string& repository_id,
-                                                                          const std::string& commit_id);
+  class ConnectionPool;
 
-  std::mutex mutex_;
-  std::unique_ptr<pqxx::connection> connection_;
+  // Used internally by `submit_commit`'s idempotent-retry path, which
+  // already holds a leased connection for its own transaction and simply
+  // reuses it (on the same thread, sequentially) rather than acquiring a
+  // second one from the pool. Identical logic to the public `get_commit`.
+  [[nodiscard]] std::optional<domain::CommitResult> get_commit_with_connection(pqxx::connection& connection,
+                                                                                   const std::string& repository_id,
+                                                                                   const std::string& commit_id);
+
+  std::unique_ptr<ConnectionPool> pool_;
 };
 
 }  // namespace oep::server_repository::persistence
