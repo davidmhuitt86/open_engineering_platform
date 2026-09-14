@@ -22,6 +22,22 @@ bool is_uuid_like(const std::string& text) {
       return false;
     }
   }
+
+  // WP-SRV-011C: canonical structure alone is not enough -- ADR-0004/
+  // ADR-0006 require UUIDv4 specifically. In the canonical
+  // "xxxxxxxx-xxxx-Mxxx-Nxxx-xxxxxxxxxxxx" layout, `M` (the version
+  // nibble) sits at index 14, and `N` (the variant nibble) sits at
+  // index 19. A version-1/3/5 UUID, or one with a non-standard variant
+  // (e.g. the NCS-backward-compatible or Microsoft-GUID variants), is
+  // structurally a valid UUID but not a valid identity under this
+  // system's contract.
+  if (text[14] != '4') {
+    return false;
+  }
+  const char variant = static_cast<char>(std::tolower(static_cast<unsigned char>(text[19])));
+  if (variant != '8' && variant != '9' && variant != 'a' && variant != 'b') {
+    return false;
+  }
   return true;
 }
 

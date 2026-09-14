@@ -4,6 +4,7 @@ add_executable(oep_server_repository_tests
   test_repository.cpp
   test_commit.cpp
   test_concurrency.cpp
+  test_uuid_validation.cpp
 )
 
 target_link_libraries(oep_server_repository_tests
