@@ -8,9 +8,9 @@
 Before changing UI code, read:
 
 1. `docs/architecture/ux/OEP-UX-ARCHITECTURE.md`
-2. `docs/architecture/ux/OEP-UI-DESIGN-TOKENS.md`
-3. `docs/architecture/ux/OEP-SHELL-COMPONENTS.md`
-4. `docs/architecture/ux/OEP-UI-RULES.md`
+2. `docs/architecture/ux/design-system/OEP-DESIGN-TOKENS.md`
+3. `docs/architecture/ux/design-system/OEP-SHELL-COMPONENTS.md`
+4. `docs/architecture/ux/design-system/OEP-UI-RULES.md`
 5. the Studio-specific screen specification
 6. existing Studio integration/behavior documents
 
