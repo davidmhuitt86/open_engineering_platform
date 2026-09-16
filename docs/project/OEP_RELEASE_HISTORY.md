@@ -2,7 +2,7 @@
 
 Canonical chronological release/implementation history for the Open Engineering Platform (OEP). See [`OEP_PROJECT_STATUS.md`](../../OEP_PROJECT_STATUS.md) for current status and [`OEP_MILESTONE_ROADMAP.md`](OEP_MILESTONE_ROADMAP.md) for what comes next.
 
-Last audited: 2026-09-13.
+Last audited: 2026-09-16 (WP-CTRL-002 reconciliation).
 
 **This document distinguishes, at every entry, exactly which of these four categories it falls into**:
 
@@ -17,16 +17,17 @@ No entry in this document should be read as implying a commit is on GitHub main 
 
 ## Current GitHub main
 
-Verified via `git log origin/main -1 --oneline` on 2026-09-13 (WP-CTRL-001 reconciliation, after the push below):
+Verified via `git log origin/main -1 --oneline` on 2026-09-16 (WP-CTRL-002 reconciliation):
 
 ```
-4798912  ADR-0003: record final commit hash in release history
+a36f69e  Merge remote-tracking branch 'origin/main'
 ```
 
-**This is the current, verified state of the shared repository.** All 24 entries below (PR-014 through the ADR-0003 follow-up), previously recorded here as LOCAL / NOT PUSHED at the time each was written, are now confirmed present on `origin/main` — each entry's own "Status:" line has been corrected accordingly. The prior baseline this section recorded (`78ee8b0`, "Boot the Workspace to a real Home/Dashboard surface instead of empty") is preserved below for history.
+**This is the current, verified state of the shared repository.** The entries in the new "Commits landed on GitHub main since the WP-CTRL-001 baseline" section below (covering `889cec2` through `a36f69e`) are confirmed present on `origin/main` at this commit. All entries in the "Commits landed on GitHub main this session" section further below (PR-014 through the ADR-0003 follow-up, ending at the prior baseline `4798912`) remain confirmed present as they were at the WP-CTRL-001 reconciliation.
 
-Prior baseline (superseded by the push above):
+Prior documented baselines (both superseded by the current baseline above):
 ```
+4798912  ADR-0003: record final commit hash in release history          (WP-CTRL-001 baseline, 2026-09-13)
 78ee8b0  Boot the Workspace to a real Home/Dashboard surface instead of empty
 ```
 
@@ -211,22 +212,142 @@ Audited whether the 8 preceding local commits are ready to become the next basel
 
 ---
 
-## Uncommitted local working-tree changes (as of 2026-09-13, not yet committed)
+## Commits landed on GitHub main since the WP-CTRL-001 baseline (`4798912` → `a36f69e`, reconciled by WP-CTRL-002, 2026-09-16)
+
+Listed oldest to newest.
+
+### WP-SRV-002 — Vault artifact retrieval / filesystem-path removal
+
+**Status: PUSHED.**
+**Commit:** `e6018d1`
+**Message:** "WP-SRV-002: implement GET /vault/{id}/artifact and remove filesystem paths from public API"
+
+**Description**: adds `GET /vault/{id}/artifact` (raw-bytes retrieval, `Content-Type`/`Content-Length`/`X-Checksum-Sha256`, modeled on Exchange's package-download contract) to the Reference Vault API, and removes `vault_path`/`local_storage_path` from public Vault/Download JSON responses (both remain available internally where still needed).
+
+**Verification**: no dedicated audit document exists for this WP specifically; `services/acquisition/tests/test_download_api.cpp` was extended in the same commit. Its own test additions are folded into WP-SRV-003's subsequent full-suite baseline (256/256 test cases) below — this document does not have an isolated, WP-SRV-002-only assertion count on record. **Classification: IMPLEMENTED, VERIFIED (as part of the WP-SRV-003 full-suite run), not independently re-verified in isolation.**
+
+### WP-SRV-003 — EAM API Authentication
+
+**Status: PUSHED.**
+**Commit:** `0421ca2`
+**Message:** "feat(server): add EAM API authentication boundary"
+
+**Description**: adds the EAM REST API's first authentication boundary — a single, server-wide bearer-token gate (`Authorization: Bearer <OEP_API_TOKEN>`, constant-time comparison) in front of every route except `GET /health`, installed once via `httplib::Server::set_pre_routing_handler`. No default/implicit token exists; both `main.cpp` and `ApiServer`'s constructor independently refuse to start with an empty token.
+
+**Test results**: 256/256 test cases, 1188/1188 assertions, 0 failed, 0 skipped, against real PostgreSQL. See `docs/project/audits/2026-09-13-WP-SRV-003-EAM-API-AUTHENTICATION-AUDIT.md` and `docs/architecture/decisions/ADR-0002-OEP-REFERENCE-SERVER-API-AUTHENTICATION.md`. **Classification: IMPLEMENTED, VERIFIED.**
+
+### WP-SRV-004 — EAM API TLS Boundary
+
+**Status: PUSHED.**
+**Commit:** `ce2fbf9`
+**Message:** "feat(server): add EAM API TLS boundary"
+
+**Description**: adds a TLS termination boundary in front of the (now-authenticated) EAM API — nginx reverse proxy, TLS 1.2+/1.3 only, self-signed development certificate (never committed to this repository), EAM rebound from `0.0.0.0:8080` to loopback-only `127.0.0.1:8080`. ADR-0002's authentication mechanism/response shape is unchanged and verified working identically through the new boundary.
+
+**Test results**: Windows/MSVC — 256/256 test cases, 1188/1188 assertions, 0 failed, 0 skipped. Linux/GCC (VM) — 231 test cases, 0 failed, 25 skipped (pre-existing, environment-only DB-credential skip pattern, unrelated). See `docs/project/audits/2026-09-14-WP-SRV-004-EAM-API-TLS-BOUNDARY-AUDIT.md` and `docs/architecture/decisions/ADR-0003-OEP-REFERENCE-SERVER-TLS-BOUNDARY.md`. **Classification: IMPLEMENTED, VERIFIED.**
+
+### WP-SRV-005 — OEP Server Data Infrastructure (narrowed scope)
+
+**Status: PUSHED.**
+**Commit:** `889cec2`
+**Message:** "feat(server): establish EAM PostgreSQL data infrastructure (WP-SRV-005)"
+
+**Description**: WP-SRV-005 as originally specified assumed a PostgreSQL-backed "OEP Repository" persistence layer for Engineering Objects/Relationships/State. The audit found this would contradict ADR-0001 §4.6 (Foundation has no server-side existence yet — a separate, not-yet-made architectural decision) and reported this to the user directly before implementing anything. The user selected the recommended narrowed path: proceed with EAM's own PostgreSQL persistence/Reference Vault documentation (already substantially implemented), and leave "OEP Repository" persistence for its own, separate architectural decision — which subsequently became the Server Repository Service (ADR-0004 through ADR-0006, WP-SRV-011 onward, see below).
+
+**Verification**: full existing suite re-run after this WP's documentation/config changes, 256/256 test cases, 1188/1188 assertions, 0 failed, 0 skipped (twice consecutively per the audit). See `docs/project/audits/2026-09-14-WP-SRV-005-OEP-SERVER-DATA-INFRASTRUCTURE-AUDIT.md`. **Classification: DOCUMENTATION ONLY for the "OEP Repository" persistence question (explicitly deferred, not attempted); IMPLEMENTED/VERIFIED for EAM's own data-infrastructure documentation scope.**
+
+### Server Repository Service architecture — ADR-0001 through ADR-0006
+
+**Status: PUSHED (documentation only — no source code in any of these commits).**
+**Commits:** `220d542`, `a93192d`, `0ecded6`, `e8e43e0`, `c48596d`, `a21c1c9`, `57eafeb`, `a1c8fc3`
+**Messages:** "docs(server): audit reference server infrastructure bring-up"; "docs/server: define OEP Reference Server boundary and artifact contract"; "docs(server): define Server Repository service contract"; "docs(server): define repository semantics and state model"; "docs(server): define repository API and persistence boundary"; "docs(server): finalize repository implementation readiness"; "docs(server): correct repository idempotency atomicity contract"; "docs(server): require atomic, durable repository-creation idempotency"
+
+**Description**: the architecture-only decision chain that authorized the Server Repository Service's first implementation slice — service contract, semantics/state model, API/persistence boundary, implementation readiness/wire contract (ADR-0006), and two later corrections to ADR-0006 (operation-identity scope; atomic idempotency persistence, both required before implementation began per their own "STOP and report" instructions). **Classification: DOCUMENTATION ONLY.** See `docs/architecture/decisions/` and `docs/architecture/contracts/SERVER-REPOSITORY-SERVICE-CONTRACT.md`.
+
+### WP-SRV-011 — Server Repository First Vertical Slice
+
+**Status: PUSHED.**
+**Commit:** `9bde275`
+**Message:** "WP-SRV-011: Server Repository first vertical slice (persistence & domain core)"
+
+**Description**: the first actual implementation of the Server Repository Service, authorized by ADR-0006 §29. Repositories, repository-creation identity/idempotency (server-scoped), objects/relationships with append-only revision history plus "head" current-state pointers, commits with repository-scoped idempotency, minimal audit association. Repository-creation and commit atomicity (mutation + revisions + commit record + idempotency + audit in one PostgreSQL transaction). Optimistic concurrency via `SELECT ... FOR UPDATE`. 8 of the ADR-0006-authorized HTTP routes.
+
+**Test results**: 159/159 assertions, 8 test cases, against real PostgreSQL (VM-hosted, dedicated `oep_server_repository`/`oep_server_repository_test` databases, least-privilege role, separate from EAM's own). **Classification: IMPLEMENTED, VERIFIED.**
+
+### WP-SRV-011A — Real PostgreSQL Concurrency Validation Correction
+
+**Status: PUSHED.**
+**Commit:** `4618729`
+**Message:** "WP-SRV-011A: correct PostgreSQL concurrency validation"
+
+**Description**: an independent audit found WP-SRV-011's original single-connection-plus-mutex persistence design serialized every concurrent commit in the application layer before PostgreSQL ever saw a second transaction — the concurrency test proved HTTP-response-level behavior only, not real database row-lock contention. Replaced with a small (16-connection) internal connection pool so concurrent HTTP requests run on genuinely independent connections/transactions; re-verified with 8 real OS threads racing a real PostgreSQL row lock (`SELECT ... FOR UPDATE`) for the same object.
+
+**Test results**: 166/166 assertions, 8 test cases. **Classification: IMPLEMENTED, VERIFIED — corrects a real, confirmed gap in WP-SRV-011's own original verification claim.**
+
+### WP-SRV-011B — Server Repository API Wire Version
+
+**Status: PUSHED.**
+**Commit:** `31cb11b`
+**Message:** "WP-SRV-011B: add Server Repository API wire version"
+
+**Description**: adds the `/api/v1/` wire-version prefix ADR-0006 requires ("API version MUST appear at the wire boundary"), following the same precedent Exchange already established. `GET /health` deliberately stays unversioned/unauthenticated. Also closes a related gap found during the same audit: "list objects"/"list relationships" were required for this slice by ADR-0006 §7/§18 but had never been wired up (only "list repositories" had been a documented, deliberate omission).
+
+**Test results**: 200/200 assertions, 9 test cases. **Classification: IMPLEMENTED, VERIFIED.**
+
+### WP-SRV-011C — Enforce UUIDv4 Identity Contract
+
+**Status: PUSHED.**
+**Commit:** `fd8d630`
+**Message:** "WP-SRV-011C: enforce UUIDv4 identity contract"
+
+**Description**: ADR-0004/ADR-0006 establish UUIDv4 as the identity format for every Server Repository identity, but validation only checked canonical UUID *structure* (length, hyphens, hex digits) — a UUIDv1/v3/v5 identity, or a structurally valid UUID with a non-standard variant, was accepted. Strengthened the shared validation function to also check the version nibble (must be `4`) and the variant nibble (RFC 4122/9562 standard variant), applied uniformly to every client-supplied identity field via the single shared function every call site already used.
+
+**Test results**: 307/307 assertions, 12 test cases. **Classification: IMPLEMENTED, VERIFIED.**
+
+### WP-SRV-012 — Repository Tombstone/Delete Semantics
+
+**Status: PUSHED.**
+**Commit:** `0d5be8a`
+**Message:** "WP-SRV-012: implement repository tombstone semantics"
+
+**Description**: implements the delete/tombstone semantics ADR-0006 §10 already authorized (delete-as-tombstone only, never a hard delete, never a removed history row; deletion creates a new revision; historical revisions remain retrievable; object deletion blocked while a live relationship still references it unless that relationship is deleted atomically in the same commit). Tombstoned current-state GET reuses the existing `NOT_FOUND`/404 category rather than inventing a new one (ADR-0006's error-category list is closed; `NOT_FOUND` already covers "no live current state exists").
+
+**Classification: IMPLEMENTED — see WP-SRV-012A immediately below, which corrected this WP's own restoration mechanism before final verification; the 514/514-assertion figure reported for WP-SRV-012A is the verified state of both WPs' combined work.**
+
+### WP-SRV-012A — Correct Create-Shaped Tombstone Restoration
+
+**Status: PUSHED.**
+**Commit:** `66af1f5`
+**Message:** "WP-SRV-012A: correct create-shaped tombstone restoration"
+
+**Description**: corrects a mismatch an independent review found in WP-SRV-012: ADR-0006 §10 specifies restoration of a tombstoned identity exclusively as "a subsequent create-shaped mutation," but WP-SRV-012's original implementation restored via an ordinary *update* mutation instead. Corrected so `object_create`/`relationship_create` against an existing identity restores it only when that identity is currently tombstoned (producing a new LIVE revision N+1); an `update` mutation against a tombstoned identity is now correctly rejected instead of silently restoring it. The initial INSERT-uniqueness attempt is wrapped in a SAVEPOINT-backed `pqxx::subtransaction` so a collision (an existing, tombstoned row) rolls back only that attempt, not the whole commit transaction — the same commit can then inspect and restore the row. `expected_revision` became an accepted, optional field on create mutations, required and validated against the tombstone revision when restoring, so restoration participates in the same optimistic-concurrency/idempotency/atomic-transaction machinery as every other mutation (no second concurrency mechanism invented).
+
+**Test results**: **514/514 assertions, 16 test cases, all passing**, against real PostgreSQL (VM-hosted). Includes explicit re-verification that the WP-SRV-011A concurrency tests and WP-SRV-011C UUIDv4 tests were not weakened. No ADR modified; no hard-delete SQL (`DELETE FROM`) exists anywhere in the service's source (verified by direct search). **Classification: IMPLEMENTED, VERIFIED.**
+
+### UX-001 / docs(ux) — OEP UX architecture, EAM workspace specs, sectional UI implementation kit
+
+**Status: PUSHED (documentation/specification only — no source code in any of these commits).**
+**Commits:** `fc0fa5f`, `4a38d22`, `6d6fb62`, `004a1f0`, `25bf7b5`, `00997a4`, `f0c5ba9`, `9ad1e20`, `80487a9`, `60cbc55`, `d856e3f`, `fa57e0e`, `7861146`
+**Description**: establishes `docs/architecture/ux/` (OEP UX architecture index, EAM acquisition workspace/interaction-state specs, marks a legacy dashboard model superseded), the OEP UI implementation kit, a Diagram Studio implementation work-package definition, a live-Flutter-hot-reload requirement during UI work, and a sectional UI implementation workflow plus its packaged skill (`.claude/skills/oep-ui/SKILL.md`). **Classification: DOCUMENTATION ONLY.** No implementation work has been verified or claimed against any of these specifications by this reconciliation — they describe planned/target UI architecture, not yet-built Studio surfaces.
+
+---
+
+## Uncommitted local working-tree changes (as of 2026-09-16, WP-CTRL-002 reconciliation — pre-existing, unrelated to this WP, left untouched)
 
 **Status: LOCAL WORKING TREE, not even a commit.**
 
-- `OEP_PROJECT_STATUS.md`, `docs/project/` (this documentation system) — the work this very audit produced.
-- `platform/oep_instruments/platform/oep_instruments/build/test_cache/build/*.cache.dill.track.dill` — a pre-existing, unrelated build-cache artifact modification; not part of any documentation or feature work, left untouched.
-- `platform/oep_studio/docs/testing/.~lock.DIAGRAM-STUDIO-HUMAN-UX-UI-TESTER-START-GUIDE.md#` — a LibreOffice lock file, pre-existing, unrelated; left untouched.
+- `platform/oep_studio/lib/acquisition/services/acquisition_api_client.dart`, `platform/oep_studio/lib/acquisition/settings/acquisition_settings_page.dart`, `services/acquisition/config/config.toml` — EAM client-side auth-token wiring and local-dev VM database connection settings from a prior session; not committed, not part of this reconciliation's scope, left untouched.
+- `docs/architecture/ux/` (multiple untracked `.md` files plus a `renders/` directory) — local-only UX design material distinct from the already-committed `UX-001`/`docs(ux)` series above (different filenames/content); not committed, not part of this reconciliation's scope, left untouched.
+- `services/acquisition/data/vault/f0/`, `services/acquisition/data/workspace/75d7031a-5d88-454a-bc54-6d6145429a15/` — local EAM runtime data directories generated by manual testing; not committed, not part of this reconciliation's scope, left untouched.
 
 ---
 
 ## Proposed / future work (PROPOSED — not yet implemented in any form)
 
 - **WP-EXC-010** — Exchange RC1 plus OEP Studio integration. Priority: CRITICAL, per Exchange's own program planning. See [`OEP_PROJECT_STATUS.md`](../../OEP_PROJECT_STATUS.md) Section 12.
-- **ADR-0003 resolution** — a decision (not new code by default) on HttpConnector's scope/SSRF posture, one of three options already documented in `services/acquisition/docs/decisions/ADR-0003-HTTPCONNECTOR-SCOPE-DISCREPANCY.md`.
 - **Diagram Studio human UX/UI acceptance test execution** — infrastructure exists (PR-015/016/016A), the test itself has not been run.
-- **Broader EAM M2** — rich per-acquisition provenance metadata, connector security policy, custody events (all classified FUTURE/DEFERRED in the WP-018 audit, pending upstream producers that do not exist yet).
+- **Broader EAM M2** — rich per-acquisition provenance metadata, connector security policy beyond ADR-0003's own resolved scope, custody events (all classified FUTURE/DEFERRED in the WP-018 audit, pending upstream producers that do not exist yet; connector destination-security itself, and now API authentication/TLS, are both resolved — see above).
+- **WP-SRV-013** — the next Server Repository Service work package. **NOT STARTED**: no commit, source file, test, migration, or document anywhere in this repository references it (verified by direct search, WP-CTRL-002, 2026-09-16). Not selected or scoped by this reconciliation.
 
 ---
 

@@ -2,7 +2,7 @@
 
 Canonical future milestone plan for the Open Engineering Platform (OEP). See [`OEP_PROJECT_STATUS.md`](../../OEP_PROJECT_STATUS.md) for current verified status, [`OEP_VERSIONING_POLICY.md`](OEP_VERSIONING_POLICY.md) for the versioning rules this roadmap's version numbers follow, and [`OEP_RELEASE_HISTORY.md`](OEP_RELEASE_HISTORY.md) for what has actually happened so far.
 
-Last audited: 2026-09-13.
+Last audited: 2026-09-16 (WP-CTRL-002 reconciliation).
 
 **No milestone below is claimed complete unless its Exit Criteria are explicitly checked off with repository evidence cited.** An unchecked exit criterion means the milestone has not been reached, regardless of how much related work exists.
 
@@ -54,13 +54,13 @@ Last audited: 2026-09-13.
 - [ ] Resolved release-blocking security issues:
   - [x] ADR-0003 (HttpConnector scope/SSRF) resolved (2026-09-13, commit `d7df760`, pushed)
   - [ ] Credential-exposure claim (see [`OEP_PROJECT_STATUS.md`](../../OEP_PROJECT_STATUS.md) Section 16) personally confirmed closed by the founder
-  - [ ] EAM API authentication (a separate gap ADR-0003 was never scoped to close — see `OEP_PROJECT_STATUS.md` Section 16)
+  - [x] EAM API authentication (WP-SRV-003, commit `0421ca2`, pushed) + TLS boundary (WP-SRV-004, commit `ce2fbf9`, pushed) — 256/256 test cases, 1188/1188 assertions, 0 failed, 0 skipped. This closes EAM's own inbound API authentication gap specifically; platform-wide authentication (Studio accounts, Exchange auth) remains unaddressed — see `OEP_PROJECT_STATUS.md` Section 16.
 - [ ] Diagram Studio human UX/UI acceptance test executed (using `samples/diagram7.json`, a release build) — currently READY FOR HUMAN TEST, not PASSED
 - [x] Foundation runtime, EKE, Engineering Engine, Studio, Diagram Studio vertical slice, electrical runtime, DMM, Trace, basic Circuit Intelligence/Search, application shell, Reference Library/Knowledge Runtime, EAM M1, Reference Vault M1, basic Exchange foundation — all present with evidence (see `OEP_PROJECT_STATUS.md`)
 - [ ] Documented architecture boundaries reconciled (stale `PROJECT_STATUS.md`/`CURRENT_SPRINT.md` superseded, API 19/20 references identified as historical — in progress via this same documentation task, see Section 26 of this repository's stale-document handling)
-- [x] Local commits (PR-014 through the ADR-0003 release-history follow-up) merged to GitHub main (WP-CTRL-001, 2026-09-13 — `origin/main` at commit `4798912`)
+- [x] Local commits (PR-014 through the ADR-0003 release-history follow-up) merged to GitHub main (WP-CTRL-001, 2026-09-13 — `origin/main` at commit `4798912`). Substantially more has merged since (Server Repository Service through WP-SRV-012A, EAM auth/TLS, UX architecture docs) — see `OEP_RELEASE_HISTORY.md`; `origin/main` is now at commit `a36f69e` (WP-CTRL-002, 2026-09-16).
 
-**Known blockers**: human UX/UI acceptance requires an actual human tester session; the credential-exposure claim and EAM API authentication both require decisions/action beyond what a documentation task can resolve on its own. ADR-0003 itself is no longer a blocker.
+**Known blockers**: human UX/UI acceptance requires an actual human tester session; the credential-exposure claim requires action beyond what a documentation task can resolve on its own. ADR-0003 and EAM API authentication/TLS are no longer blockers.
 
 **Release confidence**: MEDIUM — the remaining gates are well-understood and mostly project-control/decision work rather than undiscovered engineering, but none are complete yet.
 
@@ -72,7 +72,7 @@ Last audited: 2026-09-13.
 
 **Objective**: the next major integration expansion — richer Acquisition/provenance capability, Exchange integration, deeper Studio integration, and Knowledge Lifecycle expansion, plus continued security hardening and the beginning of real performance measurement.
 
-**Major included subsystems**: EAM M2 broader scope (rich per-acquisition metadata, API authentication, custody events — all currently classified FUTURE/DEFERRED per the WP-018 audit; connector destination-security itself is already resolved, see ADR-0003), Exchange integration (WP-EXC-010 and associated Exchange work), deeper Studio↔Engine integration (closing FFI mutation gaps), Knowledge ingestion/provenance/candidate-review boundary maturity, broader security hardening, initial performance measurement.
+**Major included subsystems**: EAM M2 broader scope (rich per-acquisition metadata, custody events — currently classified FUTURE/DEFERRED per the WP-018 audit, pending upstream connector producers that do not exist yet; connector destination-security and API authentication/TLS are already resolved, see ADR-0003 and WP-SRV-003/004), Exchange integration (WP-EXC-010 and associated Exchange work), deeper Studio↔Engine integration (closing FFI mutation gaps), Knowledge ingestion/provenance/candidate-review boundary maturity, broader security hardening, initial performance measurement.
 
 **Major exclusions**: feature-complete beta scope (0.5.x), full production hardening (0.6.x–0.8.x), release-candidate stabilization (0.9.x).
 
@@ -83,10 +83,10 @@ Last audited: 2026-09-13.
 - [ ] Rich per-acquisition provenance metadata (Workstation, DNS, TLS, Referrer/Redirect Chain) — requires upstream connector producers that do not exist yet
 - [ ] Exchange RC1 and Studio integration (WP-EXC-010) — the install-bridge vertical slice (WP-EXC-011 through WP-EXC-014) is complete and pushed; RC1 itself (publisher UI, authentication, etc.) is not
 - [ ] Chain-of-custody event log, if still judged necessary once `acquisition_job_execution_history`'s existing coverage is reassessed
-- [ ] EAM API authentication (connector destination-security itself is resolved — ADR-0003, pushed — this is the separate, still-open item)
+- [x] EAM API authentication + TLS boundary (WP-SRV-003/004, commits `0421ca2`/`ce2fbf9`, pushed — connector destination-security itself was already resolved by ADR-0003)
 - [ ] Initial, real performance measurement (not yet a full baseline — that is 0.6.x–0.8.x's scope)
 
-**Known blockers**: Exchange RC1 is a large, currently-early-foundation-stage program (see `OEP_PROJECT_STATUS.md` Section 12); rich provenance metadata is blocked on connector work that itself depends on API-authentication decisions, not on ADR-0003 (which is already resolved).
+**Known blockers**: Exchange RC1 is a large, currently-early-foundation-stage program (see `OEP_PROJECT_STATUS.md` Section 12); rich provenance metadata is blocked on connector work that does not exist yet, not on any authentication or ADR-0003 decision (both now resolved).
 
 **Release confidence**: LOW-MEDIUM — this milestone has barely begun outside the Acquisition Record foundation.
 
