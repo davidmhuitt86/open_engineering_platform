@@ -1,0 +1,42 @@
+<svg width="1600" height="900" viewBox="0 0 1600 900" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, -apple-system, sans-serif">
+  <!-- Responsive layout-pressure schematic — 1600x900 — AP-UX-005 §9 -->
+  <!-- Schematic only (region boundaries + dimensions), NOT full pixel-fidelity content, matching the style of -->
+  <!-- "Start With this Exact Wireframe and its Pixel Measurments.png". Header/Studio Bar/Workspace Bar/Toolbar/Status Bar -->
+  <!-- heights are UNCHANGED (58/56/42/60/36 are not responsive tokens). Context Nav (280) and Inspector (640) are held at -->
+  <!-- their 1920px reference widths since no collapse/reflow rule has been decided — this deliberately exposes the pressure -->
+  <!-- rather than inventing a fix (AP-UX-005 §9/§24: "Do NOT invent a final collapse rule"). -->
+  <rect width="1600" height="900" fill="#0B0F14"/>
+
+  <rect x="0" y="0" width="1600" height="58" fill="none" stroke="#5DA9E9" stroke-width="2"/>
+  <text x="16" y="34" fill="#5DA9E9" font-size="14" font-weight="700">01 APPLICATION HEADER — 58px (unchanged)</text>
+
+  <rect x="0" y="58" width="1600" height="56" fill="none" stroke="#39B56B" stroke-width="2"/>
+  <text x="16" y="92" fill="#39B56B" font-size="14" font-weight="700">02 GLOBAL STUDIO BAR — 56px (unchanged)</text>
+
+  <rect x="0" y="114" width="1600" height="42" fill="none" stroke="#D9A441" stroke-width="2"/>
+  <text x="16" y="140" fill="#D9A441" font-size="13" font-weight="700">03 WORKSPACE BAR — 42px (unchanged)</text>
+
+  <rect x="0" y="156" width="280" height="656" fill="none" stroke="#8A5CF6" stroke-width="2"/>
+  <text x="16" y="182" fill="#8A5CF6" font-size="14" font-weight="700">04 CONTEXT</text>
+  <text x="16" y="200" fill="#8A5CF6" font-size="14" font-weight="700">NAVIGATION</text>
+  <text x="16" y="222" fill="#8A5CF6" font-size="12">280px (held at reference width)</text>
+
+  <rect x="280" y="156" width="680" height="656" fill="none" stroke="#E7EDF4" stroke-width="2"/>
+  <text x="308" y="182" fill="#E7EDF4" font-size="14" font-weight="700">05 ENGINEERING SURFACE</text>
+  <text x="308" y="204" fill="#D95C5C" font-size="13" font-weight="700">680px (was 1000px at 1920 — 32% narrower)</text>
+
+  <rect x="960" y="156" width="640" height="656" fill="none" stroke="#8A5CF6" stroke-width="2"/>
+  <text x="988" y="182" fill="#8A5CF6" font-size="14" font-weight="700">06 INSPECTOR</text>
+  <text x="988" y="204" fill="#8A5CF6" font-size="12">640px (held at reference width)</text>
+
+  <rect x="0" y="812" width="1600" height="60" fill="none" stroke="#2FD9D9" stroke-width="2"/>
+  <text x="16" y="847" fill="#2FD9D9" font-size="14" font-weight="700">07 TOOLBAR — 60px (unchanged, groups compress/wrap not yet specified)</text>
+
+  <rect x="0" y="872" width="1600" height="28" fill="none" stroke="#9AA8B7" stroke-width="2"/>
+  <text x="16" y="891" fill="#9AA8B7" font-size="12" font-weight="700">08 STATUS BAR — 36px (unchanged; clipped to 28px here, overflow items would need priority ordering — not yet specified)</text>
+
+  <rect x="440" y="380" width="720" height="70" rx="6" fill="#151D27" stroke="#D9A441" stroke-width="1.5"/>
+  <text x="800" y="408" fill="#D9A441" font-size="14" font-weight="700" text-anchor="middle">DESIGN-OWNER DECISION REQUIRED</text>
+  <text x="800" y="430" fill="#E7EDF4" font-size="12" text-anchor="middle">Context Navigation / Inspector collapse, overlay, dock, or minimum-width behavior</text>
+  <text x="800" y="446" fill="#E7EDF4" font-size="12" text-anchor="middle">below the 1920px reference is not decided (AP-UX-004 §20, AP-UX-005 §24) — not invented here</text>
+</svg>

@@ -1,0 +1,65 @@
+<svg width="360" height="1080" viewBox="0 0 360 1080" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, -apple-system, sans-serif">
+  <!-- OEP Inspector / Contextual Panel (region 06) — canonical, 360-640px variable width (shown at 360) — AP-UX-005 -->
+  <!-- Demonstrates: Selected engineering object -> Inspector -> object/context info -> contextual operations, per OEP-SHELL-COMPONENTS.md §8 -->
+  <!-- oep.accent only (no Studio identity color) — Inspector is compact, structured fields, not a generic settings drawer. -->
+  <!-- Scenario matches context-navigation.svg: Diagram Studio, workspace "TRX300 - Main", selected object: Ignition Coil. -->
+  <rect x="0" y="0" width="360" height="1080" fill="#151D27"/>
+  <rect x="0" y="0" width="1" height="1080" fill="#2A3542"/>
+
+  <text x="20" y="30" fill="#667585" font-size="10" font-weight="700" letter-spacing="1">SELECTED ENGINEERING OBJECT</text>
+
+  <rect x="20" y="44" width="320" height="130" rx="4" fill="#111720" stroke="#2A3542" stroke-width="1"/>
+  <path d="M46,74 l16,10 v20 l-16,10 l-16,-10 v-20 z" fill="none" stroke="#2F81F7" stroke-width="1.6"/>
+  <line x1="46" y1="84" x2="46" y2="104" stroke="#2F81F7" stroke-width="1.2"/>
+  <text x="80" y="82" fill="#E7EDF4" font-size="15" font-weight="700">Ignition Coil</text>
+  <text x="80" y="100" fill="#667585" font-size="11">Electrical Component</text>
+  <rect x="80" y="110" width="96" height="18" rx="9" fill="#0B0F14" stroke="#39B56B" stroke-width="1"/>
+  <circle cx="92" cy="119" r="3" fill="#39B56B"/>
+  <text x="100" y="123" fill="#39B56B" font-size="10">In Diagram</text>
+
+  <line x1="20" y1="196" x2="340" y2="196" stroke="#2A3542" stroke-width="1"/>
+
+  <!-- Object / context information -->
+  <text x="20" y="220" fill="#667585" font-size="10" font-weight="700" letter-spacing="1">OBJECT INFORMATION</text>
+  <g font-size="12">
+    <text x="20" y="246" fill="#667585">Source</text>
+    <text x="340" y="246" fill="#E7EDF4" text-anchor="end">Honda TRX300 Service Manual</text>
+    <text x="20" y="270" fill="#667585">Page</text>
+    <text x="340" y="270" fill="#E7EDF4" text-anchor="end">43</text>
+    <text x="20" y="294" fill="#667585">Confidence</text>
+    <text x="340" y="294" fill="#E7EDF4" text-anchor="end">94%</text>
+    <text x="20" y="318" fill="#667585">Status</text>
+    <text x="340" y="318" fill="#D9A441" text-anchor="end">Pending Review</text>
+    <text x="20" y="342" fill="#667585">Terminal Count</text>
+    <text x="340" y="342" fill="#E7EDF4" text-anchor="end">2</text>
+  </g>
+
+  <line x1="20" y1="364" x2="340" y2="364" stroke="#2A3542" stroke-width="1"/>
+
+  <!-- Related engineering information -->
+  <text x="20" y="388" fill="#667585" font-size="10" font-weight="700" letter-spacing="1">RELATED ENGINEERING INFORMATION</text>
+  <g font-size="12" fill="#9AA8B7">
+    <rect x="20" y="400" width="320" height="34" rx="3" fill="#111720" stroke="#2A3542" stroke-width="1"/>
+    <text x="32" y="421" fill="#E7EDF4">provides high voltage to</text>
+    <text x="308" y="421" fill="#9AA8B7" text-anchor="end">Spark Plug ›</text>
+
+    <rect x="20" y="440" width="320" height="34" rx="3" fill="#111720" stroke="#2A3542" stroke-width="1"/>
+    <text x="32" y="461" fill="#E7EDF4">receives 12V from</text>
+    <text x="308" y="461" fill="#9AA8B7" text-anchor="end">Ignition Switch ›</text>
+
+    <rect x="20" y="480" width="320" height="34" rx="3" fill="#111720" stroke="#2A3542" stroke-width="1"/>
+    <text x="32" y="501" fill="#E7EDF4">mounted to</text>
+    <text x="308" y="501" fill="#9AA8B7" text-anchor="end">Frame ›</text>
+  </g>
+
+  <line x1="20" y1="530" x2="340" y2="530" stroke="#2A3542" stroke-width="1"/>
+
+  <!-- Contextual actions -->
+  <text x="20" y="554" fill="#667585" font-size="10" font-weight="700" letter-spacing="1">CONTEXTUAL ACTIONS</text>
+  <rect x="20" y="566" width="150" height="32" rx="3" fill="#2F81F7"/>
+  <text x="95" y="587" fill="#FFFFFF" font-size="12" font-weight="600" text-anchor="middle">Locate in Diagram</text>
+  <rect x="178" y="566" width="162" height="32" rx="3" fill="none" stroke="#2A3542" stroke-width="1"/>
+  <text x="259" y="587" fill="#9AA8B7" font-size="12" text-anchor="middle">View Evidence</text>
+
+  <text x="20" y="1058" fill="#3A4656" font-size="9">06 · INSPECTOR / CONTEXTUAL PANEL · 360–640px (variable)</text>
+</svg>

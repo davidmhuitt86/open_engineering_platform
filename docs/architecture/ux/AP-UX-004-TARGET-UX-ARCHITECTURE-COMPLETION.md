@@ -32,7 +32,9 @@ Audit trail (not itself design authority): `AP-UX-001-UX-DESIGN-RECOVERY.md`, `A
 
 **Decision (design owner, this session):** No. Engineering Intelligence is **not** a Global Studio. It is an underlying OEP intelligence/platform capability consumed by Studios and contextual workflows — an internal OEP Engine capability, not a top-level navigation destination.
 
-**Effect on the corpus:** `OEP-UX-ARCHITECTURE.md` (Studio Bar list), `design-system/OEP-SHELL-COMPONENTS.md` ("may include... Engineering Intelligence"), and `OEP_HOME_UX_SPEC.md` (§ Available Studios example) each named Engineering Intelligence as a Studio; this decision supersedes those specific references without altering anything else those documents say. The current Flutter `engineeringIntelligence` `StudioDestination` (AP-UX-003 evidence) is implementation-baseline reality, not target-design authority — it is the kind of divergence AP-UX-003 catalogued as expected, not a reason to keep the entry. This resolves the item; it is removed from the "unresolved" list for the remainder of this document, and the 7-entry Studio Bar (Home, Diagram Studio, EAM, Knowledge Studio, Engineering Exchange, Tools, Settings) established by the newer-generation render/toolbar-matrix is confirmed as the target Studio Inventory, matching what AP-UX-002 already reconciled for Instruments→Tools.
+**Effect on the corpus:** `OEP-UX-ARCHITECTURE.md` (Studio Bar list), `design-system/OEP-SHELL-COMPONENTS.md` ("may include... Engineering Intelligence"), and `OEP_HOME_UX_SPEC.md` (§ Available Studios example) each named Engineering Intelligence as a Studio; this decision supersedes those specific references without altering anything else those documents say. The current Flutter `engineeringIntelligence` `StudioDestination` (AP-UX-003 evidence) is implementation-baseline reality, not target-design authority — it is the kind of divergence AP-UX-003 catalogued as expected, not a reason to keep the entry. This resolves the item; it is removed from the "unresolved" list for the remainder of this document, and the 7-entry Studio Bar (Home, Diagram Studio, EAM, Knowledge Studio, Engineering Exchange, Instruments, Settings) established by the newer-generation render/toolbar-matrix is confirmed as the target Studio Inventory, matching what AP-UX-002 already reconciled for Tools→Instruments.
+
+**AP-UX-005 correction:** this section originally read "Tools" instead of "Instruments" in the 7-entry list above, and read the naming direction backwards ("Instruments→Tools" instead of "Tools→Instruments"). AP-UX-002 §2A had already established "Instruments" as the canonical name (`oep.studio.instruments` token) and identified "Tools" as the old, pre-reconciliation draft name from second-generation documents. This was a documentation inconsistency introduced when this document was first written, not a new design decision — corrected in place throughout this document by `AP-UX-005-VISUAL-DESIGN-COMPLETION.md` §5.
 
 ## 6. Completion Inventory
 
@@ -60,11 +62,11 @@ Classification key: COMPLETE / PARTIALLY COMPLETE / DESIGNED BUT UNRENDERED / RE
 | 18 | EAM workflow/workspace/interaction | COMPLETE | `eam/EAM-ACQUISITION-WORKSPACE-SPEC.md`, `eam/EAM-INTERACTION-STATE-SPEC.md` + 4 supplementary docs; render `eam/EAM.png` |
 | 19 | Knowledge Studio | NOT YET DESIGNED | Named as a Studio Bar destination only; no dedicated spec or render exists anywhere in the corpus |
 | 20 | Engineering Exchange | NOT YET DESIGNED | Named as a Studio Bar destination only; no dedicated spec or render exists |
-| 21 | Tools (Instruments) Studio | NOT YET DESIGNED | Named as a Studio Bar destination (post Instruments→Tools rename, AP-UX-002 C6); no dedicated spec or render exists |
+| 21 | Instruments Studio | NOT YET DESIGNED | Named as a Studio Bar destination (post Tools→Instruments correction, AP-UX-002 C6); no dedicated spec or render exists |
 | 22 | Settings Studio | NOT YET DESIGNED | Named as a Studio Bar destination only; no dedicated spec or render exists |
 | 23 | Engineering Intelligence | RESOLVED — NOT A STUDIO (this document) | §5 — reclassified as an internal capability, out of Studio Inventory scope |
 | 24 | Responsive/window-size behavior | NOT YET DESIGNED | No document in the corpus addresses behavior below the 1920×1080 baseline before this document's §16 |
-| 25 | Render coverage vs. corpus | PARTIALLY COMPLETE | §17 below — 9 current renders cover Header/Studio Bar/Toolbar/Status Bar/Workspace context bar/Home/EAM/a full wireframe baseline, but not Diagram Studio-in-shell, Knowledge, Exchange, Tools, or Settings |
+| 25 | Render coverage vs. corpus | PARTIALLY COMPLETE | §17 below — 9 current renders cover Header/Studio Bar/Toolbar/Status Bar/Workspace context bar/Home/EAM/a full wireframe baseline, but not Diagram Studio-in-shell, Knowledge, Exchange, Instruments, or Settings |
 | 26 | Design-to-code contract template | NOT YET DESIGNED | `implementation/OEP-UI-IMPLEMENTATION-RULES.md` and `OEP-UI-SECTIONAL-IMPLEMENTATION.md` define *process*; no per-region contract template existed before §18 below |
 
 ## 7. Target Application Shell — Region Definitions
@@ -91,7 +93,7 @@ This table is the authoritative region contract for design-to-code work (see §1
 - **Diagram Studio:** Studio Bar → Diagram Studio; Workspace Bar → open diagram (e.g. a wiring diagram document); Context Nav → diagram/document tree; Engineering Surface → wiring diagram canvas; Inspector → selected symbol/wire properties. (`DS-GOLDEN-WORKSPACE-SPEC.md` §2.)
 - **EAM:** Studio Bar → EAM; Workspace Bar → open acquisition (e.g. "Honda TRX300 Service Manual"); Context Nav → acquisition-scoped contextual views list (Overview, Document View, Metadata, Detected Content, Objects, Relationships, Validation, Evidence, History); Engineering Surface → the selected contextual view's content; Inspector → selection detail within that view. (`eam/EAM-ACQUISITION-WORKSPACE-SPEC.md`, `02_EAM_ACQUISITION_WORKSPACE_SPEC.md`.)
 - **Home:** Studio Bar → Home (default landing, not a "Studio" in the workflow sense but occupies the same Studio Bar slot); no Workspace Bar tab (Home is navigation, not open work — `EAM_INTERACTION_STATE_SPEC.md` "Returning Home"); Engineering Surface → Continue Working / Recent Work / Available Studios. (`OEP_HOME_UX_SPEC.md`.)
-- **Knowledge Studio, Engineering Exchange, Tools, Settings:** hierarchy applies structurally (each occupies a Studio Bar slot and would open Workspace Bar tabs for its own work items) but no Studio-specific Workspace/Context Nav/Engineering Surface content is designed yet (Completion Inventory #19–22, NOT YET DESIGNED). This document does not invent that content.
+- **Knowledge Studio, Engineering Exchange, Instruments, Settings:** hierarchy applies structurally (each occupies a Studio Bar slot and would open Workspace Bar tabs for its own work items) but no Studio-specific Workspace/Context Nav/Engineering Surface content is designed yet (Completion Inventory #19–22, NOT YET DESIGNED). This document does not invent that content.
 
 Destination-vs-capability rule applied concretely: within any Studio, Objects/Relationships/Graph/Validation/Evidence/Provenance/History/Packages surface as contextual views scoped to the open workspace (as EAM already demonstrates), never as their own Global Studio Bar entries. This confirms `AP-UX-003`'s D-series finding that the current Flutter `StudioDestination` enum's flat treatment of `objects`, `relationships`, `graph`, `validation`, `packages`, `search` as first-class destinations is implementation-baseline divergence from target, not a target-design ambiguity — the target rule was already unambiguous before this document.
 
@@ -104,14 +106,14 @@ Seven Global Studio Bar entries, per the newer-generation render/toolbar-matrix 
 3. EAM
 4. Knowledge Studio
 5. Engineering Exchange
-6. Tools
+6. Instruments
 7. Settings
 
 Engineering Intelligence is explicitly excluded from this inventory (§5). No other Studio names appear anywhere in the active corpus's Studio Bar renders or toolbar matrix; this inventory is therefore treated as closed, not merely provisional, for the remainder of the active design cycle.
 
 ## 10. Home
 
-No gaps found beyond what AP-UX-001/002 already recorded. `OEP_HOME_UX_SPEC.md` is complete and consistent with the reconciled shell; render `oep-home/home.png` is classified CANONICAL by `OEP_UX_RENDER_REFERENCE_INDEX.md`. No further completion work needed here.
+No gaps found beyond what AP-UX-001/002 already recorded. `OEP_HOME_UX_SPEC.md` is complete and consistent with the reconciled shell. **AP-UX-005 update:** the render `oep-home/home.png` referenced here was removed from disk during the user's own render curation before AP-UX-005; see `AP-UX-005-VISUAL-DESIGN-COMPLETION.md` §13 for the current Home render status.
 
 ## 11. Diagram Studio Shell-Integration Render — Specification (not generation)
 
@@ -132,7 +134,7 @@ This render's purpose (per `DS-GOLDEN-WORKSPACE-SPEC.md` §Purpose/§9) is to va
 
 ## 12. EAM Completion
 
-No gaps found. EAM has one canonical acquisition-workspace spec, one canonical interaction/state spec, four supplementary additive documents, and a CANONICAL render (`eam/EAM.png`). This is the most complete Studio in the corpus and requires no further design work at this time.
+No gaps found in EAM's workflow/workspace/interaction design. EAM has one canonical acquisition-workspace spec, one canonical interaction/state spec, and four supplementary additive documents. **Correction:** `eam/EAM.png` was never CANONICAL — the render index classified it HISTORICAL/SUPERSEDED (AP-UX-002 C3) prior to this document, for its Dashboard-as-landing pattern and incomplete Studio Bar; that file was also removed from disk during the user's render curation before AP-UX-005. EAM's shell-integration render status is otherwise the same open gap as Diagram Studio's (§11) — see `AP-UX-005-VISUAL-DESIGN-COMPLETION.md` §12 for the current disposition.
 
 ## 13. Other Studios — Maturity Assessment
 
@@ -140,7 +142,7 @@ No gaps found. EAM has one canonical acquisition-workspace spec, one canonical i
 |---|---|---|---|
 | Knowledge Studio | NOT YET DESIGNED | Name only, in Studio Bar inventory/renders | Workflow model, contextual views, workspace content, render |
 | Engineering Exchange | NOT YET DESIGNED | Name only, in Studio Bar inventory/renders | Workflow model, contextual views, workspace content, render |
-| Tools | NOT YET DESIGNED | Name only (post Instruments→Tools rename), toolbar-matrix row exists but only for the icon strip, not workspace content | Workflow model, contextual views, workspace content, render |
+| Instruments | NOT YET DESIGNED | Name only (post Tools→Instruments correction), toolbar-matrix row exists but only for the icon strip, not workspace content | Workflow model, contextual views, workspace content, render |
 | Settings | NOT YET DESIGNED | Name only, in Studio Bar inventory/renders | Workflow model, contextual views, workspace content, render |
 
 This document does not design any of these Studios. Each is recorded as a concrete future AP-UX candidate (see §22).
@@ -172,10 +174,10 @@ Current curated renders (per `OEP_UX_RENDER_REFERENCE_INDEX.md`, re-confirmed ag
 | `oep-shell/Status bar use option 2.png` | Status Bar | CANONICAL |
 | `oep-shell/workspace context tab bar.png` | Workspace Bar | CANONICAL (EAM-domain example content is placeholder, not authoritative — per user clarification during AP-UX-001) |
 | `oep-shell/Start With this Exact Wireframe and its Pixel Measurments.png` | Full shell wireframe baseline | CANONICAL — primary pixel-measurement reference |
-| `oep-home/home.png` | Home | CANONICAL |
-| `eam/EAM.png` | EAM workspace | CANONICAL |
+| `oep-home/home.png` | Home | CANONICAL — **AP-UX-005 correction:** removed from disk during user render curation; see `AP-UX-005-VISUAL-DESIGN-COMPLETION.md` §13 |
+| `eam/EAM.png` | EAM workspace | **AP-UX-005 correction:** this was never CANONICAL — the render index classified it HISTORICAL/SUPERSEDED (AP-UX-002 C3); also removed from disk during user render curation |
 
-Gaps confirmed: no render exists for Context Navigation or Inspector in isolation, for the full 8-region shell with Diagram Studio integrated (§11), or for Knowledge Studio, Engineering Exchange, Tools, or Settings (§13). These gaps are consistent with, not contradictory to, the Completion Inventory (§6).
+Gaps confirmed: no render exists for Context Navigation or Inspector in isolation, for the full 8-region shell with Diagram Studio integrated (§11), or for Knowledge Studio, Engineering Exchange, Instruments, or Settings (§13). These gaps are consistent with, not contradictory to, the Completion Inventory (§6). **AP-UX-005 update:** the Diagram Studio shell-integration render, and dedicated Context Navigation and Inspector renders, have since been produced — see `AP-UX-005-VISUAL-DESIGN-COMPLETION.md`.
 
 ## 17. Design-to-Code Contract Template
 
@@ -218,7 +220,7 @@ No change from AP-UX-002. `eam/02_EAM_ACQUISITION_WORKSPACE_SPEC.md` and `eam/EA
 | EAM | COMPLETE |
 | Knowledge Studio | NOT YET DESIGNED |
 | Engineering Exchange | NOT YET DESIGNED |
-| Tools | NOT YET DESIGNED |
+| Instruments | NOT YET DESIGNED |
 | Settings | NOT YET DESIGNED |
 | Engineering Intelligence (Studio question) | RESOLVED (not a Studio) |
 | Responsive behavior ≥1280×800 | PARTIALLY DESIGNED (this document) |
@@ -236,7 +238,7 @@ No other open design-owner questions were found in this pass.
 
 1. Diagram Studio full-shell integration render, per §11's specification.
 2. Context Navigation and Inspector, in isolation, at minimum for Diagram Studio and EAM.
-3. Knowledge Studio, Engineering Exchange, Tools, and Settings — each requires design work (§13) before a render is meaningful.
+3. Knowledge Studio, Engineering Exchange, Instruments, and Settings — each requires design work (§13) before a render is meaningful.
 
 ## 22. Next Implementation Readiness
 
@@ -263,6 +265,6 @@ Diagram Studio and EAM are the two areas with the most complete target design. D
 
 **Needs a render:** Diagram Studio full-shell integration (§11, §21); Context Navigation and Inspector in isolation (§21).
 
-**Needs design-owner input before implementation:** the two items in §20; and, before any of Knowledge Studio/Engineering Exchange/Tools/Settings can be implemented, their entire workflow/workspace/interaction design (§13) — none of which this document invents.
+**Needs design-owner input before implementation:** the two items in §20; and, before any of Knowledge Studio/Engineering Exchange/Instruments/Settings can be implemented, their entire workflow/workspace/interaction design (§13) — none of which this document invents.
 
 **Ready for implementation planning:** none of the four undesigned Studios. Diagram Studio and EAM are the closest, but both remain blocked on a missing shell-integration render before an implementation WP should be executed against them.

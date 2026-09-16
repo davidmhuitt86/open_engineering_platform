@@ -1,0 +1,58 @@
+<svg width="1920" height="42" viewBox="0 0 1920 42" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, -apple-system, sans-serif">
+  <!-- OEP Workspace Bar (region 03) — canonical, 1920x42 — AP-UX-005 -->
+  <!-- Follows the approved reference exactly: renders/.../workspace context tab bar.png, Diagram Studio row (blue). -->
+  <!-- Diagram Studio row content ("TRX300 - Main" etc.) is the reference's own non-placeholder row — the EAM row in that same -->
+  <!-- reference is the one AP-UX-001/002 flagged as placeholder content; this render deliberately does not reuse the EAM row. -->
+  <!-- Workspace tabs inherit the parent Studio's identity color in full (oep.studio.diagram = oep.accent = #2F81F7), per OEP-DESIGN-TOKENS.md §2A. -->
+  <rect x="0" y="0" width="1920" height="42" fill="#111720"/>
+  <rect x="0" y="41" width="1920" height="1" fill="#2A3542"/>
+
+  <!-- Studio identity chip (leading, with dropdown) -->
+  <polygon points="0,42 220,42 244,0 24,0" fill="#2F81F7" stroke="#8FD3FF" stroke-width="1.5"/>
+  <circle cx="46" cy="18" r="2.4" fill="#FFFFFF"/>
+  <circle cx="56" cy="25" r="2.4" fill="#FFFFFF"/>
+  <circle cx="36" cy="25" r="2.4" fill="#FFFFFF"/>
+  <line x1="46" y1="18" x2="56" y2="25" stroke="#FFFFFF" stroke-width="1.1"/>
+  <line x1="46" y1="18" x2="36" y2="25" stroke="#FFFFFF" stroke-width="1.1"/>
+  <text x="70" y="26" fill="#FFFFFF" font-size="12" font-weight="700">Diagram Studio</text>
+  <path d="M198,17 l6,6 l6,-6" fill="none" stroke="#FFFFFF" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Workspace tab: TRX300 - Main (active workspace) -->
+  <polygon points="222,42 392,42 416,0 246,0" fill="#2F81F7" stroke="#8FD3FF" stroke-width="1.5" opacity="0.95"/>
+  <rect x="268" y="14" width="11" height="14" rx="1.2" fill="none" stroke="#FFFFFF" stroke-width="1.2"/>
+  <text x="288" y="26" fill="#FFFFFF" font-size="12" font-weight="600">TRX300 - Main</text>
+  <text x="378" y="26" fill="#FFFFFF" font-size="12">×</text>
+
+  <!-- Workspace tab: Jaguar XF - Audio -->
+  <polygon points="394,42 584,42 608,0 418,0" fill="#1E5FC7" stroke="#3A6FD1" stroke-width="1"/>
+  <rect x="452" y="14" width="11" height="14" rx="1.2" fill="none" stroke="#D7E6FF" stroke-width="1.2"/>
+  <text x="472" y="26" fill="#D7E6FF" font-size="12" font-weight="500">Jaguar XF - Audio</text>
+  <text x="570" y="26" fill="#D7E6FF" font-size="12">×</text>
+
+  <!-- Workspace tab: Ram 1500 - PCM -->
+  <polygon points="586,42 756,42 780,0 610,0" fill="#1E5FC7" stroke="#3A6FD1" stroke-width="1"/>
+  <rect x="632" y="14" width="11" height="14" rx="1.2" fill="none" stroke="#D7E6FF" stroke-width="1.2"/>
+  <text x="652" y="26" fill="#D7E6FF" font-size="12" font-weight="500">Ram 1500 - PCM</text>
+  <text x="742" y="26" fill="#D7E6FF" font-size="12">×</text>
+
+  <!-- Workspace tab: Trailer - Lighting -->
+  <polygon points="758,42 938,42 962,0 782,0" fill="#1E5FC7" stroke="#3A6FD1" stroke-width="1"/>
+  <rect x="806" y="14" width="11" height="14" rx="1.2" fill="none" stroke="#D7E6FF" stroke-width="1.2"/>
+  <text x="826" y="26" fill="#D7E6FF" font-size="12" font-weight="500">Trailer - Lighting</text>
+  <text x="922" y="26" fill="#D7E6FF" font-size="12">×</text>
+
+  <!-- Workspace tab: Honda GL1200 -->
+  <polygon points="940,42 1110,42 1134,0 964,0" fill="#1E5FC7" stroke="#3A6FD1" stroke-width="1"/>
+  <rect x="988" y="14" width="11" height="14" rx="1.2" fill="none" stroke="#D7E6FF" stroke-width="1.2"/>
+  <text x="1008" y="26" fill="#D7E6FF" font-size="12" font-weight="500">Honda GL1200</text>
+  <text x="1092" y="26" fill="#D7E6FF" font-size="12">×</text>
+
+  <!-- + new workspace -->
+  <rect x="1120" y="8" width="34" height="26" rx="3" fill="none" stroke="#2A3542" stroke-width="1.2"/>
+  <line x1="1137" y1="15" x2="1137" y2="27" stroke="#9AA8B7" stroke-width="1.4"/>
+  <line x1="1131" y1="21" x2="1143" y2="21" stroke="#9AA8B7" stroke-width="1.4"/>
+
+  <!-- overflow -->
+  <text x="1900" y="26" fill="#667585" font-size="13" text-anchor="end">»</text>
+  <text x="1810" y="26" fill="#667585" font-size="10" text-anchor="end">03 · WORKSPACE BAR · 1920×42</text>
+</svg>

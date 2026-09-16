@@ -1,0 +1,42 @@
+<svg width="1280" height="800" viewBox="0 0 1280 800" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, -apple-system, sans-serif">
+  <!-- Responsive layout-pressure schematic — 1280x800 — AP-UX-005 §9 -->
+  <!-- Same method as the 1600x900 schematic. At this width, Context Nav (280) + Inspector (640) = 920px fixed, -->
+  <!-- leaving only 360px for the Engineering Surface — a severe, clearly-unworkable reduction from 1000px at the -->
+  <!-- 1920px reference. This is the strongest evidence in the corpus that a collapse/overlay/dock rule is required -->
+  <!-- before implementation can target this size; AP-UX-005 does not invent that rule (§9/§24). -->
+  <rect width="1280" height="800" fill="#0B0F14"/>
+
+  <rect x="0" y="0" width="1280" height="58" fill="none" stroke="#5DA9E9" stroke-width="2"/>
+  <text x="16" y="34" fill="#5DA9E9" font-size="13" font-weight="700">01 HEADER — 58px (unchanged)</text>
+
+  <rect x="0" y="58" width="1280" height="56" fill="none" stroke="#39B56B" stroke-width="2"/>
+  <text x="16" y="92" fill="#39B56B" font-size="13" font-weight="700">02 STUDIO BAR — 56px (unchanged; 7 tabs at full label width no longer fit — icon-only fallback not yet specified)</text>
+
+  <rect x="0" y="114" width="1280" height="42" fill="none" stroke="#D9A441" stroke-width="2"/>
+  <text x="16" y="140" fill="#D9A441" font-size="12" font-weight="700">03 WORKSPACE BAR — 42px (unchanged; fewer open-tab labels fit before overflow)</text>
+
+  <rect x="0" y="156" width="280" height="556" fill="none" stroke="#8A5CF6" stroke-width="2"/>
+  <text x="12" y="182" fill="#8A5CF6" font-size="13" font-weight="700">04 CONTEXT NAV</text>
+  <text x="12" y="200" fill="#8A5CF6" font-size="11">280px (held)</text>
+
+  <rect x="280" y="156" width="360" height="556" fill="none" stroke="#D95C5C" stroke-width="3"/>
+  <text x="296" y="182" fill="#D95C5C" font-size="14" font-weight="700">05 SURFACE</text>
+  <text x="296" y="204" fill="#D95C5C" font-size="13" font-weight="700">360px (was 1000px —</text>
+  <text x="296" y="222" fill="#D95C5C" font-size="13" font-weight="700">64% narrower — unworkable</text>
+  <text x="296" y="240" fill="#D95C5C" font-size="13" font-weight="700">for an engineering canvas)</text>
+
+  <rect x="640" y="156" width="640" height="556" fill="none" stroke="#8A5CF6" stroke-width="2"/>
+  <text x="656" y="182" fill="#8A5CF6" font-size="13" font-weight="700">06 INSPECTOR</text>
+  <text x="656" y="200" fill="#8A5CF6" font-size="11">640px (held)</text>
+
+  <rect x="0" y="712" width="1280" height="60" fill="none" stroke="#2FD9D9" stroke-width="2"/>
+  <text x="16" y="747" fill="#2FD9D9" font-size="13" font-weight="700">07 TOOLBAR — 60px (unchanged; group overflow not yet specified)</text>
+
+  <rect x="0" y="772" width="1280" height="28" fill="none" stroke="#9AA8B7" stroke-width="2"/>
+  <text x="16" y="791" fill="#9AA8B7" font-size="11" font-weight="700">08 STATUS BAR — 36px (unchanged; further clipped)</text>
+
+  <rect x="330" y="330" width="620" height="90" rx="6" fill="#151D27" stroke="#D9A441" stroke-width="1.5"/>
+  <text x="640" y="360" fill="#D9A441" font-size="14" font-weight="700" text-anchor="middle">DESIGN-OWNER DECISION REQUIRED</text>
+  <text x="640" y="382" fill="#E7EDF4" font-size="12" text-anchor="middle">At 1280px, holding both side regions at reference width leaves an</text>
+  <text x="640" y="400" fill="#E7EDF4" font-size="12" text-anchor="middle">unworkable 360px Engineering Surface — collapse/overlay/dock behavior is required, not invented here</text>
+</svg>

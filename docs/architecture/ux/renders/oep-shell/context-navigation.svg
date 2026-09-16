@@ -1,0 +1,79 @@
+<svg width="360" height="1080" viewBox="0 0 360 1080" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, -apple-system, sans-serif">
+  <!-- OEP Context Navigation (region 04) — canonical, 240-360px variable width (shown at 360) — AP-UX-005 -->
+  <!-- Demonstrates: ACTIVE WORKSPACE -> ENGINEERING CONTEXT -> CONTEXTUAL VIEW, per OEP-SHELL-COMPONENTS.md §5 / 03_OEP_CONTEXTUAL_NAVIGATION_SPEC.md -->
+  <!-- Context Navigation is workspace-scoped, NOT Global Studio navigation — no Studio identity color used here, oep.accent only for the active view. -->
+  <!-- Scenario: Diagram Studio, workspace "TRX300 - Main", an engineering object selected inside the diagram. -->
+  <rect x="0" y="0" width="360" height="1080" fill="#111720"/>
+  <rect x="359" y="0" width="1" height="1080" fill="#2A3542"/>
+
+  <!-- Active workspace identity -->
+  <text x="20" y="34" fill="#667585" font-size="10" font-weight="700" letter-spacing="1">ACTIVE WORKSPACE</text>
+  <rect x="20" y="46" width="11" height="14" fill="none" stroke="#9AA8B7" stroke-width="1.2"/>
+  <text x="40" y="58" fill="#E7EDF4" font-size="14" font-weight="600">TRX300 - Main</text>
+  <text x="20" y="76" fill="#667585" font-size="11">Diagram Studio · Honda TRX300</text>
+  <line x1="20" y1="96" x2="340" y2="96" stroke="#2A3542" stroke-width="1"/>
+
+  <!-- Engineering context / structure tree -->
+  <text x="20" y="122" fill="#667585" font-size="10" font-weight="700" letter-spacing="1">ENGINEERING CONTEXT</text>
+
+  <g font-size="13" fill="#9AA8B7">
+    <path d="M24,142 l4,4 l-4,4" fill="none" stroke="#667585" stroke-width="1.3"/>
+    <text x="36" y="150" fill="#E7EDF4" font-weight="600">Wiring Harness</text>
+
+    <path d="M40,170 l4,4 l-4,4" fill="none" stroke="#667585" stroke-width="1.1"/>
+    <text x="52" y="178">Engine Compartment</text>
+
+    <path d="M40,196 l4,4 l-4,4" fill="none" stroke="#667585" stroke-width="1.1"/>
+    <rect x="36" y="188" width="288" height="24" rx="3" fill="#151D27" stroke="#2F81F7" stroke-width="1.3"/>
+    <text x="52" y="204" fill="#FFFFFF" font-weight="600">Ignition System</text>
+    <circle cx="304" cy="200" r="3" fill="#2F81F7"/>
+
+    <text x="68" y="230">Ignition Coil</text>
+    <text x="68" y="252">Spark Plug (x4)</text>
+    <text x="68" y="274">CDI Unit</text>
+
+    <path d="M40,296 l4,4 l-4,4" fill="none" stroke="#667585" stroke-width="1.1"/>
+    <text x="52" y="304">Charging System</text>
+
+    <path d="M40,322 l4,4 l-4,4" fill="none" stroke="#667585" stroke-width="1.1"/>
+    <text x="52" y="330">Lighting Circuit</text>
+
+    <path d="M24,352 l4,4 l-4,4" fill="none" stroke="#667585" stroke-width="1.3"/>
+    <text x="36" y="360" fill="#E7EDF4" font-weight="600">Frame &amp; Chassis Ground</text>
+  </g>
+
+  <line x1="20" y1="388" x2="340" y2="388" stroke="#2A3542" stroke-width="1"/>
+
+  <!-- Contextual views for the current selection (Ignition Coil) -->
+  <text x="20" y="412" fill="#667585" font-size="10" font-weight="700" letter-spacing="1">CONTEXTUAL VIEW</text>
+  <text x="20" y="430" fill="#667585" font-size="11">Selected: Ignition Coil</text>
+
+  <g font-size="13">
+    <rect x="20" y="444" width="320" height="30" rx="3" fill="#151D27" stroke="#2F81F7" stroke-width="1.3"/>
+    <circle cx="36" cy="459" r="3" fill="#2F81F7"/>
+    <text x="50" y="464" fill="#FFFFFF" font-weight="600">Overview</text>
+
+    <rect x="20" y="478" width="320" height="30" rx="3" fill="none" stroke="#2A3542" stroke-width="1"/>
+    <text x="50" y="498" fill="#9AA8B7">Objects (3)</text>
+
+    <rect x="20" y="512" width="320" height="30" rx="3" fill="none" stroke="#2A3542" stroke-width="1"/>
+    <text x="50" y="532" fill="#9AA8B7">Relationships (4)</text>
+
+    <rect x="20" y="546" width="320" height="30" rx="3" fill="none" stroke="#2A3542" stroke-width="1"/>
+    <text x="50" y="566" fill="#9AA8B7">Graph</text>
+
+    <rect x="20" y="580" width="320" height="30" rx="3" fill="none" stroke="#2A3542" stroke-width="1"/>
+    <path d="M32,592 l2,2 l4,-5" fill="none" stroke="#D9A441" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="50" y="600" fill="#9AA8B7">Validation</text>
+    <circle cx="316" cy="595" r="7" fill="#D9A441"/>
+    <text x="316" y="599" fill="#0B0F14" font-size="9" text-anchor="middle" font-weight="700">1</text>
+
+    <rect x="20" y="614" width="320" height="30" rx="3" fill="none" stroke="#2A3542" stroke-width="1"/>
+    <text x="50" y="634" fill="#9AA8B7">Evidence</text>
+
+    <rect x="20" y="648" width="320" height="30" rx="3" fill="none" stroke="#2A3542" stroke-width="1"/>
+    <text x="50" y="668" fill="#9AA8B7">History</text>
+  </g>
+
+  <text x="20" y="1058" fill="#3A4656" font-size="9">04 · CONTEXT NAVIGATION · 240–360px (variable)</text>
+</svg>
