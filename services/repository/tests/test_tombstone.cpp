@@ -510,10 +510,13 @@ TEST_CASE("WP-SRV-012: object/relationship tombstone (delete) semantics", "[api]
                                           "' AND revision = 2 AND is_tombstoned") == 1);
   }
 
-  // Restoration: an ordinary update mutation against a tombstoned
-  // identity restores it to a LIVE state -- expressed entirely through
-  // the existing commit contract, no new API surface (ADR-0006 SS10).
-  SECTION("restoration: a normal update mutation against a tombstoned object creates a new live revision") {
+  // WP-SRV-012A correction: restoration is CREATE-shaped only
+  // (ADR-0006 SS10). An update mutation against a currently-tombstoned
+  // object no longer silently restores it -- it is now treated as "does
+  // not exist," the same outcome as updating an identity that was never
+  // created. The create-shaped restoration path itself is covered in
+  // tests/test_tombstone_restoration.cpp.
+  SECTION("an update mutation against a tombstoned object is rejected -- restoration is create-shaped only") {
     const std::string object_id = generate_uuid_v4();
     client.Post("/api/v1/repositories/" + repository_id + "/commits",
                  commit_body(generate_uuid_v4(), {object_create_mutation(object_id, "Original")}).dump(),
@@ -521,20 +524,18 @@ TEST_CASE("WP-SRV-012: object/relationship tombstone (delete) semantics", "[api]
     client.Post("/api/v1/repositories/" + repository_id + "/commits",
                  commit_body(generate_uuid_v4(), {object_delete_mutation(object_id, 1)}).dump(), "application/json");
 
-    const auto restore =
+    const auto attempt =
         client.Post("/api/v1/repositories/" + repository_id + "/commits",
-                     commit_body(generate_uuid_v4(), {object_update_mutation(object_id, 2, "Restored")}).dump(),
+                     commit_body(generate_uuid_v4(), {object_update_mutation(object_id, 2, "Should Not Restore")}).dump(),
                      "application/json");
-    REQUIRE(restore != nullptr);
-    CHECK(restore->status == 201);
+    REQUIRE(attempt != nullptr);
+    CHECK(attempt->status == 422);
+    CHECK(nlohmann::json::parse(attempt->body).at("error") == "VALIDATION_FAILED");
 
+    // Still tombstoned -- the rejected update mutation did not restore it.
     const auto current = client.Get("/api/v1/repositories/" + repository_id + "/objects/" + object_id);
     REQUIRE(current != nullptr);
-    CHECK(current->status == 200);
-    const auto body = nlohmann::json::parse(current->body);
-    CHECK(body.at("tombstoned") == false);
-    CHECK(body.at("name") == "Restored");
-    CHECK(body.at("revision") == 3);
+    CHECK(current->status == 404);
   }
 
   // A relationship create/update must not be permitted against a

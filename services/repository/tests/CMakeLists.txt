@@ -6,6 +6,7 @@ add_executable(oep_server_repository_tests
   test_concurrency.cpp
   test_uuid_validation.cpp
   test_tombstone.cpp
+  test_tombstone_restoration.cpp
 )
 
 target_link_libraries(oep_server_repository_tests

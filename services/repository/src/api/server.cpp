@@ -232,6 +232,13 @@ void guard(httplib::Response& response, Fn&& fn) {
 // `object_id`/`expected_revision` -- no nested `object` body, since the
 // tombstone revision's content is copied forward server-side, never
 // supplied by the client.
+//
+// WP-SRV-012A: `expected_revision` is REQUIRED for update/delete (as
+// before), and now OPTIONAL for create -- a plain first-time create
+// still omits it, but a create-shaped restoration (ADR-0006 SS10) MUST
+// supply the tombstone revision it expects to replace, so the smallest
+// necessary wire extension is accepting the field there too rather than
+// inventing a second concurrency mechanism.
 std::optional<ObjectMutation> parse_object_mutation(const nlohmann::json& item, domain::MutationKind kind,
                                                         std::string& error) {
   ObjectMutation mutation;
@@ -244,6 +251,12 @@ std::optional<ObjectMutation> parse_object_mutation(const nlohmann::json& item, 
   if (kind == domain::MutationKind::Update || kind == domain::MutationKind::Delete) {
     if (!item.contains("expected_revision") || !item.at("expected_revision").is_number_integer()) {
       error = "object update/delete mutation requires an integer expected_revision";
+      return std::nullopt;
+    }
+    mutation.expected_revision = item.at("expected_revision").get<std::int64_t>();
+  } else if (item.contains("expected_revision") && !item.at("expected_revision").is_null()) {
+    if (!item.at("expected_revision").is_number_integer()) {
+      error = "object create mutation's expected_revision, if supplied, must be an integer";
       return std::nullopt;
     }
     mutation.expected_revision = item.at("expected_revision").get<std::int64_t>();
@@ -276,7 +289,8 @@ std::optional<ObjectMutation> parse_object_mutation(const nlohmann::json& item, 
 }
 
 // Same "delete carries only the identity + expected_revision" shape as
-// `parse_object_mutation` above.
+// `parse_object_mutation` above, and the same WP-SRV-012A optional
+// expected_revision-on-create extension for restoration.
 std::optional<RelationshipMutation> parse_relationship_mutation(const nlohmann::json& item, domain::MutationKind kind,
                                                                     std::string& error) {
   RelationshipMutation mutation;
@@ -289,6 +303,12 @@ std::optional<RelationshipMutation> parse_relationship_mutation(const nlohmann::
   if (kind == domain::MutationKind::Update || kind == domain::MutationKind::Delete) {
     if (!item.contains("expected_revision") || !item.at("expected_revision").is_number_integer()) {
       error = "relationship update/delete mutation requires an integer expected_revision";
+      return std::nullopt;
+    }
+    mutation.expected_revision = item.at("expected_revision").get<std::int64_t>();
+  } else if (item.contains("expected_revision") && !item.at("expected_revision").is_null()) {
+    if (!item.at("expected_revision").is_number_integer()) {
+      error = "relationship create mutation's expected_revision, if supplied, must be an integer";
       return std::nullopt;
     }
     mutation.expected_revision = item.at("expected_revision").get<std::int64_t>();

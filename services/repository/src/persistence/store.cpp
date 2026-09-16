@@ -445,32 +445,78 @@ domain::CommitResult ServerRepositoryStore::submit_commit(const std::string& rep
     std::int64_t new_revision = 1;
     if (mutation.kind == MutationKind::Update) {
       const pqxx::result head = txn.exec_params(
-          "SELECT current_revision FROM object_heads WHERE object_id = $1::uuid AND repository_id = $2::uuid "
-          "FOR UPDATE",
+          "SELECT current_revision, is_tombstoned FROM object_heads WHERE object_id = $1::uuid AND "
+          "repository_id = $2::uuid FOR UPDATE",
           pqxx::params{mutation.object_id, repository_id});
       if (head.empty()) {
         throw ValidationError("object does not exist: cannot update a nonexistent object");
+      }
+      // WP-SRV-012A / ADR-0006 SS10: restoration is exclusively
+      // CREATE-shaped ("a subsequent create-shaped mutation"), not an
+      // update. A currently-tombstoned object therefore has no live
+      // state an update mutation can act on -- the same "does not exist"
+      // outcome as an update against an identity that was never created,
+      // correcting WP-SRV-012's original mismatch (which let a plain
+      // update silently restore a tombstone).
+      if (head[0]["is_tombstoned"].as<bool>()) {
+        throw ValidationError(
+            "object does not exist: cannot update a currently-tombstoned object (use a create-shaped mutation "
+            "against the same object_id to restore it)");
       }
       const std::int64_t current_revision = head[0]["current_revision"].as<std::int64_t>();
       if (!mutation.expected_revision.has_value() || *mutation.expected_revision != current_revision) {
         throw ConcurrencyConflictError("expected_revision does not match the current revision for object");
       }
       new_revision = current_revision + 1;
-      // WP-SRV-012 / ADR-0006 SS10: an ordinary update mutation applied
-      // against a currently-tombstoned identity is how restoration is
-      // expressed -- it always produces a LIVE new revision regardless
-      // of the previous revision's tombstone state, with no separate
-      // restore operation needed or invented.
-      txn.exec_params(
-          "UPDATE object_heads SET current_revision = $1, is_tombstoned = false WHERE object_id = $2::uuid",
-          pqxx::params{new_revision, mutation.object_id});
+      txn.exec_params("UPDATE object_heads SET current_revision = $1 WHERE object_id = $2::uuid",
+                        pqxx::params{new_revision, mutation.object_id});
     } else {
-      try {
-        txn.exec_params("INSERT INTO object_heads (object_id, repository_id, current_revision, is_tombstoned) "
-                          "VALUES ($1::uuid,$2::uuid,1,false)",
-                          pqxx::params{mutation.object_id, repository_id});
-      } catch (const pqxx::unique_violation&) {
-        throw ValidationError("an object with that id already exists");
+      // WP-SRV-012A / ADR-0006 SS10: an object_create against an
+      // EXISTING identity is only valid restoration -- not a duplicate
+      // -- if that identity's current state is tombstoned. The INSERT is
+      // attempted first (the common, cheap case: a genuinely new
+      // identity) inside a SAVEPOINT-backed `pqxx::subtransaction`, so a
+      // unique_violation rolls back only that attempt (clearing
+      // PostgreSQL's aborted-transaction state) rather than the whole
+      // commit, letting this same outer transaction continue to inspect
+      // and, if tombstoned, restore the existing identity.
+      bool inserted_as_new = false;
+      {
+        pqxx::subtransaction attempt(txn, "object_create_attempt");
+        try {
+          attempt.exec_params(
+              "INSERT INTO object_heads (object_id, repository_id, current_revision, is_tombstoned) "
+              "VALUES ($1::uuid,$2::uuid,1,false)",
+              pqxx::params{mutation.object_id, repository_id});
+          attempt.commit();
+          inserted_as_new = true;
+        } catch (const pqxx::unique_violation&) {
+          // Left uncommitted: destroying `attempt` rolls back to the
+          // savepoint, so `txn` remains usable below.
+        }
+      }
+      if (!inserted_as_new) {
+        const pqxx::result head = txn.exec_params(
+            "SELECT current_revision, is_tombstoned FROM object_heads WHERE object_id = $1::uuid AND "
+            "repository_id = $2::uuid FOR UPDATE",
+            pqxx::params{mutation.object_id, repository_id});
+        if (head.empty() || !head[0]["is_tombstoned"].as<bool>()) {
+          throw ValidationError("an object with that id already exists");
+        }
+        const std::int64_t current_revision = head[0]["current_revision"].as<std::int64_t>();
+        // WP-SRV-012A: restoration participates in the same optimistic-
+        // concurrency model as every other mutation -- expected_revision
+        // (of the tombstone being restored) is required so two
+        // concurrent create-shaped restoration attempts cannot both
+        // silently win.
+        if (!mutation.expected_revision.has_value() || *mutation.expected_revision != current_revision) {
+          throw ConcurrencyConflictError(
+              "expected_revision does not match the current tombstoned revision for object restoration");
+        }
+        new_revision = current_revision + 1;
+        txn.exec_params(
+            "UPDATE object_heads SET current_revision = $1, is_tombstoned = false WHERE object_id = $2::uuid",
+            pqxx::params{new_revision, mutation.object_id});
       }
     }
 
@@ -575,30 +621,64 @@ domain::CommitResult ServerRepositoryStore::submit_commit(const std::string& rep
     std::int64_t new_revision = 1;
     if (mutation.kind == MutationKind::Update) {
       const pqxx::result head = txn.exec_params(
-          "SELECT current_revision FROM relationship_heads WHERE relationship_id = $1::uuid AND "
+          "SELECT current_revision, is_tombstoned FROM relationship_heads WHERE relationship_id = $1::uuid AND "
           "repository_id = $2::uuid FOR UPDATE",
           pqxx::params{mutation.relationship_id, repository_id});
       if (head.empty()) {
         throw ValidationError("relationship does not exist: cannot update a nonexistent relationship");
+      }
+      // WP-SRV-012A: same correction as objects above -- restoration is
+      // create-shaped only; an update against a tombstoned relationship
+      // is treated as "does not exist."
+      if (head[0]["is_tombstoned"].as<bool>()) {
+        throw ValidationError(
+            "relationship does not exist: cannot update a currently-tombstoned relationship (use a create-shaped "
+            "mutation against the same relationship_id to restore it)");
       }
       const std::int64_t current_revision = head[0]["current_revision"].as<std::int64_t>();
       if (!mutation.expected_revision.has_value() || *mutation.expected_revision != current_revision) {
         throw ConcurrencyConflictError("expected_revision does not match the current revision for relationship");
       }
       new_revision = current_revision + 1;
-      // Restoration, symmetric with the object path above.
-      txn.exec_params(
-          "UPDATE relationship_heads SET current_revision = $1, is_tombstoned = false WHERE relationship_id = "
-          "$2::uuid",
-          pqxx::params{new_revision, mutation.relationship_id});
+      txn.exec_params("UPDATE relationship_heads SET current_revision = $1 WHERE relationship_id = $2::uuid",
+                        pqxx::params{new_revision, mutation.relationship_id});
     } else {
-      try {
-        txn.exec_params(
-            "INSERT INTO relationship_heads (relationship_id, repository_id, current_revision, is_tombstoned) "
-            "VALUES ($1::uuid,$2::uuid,1,false)",
+      // WP-SRV-012A: same create-shaped-restoration pattern as objects
+      // above, via a savepoint-backed subtransaction around the INSERT
+      // attempt. Endpoint liveness was already validated above (applies
+      // uniformly to create and update), so a tombstoned relationship
+      // being restored here is guaranteed to have live endpoints.
+      bool inserted_as_new = false;
+      {
+        pqxx::subtransaction attempt(txn, "relationship_create_attempt");
+        try {
+          attempt.exec_params(
+              "INSERT INTO relationship_heads (relationship_id, repository_id, current_revision, is_tombstoned) "
+              "VALUES ($1::uuid,$2::uuid,1,false)",
+              pqxx::params{mutation.relationship_id, repository_id});
+          attempt.commit();
+          inserted_as_new = true;
+        } catch (const pqxx::unique_violation&) {
+        }
+      }
+      if (!inserted_as_new) {
+        const pqxx::result head = txn.exec_params(
+            "SELECT current_revision, is_tombstoned FROM relationship_heads WHERE relationship_id = $1::uuid AND "
+            "repository_id = $2::uuid FOR UPDATE",
             pqxx::params{mutation.relationship_id, repository_id});
-      } catch (const pqxx::unique_violation&) {
-        throw ValidationError("a relationship with that id already exists");
+        if (head.empty() || !head[0]["is_tombstoned"].as<bool>()) {
+          throw ValidationError("a relationship with that id already exists");
+        }
+        const std::int64_t current_revision = head[0]["current_revision"].as<std::int64_t>();
+        if (!mutation.expected_revision.has_value() || *mutation.expected_revision != current_revision) {
+          throw ConcurrencyConflictError(
+              "expected_revision does not match the current tombstoned revision for relationship restoration");
+        }
+        new_revision = current_revision + 1;
+        txn.exec_params(
+            "UPDATE relationship_heads SET current_revision = $1, is_tombstoned = false WHERE relationship_id = "
+            "$2::uuid",
+            pqxx::params{new_revision, mutation.relationship_id});
       }
     }
 
