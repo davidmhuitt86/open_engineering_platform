@@ -1,8 +1,9 @@
 # EAM Acquisition Workspace UX Specification
 
-**Status:** Proposed design authority for the EAM workspace redesign.
+**Status:** **CANONICAL** — the authoritative EAM acquisition-workspace specification (AP-UX-002 C4).
 **Parent architecture:** `docs/architecture/ux/OEP-UX-ARCHITECTURE.md`
 **Baseline:** 2026-09 EAM/OEP design render series.
+**Reconciled by:** AP-UX-002 — `02_EAM_ACQUISITION_WORKSPACE_SPEC.md` covers materially the same ground (Canonical Workflow, Overview, Document View, Metadata, Detected Content, Objects/Relationships/Validation, Evidence, Completion) and is retained for historical/migration reference, subordinate to this document. Supplementary EAM detail documents (`EAM_ACQUISITION_WORKFLOW_SPEC.md`, `EAM_INFORMATION_ARCHITECTURE.md`, `EAM_POST_ACQUISITION_UX_FLOW.md`, `EAM_WORKSPACE_SCREEN_SPEC.md`) are additive, not duplicative, and remain in effect alongside this document.
 
 ## 1. EAM Is a Workflow Workspace
 

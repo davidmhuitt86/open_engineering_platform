@@ -1,7 +1,10 @@
 # EAM Interaction and State Specification
 
-**Status:** Proposed\
-**Storage:** `docs/architecture/ux/EAM/EAM-INTERACTION-STATE-SPEC.md`
+> **Status: RETAINED FOR HISTORICAL / MIGRATION REFERENCE (AP-UX-002 C4).**
+> Canonical specification: [`EAM-INTERACTION-STATE-SPEC.md`](EAM-INTERACTION-STATE-SPEC.md) — this file's own original "Storage:" line already pointed there, which this reconciliation treats as the original author's own intent for this document to be subordinate to it. No substantive disagreement was found between the two.
+
+**Status:** Proposed — see historical-reference notice above\
+**Storage:** `docs/architecture/ux/eam/EAM_INTERACTION_STATE_SPEC.md` (this file's own path; corrected — the line below previously pointed at the canonical document's path, not its own)
 
 ## State model
 

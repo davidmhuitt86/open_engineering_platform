@@ -3,6 +3,7 @@
 **Status:** Proposed — design authority for new OEP UX work pending formal ratification.
 **Scope:** OEP application shell, Studio navigation, workspace navigation, contextual capabilities, and UX information architecture.
 **Baseline:** 2026-09 OEP/EAM render series and subsequent navigation review.
+**Reconciled by:** AP-UX-002 — §3's accent language and the "Instruments" naming below were confirmed/clarified against `OEP-DESIGN-TOKENS.md` §2A. No change to this document's navigation hierarchy, interaction grammar, or destination/capability rule (AP-UX-002 left all three intact, per its own instruction not to redesign them).
 
 ## 1. Purpose
 
@@ -55,7 +56,7 @@ OEP   Home   Diagram Studio   EAM   Knowledge   Exchange   Engineering   Instrum
                          ^ active Studio
 ```
 
-The active Studio has a strong but restrained blue active state. Inactive Studios remain visible so users can switch contexts without returning to Home.
+The active Studio has a strong but restrained active state, in that Studio's own identity color (AP-UX-002 C1 — Home/Diagram Studio/EAM/Knowledge Studio/Engineering Exchange/Instruments/Settings each carry a distinct accent used only in the Studio Bar and Workspace Bar; see `design-system/OEP-DESIGN-TOKENS.md` §2A). Inactive Studios remain visible so users can switch contexts without returning to Home.
 
 ## 4. Home
 
@@ -161,7 +162,7 @@ The exact interaction surface is Studio-specific. The grammar is the common UX p
 The approved visual direction is:
 
 - dark near-black/slate foundation
-- restrained blue primary accent
+- one restrained blue interaction accent for controls/actions/focus, plus a closed set of per-Studio identity colors used only in the Studio Bar and Workspace Bar (AP-UX-002 C1; `design-system/OEP-DESIGN-TOKENS.md` §2A)
 - subtle borders
 - compact professional typography
 - high information density without dashboard clutter

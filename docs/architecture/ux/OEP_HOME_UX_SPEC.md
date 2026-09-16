@@ -1,7 +1,7 @@
 # OEP Home UX Specification
 
 **Status:** Proposed
-**Storage:** `docs/architecture/ux/OEP-HOME-UX-SPEC.md`
+**Storage:** `docs/architecture/ux/OEP_HOME_UX_SPEC.md` (corrected AP-UX-002 C6 — this line previously named a hyphenated path that does not exist on disk)
 
 ## 1. Purpose
 

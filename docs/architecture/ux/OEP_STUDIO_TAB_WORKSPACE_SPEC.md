@@ -1,7 +1,7 @@
 # OEP Studio Tab and Workspace Specification
 
 **Status:** Proposed
-**Storage:** `docs/architecture/ux/OEP-STUDIO-TAB-WORKSPACE-SPEC.md`
+**Storage:** `docs/architecture/ux/OEP_STUDIO_TAB_WORKSPACE_SPEC.md` (corrected AP-UX-002 C6 — this line previously named a hyphenated path that does not exist on disk)
 
 ## 1. Purpose
 

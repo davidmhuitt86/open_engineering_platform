@@ -1,7 +1,8 @@
 # EAM Interaction and State Specification
 
-**Status:** Proposed design authority for EAM interaction behavior
+**Status:** **CANONICAL** — the authoritative EAM interaction/state specification (AP-UX-002 C4).
 **Parent:** `docs/architecture/ux/OEP-UX-ARCHITECTURE.md`
+**Reconciled by:** AP-UX-002 — `EAM_INTERACTION_STATE_SPEC.md` (same title, underscored filename) covers the same workflow (`SOURCE→DOWNLOAD→VERIFY→EXTRACT→REVIEW→PUBLISH`) and the same workspace-state/workflow-state separation rule, independently written. No substantive disagreement was found between the two; this document is retained as canonical because it is the longer, more detailed treatment and was already the README-listed authority. The other document is retained for historical/migration reference, subordinate to this one.
 
 ## 1. Purpose
 

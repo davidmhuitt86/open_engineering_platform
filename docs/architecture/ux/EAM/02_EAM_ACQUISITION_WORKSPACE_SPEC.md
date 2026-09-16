@@ -1,5 +1,8 @@
 # EAM Acquisition Workspace Design Specification
 
+> **Status: RETAINED FOR HISTORICAL / MIGRATION REFERENCE (AP-UX-002 C4).**
+> Canonical specification: [`EAM-ACQUISITION-WORKSPACE-SPEC.md`](EAM-ACQUISITION-WORKSPACE-SPEC.md). This document covers the same workflow/workspace model independently; no substantive disagreement was found, but it is not the authoritative version. Consult it for historical context or if the canonical document appears to be missing detail this one has.
+
 ## Purpose
 Define the user-facing workflow for acquiring external engineering knowledge and converting it into trusted OEP engineering knowledge.
 
