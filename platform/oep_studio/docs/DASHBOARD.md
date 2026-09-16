@@ -1,10 +1,16 @@
+> **STATUS: SUPERSEDED — GLOBAL LANDING MODEL**
+>
+> This draft defined Dashboard as the engineer's automatic Studio landing page. The current OEP UX architecture replaces that global model with **Home** as the OEP landing surface. Studio-specific dashboard/overview views may still be used where they provide genuine workflow value.
+>
+> Current UX source of truth: `docs/architecture/ux/OEP-UX-ARCHITECTURE.md`
+>
 # SDD-007
 
 # Dashboard
 
 Version: 1.0
 
-Status: Draft
+Status: Draft — historical reference only
 
 ---
 

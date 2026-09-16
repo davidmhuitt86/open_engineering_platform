@@ -14,7 +14,7 @@ Welcome to the Open Engineering Platform (OEP).
 
 Before writing a single line of code, understand that you are not contributing to a software application.
 
-You are contributing to an engineering platform intended to preserve, organize, distribute, and expand engineering knowledge for generations to come.
+You are contributing to an engineering platform intended to preserve, organize, and expand engineering knowledge for generations to come.
 
 Every implementation decision should strengthen that mission.
 
@@ -276,6 +276,40 @@ Every development session should produce a measurable improvement.
 
 ---
 
+# UI Development — Live Hot Reload Requirement
+
+UI development is an interactive visual process. When working on Flutter/OEP UI, the actual running OEP application must remain available for continuous visual inspection while implementation is in progress.
+
+Before substantial UI changes begin, establish a dedicated Windows development window running the actual OEP Flutter application with hot reload enabled.
+
+The hot-reload application window must remain open while Claude is performing UI implementation. Do not close the running application after an edit merely to rebuild it from scratch. Use hot reload continuously for iterative UI changes and only restart the application when technically necessary.
+
+The required iteration loop is:
+
+```text
+EDIT UI CODE
+    ↓
+HOT RELOAD
+    ↓
+OBSERVE ACTUAL OEP WINDOW
+    ↓
+COMPARE AGAINST APPROVED DESIGN
+    ↓
+ADJUST
+    ↓
+HOT RELOAD AGAIN
+```
+
+Claude must use the running application as a visual feedback mechanism rather than relying only on source inspection or build success.
+
+During UI work, inspect the live application for layout geometry, panel proportions, spacing, typography, colors, surfaces, active states, navigation behavior, clipping, overflow, embedded engineering surfaces, and overall visual hierarchy.
+
+If the hot-reload application is not already running when a UI task begins, establish the appropriate Windows Flutter hot-reload session before proceeding with visual implementation whenever the local development environment permits it.
+
+For UI work, a successful build alone is not sufficient evidence of completion. The actual running application must be inspected, and the final screen must also be validated at the required 1920×1080 Windows desktop target.
+
+---
+
 # Placeholder Philosophy
 
 Working placeholders are encouraged.
@@ -368,9 +402,11 @@ AI should:
 4. Read CURRENT_SPRINT.md
 5. Read TASK.md
 6. Inspect existing implementation
-7. Implement only the requested work
-8. Run tests where applicable
-9. Leave the project cleaner than it was found
+7. For UI work, establish and keep the Windows Flutter hot-reload application window open
+8. Implement only the requested work
+9. Use hot reload continuously while iterating on UI
+10. Run tests where applicable
+11. Leave the project cleaner than it was found
 
 ---
 
@@ -422,6 +458,8 @@ A task is complete only when:
 - Extension points exist.
 - No unnecessary TODOs remain.
 - The repository is cleaner than before the work began.
+
+For UI work, completion additionally requires inspection of the actual running application through the hot-reload workflow and final visual validation at the required desktop target.
 
 ---
 
