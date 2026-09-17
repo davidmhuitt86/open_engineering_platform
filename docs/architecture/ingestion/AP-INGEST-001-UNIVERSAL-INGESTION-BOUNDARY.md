@@ -759,9 +759,26 @@ ocrPageResults
 engineeringEntities
 engineeringContexts
 aiSuggestions
+ingestionRuns
+derivedArtifacts
 ```
 
 UIF must not create a parallel review/session subsystem.
+
+**WP-INGEST-006 update.** `ingestionRuns`/`derivedArtifacts` were added by
+WP-INGEST-006 to make the *processing execution itself* — which run,
+which pipeline/parser/processor versions, which stages
+succeeded/partially succeeded/failed/were skipped, and which derived
+products (by reference/content hash, not bytes) resulted — durable
+alongside the extraction findings this section already documented as
+persisted. `ingestionRuns` holds one `IngestionRun` (§ 6) per ingestion
+that contributed to a session, including its deterministic processing
+identity (§ 22) and full `StageResult[]` history. `derivedArtifacts`
+holds each `DerivedArtifact`'s (§ 15) durable metadata/provenance
+record — `DerivedArtifact` has never carried the derived product's
+actual bytes, only identity and a content hash, so this was already
+metadata/reference persistence, not a new claim of durable artifact
+bytes.
 
 ---
 

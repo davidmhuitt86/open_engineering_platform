@@ -50,4 +50,29 @@ class DerivedArtifact {
     'processorVersion': processorVersion,
     'provenance': provenance.toJson(),
   };
+
+  /// Throws [FormatException]/[TypeError] on structurally invalid input —
+  /// see `IngestionRun.fromJson`'s own doc comment for why.
+  ///
+  /// **What this durably persists (WP-INGEST-006 § 9).** Every field here
+  /// is, and always was, metadata/reference — `DerivedArtifact` has never
+  /// carried the derived product's actual bytes; only [contentHash]
+  /// identifies them. Round-tripping this model through
+  /// `KnowledgeSessionRecord` therefore persists complete, durable
+  /// *provenance records* (which run/stage/processor produced what,
+  /// identified by content hash), while the underlying derived bytes
+  /// themselves (normalized text, OCR text, etc.) remain transient,
+  /// exactly as before this work package.
+  factory DerivedArtifact.fromJson(Map<String, dynamic> json) => DerivedArtifact(
+    derivedArtifactId: json['derivedArtifactId'] as String,
+    runId: json['runId'] as String,
+    vaultObjectId: json['vaultObjectId'] as String,
+    stage: IngestionStage.values.byName(json['stage'] as String),
+    artifactType: json['artifactType'] as String,
+    contentHash: json['contentHash'] as String,
+    createdAt: DateTime.parse(json['createdAt'] as String),
+    processorId: json['processorId'] as String,
+    processorVersion: json['processorVersion'] as String,
+    provenance: IngestionProvenance.fromJson(json['provenance'] as Map<String, dynamic>),
+  );
 }

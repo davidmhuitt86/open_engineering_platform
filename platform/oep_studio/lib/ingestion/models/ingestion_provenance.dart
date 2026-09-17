@@ -63,4 +63,20 @@ class IngestionProvenance {
     'page': page,
     'sourceFingerprint': sourceFingerprint,
   };
+
+  /// Throws [FormatException]/[TypeError] on structurally invalid input —
+  /// see [IngestionRun.fromJson]'s own doc comment for why.
+  factory IngestionProvenance.fromJson(Map<String, dynamic> json) => IngestionProvenance(
+    vaultObjectId: json['vaultObjectId'] as String,
+    acquisitionRecordIds: List<String>.from(json['acquisitionRecordIds'] as List? ?? const []),
+    runId: json['runId'] as String,
+    stage: IngestionStage.values.byName(json['stage'] as String),
+    processorId: json['processorId'] as String,
+    processorVersion: json['processorVersion'] as String,
+    parserId: json['parserId'] as String?,
+    parserVersion: json['parserVersion'] as String?,
+    pipelineVersion: json['pipelineVersion'] as String,
+    page: json['page'] as int?,
+    sourceFingerprint: json['sourceFingerprint'] as String?,
+  );
 }

@@ -37,4 +37,15 @@ class StageResult {
     'diagnostics': diagnostics,
     'derivedArtifactIds': derivedArtifactIds,
   };
+
+  /// Throws [FormatException]/[TypeError] on structurally invalid input —
+  /// see [IngestionRun.fromJson]'s own doc comment for why.
+  factory StageResult.fromJson(Map<String, dynamic> json) => StageResult(
+    stage: IngestionStage.values.byName(json['stage'] as String),
+    status: StageExecutionStatus.values.byName(json['status'] as String),
+    startedAt: DateTime.parse(json['startedAt'] as String),
+    completedAt: DateTime.parse(json['completedAt'] as String),
+    diagnostics: List<String>.from(json['diagnostics'] as List? ?? const []),
+    derivedArtifactIds: List<String>.from(json['derivedArtifactIds'] as List? ?? const []),
+  );
 }

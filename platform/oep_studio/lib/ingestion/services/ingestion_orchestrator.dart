@@ -383,6 +383,7 @@ abstract final class IngestionOrchestrator {
       run: IngestionRun(
         runId: resolvedRunId,
         vaultObjectId: input.vaultObjectId,
+        contentHash: input.contentHash,
         startedAt: identifyStart,
         completedAt: DateTime.now(),
         status: runStatus,
@@ -418,6 +419,7 @@ abstract final class IngestionOrchestrator {
       run: IngestionRun(
         runId: runId,
         vaultObjectId: input.vaultObjectId,
+        contentHash: input.contentHash,
         startedAt: stageResults.first.startedAt,
         completedAt: DateTime.now(),
         status: IngestionRunStatus.failed,

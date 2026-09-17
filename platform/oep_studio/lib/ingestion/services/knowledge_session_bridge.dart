@@ -47,6 +47,10 @@ abstract final class IngestionKnowledgeSessionBridge {
       evidenceLinks: result.evidenceLinks,
       ocrPageResults: result.ocrPageResults,
       engineeringEntities: result.engineeringEntities,
+      // WP-INGEST-006 § 7/§ 11: the durable link from this session to the
+      // ingestion run/execution history that produced it.
+      ingestionRuns: [result.run],
+      derivedArtifacts: result.derivedArtifacts,
     );
   }
 
@@ -73,6 +77,13 @@ abstract final class IngestionKnowledgeSessionBridge {
       engineeringEntities: [...session.engineeringEntities, ...result.engineeringEntities],
       engineeringContexts: session.engineeringContexts,
       aiSuggestions: session.aiSuggestions,
+      // WP-INGEST-006 § 7/§ 11: a second ingestion run contributing to an
+      // already-existing session appends its own run/derived-artifact
+      // history rather than replacing what is already there — the same
+      // "append, never replace" discipline every other list above
+      // already follows.
+      ingestionRuns: [...session.ingestionRuns, result.run],
+      derivedArtifacts: [...session.derivedArtifacts, ...result.derivedArtifacts],
     );
   }
 
@@ -109,6 +120,8 @@ abstract final class IngestionKnowledgeSessionBridge {
       engineeringEntities: record.engineeringEntities,
       engineeringContexts: record.engineeringContexts,
       aiSuggestions: record.aiSuggestions,
+      ingestionRuns: record.ingestionRuns,
+      derivedArtifacts: record.derivedArtifacts,
     );
   }
 }

@@ -1,3 +1,5 @@
+import '../../ingestion/models/derived_artifact.dart';
+import '../../ingestion/models/ingestion_run.dart';
 import 'ai_suggestion.dart';
 import 'commit_report.dart';
 import 'engineering_context.dart';
@@ -39,6 +41,8 @@ class KnowledgeSessionRecord {
     this.engineeringEntities = const [],
     this.engineeringContexts = const [],
     this.aiSuggestions = const [],
+    this.ingestionRuns = const [],
+    this.derivedArtifacts = const [],
   });
 
   final KnowledgeSession session;
@@ -101,6 +105,25 @@ class KnowledgeSessionRecord {
   /// `docs/AI_PROVIDER_ARCHITECTURE.md` § Persistence for why).
   final List<AiSuggestion> aiSuggestions;
 
+  /// Durable ingestion execution history (WP-INGEST-006 § 7/§ 11):
+  /// which ingestion run(s) produced this session's initial imported
+  /// state, including processing identity, pipeline/parser/processor
+  /// versions, processing configuration, and per-stage
+  /// success/partial/failed/skipped status with diagnostics. Populated by
+  /// `IngestionKnowledgeSessionBridge` from `IngestionResult.run`; a
+  /// manually-created session (no ingestion involved) has an empty list.
+  /// Reused unchanged, deliberately not duplicated into a second model —
+  /// see `IngestionRun`'s own doc comment.
+  final List<IngestionRun> ingestionRuns;
+
+  /// Durable references/provenance metadata for every product an
+  /// ingestion run produced (WP-INGEST-006 § 9) — `DerivedArtifact` has
+  /// never carried the derived product's actual bytes, only identity and
+  /// a content hash, so persisting these records is already
+  /// metadata/reference persistence, not a claim that derived-artifact
+  /// bytes are durable (see `DerivedArtifact.fromJson`'s own doc comment).
+  final List<DerivedArtifact> derivedArtifacts;
+
   Map<String, dynamic> toJson() => {
     'formatVersion': 1,
     'session': session.toJson(),
@@ -118,6 +141,8 @@ class KnowledgeSessionRecord {
     'engineeringEntities': engineeringEntities.map((entity) => entity.toJson()).toList(),
     'engineeringContexts': engineeringContexts.map((context) => context.toJson()).toList(),
     'aiSuggestions': aiSuggestions.map((suggestion) => suggestion.toJson()).toList(),
+    'ingestionRuns': ingestionRuns.map((run) => run.toJson()).toList(),
+    'derivedArtifacts': derivedArtifacts.map((artifact) => artifact.toJson()).toList(),
   };
 
   /// Throws [FormatException] on any structurally invalid input —
@@ -139,6 +164,8 @@ class KnowledgeSessionRecord {
     final engineeringEntitiesJson = json['engineeringEntities'] as List<dynamic>? ?? const [];
     final engineeringContextsJson = json['engineeringContexts'] as List<dynamic>? ?? const [];
     final aiSuggestionsJson = json['aiSuggestions'] as List<dynamic>? ?? const [];
+    final ingestionRunsJson = json['ingestionRuns'] as List<dynamic>? ?? const [];
+    final derivedArtifactsJson = json['derivedArtifacts'] as List<dynamic>? ?? const [];
     return KnowledgeSessionRecord(
       session: KnowledgeSession.fromJson(json['session'] as Map<String, dynamic>),
       candidates: [
@@ -180,6 +207,12 @@ class KnowledgeSessionRecord {
       ],
       aiSuggestions: [
         for (final entry in aiSuggestionsJson) AiSuggestion.fromJson(entry as Map<String, dynamic>),
+      ],
+      ingestionRuns: [
+        for (final entry in ingestionRunsJson) IngestionRun.fromJson(entry as Map<String, dynamic>),
+      ],
+      derivedArtifacts: [
+        for (final entry in derivedArtifactsJson) DerivedArtifact.fromJson(entry as Map<String, dynamic>),
       ],
     );
   }
