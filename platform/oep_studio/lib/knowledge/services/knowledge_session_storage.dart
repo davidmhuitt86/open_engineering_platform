@@ -4,6 +4,40 @@ import 'dart:io';
 import '../models/knowledge_session_record.dart';
 import '../models/knowledge_validation_exception.dart';
 
+/// WP-INGEST-007 § 14/§ 17/§ 35: every real load of a session file is the
+/// point at which a persisted `IngestionRun` that never reached a
+/// terminal status (QUEUED/RUNNING -- meaning the application terminated
+/// mid-ingestion, since a live execution always reaches a terminal
+/// status before returning) is reconciled to FAILED with an explicit
+/// interruption diagnostic. This is intentionally *not* a separate
+/// "startup reconciliation pass" callers must remember to invoke --
+/// [KnowledgeSessionStorage.load] is the one real persistence path every
+/// caller (Session Browser, `FoundationRuntimeNotifier`, every test in
+/// this repository) already goes through, so wiring reconciliation in
+/// here is the only way to guarantee it always happens.
+KnowledgeSessionRecord _reconcileInterruptedRuns(KnowledgeSessionRecord record) {
+  if (record.ingestionRuns.every((run) => run.status.isTerminal)) return record;
+  return KnowledgeSessionRecord(
+    session: record.session,
+    candidates: record.candidates,
+    relationshipCandidates: record.relationshipCandidates,
+    sources: record.sources,
+    reviewDecisions: record.reviewDecisions,
+    evidenceRegions: record.evidenceRegions,
+    evidenceLinks: record.evidenceLinks,
+    pageSelections: record.pageSelections,
+    procedureSteps: record.procedureSteps,
+    specificationDetails: record.specificationDetails,
+    commitReports: record.commitReports,
+    ocrPageResults: record.ocrPageResults,
+    engineeringEntities: record.engineeringEntities,
+    engineeringContexts: record.engineeringContexts,
+    aiSuggestions: record.aiSuggestions,
+    ingestionRuns: [for (final run in record.ingestionRuns) run.reconciledIfInterrupted()],
+    derivedArtifacts: record.derivedArtifacts,
+  );
+}
+
 /// The result of [KnowledgeSessionStorage.listAll]: every session that
 /// loaded successfully, plus the IDs of any that didn't (Work Package
 /// 008 Error Handling: "Corrupted session files ... Display
@@ -87,7 +121,7 @@ abstract final class KnowledgeSessionStorage {
     }
     try {
       final json = jsonDecode(contents) as Map<String, dynamic>;
-      return KnowledgeSessionRecord.fromJson(json);
+      return _reconcileInterruptedRuns(KnowledgeSessionRecord.fromJson(json));
     } on FormatException catch (error) {
       throw KnowledgeValidationException(
         'This session file is corrupted and could not be loaded (${error.message}).',

@@ -21,6 +21,7 @@ class IngestionRun {
     required this.processorVersions,
     required this.processingConfiguration,
     required this.stageResults,
+    this.diagnostics = const [],
   });
 
   final String runId;
@@ -56,6 +57,98 @@ class IngestionRun {
   final Map<String, dynamic> processingConfiguration;
 
   final List<StageResult> stageResults;
+
+  /// Run-level diagnostics (WP-INGEST-007 § 14) -- distinct from
+  /// [StageResult.diagnostics], which are always about a *specific*
+  /// stage. Empty for an ordinary run. Populated with
+  /// [interruptionDiagnostic] only when [reconciledIfInterrupted] finds
+  /// this run persisted as non-terminal (QUEUED/RUNNING) with no live
+  /// execution behind it -- never touched by normal stage execution.
+  /// Deliberately excluded from [processingIdentity]'s constituent
+  /// inputs, for the same reason [runId]/[startedAt]/[completedAt]/
+  /// [status] are: it is outcome/execution metadata, not part of the
+  /// processing definition.
+  final List<String> diagnostics;
+
+  /// The exact diagnostic [reconciledIfInterrupted] records
+  /// (WP-INGEST-007 § 14: "Exact wording may vary. The important
+  /// requirement is that the diagnostic clearly identifies interruption
+  /// rather than ordinary stage failure.").
+  static const String interruptionDiagnostic = 'Execution interrupted before completion.';
+
+  /// Returns a new [IngestionRun] with every field identical except
+  /// those explicitly overridden -- the smallest general-purpose way to
+  /// produce an updated snapshot of an in-progress run without
+  /// reconstructing every field at every call site. [transitionTo] is
+  /// the status-validated entry point built on top of this; call this
+  /// directly only to update non-status fields (e.g. enriching a QUEUED/
+  /// RUNNING run with the parser it selected) while remaining in the
+  /// same status.
+  IngestionRun copyWith({
+    DateTime? completedAt,
+    IngestionRunStatus? status,
+    String? parserId,
+    String? parserVersion,
+    Map<String, String>? processorVersions,
+    Map<String, dynamic>? processingConfiguration,
+    List<StageResult>? stageResults,
+    List<String>? diagnostics,
+  }) => IngestionRun(
+    runId: runId,
+    vaultObjectId: vaultObjectId,
+    contentHash: contentHash,
+    startedAt: startedAt,
+    completedAt: completedAt ?? this.completedAt,
+    status: status ?? this.status,
+    pipelineVersion: pipelineVersion,
+    parserId: parserId ?? this.parserId,
+    parserVersion: parserVersion ?? this.parserVersion,
+    processorVersions: processorVersions ?? this.processorVersions,
+    processingConfiguration: processingConfiguration ?? this.processingConfiguration,
+    stageResults: stageResults ?? this.stageResults,
+    diagnostics: diagnostics ?? this.diagnostics,
+  );
+
+  /// Validates and applies a lifecycle transition (WP-INGEST-007 § 6/
+  /// § 7) -- the smallest transition-validation mechanism this work
+  /// package authorizes, built directly on
+  /// [IngestionRunStatus.canTransitionTo]. Throws [StateError] for any
+  /// transition that status forbids (in particular, every terminal
+  /// status forbids every transition -- TEST-007-016).
+  IngestionRun transitionTo(
+    IngestionRunStatus next, {
+    DateTime? completedAt,
+    List<StageResult>? stageResults,
+    List<String>? diagnostics,
+  }) {
+    if (!status.canTransitionTo(next)) {
+      throw StateError('Illegal ingestion run lifecycle transition: ${status.name} -> ${next.name} (runId=$runId).');
+    }
+    return copyWith(status: next, completedAt: completedAt, stageResults: stageResults, diagnostics: diagnostics);
+  }
+
+  /// Reconciles a persisted run that is still non-terminal (QUEUED or
+  /// RUNNING) with no live execution behind it -- exactly what
+  /// `KnowledgeSessionStorage.load` finds after the application
+  /// terminated mid-ingestion (WP-INGEST-007 § 14/§ 17). Returns `this`
+  /// unchanged for an already-terminal run (idempotent -- safe to call
+  /// on every run on every load).
+  ///
+  /// Never resumes, reruns, or clones the run (§ 15); never fabricates a
+  /// successful completion (§ 17) -- the resulting run is FAILED, with
+  /// [interruptionDiagnostic] appended, and [completedAt] set only if it
+  /// was not already set (an interrupted run never had a real
+  /// completion time recorded, so this is not fabricating one -- it is
+  /// recording when the interruption was *discovered*, distinguishable
+  /// from an ordinary completion time by [diagnostics] alone).
+  IngestionRun reconciledIfInterrupted() {
+    if (status.isTerminal) return this;
+    return transitionTo(
+      IngestionRunStatus.failed,
+      completedAt: completedAt ?? DateTime.now(),
+      diagnostics: [...diagnostics, interruptionDiagnostic],
+    );
+  }
 
   /// A deterministic, reproducible identity of the *processing definition
   /// + input combination* this run represents (AP-INGEST-001 § 22,
@@ -125,6 +218,7 @@ class IngestionRun {
     'processorVersions': processorVersions,
     'processingConfiguration': processingConfiguration,
     'stageResults': stageResults.map((result) => result.toJson()).toList(),
+    'diagnostics': diagnostics,
   };
 
   /// Throws [FormatException]/[TypeError] on structurally invalid input —
@@ -151,5 +245,8 @@ class IngestionRun {
       for (final entry in (json['stageResults'] as List? ?? const []))
         StageResult.fromJson(entry as Map<String, dynamic>),
     ],
+    // Falls back to [] for session files written before WP-INGEST-007
+    // added this field, exactly like the [contentHash] fallback above.
+    diagnostics: List<String>.from(json['diagnostics'] as List? ?? const []),
   );
 }

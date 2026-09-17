@@ -297,6 +297,73 @@ Run Status → PARTIAL
 
 Successful intermediate products must remain available.
 
+## 6.1.1 Execution Lifecycle (WP-INGEST-007)
+
+An `IngestionRun` is created, persisted, and transitioned through this
+vocabulary as a durable lifecycle -- not constructed only after
+execution finishes:
+
+```text
+CREATE RUN
+    ↓
+  QUEUED  (persisted before any stage executes)
+    ↓
+  RUNNING (persisted before stage execution proceeds)
+    ↓
+STAGE EXECUTION
+    ↓
+┌──────────┬─────────┬────────┬───────────┐
+↓          ↓         ↓        ↓
+COMPLETED   PARTIAL   FAILED   CANCELLED
+└──────────┴─────────┴────────┴───────────┘
+    ↓
+PERSISTED HISTORY (KnowledgeSessionRecord.ingestionRuns)
+```
+
+Legal transitions, enforced by `IngestionRunStatus.canTransitionTo`
+and `IngestionRun.transitionTo` (throws `StateError` on an illegal
+transition):
+
+```text
+QUEUED  -> RUNNING, FAILED, CANCELLED
+RUNNING -> COMPLETED, PARTIAL, FAILED, CANCELLED
+```
+
+`COMPLETED`/`PARTIAL`/`FAILED`/`CANCELLED` are terminal: none of them
+may transition to anything else, in particular never back to
+`RUNNING`.
+
+**Execution identity vs. processing identity.** `runId` identifies one
+*execution attempt*; `processingIdentity` (§ 22) identifies the
+*processing definition + evidence combination* that attempt used. A
+retry is a new `runId` against the same evidence/processing
+definition, and therefore may legitimately share its
+`processingIdentity` with the run it retries -- this is not
+deduplication, and no run is ever skipped, merged, or auto-retried
+because a matching `processingIdentity` already exists. Every
+execution attempt, including a FAILED or CANCELLED one, remains a
+separate, permanent entry in `KnowledgeSessionRecord.ingestionRuns`;
+retrying never overwrites or deletes the run it retries.
+
+**Interruption semantics.** If the application terminates while a run
+is QUEUED/RUNNING, the run is not left in that state forever and is
+never silently resumed, retried, or marked completed. The next real
+load of its Knowledge Session (`KnowledgeSessionStorage.load`)
+reconciles any non-terminal run it finds to FAILED, appending
+`IngestionRun.interruptionDiagnostic` ("Execution interrupted before
+completion.") to that run's `diagnostics` -- a diagnostic that
+distinguishes an interrupted execution from an ordinary stage failure.
+This reconciliation happens on every real load, not as a separate
+step callers must remember to invoke.
+
+**Cancellation.** An `IngestionCancellationToken`, created and held by
+the caller and passed to `IngestionOrchestrator.run`, is the whole
+cancellation mechanism -- checked at stage boundaries only, never
+mid-stage. `QUEUED -> CANCELLED` (before any stage runs) and
+`RUNNING -> CANCELLED` (at the next stage boundary, preserving every
+already-completed stage's results) are both legal; CANCELLED is never
+conflated with FAILED.
+
 ---
 
 # 7. Processing Pipeline

@@ -1,11 +1,16 @@
 import '../../knowledge/models/engineering_entity.dart';
+import '../../knowledge/models/evidence_link.dart';
+import '../../knowledge/models/evidence_region.dart';
+import '../../knowledge/models/knowledge_candidate.dart';
 import '../../knowledge/models/ocr_page_result.dart';
 import '../../knowledge/models/ocr_processing_exception.dart';
+import '../../knowledge/models/relationship_candidate.dart';
 import '../../knowledge/models/source_material.dart';
 import '../../knowledge/models/source_material_type.dart';
 import '../../knowledge/services/engineering_entity_extraction_service.dart';
 import '../../knowledge/services/ocr_pipeline_service.dart';
 import '../models/derived_artifact.dart';
+import '../models/ingestion_provenance.dart';
 import '../models/ingestion_result.dart';
 import '../models/ingestion_run.dart';
 import '../models/ingestion_run_status.dart';
@@ -17,6 +22,7 @@ import '../models/stage_result.dart';
 import '../models/vault_object_input.dart';
 import 'candidate_generation_service.dart';
 import 'derived_artifact_factory.dart';
+import 'ingestion_cancellation_token.dart';
 import 'ingestion_parser.dart';
 import 'pdf_ingestion_parser.dart';
 import 'relationship_extraction_service.dart';
@@ -30,6 +36,23 @@ typedef OcrRunner = Future<List<OcrPageResult>> Function({
   required SourceMaterial source,
   required List<OcrPageResult> existingResults,
 });
+
+/// WP-INGEST-007 § 7/§ 27/§ 28: the orchestrator's own hook for making
+/// each lifecycle checkpoint (QUEUED, then RUNNING) durable *before*
+/// meaningful execution proceeds past it, without the orchestrator
+/// itself knowing anything about Knowledge Sessions, files, or any
+/// other persistence detail -- it stays the same Flutter/Riverpod-free,
+/// Knowledge-Session-agnostic class it already was
+/// (`IngestionOrchestrator` § doc comment: "Holds no state of its
+/// own"). The caller supplies a callback that knows how to fold the
+/// given [IngestionRun] snapshot into its own durable storage (see
+/// `ReferenceVaultIngestionWorkflow.ingest`, which persists into the
+/// existing `KnowledgeSessionStorage` path via
+/// `IngestionKnowledgeSessionBridge`). Awaited synchronously, so the
+/// orchestrator does not proceed to actual stage execution until the
+/// RUNNING checkpoint this callback is responsible for has actually
+/// been persisted.
+typedef IngestionRunLifecycleCallback = Future<void> Function(IngestionRun run);
 
 /// UIF's pipeline version identity (AP-INGEST-001 § 22).
 const String uifPipelineVersion = 'uif-pipeline-1.0.0';
@@ -67,6 +90,20 @@ abstract final class IngestionOrchestrator {
     List<OcrPageResult> existingOcrResults = const [],
     List<EngineeringEntity> existingEntities = const [],
     String? runId,
+    // WP-INGEST-007 § 20-22: an explicit, caller-owned cancellation
+    // signal scoped to this one execution. Checked at stage boundaries
+    // only -- never mid-stage -- so a stage that has already started
+    // always finishes rather than being torn down partway through.
+    IngestionCancellationToken? cancellationToken,
+    // WP-INGEST-007 § 7/§ 27/§ 28: fired with the QUEUED snapshot before
+    // any stage executes, then again with the RUNNING snapshot before
+    // stage execution actually begins -- see
+    // [IngestionRunLifecycleCallback]'s own doc comment. Not fired again
+    // for the terminal snapshot; the returned [IngestionResult.run] *is*
+    // that terminal snapshot, and the caller (already holding the
+    // QUEUED/RUNNING durable record this callback built) persists it the
+    // same way it persisted the earlier checkpoints.
+    IngestionRunLifecycleCallback? onLifecycleUpdate,
   }) async {
     final resolvedRunId = runId ?? 'run-${input.contentHash.substring(0, 16)}';
     final stageResults = <StageResult>[];
@@ -74,6 +111,33 @@ abstract final class IngestionOrchestrator {
     // produces, populated inline below by the stage that produces it, and
     // linked from that stage's own StageResult.derivedArtifactIds.
     final derivedArtifacts = <DerivedArtifact>[];
+
+    // --- WP-INGEST-007 § 7: the run must exist, in QUEUED, before any
+    // meaningful execution occurs. ---
+    var run = IngestionRun(
+      runId: resolvedRunId,
+      vaultObjectId: input.vaultObjectId,
+      contentHash: input.contentHash,
+      startedAt: DateTime.now(),
+      completedAt: null,
+      status: IngestionRunStatus.queued,
+      pipelineVersion: uifPipelineVersion,
+      parserId: 'none',
+      parserVersion: 'none',
+      processorVersions: const {},
+      processingConfiguration: const {},
+      stageResults: const [],
+    );
+    if (onLifecycleUpdate != null) await onLifecycleUpdate(run);
+
+    if (cancellationToken?.isCancelled ?? false) {
+      // WP-INGEST-007 § 21: QUEUED -> CANCELLED, before any stage runs.
+      run = run.transitionTo(IngestionRunStatus.cancelled, completedAt: DateTime.now());
+      return _terminalResult(input: input, run: run);
+    }
+
+    run = run.transitionTo(IngestionRunStatus.running);
+    if (onLifecycleUpdate != null) await onLifecycleUpdate(run);
 
     // --- IDENTIFY ---
     final identifyStart = DateTime.now();
@@ -110,7 +174,8 @@ abstract final class IngestionOrchestrator {
           diagnostics: const ['No registered parser declares support for this artifact type/MIME type.'],
         ),
       );
-      return _failedResult(input: input, runId: resolvedRunId, stageResults: stageResults);
+      run = run.transitionTo(IngestionRunStatus.failed, completedAt: DateTime.now(), stageResults: stageResults);
+      return _terminalResult(input: input, run: run);
     }
     stageResults.add(
       StageResult(
@@ -121,6 +186,13 @@ abstract final class IngestionOrchestrator {
         diagnostics: ['Selected ${selectedParser.parserId}@${selectedParser.version}.'],
       ),
     );
+    // WP-INGEST-007: enrich the still-RUNNING run snapshot with the
+    // parser identity now that it is known, so a cancellation checkpoint
+    // reached after this point (and the run's final terminal snapshot)
+    // both carry the real parserId/parserVersion rather than the
+    // 'none'/'none' placeholder the QUEUED/RUNNING checkpoints started
+    // with.
+    run = run.copyWith(parserId: selectedParser.parserId, parserVersion: selectedParser.version);
 
     // --- METADATA_EXTRACTION / CONTENT_EXTRACTION / STRUCTURAL_ANALYSIS ---
     // All three derive from one parser.parse() call — see this class's
@@ -155,7 +227,8 @@ abstract final class IngestionOrchestrator {
           diagnostics: ['Parser failed: $error'],
         ),
       ]);
-      return _failedResult(input: input, runId: resolvedRunId, stageResults: stageResults);
+      run = run.transitionTo(IngestionRunStatus.failed, completedAt: DateTime.now(), stageResults: stageResults);
+      return _terminalResult(input: input, run: run);
     }
     final parseEnd = DateTime.now();
 
@@ -208,6 +281,21 @@ abstract final class IngestionOrchestrator {
         derivedArtifactIds: [structuralArtifact.derivedArtifactId],
       ),
     ]);
+
+    // WP-INGEST-007 § 20-22: the first safe cancellation point reached
+    // once real, non-placeholder structural data/source exist -- stops
+    // before the (potentially slow) OCR stage, preserving every stage
+    // result already produced above.
+    if (cancellationToken?.isCancelled ?? false) {
+      run = run.transitionTo(IngestionRunStatus.cancelled, completedAt: DateTime.now(), stageResults: stageResults);
+      return _terminalResult(
+        input: input,
+        run: run,
+        structuralData: parserOutput.document,
+        source: parserOutput.source,
+        derivedArtifacts: derivedArtifacts,
+      );
+    }
 
     // --- OCR ---
     final ocrStart = DateTime.now();
@@ -310,6 +398,29 @@ abstract final class IngestionOrchestrator {
       ),
     );
 
+    // WP-INGEST-007 § 20-22: the second safe cancellation point, reached
+    // after OCR/entity extraction -- stops before candidate/relationship
+    // generation, preserving OCR results and extracted entities already
+    // produced.
+    if (cancellationToken?.isCancelled ?? false) {
+      run = run.copyWith(
+        processorVersions: {
+          'entityExtraction': 'engineering_pattern_library-1',
+          if (ocrResults.isNotEmpty) 'ocr': ocrResults.first.engineVersion,
+        },
+      );
+      run = run.transitionTo(IngestionRunStatus.cancelled, completedAt: DateTime.now(), stageResults: stageResults);
+      return _terminalResult(
+        input: input,
+        run: run,
+        structuralData: parserOutput.document,
+        source: parserOutput.source,
+        derivedArtifacts: derivedArtifacts,
+        ocrPageResults: ocrResults,
+        engineeringEntities: entities,
+      );
+    }
+
     // --- CANDIDATE_GENERATION (executed before RELATIONSHIP_EXTRACTION;
     // see this class's own doc comment) ---
     final candidateStart = DateTime.now();
@@ -379,24 +490,17 @@ abstract final class IngestionOrchestrator {
     final hasPartial = stageResults.any((result) => result.status == StageExecutionStatus.partial);
     final runStatus = (hasFailure || hasPartial) ? IngestionRunStatus.partial : IngestionRunStatus.completed;
 
-    return IngestionResult(
-      run: IngestionRun(
-        runId: resolvedRunId,
-        vaultObjectId: input.vaultObjectId,
-        contentHash: input.contentHash,
-        startedAt: identifyStart,
-        completedAt: DateTime.now(),
-        status: runStatus,
-        pipelineVersion: uifPipelineVersion,
-        parserId: selectedParser.parserId,
-        parserVersion: selectedParser.version,
-        processorVersions: {
-          'entityExtraction': 'engineering_pattern_library-1',
-          if (ocrResults.isNotEmpty) 'ocr': ocrResults.first.engineVersion,
-        },
-        processingConfiguration: const {},
-        stageResults: stageResults,
-      ),
+    run = run.copyWith(
+      processorVersions: {
+        'entityExtraction': 'engineering_pattern_library-1',
+        if (ocrResults.isNotEmpty) 'ocr': ocrResults.first.engineVersion,
+      },
+    );
+    run = run.transitionTo(runStatus, completedAt: DateTime.now(), stageResults: stageResults);
+
+    return _terminalResult(
+      input: input,
+      run: run,
       structuralData: parserOutput.document,
       source: parserOutput.source,
       derivedArtifacts: derivedArtifacts,
@@ -410,46 +514,66 @@ abstract final class IngestionOrchestrator {
     );
   }
 
-  static IngestionResult _failedResult({
+  /// Builds the [IngestionResult] for [run], which must already be in a
+  /// terminal status (WP-INGEST-007 § 6) -- the single construction site
+  /// every return path in [run] above (success, parser/parse failure,
+  /// and every cancellation checkpoint) now funnels through, so a
+  /// terminal run's [IngestionResult] is always built the same way
+  /// regardless of *which* terminal status it reached.
+  ///
+  /// [structuralData]/[source] default to the same placeholder
+  /// "unresolved" document/source the original `_failedResult` used --
+  /// reached only when a run terminates before the real parser output
+  /// exists at all (no registered parser, or the parser itself threw),
+  /// exactly as before this work package.
+  static IngestionResult _terminalResult({
     required VaultObjectInput input,
-    required String runId,
-    required List<StageResult> stageResults,
+    required IngestionRun run,
+    NormalizedDocument? structuralData,
+    SourceMaterial? source,
+    List<DerivedArtifact> derivedArtifacts = const [],
+    List<OcrPageResult> ocrPageResults = const [],
+    List<EngineeringEntity> engineeringEntities = const [],
+    List<EvidenceRegion> evidenceRegions = const [],
+    List<EvidenceLink> evidenceLinks = const [],
+    List<KnowledgeCandidate> knowledgeCandidates = const [],
+    List<RelationshipCandidate> relationshipCandidates = const [],
+    Map<String, IngestionProvenance> candidateProvenance = const {},
   }) {
     return IngestionResult(
-      run: IngestionRun(
-        runId: runId,
-        vaultObjectId: input.vaultObjectId,
-        contentHash: input.contentHash,
-        startedAt: stageResults.first.startedAt,
-        completedAt: DateTime.now(),
-        status: IngestionRunStatus.failed,
-        pipelineVersion: uifPipelineVersion,
-        parserId: 'none',
-        parserVersion: 'none',
-        processorVersions: const {},
-        processingConfiguration: const {},
-        stageResults: stageResults,
-      ),
-      structuralData: NormalizedDocument(
-        vaultObjectId: input.vaultObjectId,
-        metadata: NormalizedMetadata(
-          pageCount: 0,
-          sourceFileName: input.storageReference,
-          sizeBytes: 0,
-          mimeType: input.mimeType,
-          contentHash: input.contentHash,
-        ),
-        pages: const [],
-      ),
-      source: SourceMaterial(
-        id: 'unresolved-${input.contentHash.substring(0, 16)}',
-        originalFileName: input.storageReference,
-        localPath: input.storageReference,
-        type: SourceMaterialType.other,
-        sizeBytes: 0,
-        importDate: DateTime.fromMillisecondsSinceEpoch(0),
-        addedBy: 'uif',
-      ),
+      run: run,
+      structuralData: structuralData ?? _unresolvedDocument(input),
+      source: source ?? _unresolvedSource(input),
+      derivedArtifacts: derivedArtifacts,
+      ocrPageResults: ocrPageResults,
+      engineeringEntities: engineeringEntities,
+      evidenceRegions: evidenceRegions,
+      evidenceLinks: evidenceLinks,
+      knowledgeCandidates: knowledgeCandidates,
+      relationshipCandidates: relationshipCandidates,
+      candidateProvenance: candidateProvenance,
     );
   }
+
+  static NormalizedDocument _unresolvedDocument(VaultObjectInput input) => NormalizedDocument(
+    vaultObjectId: input.vaultObjectId,
+    metadata: NormalizedMetadata(
+      pageCount: 0,
+      sourceFileName: input.storageReference,
+      sizeBytes: 0,
+      mimeType: input.mimeType,
+      contentHash: input.contentHash,
+    ),
+    pages: const [],
+  );
+
+  static SourceMaterial _unresolvedSource(VaultObjectInput input) => SourceMaterial(
+    id: 'unresolved-${input.contentHash.substring(0, 16)}',
+    originalFileName: input.storageReference,
+    localPath: input.storageReference,
+    type: SourceMaterialType.other,
+    sizeBytes: 0,
+    importDate: DateTime.fromMillisecondsSinceEpoch(0),
+    addedBy: 'uif',
+  );
 }

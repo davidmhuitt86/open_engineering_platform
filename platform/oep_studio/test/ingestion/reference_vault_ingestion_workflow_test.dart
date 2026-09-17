@@ -388,13 +388,29 @@ void main() {
       // exercises the failure path it claims to.
       expect(outcome.isFailed, isTrue);
       expect(outcome.failureStage, ReferenceVaultIngestionStage.ingestion);
-      // `IngestionOrchestrator._failedResult` sets both
+      // `IngestionOrchestrator`'s terminal-result builder sets both
       // `structuralData.metadata.sourceFileName` and `source.localPath`
       // to `input.storageReference` -- the materialized temp file must
       // no longer exist.
       final materializedPath = outcome.ingestionResult!.structuralData.metadata.sourceFileName;
       expect(materializedPath, startsWith(Directory.systemTemp.path));
       expect(await File(materializedPath).exists(), isFalse);
+
+      // WP-INGEST-007 § 7/§ 18/§ 23: unlike before that work package, a
+      // FAILED run is now durably persisted as historical Knowledge
+      // Session state (never exposed as `outcome.sessionRecord`, which
+      // stays null exactly as before) -- clean up the directory this
+      // test itself caused to be written, so nothing is left behind.
+      final runId = outcome.ingestionResult!.run.runId;
+      final matchingSessionDirs = KnowledgeSessionStorage.root().existsSync()
+          ? KnowledgeSessionStorage.root().listSync().whereType<Directory>().where((dir) {
+              final file = File('${dir.path}${Platform.pathSeparator}session.json');
+              return file.existsSync() && file.readAsStringSync().contains(runId);
+            })
+          : const Iterable<Directory>.empty();
+      for (final dir in matchingSessionDirs) {
+        createdSessionIds.add(dir.uri.pathSegments.where((segment) => segment.isNotEmpty).last);
+      }
     });
   });
 

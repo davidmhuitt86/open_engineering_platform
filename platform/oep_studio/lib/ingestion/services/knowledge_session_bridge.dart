@@ -2,6 +2,7 @@ import '../../knowledge/models/knowledge_session.dart';
 import '../../knowledge/models/knowledge_session_record.dart';
 import '../../knowledge/models/source_material.dart';
 import '../models/ingestion_result.dart';
+import '../models/ingestion_run.dart';
 
 /// The UIF ↔ Knowledge Studio boundary (AP-INGEST-001 § 19, WP-INGEST-001
 /// § 15): "The ingestion result should be capable of becoming/feeding a
@@ -21,6 +22,98 @@ import '../models/ingestion_result.dart';
 /// `FoundationBridge` (AP-INGEST-001 § 35.1) — nothing in this file even
 /// imports them.
 abstract final class IngestionKnowledgeSessionBridge {
+  /// Builds the minimal session record a run needs to exist *before*
+  /// meaningful execution begins (WP-INGEST-007 § 7/§ 27/§ 28): a real
+  /// session envelope plus exactly [queuedRun] (status QUEUED) in
+  /// `ingestionRuns` -- every other list starts empty, since nothing
+  /// else exists yet. The caller (`ReferenceVaultIngestionWorkflow`)
+  /// persists this via `KnowledgeSessionStorage.save` immediately, so
+  /// that if the application terminates before ingestion produces a
+  /// result at all, this durable QUEUED/RUNNING record is what survives
+  /// -- reconciled to FAILED on the next load by
+  /// `IngestionRun.reconciledIfInterrupted`.
+  static KnowledgeSessionRecord createQueuedSessionRecord({
+    required String sessionId,
+    required String sessionName,
+    required String repositoryName,
+    required String author,
+    required IngestionRun queuedRun,
+  }) {
+    final now = DateTime.now();
+    return KnowledgeSessionRecord(
+      session: KnowledgeSession(
+        id: sessionId,
+        name: sessionName,
+        repositoryName: repositoryName,
+        author: author,
+        description: 'Created by the Universal Ingestion Framework from run ${queuedRun.runId}.',
+        createdTime: now,
+        lastModified: now,
+      ),
+      ingestionRuns: [queuedRun],
+    );
+  }
+
+  /// Replaces the entry in [record.ingestionRuns] whose `runId` matches
+  /// [updatedRun] with [updatedRun] itself (WP-INGEST-007 § 6/§ 7) --
+  /// used only to progress *the same execution attempt* through its own
+  /// lifecycle (QUEUED -> RUNNING -> terminal), never to record a
+  /// separate retry attempt (that is [mergeInto]'s job, which appends
+  /// instead of replacing -- WP-INGEST-007 § 12/§ 23 historical
+  /// immutability). If no entry with that `runId` exists yet (should not
+  /// happen through the production workflow, but kept safe for direct
+  /// callers/tests), [updatedRun] is appended instead of silently
+  /// dropped.
+  static KnowledgeSessionRecord withUpdatedRun(KnowledgeSessionRecord record, IngestionRun updatedRun) {
+    final hasMatch = record.ingestionRuns.any((run) => run.runId == updatedRun.runId);
+    return KnowledgeSessionRecord(
+      session: record.session.copyWith(lastModified: DateTime.now()),
+      candidates: record.candidates,
+      relationshipCandidates: record.relationshipCandidates,
+      sources: record.sources,
+      reviewDecisions: record.reviewDecisions,
+      evidenceRegions: record.evidenceRegions,
+      evidenceLinks: record.evidenceLinks,
+      pageSelections: record.pageSelections,
+      procedureSteps: record.procedureSteps,
+      specificationDetails: record.specificationDetails,
+      commitReports: record.commitReports,
+      ocrPageResults: record.ocrPageResults,
+      engineeringEntities: record.engineeringEntities,
+      engineeringContexts: record.engineeringContexts,
+      aiSuggestions: record.aiSuggestions,
+      ingestionRuns: hasMatch
+          ? [for (final run in record.ingestionRuns) if (run.runId == updatedRun.runId) updatedRun else run]
+          : [...record.ingestionRuns, updatedRun],
+      derivedArtifacts: record.derivedArtifacts,
+    );
+  }
+
+  /// Enriches [queuedRecord] (already persisted with [result]'s run in
+  /// QUEUED/RUNNING state via [createQueuedSessionRecord]/
+  /// [withUpdatedRun]) with [result]'s full products once execution
+  /// reaches a terminal state -- same session identity/`createdTime`
+  /// (unlike [toNewSessionRecord], which mints a brand-new session),
+  /// with the in-progress run entry replaced by [result.run]'s terminal
+  /// snapshot rather than appended as a second entry.
+  static KnowledgeSessionRecord completeSessionRecord({
+    required KnowledgeSessionRecord queuedRecord,
+    required IngestionResult result,
+  }) {
+    return KnowledgeSessionRecord(
+      session: queuedRecord.session.copyWith(lastModified: DateTime.now()),
+      candidates: result.knowledgeCandidates,
+      relationshipCandidates: result.relationshipCandidates,
+      sources: [result.source],
+      evidenceRegions: result.evidenceRegions,
+      evidenceLinks: result.evidenceLinks,
+      ocrPageResults: result.ocrPageResults,
+      engineeringEntities: result.engineeringEntities,
+      ingestionRuns: IngestionKnowledgeSessionBridge.withUpdatedRun(queuedRecord, result.run).ingestionRuns,
+      derivedArtifacts: result.derivedArtifacts,
+    );
+  }
+
   /// Builds a brand-new session record from [result] alone.
   static KnowledgeSessionRecord toNewSessionRecord({
     required IngestionResult result,

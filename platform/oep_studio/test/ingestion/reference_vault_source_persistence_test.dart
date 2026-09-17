@@ -540,44 +540,80 @@ void main() {
   });
 
   group('TEST-005-012 FAILED ingestion cleanup', () {
-    test('a FAILED run leaves no orphaned managed source, cleans the temp file, and writes nothing to the repository',
-        () async {
-      // A byte sequence `PdfIngestionParser` cannot parse, so the
-      // orchestrator's parser stage fails and the run status becomes
-      // FAILED before any Knowledge Session is ever built -- the same
-      // failure trigger WP-INGEST-004's TEST-004-009 uses.
-      final bytes = utf8.encode('not a real pdf at all');
-      final checksum = sha256.convert(bytes).toString();
-      final client = buildClient(bytes: bytes, checksum: checksum);
+    test(
+      'a FAILED run leaves no orphaned managed *source*, cleans the temp file, writes nothing to the repository, '
+      'and (WP-INGEST-007) still becomes a durable historical Knowledge Session record',
+      () async {
+        // A byte sequence `PdfIngestionParser` cannot parse, so the
+        // orchestrator's parser stage fails and the run status becomes
+        // FAILED -- the same failure trigger WP-INGEST-004's
+        // TEST-004-009 uses.
+        final bytes = utf8.encode('not a real pdf at all');
+        final checksum = sha256.convert(bytes).toString();
+        final client = buildClient(bytes: bytes, checksum: checksum);
 
-      final before = KnowledgeSessionStorage.root().existsSync()
-          ? KnowledgeSessionStorage.root().listSync().map((entry) => entry.path).toSet()
-          : <String>{};
+        final outcome = await ReferenceVaultIngestionWorkflow.ingest(
+          client: client,
+          vaultObjectId: vaultId,
+          sessionName: 'TEST-005-012',
+          repositoryName: 'trx300-repo',
+          author: 'test-author',
+          ocrRunner: fakeOcrSuccess,
+        );
 
-      final outcome = await ReferenceVaultIngestionWorkflow.ingest(
-        client: client,
-        vaultObjectId: vaultId,
-        sessionName: 'TEST-005-012',
-        repositoryName: 'trx300-repo',
-        author: 'test-author',
-        ocrRunner: fakeOcrSuccess,
-      );
+        expect(outcome.isFailed, isTrue);
+        expect(outcome.failureStage, ReferenceVaultIngestionStage.ingestion);
+        // Unchanged from before WP-INGEST-007: a FAILED outcome is still
+        // never presented as a reviewable Knowledge Session -- the
+        // caller sees `sessionRecord == null` exactly as before.
+        expect(outcome.sessionRecord, isNull, reason: 'a failed ingestion is never presented as reviewable');
 
-      expect(outcome.isFailed, isTrue);
-      expect(outcome.failureStage, ReferenceVaultIngestionStage.ingestion);
-      expect(outcome.sessionRecord, isNull, reason: 'no repository/session write can have occurred');
+        // WP-INGEST-007 § 7/§ 18/§ 23 supersedes this test's original
+        // pre-WP-INGEST-007 assertion that a FAILED run left *no* trace
+        // under `KnowledgeSessionStorage.root()` at all: that was
+        // exactly the durability gap WP-INGEST-007 exists to close. A
+        // FAILED run must now be durable history, so its session
+        // directory/`session.json` *do* exist on disk, containing the
+        // FAILED run -- but with no `sources/` subdirectory, since
+        // `SourceMaterialService.attachIngestedSource` is only ever
+        // reached on the COMPLETED/PARTIAL path.
+        // `runId` is deterministic from content hash alone (`run-<hash
+        // prefix>`), and this exact fixed byte sequence is deliberately
+        // reused by other FAILED-path tests in this suite (e.g.
+        // WP-INGEST-004's TEST-004-009 "cleaned up even when the
+        // ingestion run itself fails") -- so more than one distinct
+        // *session* directory (each with its own randomly-generated
+        // session id) can legitimately contain a run with this same
+        // runId. At least one must exist; every match found is this
+        // test's own responsibility to clean up alongside it.
+        final runId = outcome.ingestionResult!.run.runId;
+        final matchingSessionDirs = KnowledgeSessionStorage.root().existsSync()
+            ? KnowledgeSessionStorage.root().listSync().whereType<Directory>().where((dir) {
+                final file = File('${dir.path}${Platform.pathSeparator}session.json');
+                if (!file.existsSync()) return false;
+                return file.readAsStringSync().contains(runId);
+              }).toList()
+            : <Directory>[];
+        expect(matchingSessionDirs, isNotEmpty, reason: 'the FAILED run must be durably persisted');
+        for (final dir in matchingSessionDirs) {
+          createdSessionIds.add(dir.uri.pathSegments.where((segment) => segment.isNotEmpty).last);
+        }
 
-      // No orphaned session-owned source: no new directory appeared under
-      // `KnowledgeSessionStorage.root()`.
-      final after = KnowledgeSessionStorage.root().existsSync()
-          ? KnowledgeSessionStorage.root().listSync().map((entry) => entry.path).toSet()
-          : <String>{};
-      expect(after.difference(before), isEmpty);
+        final sessionDir = matchingSessionDirs.first;
+        final sessionId = sessionDir.uri.pathSegments.where((segment) => segment.isNotEmpty).last;
+        final reloaded = await KnowledgeSessionStorage.load(sessionId);
+        expect(reloaded.ingestionRuns.single.status, IngestionRunStatus.failed);
+        // No orphaned session-owned *source* copy: FAILED never reaches
+        // `SourceMaterialService.attachIngestedSource`.
+        expect(Directory('${sessionDir.path}${Platform.pathSeparator}sources').existsSync(), isFalse);
+        // No repository write.
+        expect(reloaded.commitReports, isEmpty);
 
-      // Temporary artifact still cleaned on FAILED.
-      final temporaryPath = outcome.ingestionResult!.structuralData.metadata.sourceFileName;
-      expect(temporaryPath, startsWith(Directory.systemTemp.path));
-      expect(await File(temporaryPath).exists(), isFalse);
-    });
+        // Temporary artifact still cleaned on FAILED.
+        final temporaryPath = outcome.ingestionResult!.structuralData.metadata.sourceFileName;
+        expect(temporaryPath, startsWith(Directory.systemTemp.path));
+        expect(await File(temporaryPath).exists(), isFalse);
+      },
+    );
   });
 }

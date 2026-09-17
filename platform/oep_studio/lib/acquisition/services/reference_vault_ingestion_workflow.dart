@@ -1,8 +1,10 @@
 import 'dart:io';
 
 import '../../ingestion/models/ingestion_result.dart';
+import '../../ingestion/models/ingestion_run.dart';
 import '../../ingestion/models/ingestion_run_status.dart';
 import '../../ingestion/models/vault_object_input.dart';
+import '../../ingestion/services/ingestion_cancellation_token.dart';
 import '../../ingestion/services/ingestion_orchestrator.dart';
 import '../../ingestion/services/knowledge_session_bridge.dart';
 import '../../knowledge/models/knowledge_session_record.dart';
@@ -100,8 +102,36 @@ abstract final class ReferenceVaultIngestionWorkflow {
     // tests already use (this build/test machine has no `tesseract`
     // executable), never a second OCR implementation.
     OcrRunner ocrRunner = OcrPipelineService.processSource,
+    // WP-INGEST-007 § 20-22: forwarded verbatim to
+    // `IngestionOrchestrator.run` — a caller (e.g. a "Cancel" button)
+    // that wants to cancel this specific execution creates a token,
+    // passes it in here, and calls `.cancel()` on it from wherever it
+    // is held.
+    IngestionCancellationToken? cancellationToken,
   }) async {
     VaultObjectInput? input;
+    // WP-INGEST-007 § 7/§ 27/§ 28: the durable session record this
+    // execution's lifecycle is persisted into, created the moment the
+    // orchestrator reports its QUEUED run (before any stage executes)
+    // and updated at each subsequent lifecycle checkpoint —
+    // `_persistLifecycle` below is what `IngestionOrchestrator.run`'s
+    // `onLifecycleUpdate` callback actually calls.
+    KnowledgeSessionRecord? liveRecord;
+    final candidateSessionId = KnowledgeSessionService.generateId('session');
+
+    Future<void> persistLifecycle(IngestionRun run) async {
+      liveRecord = liveRecord == null
+          ? IngestionKnowledgeSessionBridge.createQueuedSessionRecord(
+              sessionId: candidateSessionId,
+              sessionName: sessionName,
+              repositoryName: repositoryName,
+              author: author,
+              queuedRun: run,
+            )
+          : IngestionKnowledgeSessionBridge.withUpdatedRun(liveRecord!, run);
+      await KnowledgeSessionStorage.save(liveRecord!);
+    }
+
     try {
       try {
         input = await ReferenceVaultAdapter.materialize(client: client, vaultObjectId: vaultObjectId);
@@ -123,7 +153,36 @@ abstract final class ReferenceVaultIngestionWorkflow {
         );
       }
 
-      final result = await IngestionOrchestrator.run(input: input, runId: runId, ocrRunner: ocrRunner);
+      final result = await IngestionOrchestrator.run(
+        input: input,
+        runId: runId,
+        ocrRunner: ocrRunner,
+        cancellationToken: cancellationToken,
+        onLifecycleUpdate: persistLifecycle,
+      );
+
+      // WP-INGEST-007 § 12/§ 18/§ 23: whatever terminal status this
+      // execution actually reached (COMPLETED/PARTIAL/FAILED/CANCELLED),
+      // it becomes durable history in `liveRecord.ingestionRuns` now —
+      // unlike before this work package, a FAILED/CANCELLED run is no
+      // longer lost; it is written to disk exactly like a
+      // COMPLETED/PARTIAL one, just never exposed as this outcome's
+      // `sessionRecord` (see below) so a failed/cancelled ingestion is
+      // still never presented as if it produced a reviewable session.
+      liveRecord = IngestionKnowledgeSessionBridge.completeSessionRecord(
+        queuedRecord: liveRecord!,
+        result: result,
+      );
+      await KnowledgeSessionStorage.save(liveRecord!);
+
+      if (result.run.status == IngestionRunStatus.cancelled) {
+        return ReferenceVaultIngestionOutcome._(
+          status: ReferenceVaultIngestionOutcomeStatus.cancelled,
+          ingestionResult: result,
+          failureStage: ReferenceVaultIngestionStage.ingestion,
+          errorMessage: 'Ingestion run ${result.run.runId} was cancelled.',
+        );
+      }
 
       if (result.run.status == IngestionRunStatus.failed) {
         // A failed ingestion must not be presented as successfully
@@ -140,15 +199,7 @@ abstract final class ReferenceVaultIngestionWorkflow {
       }
 
       final KnowledgeSessionRecord sessionRecord;
-      final candidateSessionId = KnowledgeSessionService.generateId('session');
       try {
-        final builtRecord = IngestionKnowledgeSessionBridge.toNewSessionRecord(
-          result: result,
-          sessionId: candidateSessionId,
-          sessionName: sessionName,
-          repositoryName: repositoryName,
-          author: author,
-        );
         // WP-INGEST-005: copy the ingested source's bytes into this
         // session's own managed `sources/` directory *before* the
         // outer `finally` block below deletes the temporary
@@ -162,7 +213,12 @@ abstract final class ReferenceVaultIngestionWorkflow {
           sessionId: candidateSessionId,
           source: result.source,
         );
-        sessionRecord = IngestionKnowledgeSessionBridge.withReplacedSource(builtRecord, sessionOwnedSource);
+        sessionRecord = IngestionKnowledgeSessionBridge.withReplacedSource(liveRecord!, sessionOwnedSource);
+        // Persist again with the session-owned source path now that it
+        // is known — the durable history saved moments ago still had
+        // `sources` pointing at the (about-to-be-deleted) temporary
+        // materialization path.
+        await KnowledgeSessionStorage.save(sessionRecord);
       } catch (error) {
         // Either the session record itself could not be built, or the
         // source copy failed partway through — in both cases no usable
@@ -238,11 +294,21 @@ enum ReferenceVaultIngestionStage {
   sessionBridge,
 }
 
-enum ReferenceVaultIngestionOutcomeStatus { completed, partial, failed }
+enum ReferenceVaultIngestionOutcomeStatus {
+  completed,
+  partial,
+  failed,
+
+  /// WP-INGEST-007 § 20-22: the caller explicitly cancelled this
+  /// execution via `IngestionCancellationToken.cancel()` — distinct from
+  /// [failed] (WP-INGEST-007 § 14: "CANCELLED represents intentional
+  /// cancellation," never conflated with an execution failure).
+  cancelled,
+}
 
 /// The result of [ReferenceVaultIngestionWorkflow.ingest] — always one
-/// of COMPLETED, PARTIAL, or FAILED (WP-INGEST-004 § 9/§ 18), never a
-/// collapsed "success/failure" boolean.
+/// of COMPLETED, PARTIAL, FAILED, or CANCELLED (WP-INGEST-004 § 9/§ 18,
+/// WP-INGEST-007 § 20), never a collapsed "success/failure" boolean.
 class ReferenceVaultIngestionOutcome {
   const ReferenceVaultIngestionOutcome._({
     required this.status,
@@ -295,4 +361,5 @@ class ReferenceVaultIngestionOutcome {
   bool get isFailed => status == ReferenceVaultIngestionOutcomeStatus.failed;
   bool get isPartial => status == ReferenceVaultIngestionOutcomeStatus.partial;
   bool get isCompleted => status == ReferenceVaultIngestionOutcomeStatus.completed;
+  bool get isCancelled => status == ReferenceVaultIngestionOutcomeStatus.cancelled;
 }
