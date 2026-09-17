@@ -5,6 +5,7 @@ import '../../knowledge/models/source_material.dart';
 import '../../knowledge/models/source_material_type.dart';
 import '../../knowledge/services/engineering_entity_extraction_service.dart';
 import '../../knowledge/services/ocr_pipeline_service.dart';
+import '../models/derived_artifact.dart';
 import '../models/ingestion_result.dart';
 import '../models/ingestion_run.dart';
 import '../models/ingestion_run_status.dart';
@@ -15,6 +16,7 @@ import '../models/stage_execution_status.dart';
 import '../models/stage_result.dart';
 import '../models/vault_object_input.dart';
 import 'candidate_generation_service.dart';
+import 'derived_artifact_factory.dart';
 import 'ingestion_parser.dart';
 import 'pdf_ingestion_parser.dart';
 import 'relationship_extraction_service.dart';
@@ -68,6 +70,10 @@ abstract final class IngestionOrchestrator {
   }) async {
     final resolvedRunId = runId ?? 'run-${input.contentHash.substring(0, 16)}';
     final stageResults = <StageResult>[];
+    // WP-INGEST-002 § 17/§ 18: every DerivedArtifact this run actually
+    // produces, populated inline below by the stage that produces it, and
+    // linked from that stage's own StageResult.derivedArtifactIds.
+    final derivedArtifacts = <DerivedArtifact>[];
 
     // --- IDENTIFY ---
     final identifyStart = DateTime.now();
@@ -152,6 +158,31 @@ abstract final class IngestionOrchestrator {
       return _failedResult(input: input, runId: resolvedRunId, stageResults: stageResults);
     }
     final parseEnd = DateTime.now();
+
+    // WP-INGEST-002 § 12: CONTENT_EXTRACTION -> normalized content
+    // artifact, STRUCTURAL_ANALYSIS -> normalized structural artifact.
+    // METADATA_EXTRACTION deliberately produces no DerivedArtifact — see
+    // DerivedArtifactFactory's own doc comment for why.
+    final contentArtifact = DerivedArtifactFactory.contentExtractionArtifact(
+      document: parserOutput.document,
+      runId: resolvedRunId,
+      vaultObjectId: input.vaultObjectId,
+      acquisitionRecordIds: input.acquisitionRecordIds,
+      pipelineVersion: uifPipelineVersion,
+      parserId: selectedParser.parserId,
+      parserVersion: selectedParser.version,
+    );
+    final structuralArtifact = DerivedArtifactFactory.structuralAnalysisArtifact(
+      document: parserOutput.document,
+      runId: resolvedRunId,
+      vaultObjectId: input.vaultObjectId,
+      acquisitionRecordIds: input.acquisitionRecordIds,
+      pipelineVersion: uifPipelineVersion,
+      parserId: selectedParser.parserId,
+      parserVersion: selectedParser.version,
+    );
+    derivedArtifacts.addAll([contentArtifact, structuralArtifact]);
+
     stageResults.addAll([
       StageResult(
         stage: IngestionStage.metadataExtraction,
@@ -166,6 +197,7 @@ abstract final class IngestionOrchestrator {
         startedAt: parseStart,
         completedAt: parseEnd,
         diagnostics: parserOutput.diagnostics,
+        derivedArtifactIds: [contentArtifact.derivedArtifactId],
       ),
       StageResult(
         stage: IngestionStage.structuralAnalysis,
@@ -173,6 +205,7 @@ abstract final class IngestionOrchestrator {
         startedAt: parseStart,
         completedAt: parseEnd,
         diagnostics: ['pages=${parserOutput.document.pages.map((page) => page.pageNumber).toList()}'],
+        derivedArtifactIds: [structuralArtifact.derivedArtifactId],
       ),
     ]);
 
@@ -208,6 +241,24 @@ abstract final class IngestionOrchestrator {
       ocrStatus = StageExecutionStatus.failed;
       ocrDiagnostics.add('OCR engine unavailable: ${error.message}');
     }
+    // WP-INGEST-002 § 12/§ 13: OCR -> one OCR-derived artifact per
+    // successful OcrPageResult belonging to this run's source. A failed
+    // page produces no artifact (see DerivedArtifactFactory doc comment)
+    // — its diagnostic above is the record of that failure.
+    final ocrArtifacts = [
+      for (final result in ocrResults)
+        if (result.sourceId == parserOutput.source.id && result.success)
+          DerivedArtifactFactory.ocrPageArtifact(
+            ocrResult: result,
+            runId: resolvedRunId,
+            vaultObjectId: input.vaultObjectId,
+            acquisitionRecordIds: input.acquisitionRecordIds,
+            pipelineVersion: uifPipelineVersion,
+            parserId: selectedParser.parserId,
+            parserVersion: selectedParser.version,
+          ),
+    ];
+    derivedArtifacts.addAll(ocrArtifacts);
     stageResults.add(
       StageResult(
         stage: IngestionStage.ocr,
@@ -215,6 +266,7 @@ abstract final class IngestionOrchestrator {
         startedAt: ocrStart,
         completedAt: DateTime.now(),
         diagnostics: ocrDiagnostics,
+        derivedArtifactIds: [for (final artifact in ocrArtifacts) artifact.derivedArtifactId],
       ),
     );
 
@@ -230,6 +282,21 @@ abstract final class IngestionOrchestrator {
             existingEntities: existingEntities,
           )
         : <EngineeringEntity>[];
+    // WP-INGEST-002 § 12: ENTITY_EXTRACTION -> entity extraction artifact
+    // (a single stage-summary artifact; the entities themselves stay the
+    // existing, unduplicated EngineeringEntity records — see
+    // DerivedArtifactFactory doc comment).
+    final entityArtifact = DerivedArtifactFactory.entityExtractionArtifact(
+      entities: entities,
+      runId: resolvedRunId,
+      vaultObjectId: input.vaultObjectId,
+      acquisitionRecordIds: input.acquisitionRecordIds,
+      pipelineVersion: uifPipelineVersion,
+      parserId: selectedParser.parserId,
+      parserVersion: selectedParser.version,
+      processorVersion: 'engineering_pattern_library-1',
+    );
+    if (entityArtifact != null) derivedArtifacts.add(entityArtifact);
     stageResults.add(
       StageResult(
         stage: IngestionStage.entityExtraction,
@@ -239,6 +306,7 @@ abstract final class IngestionOrchestrator {
         diagnostics: hasUsableOcr
             ? ['extracted=${entities.length}']
             : const ['Skipped: no successful OCR page results to extract entities from.'],
+        derivedArtifactIds: entityArtifact == null ? const [] : [entityArtifact.derivedArtifactId],
       ),
     );
 
@@ -254,6 +322,18 @@ abstract final class IngestionOrchestrator {
       parserId: selectedParser.parserId,
       parserVersion: selectedParser.version,
     );
+    // WP-INGEST-002 § 12: CANDIDATE_GENERATION -> candidate-generation
+    // artifact.
+    final candidateArtifact = DerivedArtifactFactory.candidateGenerationArtifact(
+      candidates: candidateOutput.candidates,
+      runId: resolvedRunId,
+      vaultObjectId: input.vaultObjectId,
+      acquisitionRecordIds: input.acquisitionRecordIds,
+      pipelineVersion: uifPipelineVersion,
+      parserId: selectedParser.parserId,
+      parserVersion: selectedParser.version,
+    );
+    if (candidateArtifact != null) derivedArtifacts.add(candidateArtifact);
     stageResults.add(
       StageResult(
         stage: IngestionStage.candidateGeneration,
@@ -261,6 +341,7 @@ abstract final class IngestionOrchestrator {
         startedAt: candidateStart,
         completedAt: DateTime.now(),
         diagnostics: ['candidates=${candidateOutput.candidates.length}'],
+        derivedArtifactIds: candidateArtifact == null ? const [] : [candidateArtifact.derivedArtifactId],
       ),
     );
 
@@ -270,6 +351,19 @@ abstract final class IngestionOrchestrator {
       orderedCandidates: candidateOutput.candidates,
       candidatePages: candidateOutput.candidatePages,
     );
+    // WP-INGEST-002 § 12: RELATIONSHIP_EXTRACTION -> relationship
+    // extraction artifact.
+    final relationshipArtifact = DerivedArtifactFactory.relationshipExtractionArtifact(
+      relationships: relationships,
+      orderedCandidates: candidateOutput.candidates,
+      runId: resolvedRunId,
+      vaultObjectId: input.vaultObjectId,
+      acquisitionRecordIds: input.acquisitionRecordIds,
+      pipelineVersion: uifPipelineVersion,
+      parserId: selectedParser.parserId,
+      parserVersion: selectedParser.version,
+    );
+    if (relationshipArtifact != null) derivedArtifacts.add(relationshipArtifact);
     stageResults.add(
       StageResult(
         stage: IngestionStage.relationshipExtraction,
@@ -277,6 +371,7 @@ abstract final class IngestionOrchestrator {
         startedAt: relationshipStart,
         completedAt: DateTime.now(),
         diagnostics: ['relationships=${relationships.length}'],
+        derivedArtifactIds: relationshipArtifact == null ? const [] : [relationshipArtifact.derivedArtifactId],
       ),
     );
 
@@ -303,6 +398,7 @@ abstract final class IngestionOrchestrator {
       ),
       structuralData: parserOutput.document,
       source: parserOutput.source,
+      derivedArtifacts: derivedArtifacts,
       ocrPageResults: ocrResults,
       engineeringEntities: entities,
       evidenceRegions: candidateOutput.evidenceRegions,
