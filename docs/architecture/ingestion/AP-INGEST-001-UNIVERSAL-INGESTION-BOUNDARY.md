@@ -907,6 +907,8 @@ A change in parser, processor, pipeline definition, or relevant processing confi
 
 The original evidence remains unchanged.
 
+Implementation note (INGEST-FOLLOWUP-003): the processing identity is computed as the SHA-256 digest of a deterministic *canonical structured JSON representation* of the identity tuple above — each field serialized as its own properly JSON-encoded value, map keys sorted recursively, list order preserved — not a delimiter-joined string. A delimiter-joined string is structurally ambiguous (a delimiter character occurring inside one input value can make two different tuples serialize identically); the structured representation avoids that ambiguity by construction.
+
 ---
 
 # 23. Failure Semantics

@@ -59,10 +59,16 @@ class IngestionRun {
 
   /// A deterministic, reproducible identity of the *processing definition
   /// + input combination* this run represents (AP-INGEST-001 § 22,
-  /// WP-INGEST-006 § 5) — a SHA-256 hex digest of [vaultObjectId],
-  /// [contentHash], [pipelineVersion], [parserId]/[parserVersion], and a
-  /// canonical (sorted-key) serialization of [processorVersions] and
-  /// [processingConfiguration].
+  /// WP-INGEST-006 § 5) — a SHA-256 hex digest of a canonical, structured
+  /// JSON representation of [vaultObjectId], [contentHash],
+  /// [pipelineVersion], [parserId], [parserVersion], [processorVersions],
+  /// and [processingConfiguration], each represented as its own properly
+  /// JSON-encoded field (not concatenated into a delimited string), so a
+  /// delimiter character occurring inside one field's value can never be
+  /// confused with a field boundary. Map keys (at every nesting level,
+  /// including nested [processingConfiguration] maps) are sorted for
+  /// determinism regardless of Dart `Map` insertion order; list elements
+  /// keep their original, semantically significant order.
   ///
   /// Deliberately excludes [runId], [startedAt]/[completedAt], and
   /// [status]: WP-INGEST-006 § 5/§ 15 requires the identity be
@@ -73,26 +79,27 @@ class IngestionRun {
   /// this establishes the identity itself; it does not implement
   /// deduplication (WP-INGEST-006 § 6).
   String get processingIdentity {
-    final canonical = <String>[
-      vaultObjectId,
-      contentHash,
-      pipelineVersion,
-      parserId,
-      parserVersion,
-      _canonicalStringMap(processorVersions),
-      _canonicalJson(processingConfiguration),
-    ].join('|');
+    final structured = <String, dynamic>{
+      'vaultObjectId': vaultObjectId,
+      'contentHash': contentHash,
+      'pipelineVersion': pipelineVersion,
+      'parserId': parserId,
+      'parserVersion': parserVersion,
+      'processorVersions': processorVersions,
+      'processingConfiguration': processingConfiguration,
+    };
+    final canonical = _canonicalJson(structured);
     return sha256.convert(utf8.encode(canonical)).toString();
   }
 
-  static String _canonicalStringMap(Map<String, String> map) {
-    final keys = map.keys.toList()..sort();
-    return keys.map((key) => '$key=${map[key]}').join(',');
-  }
-
-  /// Produces a stable string representation of [value] regardless of a
-  /// `Map`'s original key insertion order, so semantically identical
-  /// processing configurations always canonicalize identically.
+  /// Produces a stable, structurally unambiguous JSON string
+  /// representation of [value]: `Map` keys (at every nesting level) are
+  /// sorted regardless of original insertion order, so semantically
+  /// identical maps always canonicalize identically; `List` elements keep
+  /// their original order, since list order is semantically significant
+  /// (e.g. a processing-configuration list) and must not be normalized
+  /// away; scalars are encoded with [jsonEncode], which preserves their
+  /// JSON type (a string and a structurally-similar number never collide).
   static String _canonicalJson(dynamic value) {
     if (value is Map) {
       final keys = value.keys.map((key) => key.toString()).toList()..sort();
