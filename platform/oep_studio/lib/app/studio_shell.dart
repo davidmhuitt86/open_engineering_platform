@@ -22,6 +22,9 @@ import '../knowledge/models/ocr_processing_status.dart';
 import '../web_surface/web_surfaces_host_page.dart';
 import '../workspace/engineering_workspace_page.dart';
 import 'widgets/command_palette_dialog.dart';
+import 'widgets/global_status_bar.dart';
+import 'widgets/oep_application_header.dart';
+import 'widgets/oep_global_studio_bar.dart';
 
 /// The application shell (STUDIO-TASK-000001).
 ///
@@ -397,13 +400,46 @@ class _StudioShellState extends ConsumerState<StudioShell> with WidgetsBindingOb
             // `GoRoute`s keep resolving for `StudioRegistry`'s other,
             // unrelated consumers (`settingsProviders`/`searchProviders`/
             // `capabilitiesFor` still iterate every descriptor).
+            //
+            // WP-UI-DS-001 Section 02 — [OepApplicationHeader] is now hosted
+            // once, here, above whichever branch's content follows, so it
+            // renders identically regardless of `widget.selected`. This is
+            // additive shell chrome only: none of the three branches below,
+            // their state, or their Engine/bridge wiring changed.
+            //
+            // WP-UI-DS-001 Section 03 — [OepGlobalStudioBar] is hosted the
+            // same way, immediately below the header. It navigates by
+            // calling the existing, shared `workspaceTabsControllerProvider`
+            // (the same controller `_workspaceHost`'s own tab strip already
+            // uses) — it does not introduce a second navigation state, and
+            // does not affect which of the three branches below is selected
+            // (that remains driven by `widget.selected`/`GoRouter`, unchanged).
+            final Widget body;
             if (widget.selected == StudioDestination.diagram) {
-              return Scaffold(backgroundColor: StudioColors.background, body: _diagramStudioHost);
+              body = _diagramStudioHost;
+            } else if (widget.selected == StudioDestination.workspace) {
+              body = _workspaceHost;
+            } else {
+              body = widget.child;
             }
-            if (widget.selected == StudioDestination.workspace) {
-              return Scaffold(backgroundColor: StudioColors.background, body: _workspaceHost);
-            }
-            return Scaffold(backgroundColor: StudioColors.background, body: widget.child);
+            // WP-UI-DS-008 — [GlobalStatusBar] is hosted the same way, as
+            // the true bottom-most shell region, below `body` (which
+            // already includes Section 07's Global Toolbar at the bottom
+            // of its own content, unchanged/frozen). Hosting it here rather
+            // than inside `EngineeringWorkspacePage` keeps it visible
+            // regardless of `widget.selected`'s branch, exactly like the
+            // header and Studio Bar above — not workspace-tab-scoped.
+            return Scaffold(
+              backgroundColor: StudioColors.background,
+              body: Column(
+                children: [
+                  const OepApplicationHeader(),
+                  const OepGlobalStudioBar(),
+                  Expanded(child: body),
+                  const GlobalStatusBar(),
+                ],
+              ),
+            );
           },
         ),
       ),

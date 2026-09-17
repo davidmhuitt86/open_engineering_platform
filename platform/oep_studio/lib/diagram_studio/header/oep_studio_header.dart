@@ -29,12 +29,14 @@ class OepStudioHeader extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final view = ref.watch(oepStudioViewProvider);
     final isDiagram = view == OepStudioView.diagram;
-    final accent = isDiagram ? const Color(0xFF4C8DFF) : const Color(0xFF22D3C7);
+    final accent =
+        isDiagram ? const Color(0xFF4C8DFF) : const Color(0xFF22D3C7);
     final title = isDiagram ? 'Diagram' : 'Simulation';
     final subtitle = isDiagram
         ? 'DESIGN • EXPLORE • ANALYZE • DOCUMENT'
         : 'RUN • OBSERVE • MEASURE • DIAGNOSE';
-    final destination = isDiagram ? OepStudioView.simulation : OepStudioView.diagram;
+    final destination =
+        isDiagram ? OepStudioView.simulation : OepStudioView.diagram;
     final destinationLabel = isDiagram ? 'Simulation View' : 'Diagram View';
     final studioMarkAsset = isDiagram
         ? 'assets/branding/diagram_studio_mark.svg'
@@ -60,7 +62,8 @@ class OepStudioHeader extends ConsumerWidget {
         ),
         child: Row(
           children: [
-            SvgPicture.asset('assets/branding/oep_logo_compact.svg', height: veryCompact ? 20 : 26),
+            SvgPicture.asset('assets/branding/oep_logo_compact.svg',
+                height: veryCompact ? 20 : 26),
             const SizedBox(width: 12),
             Container(width: 1, height: 30, color: StudioColors.border),
             const SizedBox(width: 12),
@@ -122,6 +125,23 @@ class OepStudioHeader extends ConsumerWidget {
   }
 }
 
+/// WP-UI-DS-002 (Section 06) — extracted from `_ViewSwapControl`'s own
+/// former private `_handleSwap` method so Context Navigation (the
+/// canonical home AP-UX-007 assigned this control to) can invoke the exact
+/// same behavior instead of duplicating it. Not a new mechanism: still the
+/// same two-step forward — set the chrome-level [oepStudioViewProvider],
+/// then call through [legacyV2ToggleSimulationViewProvider]'s live hook
+/// into the real V2 webview's `toggleSimPanel()` when one is mounted. See
+/// [legacyV2ToggleSimulationViewProvider]'s own doc comment
+/// (`legacy_v2_webview.dart`) for why a `null` hook is a valid, expected
+/// state (chrome-only swap until a primary instance is ready).
+Future<void> switchOepStudioView(
+    WidgetRef ref, OepStudioView destination) async {
+  ref.read(oepStudioViewProvider.notifier).state = destination;
+  final toggle = ref.read(legacyV2ToggleSimulationViewProvider);
+  if (toggle != null) await toggle();
+}
+
 class _ViewSwapControl extends ConsumerWidget {
   const _ViewSwapControl({
     required this.accent,
@@ -134,17 +154,6 @@ class _ViewSwapControl extends ConsumerWidget {
   final OepStudioView destination;
   final String destinationLabel;
   final bool showLabel;
-
-  Future<void> _handleSwap(WidgetRef ref) async {
-    ref.read(oepStudioViewProvider.notifier).state = destination;
-    // §10/§23.8 — the swap must still change the real view, not just this
-    // header's own chrome: forwards into the live, primary V2 page's own
-    // already-working Simulate-panel toggle when one is currently
-    // mounted/ready. A `null` hook (no primary instance ready yet) still
-    // leaves the header's own title/subtitle/mark swap in effect.
-    final toggle = ref.read(legacyV2ToggleSimulationViewProvider);
-    if (toggle != null) await toggle();
-  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -162,7 +171,7 @@ class _ViewSwapControl extends ConsumerWidget {
             hoverColor: accent.withValues(alpha: 0.10),
             splashColor: accent.withValues(alpha: 0.22),
             highlightColor: accent.withValues(alpha: 0.14),
-            onTap: () => _handleSwap(ref),
+            onTap: () => switchOepStudioView(ref, destination),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
@@ -172,7 +181,8 @@ class _ViewSwapControl extends ConsumerWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  SvgPicture.asset('assets/branding/oep_view_swap.svg', height: 20),
+                  SvgPicture.asset('assets/branding/oep_view_swap.svg',
+                      height: 20),
                   if (showLabel) ...[
                     const SizedBox(width: 8),
                     Column(

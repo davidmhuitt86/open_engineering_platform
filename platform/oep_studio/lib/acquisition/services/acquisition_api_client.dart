@@ -3,7 +3,16 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import '../../core/security/credential_service.dart';
 import 'acquisition_api_exception.dart';
+
+/// `CredentialService` provider id under which EAM's Bearer token is
+/// stored (Windows Credential Manager target
+/// `oep_studio/credential/$acquisitionApiTokenCredentialId`) -- reused by
+/// the Engineering Acquisition settings page so both sides agree on
+/// where the token lives without this client exposing `CredentialStore`
+/// itself as part of its public surface.
+const acquisitionApiTokenCredentialId = 'engineering_acquisition_api_token';
 
 /// The Studio-side REST client for EAM (`oep_acquisition`) (WP-PLAT-020).
 ///
@@ -16,30 +25,57 @@ import 'acquisition_api_exception.dart';
 /// how `AnthropicProvider` reaches Anthropic's Messages API rather than
 /// any Anthropic-internal implementation detail.
 ///
+/// EAM enforces its own bearer-token authentication boundary (ADR-0002)
+/// on every route except `GET /health`. This client reads the token
+/// fresh from `CredentialService` on every request (never caches it),
+/// mirroring `AnthropicProvider`'s own `ApiKeyReader` pattern, so a token
+/// saved/changed/removed on the Engineering Acquisition settings page
+/// takes effect on the very next request with no client rebuild needed.
+/// A request made with no token configured is simply sent without an
+/// `Authorization` header -- EAM will reject it with 401, surfaced to
+/// the caller as an ordinary [AcquisitionApiException], not a special
+/// case here.
+///
 /// A test may supply a fake `http.Client` exactly like
-/// `AnthropicProvider` (`package:http/testing.dart`).
+/// `AnthropicProvider` (`package:http/testing.dart`), and/or a fake
+/// [tokenReader] to avoid touching the real OS credential store.
 class AcquisitionApiClient {
-  AcquisitionApiClient({required String baseUrl, http.Client? client, this.timeout = const Duration(seconds: 10)})
-      : _baseUrl = baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl,
-        _client = client ?? http.Client();
+  AcquisitionApiClient({
+    required String baseUrl,
+    http.Client? client,
+    this.timeout = const Duration(seconds: 10),
+    Future<String?> Function()? tokenReader,
+  })  : _baseUrl = baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl,
+        _client = client ?? http.Client(),
+        _tokenReader = tokenReader ?? (() => CredentialService.instance.readCredential(acquisitionApiTokenCredentialId));
 
   final String _baseUrl;
   final http.Client _client;
   final Duration timeout;
+  final Future<String?> Function() _tokenReader;
 
   Uri _uri(String path, [Map<String, String>? query]) => Uri.parse('$_baseUrl$path').replace(
         queryParameters: query?.isEmpty ?? true ? null : query,
       );
 
+  Future<Map<String, String>> _headers([Map<String, String>? extra]) async {
+    final token = await _tokenReader();
+    return {
+      if (extra != null) ...extra,
+      if (token != null && token.isNotEmpty) 'authorization': 'Bearer $token',
+    };
+  }
+
   Future<List<Map<String, Object?>>> _getList(String path, [Map<String, String>? query]) async {
-    final response = await _send(() => _client.get(_uri(path, query)));
+    final response = await _send(() async => _client.get(_uri(path, query), headers: await _headers()));
     final decoded = jsonDecode(response.body) as List<Object?>;
     return decoded.cast<Map<String, Object?>>();
   }
 
   Future<Map<String, Object?>> _postObject(String path, Map<String, Object?> body) async {
     final response = await _send(
-      () => _client.post(_uri(path), headers: const {'content-type': 'application/json'}, body: jsonEncode(body)),
+      () async => _client.post(_uri(path),
+          headers: await _headers(const {'content-type': 'application/json'}), body: jsonEncode(body)),
     );
     final decoded = jsonDecode(response.body);
     return decoded as Map<String, Object?>;

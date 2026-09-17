@@ -6,11 +6,17 @@
 # file is found at startup, the process runs entirely on those defaults.
 
 [database]
-host = "localhost"
-port = 5432
+# Points at the OEP Studio Server VM's PostgreSQL, reached via a
+# VirtualBox NAT port-forward (host 127.0.0.1:15432 -> guest 5432,
+# guest-side scoped to the NAT gateway 10.0.2.2 only in both
+# pg_hba.conf and ufw) -- the same shared PostgreSQL install the
+# Server Repository service uses (ADR-0006 SS25), in its own separate
+# oep_acquisition database/role.
+host = "127.0.0.1"
+port = 15432
 name = "oep_acquisition"
 user = "oep_acquisition"
-password = "oep123"
+password = "wXLwRQCQqnL2TtqwMfqCYPGrAHLxAMO"
 sslmode = "prefer"
 
 [logging]

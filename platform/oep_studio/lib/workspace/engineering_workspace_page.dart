@@ -3,15 +3,20 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../app/active_studio.dart';
+import '../app/widgets/global_context_navigation.dart';
+import '../app/widgets/global_inspector.dart';
+import '../app/widgets/global_toolbar.dart';
 import '../core/services/engineering_project_service.dart';
 import '../core/surfaces/surface_definition.dart';
 import '../core/surfaces/surface_registry.dart';
+import '../core/theme/oep_tokens.dart';
 import '../core/theme/studio_colors.dart';
 import '../diagram_studio/compare/diagram_with_compare_pane.dart';
 import '../diagram_studio/controller/diagram_studio_controller_provider.dart';
-import '../diagram_studio/header/oep_studio_header.dart';
 import '../diagram_studio/tabs/diagram_tabs_controller.dart';
 import '../diagram_studio/webview/legacy_v2_webview.dart';
+import 'home/home_dashboard_page.dart';
 import 'workspace_tab.dart';
 import 'workspace_tabs_controller.dart';
 
@@ -162,45 +167,146 @@ class EngineeringWorkspacePage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tabsController = ref.watch(workspaceTabsControllerProvider);
-    final tabs = tabsController.tabs;
-    final activeId = tabsController.activeId;
+    final allTabs = tabsController.tabs;
+    final activeStudio = ref.watch(activeStudioProvider);
+
+    // WP-UI-DS-001 Section 02 — the OEP header used to render here, scoped
+    // to Diagram tabs only. It is now hosted once, application-globally, by
+    // `StudioShell` (`OepApplicationHeader`) above this whole page, so it no
+    // longer needs to be conditionally rendered per-tab here. `OepStudioHeader`
+    // itself (Diagram/Simulation identity + `_ViewSwapControl`) still exists
+    // for Diagram Studio's own use — see that file's doc comment — it is
+    // simply no longer invoked from this call site.
+    //
+    // WP-UI-DS-001 Section 03 correction — Home is not workspace-tab-based
+    // at all (AP-UX-006 §9): when Home is the active Studio, this page
+    // renders `HomeDashboardPage` directly and shows no Workspace Bar,
+    // rather than treating Home as (or auto-creating) a workspace tab.
+    // WP-UI-DS-007 — the Global Toolbar is persistent shell chrome, placed
+    // per the design-owner-designated pixel wireframe ("Start With this
+    // Exact Wireframe and its Pixel Measurments.png", AP-UX-002 C2): a
+    // full-width row BELOW the Context-Nav/Surface/Inspector content, not
+    // above it. Home has no Workspace Bar (above) or Context Nav/Inspector
+    // of its own, but the Toolbar still renders below its content — it is
+    // Studio-scoped, not workspace/tab-scoped, and Home is a Studio.
+    // WP-UI-DS-009 — the Global Inspector is a right-side structural
+    // sibling of the main content (Section 05/06's Context-Nav/Surface
+    // split does not exist yet — this is the smallest non-destructive host
+    // for the Inspector region until that lands). Present for every
+    // Studio, Home included.
+    if (activeStudio == ActiveStudio.home) {
+      return Container(
+        color: StudioColors.background,
+        child: const Column(
+          children: [
+            Expanded(
+              child: Row(
+                children: [
+                  GlobalContextNavigation(),
+                  Expanded(child: HomeDashboardPage()),
+                  GlobalInspector(),
+                ],
+              ),
+            ),
+            GlobalToolbar(),
+          ],
+        ),
+      );
+    }
+
+    // Every other Studio: only the tabs that belong to it (plus any tab
+    // whose surface isn't yet reconciled onto the seven-Studio model —
+    // `tabsForStudio`'s own doc comment) are shown. Clicking a different
+    // Studio in `OepGlobalStudioBar` never adds/removes anything from this
+    // list — it only changes which subset of the SAME shared tab list is
+    // displayed here.
+    final tabs = tabsForStudio(allTabs, activeStudio);
+    final globalActiveId = tabsController.activeId;
+    final remembered = ref.watch(lastActiveTabPerStudioProvider)[activeStudio];
+    final activeId = tabs.any((t) => t.id == globalActiveId)
+        ? globalActiveId
+        : (remembered != null && tabs.any((t) => t.id == remembered))
+            ? remembered
+            : (tabs.isNotEmpty ? tabs.first.id : null);
     final secondTabId = tabsController.secondTabId;
 
-    // The OEP header renders here (the real, reached tabbed workspace —
-    // see AP-OEP-WORKSPACE-AS-PRIMARY-UI-001), scoped to Diagram tabs
-    // only so it never bleeds into Settings/Knowledge Studio/other tabs.
-    final activeTab = _tabById(tabs, activeId);
-    final showOepHeader = activeTab?.isDiagram ?? false;
+    void activate(String id) {
+      tabsController.activate(id);
+      rememberActiveTabForItsStudio(ref, allTabs, id);
+    }
+
+    void openAndRemember(String Function() open) {
+      final id = open();
+      rememberActiveTabForItsStudio(ref, tabsController.tabs, id);
+    }
 
     return Container(
       color: StudioColors.background,
       child: Column(
         children: [
-          if (showOepHeader) const OepStudioHeader(),
           _WorkspaceTabStrip(
+            activeStudio: activeStudio,
             tabs: tabs,
             activeId: activeId,
-            onActivate: tabsController.activate,
+            onActivate: activate,
             onClose: (id) => _closeTab(ref, tabsController, id),
-            onOpenDiagram: () => openDiagramTab(tabsController),
-            onOpenBrowser: () => tabsController
-                .openNewInstance(SurfaceRegistry.browserSurfaceId),
-            onOpenSurface: (surface) => tabsController.openSurface(surface.id),
+            onOpenDiagram: () =>
+                openAndRemember(() => openDiagramTab(tabsController)),
+            onOpenBrowser: () => openAndRemember(() => tabsController
+                .openNewInstance(SurfaceRegistry.browserSurfaceId)),
+            onOpenSurface: (surface) =>
+                openAndRemember(() => tabsController.openSurface(surface.id)),
             onSplitWith: tabsController.splitWith,
           ),
           Expanded(
-            child: tabs.isEmpty
-                ? const Center(
-                    child: Text('No tabs open — press "+" to open a Surface',
-                        style: TextStyle(color: StudioColors.textDisabled)),
-                  )
-                : _WorkspaceContent(
-                    tabs: tabs,
-                    activeId: activeId,
-                    secondTabId: secondTabId,
-                    buildTabContent: _keyedTabContent,
-                  ),
+            child: Row(
+              children: [
+                // WP-UI-DS-002 (Section 06) — Global Context Navigation, a
+                // left-side structural sibling of the content, first
+                // position in the Row per AP-UX-006/010's established
+                // insertion point.
+                const GlobalContextNavigation(),
+                Expanded(
+                  child: tabs.isEmpty
+                      ? const Center(
+                          child: Text(
+                              'No workspaces open — press "+" to open one',
+                              style:
+                                  TextStyle(color: StudioColors.textDisabled)),
+                        )
+                      : _WorkspaceContent(
+                          // WP-UI-DS-001 Section 03 correction — deliberately
+                          // the FULL, unfiltered tab list here, not the
+                          // Studio-scoped `tabs` above: every open tab across
+                          // every Studio must stay mounted in the shared
+                          // IndexedStack exactly as it did before this
+                          // correction (a Diagram tab's
+                          // `LegacyV2WebViewPage`/`WebviewController` would
+                          // otherwise be torn down and recreated — losing its
+                          // live WebView state — every time the user switches
+                          // to a different Studio and back). Only `activeId`
+                          // (which Studio-scoped tab is painted) changes;
+                          // which tabs exist in the tree does not.
+                          tabs: allTabs,
+                          activeId: activeId,
+                          secondTabId: secondTabId,
+                          buildTabContent: _keyedTabContent,
+                        ),
+                ),
+                // WP-UI-DS-009 — Global Inspector, a right-side structural
+                // sibling of the content above, not embedded in it.
+                const GlobalInspector(),
+              ],
+            ),
           ),
+          // WP-UI-DS-007 — Global Toolbar, a full-width row BELOW the main
+          // content (Context Nav/Surface/Inspector, owned inside each tab's
+          // own content), per the design-owner-designated pixel wireframe —
+          // not nested between the Workspace Bar and the content. Its
+          // content is Studio-scoped (via activeStudioProvider), not
+          // workspace/tab-scoped — it does not change when the active tab
+          // changes within the same Studio.
+          const GlobalToolbar(),
         ],
       ),
     );
@@ -258,18 +364,6 @@ class EngineeringWorkspacePage extends ConsumerWidget {
     }
     return KeyedSubtree(key: ValueKey(tab.id), child: surface.build(context));
   }
-}
-
-/// OEP-STUDIO-BRANDING-V1 — `activeId` is only ever a real open tab's id
-/// or `null` (never a stale/dangling one — `WorkspaceTabsController` owns
-/// that invariant), so this is a plain lookup, not a defensive fallback
-/// search.
-WorkspaceTab? _tabById(List<WorkspaceTab> tabs, String? id) {
-  if (id == null) return null;
-  for (final tab in tabs) {
-    if (tab.id == id) return tab;
-  }
-  return null;
 }
 
 /// AP-OEP-WORKSPACE-SPLIT-VIEW-001 — the one place the audit's "single
@@ -403,8 +497,22 @@ class _DiagramInstanceTabState extends ConsumerState<_DiagramInstanceTab> {
       LegacyV2WebViewPage(instanceId: widget.instanceId);
 }
 
+/// WP-UI-DS-001 Section 04 — the target Workspace Bar
+/// (`docs/architecture/ux/design-system/OEP-SHELL-COMPONENTS.md` §4;
+/// canonical reference `docs/architecture/ux/renders/oep-shell/workspace-bar.svg`).
+/// Height corrected from 36px to the ratified 42px
+/// (`OepGeometry.workspaceBarHeight`, AP-UX-002 C2). Adds the leading
+/// Studio-identity chip and recolors the active tab using [activeStudio]'s
+/// identity color (`OEP-DESIGN-TOKENS.md` §2A: "Workspace tabs inherit
+/// their parent Studio's identity color") instead of the generic
+/// `StudioColors.selection` blue every Studio previously shared. The tab
+/// list itself ([tabs]) is already Studio-scoped by
+/// `EngineeringWorkspacePage.build()` (Section 03, frozen) — this widget
+/// only renders whatever list it is given; it does not filter or own that
+/// decision.
 class _WorkspaceTabStrip extends StatelessWidget {
   const _WorkspaceTabStrip({
+    required this.activeStudio,
     required this.tabs,
     required this.activeId,
     required this.onActivate,
@@ -415,6 +523,7 @@ class _WorkspaceTabStrip extends StatelessWidget {
     required this.onSplitWith,
   });
 
+  final ActiveStudio activeStudio;
   final List<WorkspaceTab> tabs;
   final String? activeId;
   final void Function(String id) onActivate;
@@ -426,14 +535,16 @@ class _WorkspaceTabStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final identityColor = activeStudio.meta.color;
     return Container(
-      height: 36,
+      height: OepGeometry.workspaceBarHeight,
       decoration: const BoxDecoration(
-        color: StudioColors.surface,
-        border: Border(bottom: BorderSide(color: StudioColors.border)),
+        color: OepColors.surface1,
+        border: Border(bottom: BorderSide(color: OepColors.border)),
       ),
       child: Row(
         children: [
+          _StudioIdentityChip(meta: activeStudio.meta),
           // AP-OEP-WORKSPACE-SHELL-001 — same `Flexible`/loose layout
           // `WebSurfacesHostPage`'s own tab strip already established
           // (AP-OEP-DIAGRAM-UX-002), so "+" sits snug against the last
@@ -448,6 +559,7 @@ class _WorkspaceTabStrip extends StatelessWidget {
                     _WorkspaceTabChip(
                       tab: tab,
                       active: tab.id == activeId,
+                      identityColor: identityColor,
                       diagramOrdinal: diagramOrdinalFor(tabs, index),
                       onTap: () => onActivate(tab.id),
                       onClose: () => onClose(tab.id),
@@ -461,8 +573,8 @@ class _WorkspaceTabStrip extends StatelessWidget {
             tooltip: 'New tab',
             splashRadius: 15,
             padding: EdgeInsets.zero,
-            icon: const Icon(Icons.add,
-                size: 16, color: StudioColors.textSecondary),
+            icon:
+                const Icon(Icons.add, size: 16, color: OepColors.textSecondary),
             iconSize: 16,
             itemBuilder: (context) => [
               PopupMenuItem<void>(
@@ -493,6 +605,14 @@ class _WorkspaceTabStrip extends StatelessWidget {
               // above instead, since every other Surface here uses
               // `openSurface`'s singleton reuse-if-open semantics, which
               // Browser must never have.
+              //
+              // WP-UI-DS-001 Section 04 note: this list is deliberately NOT
+              // scoped to `activeStudio` — re-scoping which Surfaces can be
+              // opened from which Studio's "+" menu is a further
+              // reconciliation of the 12 not-yet-ratified `StudioDestination`
+              // entries (AP-UX-006 §11), out of this section's scope. Opening
+              // one of them here simply surfaces it later, under whichever
+              // Studio it's mapped to (or unscoped) — see `tabsForStudio`.
               for (final surface in SurfaceRegistry.all)
                 PopupMenuItem<void>(
                   onTap: () => onOpenSurface(surface),
@@ -501,6 +621,45 @@ class _WorkspaceTabStrip extends StatelessWidget {
             ],
           ),
           const SizedBox(width: 6),
+        ],
+      ),
+    );
+  }
+}
+
+/// The leading Studio-identity chip (canonical reference: leftmost element
+/// of `workspace-bar.svg`, e.g. "Diagram Studio ⌄"). Read-only identity
+/// display — the dropdown chevron is decorative for this section: no
+/// specification defines behavior for it (`OEP-UI-RULES.md` Rule 3 — do not
+/// invent behavior for a control the specification does not define), so it
+/// is not wired to anything rather than guessed at.
+class _StudioIdentityChip extends StatelessWidget {
+  const _StudioIdentityChip({required this.meta});
+
+  final ActiveStudioMeta meta;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: OepGeometry.workspaceBarHeight,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      color: meta.color,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(meta.icon, size: 15, color: Colors.white),
+          const SizedBox(width: 8),
+          Text(
+            meta.label,
+            style: TextStyle(
+              color: Colors.white,
+              fontFamily: OepTypography.fontFamily,
+              fontSize: OepTypography.workspaceLabel,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(width: 6),
+          const Icon(Icons.arrow_drop_down, size: 18, color: Colors.white),
         ],
       ),
     );
@@ -536,6 +695,7 @@ class _WorkspaceTabChip extends ConsumerWidget {
   const _WorkspaceTabChip({
     required this.tab,
     required this.active,
+    required this.identityColor,
     required this.diagramOrdinal,
     required this.onTap,
     required this.onClose,
@@ -544,6 +704,11 @@ class _WorkspaceTabChip extends ConsumerWidget {
 
   final WorkspaceTab tab;
   final bool active;
+
+  /// The active Studio's identity color (`OEP-DESIGN-TOKENS.md` §2A) — used
+  /// for this tab's active-state indicator only when active is true, per
+  /// "Workspace tabs inherit their parent Studio's identity color."
+  final Color identityColor;
 
   /// This tab's 1-based position among currently-open Diagram tabs
   /// (`0`/unused for every non-Diagram tab) — see
@@ -626,27 +791,28 @@ class _WorkspaceTabChip extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(horizontal: 10),
           decoration: BoxDecoration(
             color: active
-                ? StudioColors.selectedRowBackground
+                ? identityColor.withValues(alpha: 0.16)
                 : Colors.transparent,
             border: Border(
-              right: const BorderSide(color: StudioColors.border),
+              right: const BorderSide(color: OepColors.border),
               bottom: BorderSide(
-                  color: active ? StudioColors.selection : Colors.transparent,
-                  width: 2),
+                  color: active ? identityColor : Colors.transparent, width: 2),
             ),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(tab.icon, size: 14, color: StudioColors.textSecondary),
+              Icon(tab.icon,
+                  size: 14,
+                  color: active ? identityColor : OepColors.textSecondary),
               const SizedBox(width: 6),
               Text(
                 displayTitle,
                 style: TextStyle(
-                  color: active
-                      ? StudioColors.textPrimary
-                      : StudioColors.textSecondary,
-                  fontSize: 12,
+                  color:
+                      active ? OepColors.textPrimary : OepColors.textSecondary,
+                  fontFamily: OepTypography.fontFamily,
+                  fontSize: OepTypography.workspaceLabel,
                   fontWeight: active ? FontWeight.w600 : FontWeight.w400,
                 ),
               ),
@@ -654,7 +820,7 @@ class _WorkspaceTabChip extends ConsumerWidget {
               InkWell(
                 onTap: onClose,
                 child: const Icon(Icons.close,
-                    size: 14, color: StudioColors.textDisabled),
+                    size: 14, color: OepColors.textMuted),
               ),
             ],
           ),
