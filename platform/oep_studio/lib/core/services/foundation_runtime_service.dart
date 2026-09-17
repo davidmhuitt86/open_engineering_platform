@@ -522,6 +522,72 @@ class FoundationRuntimeNotifier extends Notifier<FoundationServiceState> {
     }
   }
 
+  /// Loads [record] as the active Knowledge Curation Session, replacing
+  /// any currently active one and persisting it immediately —
+  /// WP-INGEST-004's Reference Vault ingestion workflow entry point into
+  /// this notifier (`ReferenceVaultIngestionWorkflow` ->
+  /// `AcquisitionRuntimeNotifier.ingestVaultArtifact` -> here).
+  ///
+  /// Reuses exactly the explicit-replacement contract
+  /// [createKnowledgeSession]/[openKnowledgeSession] already establish
+  /// (Work Package 008) rather than inventing a second session
+  /// lifecycle: those two already replace whatever session is currently
+  /// active the moment the engineer explicitly creates or reopens one,
+  /// so a third explicit "load this ingested session" action doing the
+  /// same is consistent, not a new behavior — the ingestion workflow
+  /// never *silently* destroys an unrelated active session, since
+  /// nothing calls this method except a user-initiated "Ingest into
+  /// Knowledge Studio" action, exactly as deliberate as clicking "Create
+  /// Session" or "Open Session" today (WP-INGEST-004 § 7).
+  ///
+  /// The one difference from [openKnowledgeSession]: [record] is already
+  /// in memory (built by `IngestionKnowledgeSessionBridge`), not loaded
+  /// from [KnowledgeSessionStorage] — so this method persists it instead
+  /// of reading it back.
+  Future<void> loadKnowledgeSessionRecord(KnowledgeSessionRecord record) async {
+    state = state.copyWith(
+      knowledgeSession: record.session,
+      candidates: record.candidates,
+      relationshipCandidates: record.relationshipCandidates,
+      sourceMaterials: record.sources,
+      reviewDecisions: record.reviewDecisions,
+      evidenceRegions: record.evidenceRegions,
+      evidenceLinks: record.evidenceLinks,
+      pageSelections: record.pageSelections,
+      procedureSteps: record.procedureSteps,
+      specificationDetails: record.specificationDetails,
+      commitReports: record.commitReports,
+      ocrPageResults: record.ocrPageResults,
+      ocrProcessingStatus: const {},
+      ocrOverlayVisible: true,
+      engineeringEntities: record.engineeringEntities,
+      engineeringContexts: record.engineeringContexts,
+      aiSuggestions: record.aiSuggestions,
+      clearSelectedCandidate: true,
+      clearSelectedRelationshipCandidate: true,
+      clearSelectedSourceMaterial: true,
+      clearOpenSourceDocument: true,
+      clearSelectedEvidenceRegion: true,
+      clearSelectedEvidenceLink: true,
+      clearCurrentPage: true,
+      clearKnowledgeStorageError: true,
+      clearOpenProcedure: true,
+      clearSelectedProcedureStep: true,
+      clearOcrErrorMessage: true,
+      clearSelectedEntity: true,
+      clearSelectedContext: true,
+      clearSelectedAiSuggestion: true,
+      clearSelectedEngineeringInspectable: true,
+      clearContextTypeFilter: true,
+    );
+    try {
+      await KnowledgeSessionStorage.save(record);
+    } on KnowledgeValidationException catch (error) {
+      state = state.copyWith(knowledgeStorageError: error.message);
+      rethrow;
+    }
+  }
+
   /// Duplicates a persisted session — a fresh ID/name/timestamps and
   /// its own independent copy of any Source Material files — without
   /// changing which session is currently active (Work Package 008

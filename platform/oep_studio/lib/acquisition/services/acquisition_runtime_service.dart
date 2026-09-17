@@ -14,6 +14,7 @@ import '../settings/acquisition_settings_provider.dart';
 import 'acquisition_api_client.dart';
 import 'acquisition_api_exception.dart';
 import 'acquisition_runtime_state.dart';
+import 'reference_vault_ingestion_workflow.dart';
 
 /// The Acquisition Studio's own Connection Manager (WP-PLAT-020),
 /// structurally mirroring `FoundationRuntimeNotifier`'s role for
@@ -284,6 +285,75 @@ class AcquisitionRuntimeNotifier extends Notifier<AcquisitionServiceState> {
     final vaultEntry = await publishReturning(metadata['id'] as String);
     await executeJobReturning(jobId); // running -> completed
     return vaultEntry;
+  }
+
+  /// Runs the Reference Vault ingestion workflow (WP-INGEST-004) for
+  /// [vaultObjectId] end-to-end: materializes the immutable Vault
+  /// artifact through [AcquisitionApiClient]/[ReferenceVaultAdapter],
+  /// ingests it through the existing Universal Ingestion Framework, and
+  /// bridges the result into a brand-new [KnowledgeSessionRecord] via
+  /// the existing [IngestionKnowledgeSessionBridge] — see
+  /// [ReferenceVaultIngestionWorkflow] for the full sequence.
+  ///
+  /// Reported as a real Activity Log/Output Panel operation exactly like
+  /// every other EAM/pipeline action this notifier already exposes
+  /// (`_reportingOperation`) — WP-INGEST-004 § 9's "Use existing
+  /// OperationManager or equivalent infrastructure where appropriate."
+  ///
+  /// Deliberately keeps [AcquisitionApiClient] private to this notifier
+  /// (`_api`) rather than exposing a public getter — "no widget
+  /// constructs an [AcquisitionApiClient]... itself" stays true for this
+  /// workflow too; the caller only ever sees the workflow's
+  /// [ReferenceVaultIngestionOutcome], never the client.
+  ///
+  /// Returns the outcome unconditionally, including a FAILED one — a
+  /// failed/partial ingestion is an ordinary, expected result the caller
+  /// must distinguish (WP-INGEST-004 § 9), not an exceptional one this
+  /// method should throw for. It is the caller's responsibility to hand
+  /// a COMPLETED/PARTIAL outcome's `sessionRecord` to
+  /// `FoundationRuntimeNotifier.loadKnowledgeSessionRecord` — this
+  /// notifier has no dependency on Foundation/Knowledge state, keeping
+  /// the Reference Vault -> Foundation ownership boundary
+  /// (WP-INGEST-004 § 2.1) exactly where it already is.
+  Future<ReferenceVaultIngestionOutcome> ingestVaultArtifact({
+    required String vaultObjectId,
+    required String sessionName,
+    required String repositoryName,
+    required String author,
+  }) async {
+    // Reports COMPLETED/PARTIAL/FAILED to the Activity Log distinctly,
+    // rather than routing through `_reportingOperation` unmodified —
+    // that helper only distinguishes "the Dart call returned" from "the
+    // Dart call threw," but `ReferenceVaultIngestionWorkflow.ingest`
+    // never throws for an ordinary ingestion failure (WP-INGEST-004 § 9);
+    // the failure is encoded in the returned outcome instead, and the
+    // Activity Log should reflect that same distinction.
+    final id = 'acquisition:${_operationSeq++}';
+    final label = '$operationLabelPrefix'
+        'Ingesting Reference Vault artifact $vaultObjectId into Knowledge Studio';
+    eventBus.publish(OperationEvent(id: id, kind: OperationEventKind.started, label: label));
+    try {
+      final outcome = await ReferenceVaultIngestionWorkflow.ingest(
+        client: _api,
+        vaultObjectId: vaultObjectId,
+        sessionName: sessionName,
+        repositoryName: repositoryName,
+        author: author,
+      );
+      if (outcome.isFailed) {
+        eventBus.publish(
+          OperationEvent(id: id, kind: OperationEventKind.failed, label: '$label — ${outcome.errorMessage}'),
+        );
+      } else {
+        final suffix = outcome.isPartial ? ' (partial)' : '';
+        eventBus.publish(OperationEvent(id: id, kind: OperationEventKind.completed, label: '$label$suffix'));
+      }
+      return outcome;
+    } catch (error) {
+      final message = error is AcquisitionApiException ? error.message : error.toString();
+      eventBus.publish(OperationEvent(id: id, kind: OperationEventKind.failed, label: '$label — $message'));
+      rethrow;
+    }
   }
 
   /// Selects [jobId] for the Pipeline panel's drill-down (Downloads →
