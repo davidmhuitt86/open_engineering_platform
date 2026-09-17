@@ -1,9 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
 
 import '../../core/security/credential_service.dart';
+import '../models/downloaded_vault_artifact.dart';
+import '../models/vault_entry_record.dart';
 import 'acquisition_api_exception.dart';
 
 /// `CredentialService` provider id under which EAM's Bearer token is
@@ -70,6 +73,12 @@ class AcquisitionApiClient {
     final response = await _send(() async => _client.get(_uri(path, query), headers: await _headers()));
     final decoded = jsonDecode(response.body) as List<Object?>;
     return decoded.cast<Map<String, Object?>>();
+  }
+
+  Future<Map<String, Object?>> _getObject(String path) async {
+    final response = await _send(() async => _client.get(_uri(path), headers: await _headers()));
+    final decoded = jsonDecode(response.body);
+    return decoded as Map<String, Object?>;
   }
 
   Future<Map<String, Object?>> _postObject(String path, Map<String, Object?> body) async {
@@ -145,6 +154,78 @@ class AcquisitionApiClient {
       _getList('/vault', metadataId == null ? null : {'metadata_id': metadataId});
 
   Future<Map<String, Object?>> publish(String metadataId) => _postObject('/vault', {'metadata_id': metadataId});
+
+  /// `GET /vault/{id}` (WP-INGEST-003 § 6) — retrieves one authoritative
+  /// Vault Entry. Reuses the existing [VaultEntryRecord] model
+  /// (`acquisition/models/vault_entry_record.dart`), which already mirrors
+  /// `oep_acquisition`'s `vault::to_json` shape exactly (including the
+  /// fact that the server never sends `vault_path` — see that model's own
+  /// doc comment and `vault_entry_json.cpp`'s WP-SRV-002 note), so no new
+  /// Vault Entry model is introduced here.
+  ///
+  /// A 404 response (no such Vault Entry) surfaces as an
+  /// [AcquisitionApiException] with `statusCode == 404`, exactly like
+  /// every other not-found response this client already produces — the
+  /// caller (the Reference Vault Adapter) treats that as a retrieval
+  /// failure and never constructs a `VaultObjectInput` from it.
+  Future<VaultEntryRecord> getVaultEntry(String vaultObjectId) async {
+    final json = await _getObject('/vault/$vaultObjectId');
+    return VaultEntryRecord.fromJson(json);
+  }
+
+  /// `GET /vault/{id}/artifact` (WP-INGEST-003 § 7/§ 8) — retrieves the
+  /// actual immutable artifact bytes and mandatorily verifies them before
+  /// returning.
+  ///
+  /// The verification rule (WP-INGEST-003 § 8) is exact:
+  /// `SHA256(received bytes) == X-Checksum-Sha256` (case-insensitively).
+  /// The exact bytes `http.Response.bodyBytes` returns are hashed --
+  /// never a decoded/re-encoded/transformed representation. A missing
+  /// header or a mismatch both throw [AcquisitionApiException.integrity]
+  /// *before* this method returns, so no caller can ever observe an
+  /// unverified [DownloadedVaultArtifact] -- satisfying "the client must
+  /// not silently continue after checksum failure" and "do not invoke UIF
+  /// with an unverified/rejected artifact".
+  Future<DownloadedVaultArtifact> downloadVaultArtifact(String vaultObjectId) async {
+    final response = await _send(
+      () async => _client.get(_uri('/vault/$vaultObjectId/artifact'), headers: await _headers()),
+    );
+    final serverChecksum = response.headers['x-checksum-sha256'];
+    if (serverChecksum == null || serverChecksum.trim().isEmpty) {
+      throw AcquisitionApiException.integrity(
+        'GET /vault/$vaultObjectId/artifact response is missing the required X-Checksum-Sha256 header.',
+      );
+    }
+    final bytes = response.bodyBytes;
+    final computedChecksum = sha256.convert(bytes).toString();
+    if (computedChecksum.toLowerCase() != serverChecksum.trim().toLowerCase()) {
+      throw AcquisitionApiException.integrity(
+        'SHA-256 mismatch for vault object $vaultObjectId: computed $computedChecksum but server '
+        'reported $serverChecksum.',
+      );
+    }
+    return DownloadedVaultArtifact(
+      bytes: bytes,
+      checksum: computedChecksum,
+      contentType: response.headers['content-type'] ?? '',
+      contentLength: bytes.length,
+    );
+  }
+
+  /// `GET /acquisition-records` (WP-INGEST-003 § 16) -- the only
+  /// authoritative EAM route that exposes Acquisition Record identity.
+  /// `GET /vault/{id}` itself does not include an acquisition-record id
+  /// (confirmed against `vault_entry_json.cpp`'s `to_json`, which emits
+  /// only `download_session_id`, not an Acquisition Record id) --
+  /// resolving it requires correlating a Vault Entry's
+  /// `download_session_id` against this list, since
+  /// `/acquisition-records` supports filtering by `status` only, not by
+  /// `download_session_id` (see `parse_acquisition_record_filter` in
+  /// `services/acquisition/src/api/server.cpp`). The Reference Vault
+  /// Adapter performs that correlation; this method only exposes the
+  /// authoritative list, mirroring every other `list*` method above.
+  Future<List<Map<String, Object?>>> listAcquisitionRecords({String? status}) =>
+      _getList('/acquisition-records', status == null ? null : {'status': status});
 
   void dispose() => _client.close();
 }

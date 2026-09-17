@@ -32,6 +32,19 @@ class AcquisitionApiException implements Exception {
         statusCode: statusCode,
       );
 
+  /// An artifact integrity failure (WP-INGEST-003 § 8) — the bytes
+  /// [AcquisitionApiClient.downloadVaultArtifact] received either had no
+  /// `X-Checksum-Sha256` header at all, or their locally computed SHA-256
+  /// did not match the header EAM sent. Either way the artifact is
+  /// rejected outright: this exception is thrown *before*
+  /// [AcquisitionApiClient.downloadVaultArtifact] returns, so no caller
+  /// ever observes an unverified [DownloadedVaultArtifact] — the Universal
+  /// Ingestion Framework is never invoked with it.
+  factory AcquisitionApiException.integrity(String technicalDetail) => AcquisitionApiException(
+        message: 'The downloaded Reference Vault artifact failed integrity verification and was rejected.',
+        technicalDetail: technicalDetail,
+      );
+
   final String message;
   final String technicalDetail;
   final int? statusCode;
