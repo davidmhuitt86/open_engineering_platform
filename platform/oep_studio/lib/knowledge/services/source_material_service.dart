@@ -49,6 +49,47 @@ abstract final class SourceMaterialService {
     );
   }
 
+  /// Copies an ingestion-produced [source]'s file (Universal Ingestion
+  /// Framework, WP-INGEST-005) -- whose [SourceMaterial.localPath] still
+  /// points at [ReferenceVaultAdapter]'s temporary materialization at the
+  /// time this is called -- into [sessionId]'s managed `sources/`
+  /// directory, exactly like [attach] except that [SourceMaterial.id] is
+  /// preserved rather than regenerated: UIF-produced
+  /// `OcrPageResult`/`EvidenceRegion`/`EngineeringEntity`/... records
+  /// already reference [source]'s id via their own `sourceId` field (see
+  /// `PdfIngestionParser.parse`), so minting a new id here the way
+  /// [attach] does for a freshly-picked file would silently break every
+  /// one of those links.
+  ///
+  /// Throws [KnowledgeValidationException] if [source]'s file no longer
+  /// exists or the copy fails, mirroring [attach]'s own error handling.
+  static Future<SourceMaterial> attachIngestedSource({
+    required String sessionId,
+    required SourceMaterial source,
+  }) async {
+    final originalFile = File(source.localPath);
+    if (!originalFile.existsSync()) {
+      throw const KnowledgeValidationException('The ingested source file could not be found.');
+    }
+    final targetDir = KnowledgeSessionStorage.sourcesDirectory(sessionId);
+    final targetPath = '${targetDir.path}${Platform.pathSeparator}${source.id}_${source.originalFileName}';
+    try {
+      await targetDir.create(recursive: true);
+      await originalFile.copy(targetPath);
+    } on IOException catch (error) {
+      throw KnowledgeValidationException('Couldn\'t attach "${source.originalFileName}": ${error.toString()}');
+    }
+    return SourceMaterial(
+      id: source.id,
+      originalFileName: source.originalFileName,
+      localPath: targetPath,
+      type: source.type,
+      sizeBytes: source.sizeBytes,
+      importDate: source.importDate,
+      addedBy: source.addedBy,
+    );
+  }
+
   /// Removes a source's managed copy from disk (Work Package 008 Import
   /// Queue: implied by supporting attach/detach symmetry). Best-effort
   /// — a failure here shouldn't block removing the source from the

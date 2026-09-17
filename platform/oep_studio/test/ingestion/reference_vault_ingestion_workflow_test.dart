@@ -13,6 +13,7 @@ import 'package:oep_studio/knowledge/models/ocr_bounding_box.dart';
 import 'package:oep_studio/knowledge/models/ocr_page_result.dart';
 import 'package:oep_studio/knowledge/models/ocr_word.dart';
 import 'package:oep_studio/knowledge/models/source_material.dart';
+import 'package:oep_studio/knowledge/services/knowledge_session_storage.dart';
 
 /// WP-INGEST-004 § 15 TEST-004-001 through TEST-004-014 — the Reference
 /// Vault ingestion workflow (`ReferenceVaultIngestionWorkflow.ingest`),
@@ -36,6 +37,24 @@ void main() {
       '${Platform.pathSeparator}trx300_factory_wiring_diagram.pdf';
 
   const vaultId = 'wp-ingest-004-vault-entry-0001';
+
+  // WP-INGEST-005: a successful/partial `ingest` call now copies the
+  // source into a real `KnowledgeSessionStorage.sourcesDirectory` (see
+  // `reference_vault_source_persistence_test.dart`), so every session id
+  // this suite's outcomes produce is tracked here and deleted in
+  // `tearDown`, matching `knowledge_session_storage_test.dart`'s own
+  // established convention -- this suite must not leave files behind.
+  final createdSessionIds = <String>[];
+
+  tearDown(() async {
+    for (final id in createdSessionIds) {
+      final directory = KnowledgeSessionStorage.sessionDirectory(id);
+      if (directory.existsSync()) {
+        await directory.delete(recursive: true);
+      }
+    }
+    createdSessionIds.clear();
+  });
 
   Future<List<OcrPageResult>> fakeOcrSuccess({
     required SourceMaterial source,
@@ -189,6 +208,7 @@ void main() {
       );
 
       expect(outcome.isFailed, isFalse);
+      if (outcome.sessionRecord != null) createdSessionIds.add(outcome.sessionRecord!.session.id);
       expect(outcome.ingestionResult, isNotNull);
       // TEST-004-001: the vault object id given to `ingest` is exactly
       // what reached the orchestrator's own `IngestionRun`.
@@ -218,10 +238,11 @@ void main() {
       expect(outcome.isFailed, isFalse);
       final record = outcome.sessionRecord;
       expect(record, isNotNull);
+      createdSessionIds.add(record!.session.id);
       // TEST-004-012: the exact same model type every existing
       // Knowledge Studio surface (Candidate List, Evidence Browser,
       // Provenance Explorer, Commit Preview) already renders.
-      expect(record!.session.name, 'TRX300 Ingestion');
+      expect(record.session.name, 'TRX300 Ingestion');
       expect(record.sources, hasLength(1));
       expect(record.sources.single.id, outcome.ingestionResult!.source.id);
       expect(record.engineeringEntities, isNotEmpty);
@@ -313,6 +334,7 @@ void main() {
       // A session is still produced -- PARTIAL is reviewable, not
       // discarded (WP-INGEST-004 § 6/§ 9).
       expect(outcome.sessionRecord, isNotNull);
+      createdSessionIds.add(outcome.sessionRecord!.session.id);
     });
   });
 
@@ -332,6 +354,7 @@ void main() {
       );
 
       expect(outcome.isFailed, isFalse);
+      createdSessionIds.add(outcome.sessionRecord!.session.id);
       // `SourceMaterial.localPath` is set from `VaultObjectInput.storageReference`
       // (`PdfIngestionParser.parse`) -- the exact temp file
       // `ReferenceVaultAdapter.materialize` created and
@@ -408,6 +431,7 @@ void main() {
         ocrRunner: fakeOcrSuccess,
       );
 
+      createdSessionIds.add(outcome.sessionRecord!.session.id);
       for (final candidate in outcome.sessionRecord!.candidates) {
         expect(candidate.status, KnowledgeCandidateStatus.pending);
         expect(candidate.committedObjectId, isNull);
@@ -437,6 +461,7 @@ void main() {
         expect(outcome.isFailed, isFalse);
         expect(outcome.ingestionResult!.run.status, anyOf(IngestionRunStatus.completed, IngestionRunStatus.partial));
         expect(outcome.sessionRecord, isNotNull);
+        createdSessionIds.add(outcome.sessionRecord!.session.id);
         expect(outcome.sessionRecord!.engineeringEntities, isNotEmpty);
         for (final candidate in outcome.sessionRecord!.candidates) {
           expect(candidate.status, KnowledgeCandidateStatus.pending);
@@ -474,6 +499,8 @@ void main() {
 
       expect(first.isFailed, isFalse);
       expect(second.isFailed, isFalse);
+      createdSessionIds.add(first.sessionRecord!.session.id);
+      createdSessionIds.add(second.sessionRecord!.session.id);
       expect(first.sessionRecord!.session.id, isNot(second.sessionRecord!.session.id));
 
       final afterBytes = await File(trx300Path).readAsBytes();

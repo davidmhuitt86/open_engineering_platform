@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import '../../ingestion/models/ingestion_result.dart';
 import '../../ingestion/models/ingestion_run_status.dart';
 import '../../ingestion/models/vault_object_input.dart';
@@ -5,7 +7,9 @@ import '../../ingestion/services/ingestion_orchestrator.dart';
 import '../../ingestion/services/knowledge_session_bridge.dart';
 import '../../knowledge/models/knowledge_session_record.dart';
 import '../../knowledge/services/knowledge_session_service.dart';
+import '../../knowledge/services/knowledge_session_storage.dart';
 import '../../knowledge/services/ocr_pipeline_service.dart';
+import '../../knowledge/services/source_material_service.dart';
 import 'acquisition_api_client.dart';
 import 'acquisition_api_exception.dart';
 import 'reference_vault_adapter.dart';
@@ -136,15 +140,37 @@ abstract final class ReferenceVaultIngestionWorkflow {
       }
 
       final KnowledgeSessionRecord sessionRecord;
+      final candidateSessionId = KnowledgeSessionService.generateId('session');
       try {
-        sessionRecord = IngestionKnowledgeSessionBridge.toNewSessionRecord(
+        final builtRecord = IngestionKnowledgeSessionBridge.toNewSessionRecord(
           result: result,
-          sessionId: KnowledgeSessionService.generateId('session'),
+          sessionId: candidateSessionId,
           sessionName: sessionName,
           repositoryName: repositoryName,
           author: author,
         );
+        // WP-INGEST-005: copy the ingested source's bytes into this
+        // session's own managed `sources/` directory *before* the
+        // outer `finally` block below deletes the temporary
+        // materialization `ReferenceVaultAdapter.materialize` created —
+        // `result.source.localPath` still points at that temporary file
+        // at this point, so it is still safe to read from. Without this
+        // step, `KnowledgeSessionRecord.sources` would keep pointing at
+        // a file the temp-cleanup step is about to delete, leaving the
+        // Source Viewer unable to reopen it.
+        final sessionOwnedSource = await SourceMaterialService.attachIngestedSource(
+          sessionId: candidateSessionId,
+          source: result.source,
+        );
+        sessionRecord = IngestionKnowledgeSessionBridge.withReplacedSource(builtRecord, sessionOwnedSource);
       } catch (error) {
+        // Either the session record itself could not be built, or the
+        // source copy failed partway through — in both cases no usable
+        // Knowledge Session exists, so any `sources/<candidateSessionId>`
+        // directory the failed copy attempt may have started is an
+        // orphan with nothing else ever referencing it. Best-effort
+        // cleanup only, mirroring `ReferenceVaultAdapter.cleanupTemporaryFile`.
+        await _cleanupOrphanedSessionSource(candidateSessionId);
         return ReferenceVaultIngestionOutcome._(
           status: ReferenceVaultIngestionOutcomeStatus.failed,
           ingestionResult: result,
@@ -168,6 +194,22 @@ abstract final class ReferenceVaultIngestionWorkflow {
       if (input != null) {
         await ReferenceVaultAdapter.cleanupTemporaryFile(input);
       }
+    }
+  }
+
+  /// Deletes [sessionId]'s `sources/` directory if it exists (WP-INGEST-005)
+  /// — used only when a session build/source-copy failure means
+  /// [sessionId] will never become a real, returned Knowledge Session, so
+  /// nothing else will ever reference whatever [SourceMaterialService.attachIngestedSource]
+  /// managed to write before failing. Best-effort, like
+  /// [ReferenceVaultAdapter.cleanupTemporaryFile] — a failure to delete an
+  /// orphaned directory is not itself an ingestion failure.
+  static Future<void> _cleanupOrphanedSessionSource(String sessionId) async {
+    final directory = KnowledgeSessionStorage.sourcesDirectory(sessionId);
+    try {
+      if (await directory.exists()) await directory.delete(recursive: true);
+    } on FileSystemException {
+      // Best-effort cleanup only.
     }
   }
 }

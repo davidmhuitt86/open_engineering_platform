@@ -1,5 +1,6 @@
 import '../../knowledge/models/knowledge_session.dart';
 import '../../knowledge/models/knowledge_session_record.dart';
+import '../../knowledge/models/source_material.dart';
 import '../models/ingestion_result.dart';
 
 /// The UIF ↔ Knowledge Studio boundary (AP-INGEST-001 § 19, WP-INGEST-001
@@ -72,6 +73,42 @@ abstract final class IngestionKnowledgeSessionBridge {
       engineeringEntities: [...session.engineeringEntities, ...result.engineeringEntities],
       engineeringContexts: session.engineeringContexts,
       aiSuggestions: session.aiSuggestions,
+    );
+  }
+
+  /// Returns [record] with its `sources` list replaced by exactly
+  /// [sessionOwnedSource] (WP-INGEST-005) -- used by
+  /// `ReferenceVaultIngestionWorkflow` once
+  /// `SourceMaterialService.attachIngestedSource` has copied the ingested
+  /// file into `KnowledgeSessionStorage`, so `KnowledgeSessionRecord.sources`
+  /// never keeps referencing `ReferenceVaultAdapter`'s temporary ingestion
+  /// path. [sessionOwnedSource] must carry the same `SourceMaterial.id` as
+  /// the source it replaces -- callers get that for free from
+  /// `attachIngestedSource`, which preserves the id exactly.
+  ///
+  /// Every other field is preserved unchanged, via the same explicit
+  /// field-by-field reconstruction [mergeInto] already uses -- there is no
+  /// `KnowledgeSessionRecord.copyWith` to reuse instead.
+  static KnowledgeSessionRecord withReplacedSource(
+    KnowledgeSessionRecord record,
+    SourceMaterial sessionOwnedSource,
+  ) {
+    return KnowledgeSessionRecord(
+      session: record.session,
+      candidates: record.candidates,
+      relationshipCandidates: record.relationshipCandidates,
+      sources: [sessionOwnedSource],
+      reviewDecisions: record.reviewDecisions,
+      evidenceRegions: record.evidenceRegions,
+      evidenceLinks: record.evidenceLinks,
+      pageSelections: record.pageSelections,
+      procedureSteps: record.procedureSteps,
+      specificationDetails: record.specificationDetails,
+      commitReports: record.commitReports,
+      ocrPageResults: record.ocrPageResults,
+      engineeringEntities: record.engineeringEntities,
+      engineeringContexts: record.engineeringContexts,
+      aiSuggestions: record.aiSuggestions,
     );
   }
 }
