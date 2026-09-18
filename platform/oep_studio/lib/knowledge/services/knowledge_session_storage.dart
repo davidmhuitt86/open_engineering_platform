@@ -106,8 +106,22 @@ abstract final class KnowledgeSessionStorage {
   }
 
   /// Loads one session by ID. Throws [KnowledgeValidationException] —
-  /// translated from either a missing file or a JSON/structural parse
-  /// failure — for "Corrupted session files".
+  /// translated from either a missing file, a JSON/structural parse
+  /// failure ("Corrupted session files"), or a failure to persist a
+  /// reconciled interrupted run back to disk (see below).
+  ///
+  /// INGEST-FOLLOWUP-005 § durable reconciliation: when this load
+  /// discovers a QUEUED/RUNNING run left behind by a previous process
+  /// that never reached a terminal status (see [_reconcileInterruptedRuns]),
+  /// the reconciled FAILED record is written back to `session.json`
+  /// before returning -- not just handed back in memory -- via [save]
+  /// itself (which never calls [load], so this can never recurse). That
+  /// makes reconciliation a one-time event per interrupted run: the next
+  /// [load] finds the run already FAILED on disk, `_reconcileInterruptedRuns`
+  /// short-circuits (every run already terminal), and neither the
+  /// diagnostic nor `completedAt` are touched again -- `completedAt` is
+  /// therefore stable across every subsequent reload, generated exactly
+  /// once at first reconciliation.
   static Future<KnowledgeSessionRecord> load(String sessionId) async {
     final file = _sessionFile(sessionId);
     if (!file.existsSync()) {
@@ -119,9 +133,10 @@ abstract final class KnowledgeSessionStorage {
     } on IOException catch (error) {
       throw KnowledgeValidationException('Couldn\'t read session file: ${error.toString()}');
     }
+    final KnowledgeSessionRecord parsed;
     try {
       final json = jsonDecode(contents) as Map<String, dynamic>;
-      return _reconcileInterruptedRuns(KnowledgeSessionRecord.fromJson(json));
+      parsed = KnowledgeSessionRecord.fromJson(json);
     } on FormatException catch (error) {
       throw KnowledgeValidationException(
         'This session file is corrupted and could not be loaded (${error.message}).',
@@ -129,6 +144,14 @@ abstract final class KnowledgeSessionStorage {
     } on TypeError {
       throw const KnowledgeValidationException('This session file is corrupted and could not be loaded.');
     }
+    // Decided before reconciliation runs: whether there is anything to
+    // reconcile at all, so an ordinary already-terminal session (the
+    // overwhelming common case) never triggers a redundant write.
+    final hasInterruptedRun = parsed.ingestionRuns.any((run) => !run.status.isTerminal);
+    if (!hasInterruptedRun) return parsed;
+    final reconciled = _reconcileInterruptedRuns(parsed);
+    await save(reconciled);
+    return reconciled;
   }
 
   /// Lists every persisted session for the Session Browser (Work
