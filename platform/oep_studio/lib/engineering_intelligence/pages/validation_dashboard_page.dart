@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/foundation/foundation_bridge_exception.dart';
 import '../../core/foundation/oep_api_types.dart';
+import '../../core/services/eke_consumer_gate.dart';
 import '../../core/services/foundation_runtime_service.dart';
 import '../../core/theme/studio_colors.dart';
 import '../widgets/ei_widgets.dart';
@@ -84,13 +85,20 @@ class _ValidationDashboardPageState extends ConsumerState<ValidationDashboardPag
   /// here (WP-EKE-009): [FoundationRuntimeNotifier] already brings EKE
   /// to [EkeReadinessState.ready] as part of Repository Open. This is
   /// only a defensive fallback for a prior initialization failure.
-  Future<void> _ensureGraph() async {
+  ///
+  /// WP-EKE-FOLLOWUP-001: a genuine execution gate — [_validateContext]/
+  /// [_validateObject] must not call `validateContext`/`validateObject`
+  /// unless this returns `true`. Only [EkeReadinessState.ready] returns
+  /// `true` — see [EkeConsumerGate].
+  bool _ensureGraphReady() {
     final notifier = ref.read(foundationRuntimeServiceProvider.notifier);
     notifier.ensureEkeReady();
     final readiness = ref.read(foundationRuntimeServiceProvider).ekeReadiness;
-    if (readiness.hasFailed) {
-      setState(() => _error = readiness.failureMessage);
+    if (!EkeConsumerGate.allows(readiness)) {
+      setState(() => _error = EkeConsumerGate.blockedMessage(readiness));
+      return false;
     }
+    return true;
   }
 
   Future<void> _validateContext() async {
@@ -101,7 +109,10 @@ class _ValidationDashboardPageState extends ConsumerState<ValidationDashboardPag
       _busy = true;
       _error = null;
     });
-    await _ensureGraph();
+    if (!_ensureGraphReady()) {
+      setState(() => _busy = false);
+      return;
+    }
     try {
       final report = bridge.validateContext(_sessionId!);
       final stats = bridge.validationStatistics(_sessionId!);
@@ -124,7 +135,10 @@ class _ValidationDashboardPageState extends ConsumerState<ValidationDashboardPag
       _busy = true;
       _error = null;
     });
-    await _ensureGraph();
+    if (!_ensureGraphReady()) {
+      setState(() => _busy = false);
+      return;
+    }
     try {
       final report = bridge.validateObject(_sessionId!, _objectIdController.text.trim());
       final stats = bridge.validationStatistics(_sessionId!);

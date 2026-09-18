@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/foundation/foundation_bridge_exception.dart';
 import '../../core/foundation/oep_api_types.dart';
+import '../../core/services/eke_consumer_gate.dart';
 import '../../core/services/foundation_runtime_service.dart';
 import '../../core/theme/studio_colors.dart';
 import '../widgets/ei_widgets.dart';
@@ -53,19 +54,28 @@ class _AnalysisDashboardPageState extends ConsumerState<AnalysisDashboardPage> {
   /// edge case of a prior initialization failure — it delegates back to
   /// the same authoritative lifecycle rather than loading/building
   /// anything itself.
-  Future<void> _ensureGraph() async {
+  ///
+  /// WP-EKE-FOLLOWUP-001: this is a genuine execution gate, not merely
+  /// an error-setter — every call site below must check the returned
+  /// bool and refuse to invoke its EKE operation (`engineeringHealth`/
+  /// `analyzeDependencies`/`analyzeImpact`/`analyzeReachability`/
+  /// `analyzeRootCause`) when it returns `false`. Only
+  /// [EkeReadinessState.ready] returns `true` — see [EkeConsumerGate].
+  bool _ensureGraphReady() {
     final notifier = ref.read(foundationRuntimeServiceProvider.notifier);
     notifier.ensureEkeReady();
     final readiness = ref.read(foundationRuntimeServiceProvider).ekeReadiness;
-    if (readiness.hasFailed) {
-      setState(() => _error = readiness.failureMessage);
+    if (!EkeConsumerGate.allows(readiness)) {
+      setState(() => _error = EkeConsumerGate.blockedMessage(readiness));
+      return false;
     }
+    return true;
   }
 
   Future<void> _loadHealth() async {
     final bridge = ref.read(foundationRuntimeServiceProvider.notifier).bridge;
     if (bridge == null) return;
-    await _ensureGraph();
+    if (!_ensureGraphReady()) return;
     try {
       final health = bridge.engineeringHealth();
       setState(() => _health = health);
@@ -84,7 +94,10 @@ class _AnalysisDashboardPageState extends ConsumerState<AnalysisDashboardPage> {
       _error = null;
       _mode = mode;
     });
-    await _ensureGraph();
+    if (!_ensureGraphReady()) {
+      setState(() => _busy = false);
+      return;
+    }
     try {
       switch (mode) {
         case 'dependencies':

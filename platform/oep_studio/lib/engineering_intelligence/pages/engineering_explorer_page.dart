@@ -5,6 +5,7 @@ import '../../core/foundation/foundation_bridge.dart';
 import '../../core/foundation/foundation_bridge_exception.dart';
 import '../../core/models/engineering_object_summary.dart';
 import '../../core/models/object_category.dart';
+import '../../core/services/eke_consumer_gate.dart';
 import '../../core/services/foundation_runtime_service.dart';
 import '../../core/theme/studio_colors.dart';
 import '../widgets/ei_widgets.dart';
@@ -47,13 +48,20 @@ class _EngineeringExplorerPageState extends ConsumerState<EngineeringExplorerPag
   /// delegates back to the authoritative lifecycle rather than loading
   /// the graph itself, and the "loading" indicator below reflects the
   /// authoritative [EkeReadiness.isInitializing], not a page-local flag.
-  Future<void> _ensureGraphLoaded() async {
+  ///
+  /// WP-EKE-FOLLOWUP-001: a genuine execution gate — [_selectObject]
+  /// must not call `engineRelatedObjects` unless this returns `true`.
+  /// Only [EkeReadinessState.ready] returns `true` — see
+  /// [EkeConsumerGate].
+  bool _ensureGraphReady() {
     final notifier = ref.read(foundationRuntimeServiceProvider.notifier);
     notifier.ensureEkeReady();
     final readiness = ref.read(foundationRuntimeServiceProvider).ekeReadiness;
-    if (readiness.hasFailed) {
-      setState(() => _error = readiness.failureMessage);
+    if (!EkeConsumerGate.allows(readiness)) {
+      setState(() => _error = EkeConsumerGate.blockedMessage(readiness));
+      return false;
     }
+    return true;
   }
 
   Future<void> _selectObject(String objectId) async {
@@ -62,11 +70,9 @@ class _EngineeringExplorerPageState extends ConsumerState<EngineeringExplorerPag
       _relatedObjectIds = null;
       _error = null;
     });
-    await _ensureGraphLoaded();
+    if (!_ensureGraphReady()) return;
     final bridge = _bridge;
-    if (bridge == null || !ref.read(foundationRuntimeServiceProvider).ekeReadiness.isReady) {
-      return;
-    }
+    if (bridge == null) return;
     try {
       final related = bridge.engineRelatedObjects(objectId);
       setState(() => _relatedObjectIds = related);

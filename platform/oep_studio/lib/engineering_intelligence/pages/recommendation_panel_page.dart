@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/foundation/foundation_bridge_exception.dart';
 import '../../core/foundation/oep_api_types.dart';
+import '../../core/services/eke_consumer_gate.dart';
 import '../../core/services/foundation_runtime_service.dart';
 import '../../core/theme/studio_colors.dart';
 import '../widgets/ei_widgets.dart';
@@ -41,13 +42,20 @@ class _RecommendationPanelPageState extends ConsumerState<RecommendationPanelPag
   /// here (WP-EKE-009): [FoundationRuntimeNotifier] already brings EKE
   /// to [EkeReadinessState.ready] as part of Repository Open. This is
   /// only a defensive fallback for a prior initialization failure.
-  Future<void> _ensureGraph() async {
+  ///
+  /// WP-EKE-FOLLOWUP-001: a genuine execution gate — [_load] must not
+  /// call `engineeringRecommendations`/`createReasoningSession`/
+  /// `executeReasoning` unless this returns `true`. Only
+  /// [EkeReadinessState.ready] returns `true` — see [EkeConsumerGate].
+  bool _ensureGraphReady() {
     final notifier = ref.read(foundationRuntimeServiceProvider.notifier);
     notifier.ensureEkeReady();
     final readiness = ref.read(foundationRuntimeServiceProvider).ekeReadiness;
-    if (readiness.hasFailed) {
-      setState(() => _error = readiness.failureMessage);
+    if (!EkeConsumerGate.allows(readiness)) {
+      setState(() => _error = EkeConsumerGate.blockedMessage(readiness));
+      return false;
     }
+    return true;
   }
 
   Future<void> _load() async {
@@ -59,7 +67,10 @@ class _RecommendationPanelPageState extends ConsumerState<RecommendationPanelPag
       _details.clear();
       _evidenceCache.clear();
     });
-    await _ensureGraph();
+    if (!_ensureGraphReady()) {
+      setState(() => _busy = false);
+      return;
+    }
     try {
       // The Engineering Intelligence Platform's top-level entry point
       // (WP-EKE-007) for "what recommendations exist for this object" —

@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/foundation/foundation_bridge_exception.dart';
 import '../../core/foundation/oep_api_types.dart';
 import '../../core/models/relationship_summary.dart';
+import '../../core/services/eke_consumer_gate.dart';
 import '../../core/services/foundation_runtime_service.dart';
 import '../../core/theme/studio_colors.dart';
 import '../widgets/ei_widgets.dart';
@@ -52,8 +53,24 @@ class _KnowledgeGraphExplorerPageState extends ConsumerState<KnowledgeGraphExplo
       // Explicit, user-requested rebuild (WP-EKE-009 requirement 6B) —
       // routed through the notifier so it still updates the
       // authoritative EkeReadiness rather than only this page's own
-      // `_built`/`_building` display flags.
+      // `_built`/`_building` display flags. This action is deliberately
+      // NOT gated behind "must already be ready" — it is itself the
+      // recovery path out of a non-ready state (WP-EKE-FOLLOWUP-001 §6:
+      // a B-category explicit-refresh action). `rebuildKnowledgeGraph`
+      // throws on failure whenever it has a `causingException`
+      // (currently always, per `EkeLifecycle`), which already stops
+      // this method here before any further Knowledge Graph query runs.
+      // The explicit readiness check below is a second, defensive line
+      // for the same invariant, so a future failure path that omits a
+      // `causingException` still cannot let the query calls below run
+      // against a non-ready graph (WP-EKE-FOLLOWUP-001's core
+      // requirement: only `ready` may permit execution).
       notifier.rebuildKnowledgeGraph();
+      final readiness = ref.read(foundationRuntimeServiceProvider).ekeReadiness;
+      if (!EkeConsumerGate.allows(readiness)) {
+        setState(() => _error = EkeConsumerGate.blockedMessage(readiness));
+        return;
+      }
       final stats = bridge.knowledgeGraphStatistics();
       final components = bridge.connectedComponents();
       final objects = ref.read(foundationRuntimeServiceProvider).objectList ?? const [];
