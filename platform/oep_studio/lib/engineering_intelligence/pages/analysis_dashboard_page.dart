@@ -22,7 +22,6 @@ class _AnalysisDashboardPageState extends ConsumerState<AnalysisDashboardPage> {
   final _objectIdController = TextEditingController();
   final _targetIdController = TextEditingController();
   bool _busy = false;
-  bool _graphReady = false;
   String? _error;
   String? _mode;
 
@@ -47,15 +46,19 @@ class _AnalysisDashboardPageState extends ConsumerState<AnalysisDashboardPage> {
     super.dispose();
   }
 
+  /// The Engineering Graph/Knowledge Graph are no longer loaded/built
+  /// here (WP-EKE-009): [FoundationRuntimeNotifier] already brings EKE
+  /// to [EkeReadinessState.ready] as part of Repository Open, before
+  /// this page could ever be reached. This only covers the defensive
+  /// edge case of a prior initialization failure — it delegates back to
+  /// the same authoritative lifecycle rather than loading/building
+  /// anything itself.
   Future<void> _ensureGraph() async {
-    final bridge = ref.read(foundationRuntimeServiceProvider.notifier).bridge;
-    if (bridge == null || _graphReady) return;
-    try {
-      bridge.loadEngineeringGraph();
-      bridge.buildKnowledgeGraph();
-      _graphReady = true;
-    } on FoundationBridgeException catch (e) {
-      setState(() => _error = e.message);
+    final notifier = ref.read(foundationRuntimeServiceProvider.notifier);
+    notifier.ensureEkeReady();
+    final readiness = ref.read(foundationRuntimeServiceProvider).ekeReadiness;
+    if (readiness.hasFailed) {
+      setState(() => _error = readiness.failureMessage);
     }
   }
 

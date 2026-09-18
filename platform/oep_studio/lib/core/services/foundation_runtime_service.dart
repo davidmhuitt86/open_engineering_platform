@@ -52,6 +52,7 @@ import '../models/object_category.dart';
 import '../models/relationship_summary.dart';
 import '../models/relationship_type.dart';
 import '../models/search_scope.dart';
+import 'eke_lifecycle.dart';
 import 'foundation_runtime_state.dart';
 
 /// The Studio Connection Manager (Work Packages 002-009). Owns Current
@@ -100,6 +101,10 @@ class FoundationRuntimeNotifier extends Notifier<FoundationServiceState> {
         foundationVersion: bridge.foundationVersion,
         apiVersion: bridge.apiVersion,
         abiVersion: bridge.abiVersion,
+        // Connected, but no Repository is open yet (WP-EKE-009) — EKE
+        // initialization only ever begins from [openRepository].
+        ekeReadiness:
+            const EkeReadiness(state: EkeReadinessState.repositoryClosed),
       );
     } on FoundationBridgeException catch (error) {
       return FoundationServiceState(
@@ -161,12 +166,26 @@ class FoundationRuntimeNotifier extends Notifier<FoundationServiceState> {
         clearRelationshipList: true,
         searchQuery: '',
         clearSearchResults: true,
+        // A Repository just (re)opened — any Engineering/Knowledge
+        // Graph from a previously open Repository must never be
+        // presented as this one's (WP-EKE-009 requirement 10). This is
+        // overwritten again immediately below by
+        // `_runEkeInitialization`, but is set here too so that even a
+        // reentrant read between these two calls never observes a
+        // stale `ready` left over from the previous Repository.
+        ekeReadiness:
+            const EkeReadiness(state: EkeReadinessState.graphNotLoaded),
       );
     } on FoundationBridgeException catch (error) {
       state = state.copyWith(lastError: error);
       rethrow;
     }
     _refreshRepositoryData(bridge);
+    // Repository Open -> Engineering Graph Load -> Knowledge Graph Build
+    // -> EKE Ready (WP-EKE-009), the ONE authoritative place this
+    // lifecycle originates from — EKE consumer pages no longer perform
+    // this initialization themselves.
+    _runEkeInitialization(bridge, fullReload: true);
   }
 
   /// Re-fetches Repository Statistics, the Current Object List, and the
@@ -249,10 +268,98 @@ class FoundationRuntimeNotifier extends Notifier<FoundationServiceState> {
         clearRelationshipList: true,
         searchQuery: '',
         clearSearchResults: true,
+        // EKE must no longer report READY once its Repository becomes
+        // unavailable (WP-EKE-009 requirement 10) — the closed
+        // Repository's Engineering/Knowledge Graph is gone with it.
+        ekeReadiness:
+            const EkeReadiness(state: EkeReadinessState.repositoryClosed),
       );
     } on FoundationBridgeException catch (error) {
       state = state.copyWith(lastError: error);
       rethrow;
+    }
+  }
+
+  /// Runs the EKE readiness lifecycle (WP-EKE-009) against [bridge] for
+  /// whichever Repository is now open, via [EkeLifecycle] — the ONE
+  /// authoritative entry point; nothing else in this notifier calls
+  /// `FoundationBridge.loadEngineeringGraph`/`buildKnowledgeGraph`
+  /// directly. [fullReload] selects a full Engineering Graph Load +
+  /// Knowledge Graph Build (repository open, explicit full
+  /// reinitialization) versus a Knowledge-Graph-only rebuild (explicit
+  /// user refresh, post-mutation refresh — the Engineering Graph is
+  /// already current).
+  ///
+  /// Always moves [FoundationServiceState.ekeReadiness] to
+  /// [EkeReadinessState.initializing] *before* calling into
+  /// [EkeLifecycle], so no consumer can ever observe a stale `ready`
+  /// left over from a previous Repository/initialization while a fresh
+  /// one is in flight (WP-EKE-009 requirement 18) — both
+  /// `FoundationBridge.loadEngineeringGraph`/`buildKnowledgeGraph` are
+  /// synchronous FFI calls, so this is the only way that intermediate
+  /// state is ever observable at all.
+  void _runEkeInitialization(FoundationBridge bridge, {required bool fullReload}) {
+    if (!state.isRepositoryOpen) return;
+    final repositoryId = state.repositoryStatus?.repositoryId;
+    state = state.copyWith(
+      ekeReadiness:
+          EkeReadiness(state: EkeReadinessState.initializing, repositoryId: repositoryId),
+    );
+    final result = fullReload
+        ? EkeLifecycle.initialize(
+            repositoryId: repositoryId,
+            loadGraph: bridge.loadEngineeringGraph,
+            buildGraph: bridge.buildKnowledgeGraph,
+          )
+        : EkeLifecycle.rebuildKnowledgeGraphOnly(
+            repositoryId: repositoryId,
+            buildGraph: bridge.buildKnowledgeGraph,
+          );
+    // The Repository/Bridge may have been closed or switched while the
+    // (synchronous, but still worth guarding for future-proofing) call
+    // above ran — never let a stale result overwrite a newer
+    // repositoryClosed/disconnected state (WP-EKE-009 requirement 10).
+    if (_bridge != bridge || !state.isRepositoryOpen) return;
+    state = state.copyWith(ekeReadiness: result);
+  }
+
+  /// Defensive readiness check for EKE consumer pages (WP-EKE-009
+  /// requirement 6D): if the authoritative lifecycle (driven by
+  /// [openRepository]) has not reached [EkeReadinessState.ready] and
+  /// isn't already in flight, (re)starts it. This is a safety net for
+  /// edge cases — e.g. a page mounted while a previous initialization
+  /// attempt had failed — not a second initialization path: it
+  /// delegates to the exact same [_runEkeInitialization] every other
+  /// entry point uses. A no-op when already ready or already
+  /// initializing, and when no Repository is open.
+  void ensureEkeReady() {
+    final bridge = _bridge;
+    if (bridge == null || !state.isRepositoryOpen) return;
+    final current = state.ekeReadiness.state;
+    if (current == EkeReadinessState.ready ||
+        current == EkeReadinessState.initializing) {
+      return;
+    }
+    _runEkeInitialization(bridge, fullReload: true);
+  }
+
+  /// Explicit, user-requested Knowledge Graph rebuild (WP-EKE-009
+  /// requirement 6B: e.g. the Knowledge Graph Explorer's "Rebuild
+  /// Graph" button) — retained as a legitimate action, but now updates
+  /// the authoritative [FoundationServiceState.ekeReadiness] instead of
+  /// a page-local flag. Rebuilds the Knowledge Graph only; the
+  /// Engineering Graph is assumed already current (use [ensureEkeReady]
+  /// for a full reload). Rethrows [FoundationBridgeException] on
+  /// failure, mirroring the direct `FoundationBridge.buildKnowledgeGraph`
+  /// call this replaces, so existing callers' error handling keeps
+  /// working unchanged.
+  void rebuildKnowledgeGraph() {
+    final bridge = _bridge;
+    if (bridge == null || !state.isRepositoryOpen) return;
+    _runEkeInitialization(bridge, fullReload: false);
+    final failure = state.ekeReadiness;
+    if (failure.hasFailed && failure.causingException != null) {
+      throw failure.causingException!;
     }
   }
 
@@ -1871,6 +1978,16 @@ class FoundationRuntimeNotifier extends Notifier<FoundationServiceState> {
         commitReports: [...state.commitReports, report],
       );
       _refreshRepositoryData(bridge);
+      // Repository mutation -> Engineering Graph refresh -> Knowledge
+      // Graph rebuild -> EKE READY (WP-EKE-009 requirement 7): Commit
+      // creates real Foundation Engineering Objects/Relationships, so
+      // the cached Runtime Graph is now stale and must not be presented
+      // as current until it's reloaded. This is the only Repository
+      // mutation path in Studio (`CommitTransactionService`), so this is
+      // the one place a post-mutation refresh is wired in — a full
+      // reload, since Commit can add brand-new objects the Engineering
+      // Graph has never seen.
+      _runEkeInitialization(bridge, fullReload: true);
     } else {
       state = state.copyWith(commitReports: [...state.commitReports, report]);
     }

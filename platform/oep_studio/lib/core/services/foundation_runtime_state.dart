@@ -53,6 +53,134 @@ import '../models/search_result.dart';
 /// native enum has no room for.
 enum FoundationConnectionPhase { connecting, connected, error }
 
+/// The Engineering Knowledge Engine's authoritative readiness lifecycle
+/// (WP-EKE-009): `Repository Open -> Engineering Graph Load -> Knowledge
+/// Graph Build -> EKE Ready`. Owned exclusively by
+/// [FoundationRuntimeNotifier] via [FoundationServiceState.ekeReadiness]
+/// — no EKE consumer page holds its own authoritative copy of this state
+/// (a page-local `_graphLoaded`/`_graphReady` bool is never the source of
+/// truth). See `docs/CONNECTION_MANAGER.md` § Engineering Knowledge
+/// Engine Readiness.
+enum EkeReadinessState {
+  /// No [FoundationBridge] connection exists (Foundation failed to start,
+  /// or the connection attempt hasn't completed). No Repository can be
+  /// open in this state.
+  disconnected,
+
+  /// Connected to Foundation, but no Repository is currently open —
+  /// either nothing has been opened yet, or the previously open
+  /// Repository was just closed. The Engineering Graph/Knowledge Graph
+  /// from any previously open Repository must never be presented as
+  /// current once this state is reached (WP-EKE-009 requirement 10).
+  repositoryClosed,
+
+  /// A Repository is open but its Engineering Graph has not yet been
+  /// (re)loaded for this handle — the state immediately after opening,
+  /// before initialization begins, and the state a mutation that
+  /// requires a refresh reverts to before that refresh completes.
+  graphNotLoaded,
+
+  /// An Engineering Graph Load and/or Knowledge Graph Build is currently
+  /// in flight. Distinct from every other state so a fresh
+  /// (re)initialization is never confused with a stale prior READY
+  /// (WP-EKE-009 requirement 18) — no consumer may treat this as ready.
+  initializing,
+
+  /// [FoundationBridge.loadEngineeringGraph] succeeded for the currently
+  /// open Repository, but [FoundationBridge.buildKnowledgeGraph] has not
+  /// yet succeeded (or has not yet been attempted) since. EKE consumers
+  /// must not query the Knowledge Graph in this state.
+  engineeringGraphLoaded,
+
+  /// The full lifecycle completed successfully for the currently open
+  /// Repository: Engineering Graph loaded, Knowledge Graph built. This
+  /// is the only state in which EKE consumers (Query, Analysis,
+  /// Reasoning, Validation, Recommendations, …) may run against the
+  /// graph. An empty Repository that successfully produces an empty
+  /// graph reaches this state exactly like a populated one — emptiness
+  /// of [FoundationServiceState.objectList] is never conflated with
+  /// "not ready" (WP-EKE-009 requirements 1/8).
+  ready,
+
+  /// Engineering Graph Load or Knowledge Graph Build failed for the
+  /// currently open Repository. [EkeReadiness.failedStage] and
+  /// [EkeReadiness.failureMessage] retain the diagnostic. Never silently
+  /// reverts to [ready] — leaving this state requires a fresh, explicit
+  /// (re)initialization attempt.
+  initializationFailed,
+}
+
+/// Which half of the EKE initialization lifecycle failed, retained on
+/// [EkeReadiness] for diagnostics (WP-EKE-009 requirement 9).
+enum EkeInitializationStage { engineeringGraphLoad, knowledgeGraphBuild }
+
+/// The Engineering Knowledge Engine's authoritative readiness (WP-EKE-009)
+/// — see [EkeReadinessState] for the state machine this models. Immutable,
+/// like [FoundationServiceState] itself.
+class EkeReadiness {
+  const EkeReadiness({
+    this.state = EkeReadinessState.disconnected,
+    this.failedStage,
+    this.failureMessage,
+    this.repositoryId,
+    this.causingException,
+  });
+
+  /// The current readiness state.
+  final EkeReadinessState state;
+
+  /// Which stage failed, set only when [state] is
+  /// [EkeReadinessState.initializationFailed].
+  final EkeInitializationStage? failedStage;
+
+  /// A diagnostic message for the most recent failure, set only when
+  /// [state] is [EkeReadinessState.initializationFailed]. Preserved
+  /// (never silently dropped) so the failing page — and any other EKE
+  /// consumer — can surface *why* initialization failed rather than a
+  /// bare "not ready" (WP-EKE-009 requirement 9).
+  final String? failureMessage;
+
+  /// The `RepositoryStatus.repositoryId` this readiness applies to,
+  /// `null` when no Repository is open. Lets a stale readiness value
+  /// (e.g. captured in an async gap) be recognized as belonging to a
+  /// Repository that is no longer the current one — no Repository's
+  /// Engineering/Knowledge Graph may ever be presented as another
+  /// Repository's (WP-EKE-009 requirement 10).
+  final String? repositoryId;
+
+  /// The original [FoundationBridgeException] that produced this
+  /// failure, set only when [state] is
+  /// [EkeReadinessState.initializationFailed] — retained (rather than
+  /// just its [failureMessage]) so callers that need the exact
+  /// exception back (e.g. an explicit refresh action rethrowing to its
+  /// caller's existing error handling) can do so without reconstructing
+  /// a synthetic one.
+  final FoundationBridgeException? causingException;
+
+  bool get isReady => state == EkeReadinessState.ready;
+  bool get isInitializing => state == EkeReadinessState.initializing;
+  bool get hasFailed => state == EkeReadinessState.initializationFailed;
+  bool get isRepositoryConnected =>
+      state != EkeReadinessState.disconnected &&
+      state != EkeReadinessState.repositoryClosed;
+
+  @override
+  bool operator ==(Object other) =>
+      other is EkeReadiness &&
+      other.state == state &&
+      other.failedStage == failedStage &&
+      other.failureMessage == failureMessage &&
+      other.repositoryId == repositoryId;
+
+  @override
+  int get hashCode => Object.hash(state, failedStage, failureMessage, repositoryId);
+
+  @override
+  String toString() =>
+      'EkeReadiness(state: $state, failedStage: $failedStage, '
+      'failureMessage: $failureMessage, repositoryId: $repositoryId)';
+}
+
 /// The Connection Manager's state (SDD-006, Work Packages 002-016): owns
 /// Current Runtime, Current Repository, Repository Statistics, Current
 /// Object List, Current Relationship List, Current Search Query, Current
@@ -131,6 +259,7 @@ class FoundationServiceState {
     this.currentAiModel,
     this.activeAiRequestSourceId,
     this.selectedEngineeringInspectable,
+    this.ekeReadiness = const EkeReadiness(),
   });
 
   final FoundationConnectionPhase phase;
@@ -497,9 +626,21 @@ class FoundationServiceState {
   /// Property Inspector mode.
   final EngineeringInspectable? selectedEngineeringInspectable;
 
+  /// The Engineering Knowledge Engine's authoritative readiness
+  /// (WP-EKE-009) — see [EkeReadiness]/[EkeReadinessState]. Every EKE
+  /// consumer page reads this instead of tracking its own
+  /// initialization flag.
+  final EkeReadiness ekeReadiness;
+
   bool get isConnected => phase == FoundationConnectionPhase.connected;
   bool get isRepositoryOpen =>
       runtimeState == FoundationRuntimeState.repositoryOpen;
+
+  /// Whether the Engineering Knowledge Engine is ready for Query,
+  /// Analysis, Reasoning, Validation, and Recommendation consumers to
+  /// run against the graph (WP-EKE-009). Convenience for
+  /// `ekeReadiness.isReady`.
+  bool get isEkeReady => ekeReadiness.isReady;
 
   /// Objects belonging to [selectedCategory], or all objects if none is
   /// selected. `null` (not yet loaded / load failed) propagates as `null`.
@@ -970,6 +1111,7 @@ class FoundationServiceState {
     bool clearActiveAiRequestSourceId = false,
     EngineeringInspectable? selectedEngineeringInspectable,
     bool clearSelectedEngineeringInspectable = false,
+    EkeReadiness? ekeReadiness,
   }) {
     return FoundationServiceState(
       phase: phase ?? this.phase,
@@ -1084,6 +1226,7 @@ class FoundationServiceState {
           ? null
           : (selectedEngineeringInspectable ??
               this.selectedEngineeringInspectable),
+      ekeReadiness: ekeReadiness ?? this.ekeReadiness,
     );
   }
 }

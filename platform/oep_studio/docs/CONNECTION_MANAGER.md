@@ -191,6 +191,114 @@ differently:
   failure (only `lastError` updates), so a failed search doesn't wipe
   out whatever the Search Workspace was previously showing.
 
+## Engineering Knowledge Engine Readiness (WP-EKE-009)
+
+The Engineering Knowledge Engine (EKE) — Query (WP-EKE-003), Rules
+(WP-EKE-004), Validation (WP-EKE-005), Analysis & Reasoning
+(WP-EKE-006), and the Engineering Intelligence Platform (WP-EKE-007),
+surfaced to Studio by the EKE pages under `lib/engineering_intelligence/`
+(WP-EKE-008) — depends on two pieces of state cached on the
+`FoundationBridge`'s native Runtime handle, not the repository itself:
+the Runtime Graph (`FoundationBridge.loadEngineeringGraph`, WP-EKE-001)
+and the Knowledge Graph (`FoundationBridge.buildKnowledgeGraph`,
+WP-EKE-002). Before WP-EKE-009, every EKE page loaded/built these
+itself, behind its own page-local `_graphLoaded`/`_graphReady` flag, on
+first use. WP-EKE-009 made this one authoritative runtime lifecycle
+instead:
+
+```
+Repository Open → Engineering Graph Load → Knowledge Graph Build → EKE Ready
+```
+
+**Ownership.** `FoundationServiceState.ekeReadiness`
+(`EkeReadiness`/`EkeReadinessState`, in `foundation_runtime_state.dart`)
+is the single authoritative EKE readiness value. It distinguishes:
+`disconnected` (no Bridge), `repositoryClosed` (connected, no
+Repository open), `graphNotLoaded` (Repository just opened / a
+mutation invalidated the graph, initialization not yet started),
+`initializing` (a load/build is in flight), `engineeringGraphLoaded`
+(load succeeded, build not yet attempted/succeeded), `ready` (both
+succeeded — the only state EKE pages may query against), and
+`initializationFailed` (with `failedStage` and `failureMessage`
+diagnostics preserved). No EKE page holds its own authoritative copy of
+this state any more.
+
+**Orchestration.** The actual `loadEngineeringGraph`/`buildKnowledgeGraph`
+call sequence, and its ordering/failure rules, live in the pure,
+FFI-free `EkeLifecycle` (`lib/core/services/eke_lifecycle.dart`) —
+`FoundationRuntimeNotifier` remains the only caller of `FoundationBridge`
+itself; `EkeLifecycle` just decides what `EkeReadiness` results from a
+given load/build outcome, taking the two Bridge calls as closures so
+this logic is unit-testable without a live native Runtime (see
+`test/core/services/eke_lifecycle_test.dart`).
+
+**Lifecycle wiring** (`FoundationRuntimeNotifier`,
+`foundation_runtime_service.dart`):
+
+* `openRepository` — after the existing Repository Statistics/Object
+  List/Relationship List refresh, runs a full `EkeLifecycle.initialize`
+  (Engineering Graph Load, then, only on success, Knowledge Graph
+  Build). This is the ONE place the lifecycle originates from — never a
+  page's `initState`.
+* `closeRepository` — moves `ekeReadiness` to `repositoryClosed`; the
+  closed Repository's graph is never presented as current again.
+* `commitToFoundation` (Work Package 012, the one Repository-mutation
+  path in Studio) — on a successful commit, after its own existing
+  Object/Relationship List refresh, re-runs a full
+  `EkeLifecycle.initialize` so newly committed objects are reflected;
+  `ekeReadiness` moves through `initializing` first, so no consumer can
+  observe a stale `ready` from before the commit.
+* `ensureEkeReady()` — a defensive, idempotent entry point EKE pages
+  call instead of loading/building the graph themselves: a no-op if
+  already `ready` or already `initializing`, otherwise delegates to the
+  same lifecycle `openRepository` uses. Exists for edge cases (e.g. a
+  page mounted after a prior initialization failure), not as a second
+  initialization path.
+* `rebuildKnowledgeGraph()` — the explicit, user-requested refresh path
+  (e.g. the Knowledge Graph Explorer's "Rebuild Graph" button): rebuilds
+  the Knowledge Graph only (the Engineering Graph is assumed current)
+  via `EkeLifecycle.rebuildKnowledgeGraphOnly`, still updating
+  `ekeReadiness` rather than a page-local flag, and rethrows the
+  original `FoundationBridgeException` on failure so existing callers'
+  error handling is unaffected.
+
+Every call above moves `ekeReadiness` to `initializing` *before*
+calling into `EkeLifecycle` — both Bridge calls are synchronous FFI, so
+this is the only way a fresh (re)initialization is ever distinguishable
+from a stale prior `ready` by anything that reads state mid-call.
+
+**Empty repository semantics.** `ekeReadiness.isReady` and
+`objectList`/`repositoryStatistics` are independent concepts:
+`objectList == []` (a Repository with genuinely zero objects) can, and
+should, coexist with `ekeReadiness.state == ready` — successfully
+loading and building an empty graph is still a successful
+initialization. `objectList == null` (not fetched / fetch failed) and
+`ekeReadiness.state != ready` (not initialized) are the two states that
+actually mean "not usable yet," and they are tracked separately because
+they can fail independently (Repository Statistics/Object/Relationship
+List enumeration is non-fatal and best-effort; EKE initialization is
+not).
+
+**Repository switching.** `EkeReadiness.repositoryId` (the
+`RepositoryStatus.repositoryId` the readiness value applies to) tags
+every readiness value, so a value captured before a Repository switch
+is distinguishable from the new Repository's own — `openRepository`
+also resets `ekeReadiness` to `graphNotLoaded` synchronously, before
+`_refreshRepositoryData`/`_runEkeInitialization` run, so no
+intermediate read can observe the previous Repository's `ready` while
+the new one is opening.
+
+**EKE consumer pages** (`analysis_dashboard_page.dart`,
+`engineering_explorer_page.dart`, `knowledge_graph_explorer_page.dart`,
+`query_console_page.dart`, `reasoning_dashboard_page.dart`,
+`recommendation_panel_page.dart`, `validation_dashboard_page.dart`)
+no longer load/build the graph themselves. Each page's former
+`_ensureGraph`/`_ensureGraphLoaded` now only calls
+`FoundationRuntimeNotifier.ensureEkeReady()` (a defensive fallback) and
+reads `FoundationServiceState.ekeReadiness`/`isEkeReady` for display —
+they are consumers of the authoritative state, never independent
+initialization authorities.
+
 ## Missing Public API
 
 Per Work Packages 005/006: *"If additional Public API functionality is

@@ -41,14 +41,19 @@ class _KnowledgeGraphExplorerPageState extends ConsumerState<KnowledgeGraphExplo
   final Set<String> _collapsed = {};
 
   Future<void> _build() async {
-    final bridge = ref.read(foundationRuntimeServiceProvider.notifier).bridge;
+    final notifier = ref.read(foundationRuntimeServiceProvider.notifier);
+    final bridge = notifier.bridge;
     if (bridge == null) return;
     setState(() {
       _building = true;
       _error = null;
     });
     try {
-      bridge.buildKnowledgeGraph();
+      // Explicit, user-requested rebuild (WP-EKE-009 requirement 6B) —
+      // routed through the notifier so it still updates the
+      // authoritative EkeReadiness rather than only this page's own
+      // `_built`/`_building` display flags.
+      notifier.rebuildKnowledgeGraph();
       final stats = bridge.knowledgeGraphStatistics();
       final components = bridge.connectedComponents();
       final objects = ref.read(foundationRuntimeServiceProvider).objectList ?? const [];

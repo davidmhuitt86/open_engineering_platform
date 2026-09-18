@@ -31,22 +31,22 @@ class RecommendationPanelPage extends ConsumerStatefulWidget {
 class _RecommendationPanelPageState extends ConsumerState<RecommendationPanelPage> {
   String? _objectId;
   bool _busy = false;
-  bool _graphReady = false;
   String? _error;
   List<String> _recommendationIds = const [];
   String? _sessionId;
   final Map<String, ({OepRecommendation recommendation, List<String> supportingEvidenceIds})> _details = {};
   final Map<String, OepEvidenceNode> _evidenceCache = {};
 
+  /// The Engineering Graph/Knowledge Graph are no longer loaded/built
+  /// here (WP-EKE-009): [FoundationRuntimeNotifier] already brings EKE
+  /// to [EkeReadinessState.ready] as part of Repository Open. This is
+  /// only a defensive fallback for a prior initialization failure.
   Future<void> _ensureGraph() async {
-    final bridge = ref.read(foundationRuntimeServiceProvider.notifier).bridge;
-    if (bridge == null || _graphReady) return;
-    try {
-      bridge.loadEngineeringGraph();
-      bridge.buildKnowledgeGraph();
-      _graphReady = true;
-    } on FoundationBridgeException catch (e) {
-      setState(() => _error = e.message);
+    final notifier = ref.read(foundationRuntimeServiceProvider.notifier);
+    notifier.ensureEkeReady();
+    final readiness = ref.read(foundationRuntimeServiceProvider).ekeReadiness;
+    if (readiness.hasFailed) {
+      setState(() => _error = readiness.failureMessage);
     }
   }
 

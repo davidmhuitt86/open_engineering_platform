@@ -35,25 +35,24 @@ class _EngineeringExplorerPageState extends ConsumerState<EngineeringExplorerPag
   String _search = '';
   ObjectCategory? _typeFilter;
   String? _selectedObjectId;
-  bool _graphLoaded = false;
-  bool _loadingGraph = false;
   List<String>? _relatedObjectIds;
   String? _error;
 
   FoundationBridge? get _bridge => ref.read(foundationRuntimeServiceProvider.notifier).bridge;
 
+  /// The Engineering Graph is no longer loaded here (WP-EKE-009):
+  /// [FoundationRuntimeNotifier] already brings EKE to
+  /// [EkeReadinessState.ready] as part of Repository Open. This is only
+  /// a defensive fallback for a prior initialization failure — it
+  /// delegates back to the authoritative lifecycle rather than loading
+  /// the graph itself, and the "loading" indicator below reflects the
+  /// authoritative [EkeReadiness.isInitializing], not a page-local flag.
   Future<void> _ensureGraphLoaded() async {
-    if (_graphLoaded || _loadingGraph) return;
-    final bridge = _bridge;
-    if (bridge == null) return;
-    setState(() => _loadingGraph = true);
-    try {
-      bridge.loadEngineeringGraph();
-      setState(() => _graphLoaded = true);
-    } on FoundationBridgeException catch (e) {
-      setState(() => _error = e.message);
-    } finally {
-      setState(() => _loadingGraph = false);
+    final notifier = ref.read(foundationRuntimeServiceProvider.notifier);
+    notifier.ensureEkeReady();
+    final readiness = ref.read(foundationRuntimeServiceProvider).ekeReadiness;
+    if (readiness.hasFailed) {
+      setState(() => _error = readiness.failureMessage);
     }
   }
 
@@ -65,7 +64,9 @@ class _EngineeringExplorerPageState extends ConsumerState<EngineeringExplorerPag
     });
     await _ensureGraphLoaded();
     final bridge = _bridge;
-    if (bridge == null || !_graphLoaded) return;
+    if (bridge == null || !ref.read(foundationRuntimeServiceProvider).ekeReadiness.isReady) {
+      return;
+    }
     try {
       final related = bridge.engineRelatedObjects(objectId);
       setState(() => _relatedObjectIds = related);
@@ -212,7 +213,7 @@ class _EngineeringExplorerPageState extends ConsumerState<EngineeringExplorerPag
                     EiSectionCard(
                       title: 'Related Objects (Semantic Relationships)',
                       icon: Icons.hub_outlined,
-                      trailing: _loadingGraph
+                      trailing: foundation.ekeReadiness.isInitializing
                           ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
                           : null,
                       child: _relatedObjectIds == null
