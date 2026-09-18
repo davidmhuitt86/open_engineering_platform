@@ -1,8 +1,11 @@
 import '../../knowledge/models/knowledge_session.dart';
 import '../../knowledge/models/knowledge_session_record.dart';
 import '../../knowledge/models/source_material.dart';
+import '../models/derived_artifact.dart';
 import '../models/ingestion_result.dart';
 import '../models/ingestion_run.dart';
+import '../models/ingestion_stage.dart';
+import '../models/normalized_ingestion_product.dart';
 
 /// The UIF ↔ Knowledge Studio boundary (AP-INGEST-001 § 19, WP-INGEST-001
 /// § 15): "The ingestion result should be capable of becoming/feeding a
@@ -22,6 +25,48 @@ import '../models/ingestion_run.dart';
 /// `FoundationBridge` (AP-INGEST-001 § 35.1) — nothing in this file even
 /// imports them.
 abstract final class IngestionKnowledgeSessionBridge {
+  /// [result.structuralData]'s corresponding [NormalizedIngestionProduct],
+  /// if [result] actually produced a real `NormalizedDocument`
+  /// (WP-INGEST-008 § 10) — an empty list otherwise.
+  ///
+  /// [IngestionOrchestrator] always populates `IngestionResult.structuralData`
+  /// with *something*, even for a run that fails before parser output
+  /// exists (a placeholder/unresolved document — see
+  /// `IngestionOrchestrator._unresolvedDocument`'s own doc comment), so
+  /// the field's mere presence can't distinguish a real product from a
+  /// fabricated placeholder. The reliable signal is whether
+  /// [result.derivedArtifacts] contains the STRUCTURAL_ANALYSIS artifact
+  /// `IngestionOrchestrator` only ever creates once real parser output
+  /// exists (alongside the CONTENT_EXTRACTION artifact, from the same
+  /// `parserOutput.document`) — when it's absent, no meaningful
+  /// normalized document exists for this run, so none is persisted
+  /// (never a fabricated product for a failed run).
+  ///
+  /// References the STRUCTURAL_ANALYSIS artifact's id (rather than
+  /// CONTENT_EXTRACTION's) as [NormalizedIngestionProduct.derivedArtifactId]:
+  /// both are produced from the same `parserOutput.document` this product
+  /// wraps, and structural analysis is the artifact whose own provenance
+  /// (page geometry) most directly corresponds to the full document this
+  /// wrapper carries, rather than duplicating both references.
+  static List<NormalizedIngestionProduct> _normalizedProductsFor(IngestionResult result) {
+    DerivedArtifact? structuralArtifact;
+    for (final artifact in result.derivedArtifacts) {
+      if (artifact.runId == result.run.runId && artifact.stage == IngestionStage.structuralAnalysis) {
+        structuralArtifact = artifact;
+        break;
+      }
+    }
+    if (structuralArtifact == null) return const [];
+    return [
+      NormalizedIngestionProduct(
+        runId: result.run.runId,
+        derivedArtifactId: structuralArtifact.derivedArtifactId,
+        document: result.structuralData,
+      ),
+    ];
+  }
+
+
   /// Builds the minimal session record a run needs to exist *before*
   /// meaningful execution begins (WP-INGEST-007 § 7/§ 27/§ 28): a real
   /// session envelope plus exactly [queuedRun] (status QUEUED) in
@@ -86,6 +131,7 @@ abstract final class IngestionKnowledgeSessionBridge {
           ? [for (final run in record.ingestionRuns) if (run.runId == updatedRun.runId) updatedRun else run]
           : [...record.ingestionRuns, updatedRun],
       derivedArtifacts: record.derivedArtifacts,
+      normalizedProducts: record.normalizedProducts,
     );
   }
 
@@ -111,6 +157,7 @@ abstract final class IngestionKnowledgeSessionBridge {
       engineeringEntities: result.engineeringEntities,
       ingestionRuns: IngestionKnowledgeSessionBridge.withUpdatedRun(queuedRecord, result.run).ingestionRuns,
       derivedArtifacts: result.derivedArtifacts,
+      normalizedProducts: _normalizedProductsFor(result),
     );
   }
 
@@ -144,6 +191,7 @@ abstract final class IngestionKnowledgeSessionBridge {
       // ingestion run/execution history that produced it.
       ingestionRuns: [result.run],
       derivedArtifacts: result.derivedArtifacts,
+      normalizedProducts: _normalizedProductsFor(result),
     );
   }
 
@@ -177,6 +225,7 @@ abstract final class IngestionKnowledgeSessionBridge {
       // already follows.
       ingestionRuns: [...session.ingestionRuns, result.run],
       derivedArtifacts: [...session.derivedArtifacts, ...result.derivedArtifacts],
+      normalizedProducts: [...session.normalizedProducts, ..._normalizedProductsFor(result)],
     );
   }
 
@@ -215,6 +264,7 @@ abstract final class IngestionKnowledgeSessionBridge {
       aiSuggestions: record.aiSuggestions,
       ingestionRuns: record.ingestionRuns,
       derivedArtifacts: record.derivedArtifacts,
+      normalizedProducts: record.normalizedProducts,
     );
   }
 }

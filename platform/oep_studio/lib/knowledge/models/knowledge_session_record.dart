@@ -1,5 +1,6 @@
 import '../../ingestion/models/derived_artifact.dart';
 import '../../ingestion/models/ingestion_run.dart';
+import '../../ingestion/models/normalized_ingestion_product.dart';
 import 'ai_suggestion.dart';
 import 'commit_report.dart';
 import 'engineering_context.dart';
@@ -43,6 +44,7 @@ class KnowledgeSessionRecord {
     this.aiSuggestions = const [],
     this.ingestionRuns = const [],
     this.derivedArtifacts = const [],
+    this.normalizedProducts = const [],
   });
 
   final KnowledgeSession session;
@@ -124,6 +126,22 @@ class KnowledgeSessionRecord {
   /// bytes are durable (see `DerivedArtifact.fromJson`'s own doc comment).
   final List<DerivedArtifact> derivedArtifacts;
 
+  /// Durable, structured normalized ingestion products (WP-INGEST-008 §
+  /// 1/§ 6) — the actual `NormalizedDocument` (vaultObjectId +
+  /// `NormalizedMetadata` + `NormalizedPage[]`) UIF's content
+  /// extraction/structural analysis produced, wrapped with the `runId`/
+  /// `derivedArtifactId` that identify it (see
+  /// [NormalizedIngestionProduct]'s own doc comment). Distinct from
+  /// [derivedArtifacts]: that list stays provenance/identity metadata
+  /// only, while this list is the structured content itself. Keyed by
+  /// `runId` (a list, never a single overwritten field) so multiple
+  /// ingestion attempts against the same session remain separately,
+  /// historically represented — populated by
+  /// `IngestionKnowledgeSessionBridge` exactly where [ingestionRuns]/
+  /// [derivedArtifacts] are; a manually-created or pre-WP-INGEST-008
+  /// session has an empty list.
+  final List<NormalizedIngestionProduct> normalizedProducts;
+
   Map<String, dynamic> toJson() => {
     'formatVersion': 1,
     'session': session.toJson(),
@@ -143,6 +161,7 @@ class KnowledgeSessionRecord {
     'aiSuggestions': aiSuggestions.map((suggestion) => suggestion.toJson()).toList(),
     'ingestionRuns': ingestionRuns.map((run) => run.toJson()).toList(),
     'derivedArtifacts': derivedArtifacts.map((artifact) => artifact.toJson()).toList(),
+    'normalizedProducts': normalizedProducts.map((product) => product.toJson()).toList(),
   };
 
   /// Throws [FormatException] on any structurally invalid input —
@@ -166,6 +185,7 @@ class KnowledgeSessionRecord {
     final aiSuggestionsJson = json['aiSuggestions'] as List<dynamic>? ?? const [];
     final ingestionRunsJson = json['ingestionRuns'] as List<dynamic>? ?? const [];
     final derivedArtifactsJson = json['derivedArtifacts'] as List<dynamic>? ?? const [];
+    final normalizedProductsJson = json['normalizedProducts'] as List<dynamic>? ?? const [];
     return KnowledgeSessionRecord(
       session: KnowledgeSession.fromJson(json['session'] as Map<String, dynamic>),
       candidates: [
@@ -213,6 +233,10 @@ class KnowledgeSessionRecord {
       ],
       derivedArtifacts: [
         for (final entry in derivedArtifactsJson) DerivedArtifact.fromJson(entry as Map<String, dynamic>),
+      ],
+      normalizedProducts: [
+        for (final entry in normalizedProductsJson)
+          NormalizedIngestionProduct.fromJson(entry as Map<String, dynamic>),
       ],
     );
   }

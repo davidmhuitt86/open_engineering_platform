@@ -48,4 +48,15 @@ class NormalizedPage {
     'rotationDegrees': rotationDegrees,
     'embeddedText': embeddedText,
   };
+
+  /// Lossless round-trip counterpart to [toJson] (WP-INGEST-008 § 5).
+  /// `widthPt`/`heightPt` are read via `num` first since JSON round-trips
+  /// a whole-number double (e.g. `792.0`) back as an `int`.
+  factory NormalizedPage.fromJson(Map<String, dynamic> json) => NormalizedPage(
+    pageNumber: json['pageNumber'] as int,
+    widthPt: (json['widthPt'] as num).toDouble(),
+    heightPt: (json['heightPt'] as num).toDouble(),
+    rotationDegrees: json['rotationDegrees'] as int,
+    embeddedText: json['embeddedText'] as String? ?? '',
+  );
 }

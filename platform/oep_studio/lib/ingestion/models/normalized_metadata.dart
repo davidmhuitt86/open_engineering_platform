@@ -67,4 +67,30 @@ class NormalizedMetadata {
     'mimeType': mimeType,
     'contentHash': contentHash,
   };
+
+  /// Lossless round-trip counterpart to [toJson] (WP-INGEST-008 § 5) —
+  /// every nullable field is read back as `null` when absent rather than
+  /// fabricated, and the two list fields default to `const []` exactly
+  /// like every other list field's `fromJson` elsewhere in this codebase
+  /// (e.g. `DerivedArtifact.fromJson`, `KnowledgeSessionRecord.fromJson`).
+  factory NormalizedMetadata.fromJson(Map<String, dynamic> json) => NormalizedMetadata(
+    title: json['title'] as String?,
+    author: json['author'] as String?,
+    organization: json['organization'] as String?,
+    publicationDate: json['publicationDate'] as String?,
+    revision: json['revision'] as String?,
+    keywords: [for (final entry in (json['keywords'] as List<dynamic>? ?? const [])) entry as String],
+    productFamily: json['productFamily'] as String?,
+    manufacturer: json['manufacturer'] as String?,
+    documentIdentifiers: [
+      for (final entry in (json['documentIdentifiers'] as List<dynamic>? ?? const [])) entry as String,
+    ],
+    language: json['language'] as String?,
+    documentType: json['documentType'] as String?,
+    pageCount: json['pageCount'] as int,
+    sourceFileName: json['sourceFileName'] as String,
+    sizeBytes: json['sizeBytes'] as int,
+    mimeType: json['mimeType'] as String,
+    contentHash: json['contentHash'] as String,
+  );
 }

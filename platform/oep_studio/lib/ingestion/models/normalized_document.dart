@@ -21,4 +21,18 @@ class NormalizedDocument {
     'metadata': metadata.toJson(),
     'pages': pages.map((page) => page.toJson()).toList(),
   };
+
+  /// Lossless round-trip counterpart to [toJson] (WP-INGEST-008 § 5),
+  /// added so this UIF product can be persisted durably as a
+  /// `NormalizedIngestionProduct` within `KnowledgeSessionRecord` — see
+  /// that class's own doc comment. Throws [FormatException]/[TypeError]
+  /// on structurally invalid input, matching every other `fromJson` in
+  /// this codebase (e.g. `DerivedArtifact.fromJson`).
+  factory NormalizedDocument.fromJson(Map<String, dynamic> json) => NormalizedDocument(
+    vaultObjectId: json['vaultObjectId'] as String,
+    metadata: NormalizedMetadata.fromJson(json['metadata'] as Map<String, dynamic>),
+    pages: [
+      for (final entry in (json['pages'] as List<dynamic>? ?? const [])) NormalizedPage.fromJson(entry as Map<String, dynamic>),
+    ],
+  );
 }

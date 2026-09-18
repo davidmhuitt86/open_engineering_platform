@@ -124,6 +124,36 @@ serializes via `toIso8601String()`. `formatVersion` exists for forward
 compatibility even though only `1` has ever been written; nothing
 currently reads or branches on it.
 
+### Ingestion-produced fields: `ingestionRuns` / `derivedArtifacts` / `normalizedProducts`
+
+Not shown in the example above (added by later work packages; see each
+field's own doc comment on `KnowledgeSessionRecord` for the full
+picture): a session created by the Universal Ingestion Framework also
+carries `ingestionRuns` (WP-INGEST-006/007 — the durable execution
+history: processing identity, per-stage status, diagnostics) and two
+distinct kinds of per-run product record, kept deliberately separate:
+
+* `derivedArtifacts` (`List<DerivedArtifact>`, WP-INGEST-002/006) —
+  **provenance/identity metadata only**: which run/stage/processor
+  produced a product and its content hash. It has never carried the
+  produced content's actual bytes.
+* `normalizedProducts` (`List<NormalizedIngestionProduct>`,
+  WP-INGEST-008) — the actual **structured content**: UIF's normalized
+  `NormalizedDocument` (vault object id + `NormalizedMetadata` +
+  `NormalizedPage[]`) that content extraction/structural analysis
+  produced, wrapped with the `runId`/`derivedArtifactId` that identify
+  it. This is what makes the normalized document itself durable —
+  before WP-INGEST-008, only its `DerivedArtifact` provenance record
+  survived a session reload, not the structured product itself.
+
+Both lists are keyed/associated by `runId`, never a single
+overwritten "latest" field — a session with multiple ingestion
+attempts (including retries against identical evidence) keeps every
+attempt's own products, separately and historically. A pre-WP-INGEST-006
+session, or one with no successful parser output for a given run
+(e.g. a run that failed before parsing began), simply has no entries
+for that run in these lists — an empty list, never a fabricated one.
+
 ### Corruption and error handling
 
 `KnowledgeSessionStorage.load` throws `KnowledgeValidationException`

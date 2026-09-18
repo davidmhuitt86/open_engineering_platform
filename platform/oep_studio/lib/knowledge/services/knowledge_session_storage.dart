@@ -35,6 +35,7 @@ KnowledgeSessionRecord _reconcileInterruptedRuns(KnowledgeSessionRecord record) 
     aiSuggestions: record.aiSuggestions,
     ingestionRuns: [for (final run in record.ingestionRuns) run.reconciledIfInterrupted()],
     derivedArtifacts: record.derivedArtifacts,
+    normalizedProducts: record.normalizedProducts,
   );
 }
 
