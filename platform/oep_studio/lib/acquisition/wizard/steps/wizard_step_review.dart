@@ -5,12 +5,16 @@ import '../../../core/theme/studio_colors.dart';
 /// Wizard Step 8 -- "Engineering Review" (Accept/Reject/Merge/Link
 /// Existing/Edit Metadata/Notes on Candidate Engineering Objects).
 ///
-/// **Honestly disclosed as not yet available**, same reason as Step 7
-/// (`WizardStepCandidatePreview`): there are no Candidate Engineering
-/// Objects to review yet without the Knowledge Engine. The controls
-/// below are shown disabled, matching this codebase's own
-/// `SettingsPlaceholderRow` precedent for "real UI, honestly not wired
-/// up yet" rather than hiding the step entirely.
+/// **Honestly disclosed as out of this wizard's flow**, same reason as
+/// Step 7 (`WizardStepCandidatePreview`): this wizard never generates
+/// Candidate Engineering Objects itself, so there is nothing here to
+/// review. Real review of real candidates happens in Knowledge Studio's
+/// own Engineering Review panel (`EngineeringReviewPanel`), reached
+/// after ingesting the published Reference Vault artifact via "Ingest
+/// into Knowledge Studio." The controls below are shown disabled,
+/// matching this codebase's own `SettingsPlaceholderRow` precedent for
+/// "real UI, honestly not wired up here" rather than hiding the step
+/// entirely.
 class WizardStepReview extends StatelessWidget {
   const WizardStepReview({super.key});
 
@@ -25,10 +29,11 @@ class WizardStepReview extends StatelessWidget {
               style: TextStyle(color: StudioColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
           const Text(
-            'Once Candidate Engineering Objects exist, you would review each one here before anything is '
-            'committed to the knowledge graph -- Accept it as-is, Reject it, Merge it into an existing '
-            'object, Link it to one instead of creating a duplicate, or edit its metadata and leave a note '
-            'for whoever reviews it next.',
+            'This wizard does not review Candidate Engineering Objects -- that happens in Knowledge Studio, '
+            'after ingesting this artifact ("Ingest into Knowledge Studio" on the Reference Vault panel). '
+            'There, each candidate is reviewed before anything is committed to the Foundation Repository -- '
+            'Accept it as-is, Reject it, Merge it into an existing object, Link it to one instead of creating '
+            'a duplicate, or edit its metadata and leave a note for whoever reviews it next.',
             style: TextStyle(color: StudioColors.textSecondary, fontSize: 12.5, height: 1.5),
           ),
           const SizedBox(height: 20),
@@ -54,7 +59,7 @@ class WizardStepReview extends StatelessWidget {
             decoration: InputDecoration(
               labelText: 'Notes',
               border: OutlineInputBorder(),
-              helperText: 'Not yet available -- no Candidate Engineering Objects exist to annotate.',
+              helperText: 'Not part of this wizard -- annotate candidates in Knowledge Studio after ingesting.',
             ),
           ),
         ],

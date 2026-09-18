@@ -264,11 +264,18 @@ class AcquisitionWizardController extends ChangeNotifier {
       }
       _appendLog('Chain of Custody Recorded');
 
-      // Knowledge Extraction / Candidate Object generation is not
-      // implemented anywhere in the backend yet (Milestone 2's
-      // Engineering Knowledge Engine) -- disclosed honestly rather than
-      // faked. See Step 7/8's own widgets.
-      _appendLog('Knowledge Extraction: not yet available (Knowledge Engine not built)');
+      // Knowledge ingestion (Reference Vault artifact -> Universal
+      // Ingestion Framework -> Knowledge Session) is real and already
+      // implemented (WP-INGEST-004/005/006/007), but it is a genuinely
+      // separate, explicit user action -- "Ingest into Knowledge Studio"
+      // on the Reference Vault panel (`showIngestVaultArtifactDialog`) --
+      // not a step this wizard's own 8-step flow collects the inputs for
+      // (it requires choosing a destination Foundation Repository, which
+      // Chain of Custody/Scope never ask about). The wizard honestly ends
+      // at Reference Vault publication rather than silently reimplementing
+      // or bypassing that existing entry point. See Step 7/8's own widgets.
+      _appendLog('Published to Reference Vault — ready for ingestion. Use "Ingest into Knowledge Studio" '
+          'on the Reference Vault panel to continue.');
 
       runStatus = AcquisitionRunStatus.completed;
       _appendLog('Completed');
