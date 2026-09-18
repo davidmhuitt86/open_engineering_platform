@@ -8,6 +8,7 @@ import '../../knowledge/models/relationship_candidate.dart';
 import '../../knowledge/models/source_material.dart';
 import '../../knowledge/models/source_material_type.dart';
 import '../../knowledge/services/engineering_entity_extraction_service.dart';
+import '../../knowledge/services/knowledge_session_service.dart';
 import '../../knowledge/services/ocr_pipeline_service.dart';
 import '../models/derived_artifact.dart';
 import '../models/ingestion_provenance.dart';
@@ -105,7 +106,20 @@ abstract final class IngestionOrchestrator {
     // same way it persisted the earlier checkpoints.
     IngestionRunLifecycleCallback? onLifecycleUpdate,
   }) async {
-    final resolvedRunId = runId ?? 'run-${input.contentHash.substring(0, 16)}';
+    // INGEST-FOLLOWUP-004: `runId` identifies one *execution attempt* --
+    // wholly independent of `IngestionRun.processingIdentity` (frozen by
+    // INGEST-FOLLOWUP-003, see that getter's own doc comment), which
+    // identifies the evidence + processing-definition combination and
+    // deliberately excludes `runId` entirely. Identical evidence
+    // processed repeatedly must receive a distinct `runId` per attempt,
+    // so the default must not be derived from `input.contentHash` (or
+    // any other input that repeats across attempts) -- reuses the same
+    // `generateId` convention already established for every other
+    // Knowledge-Session-adjacent id in this codebase (e.g.
+    // `ReferenceVaultIngestionWorkflow.ingest`'s session id,
+    // `CandidateGenerationService`'s candidate/region/link ids) rather
+    // than introducing a second id-generation mechanism.
+    final resolvedRunId = runId ?? KnowledgeSessionService.generateId('run');
     final stageResults = <StageResult>[];
     // WP-INGEST-002 § 17/§ 18: every DerivedArtifact this run actually
     // produces, populated inline below by the stage that produces it, and
