@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
+
 import '../../ingestion/models/ingestion_result.dart';
 import '../../ingestion/models/ingestion_run.dart';
 import '../../ingestion/models/ingestion_run_status.dart';
@@ -329,6 +331,29 @@ class ReferenceVaultIngestionOutcome {
         failureStage: stage,
         errorMessage: message,
         technicalDetail: technicalDetail,
+      );
+
+  /// WP-EAM-003 test-support constructor: builds a canned outcome so
+  /// callers of [ReferenceVaultIngestionWorkflow.ingest] (currently only
+  /// `AcquisitionWizardController` and `AcquisitionRuntimeNotifier`) can
+  /// be exercised against COMPLETED/PARTIAL/FAILED/CANCELLED results
+  /// without driving the real Reference Vault/UIF pipeline end to end --
+  /// the same "fake at the interface seam, not the internals" convention
+  /// `AcquisitionRuntimeNotifier`'s own `...Returning` methods are faked
+  /// with elsewhere in this codebase. The real pipeline itself is
+  /// unmodified and remains covered by
+  /// `test/ingestion/reference_vault_ingestion_workflow_test.dart`
+  /// (WP-INGEST-004's own suite). Production code must never call this.
+  @visibleForTesting
+  factory ReferenceVaultIngestionOutcome.testResult({
+    required ReferenceVaultIngestionOutcomeStatus status,
+    KnowledgeSessionRecord? sessionRecord,
+    String? errorMessage,
+  }) =>
+      ReferenceVaultIngestionOutcome._(
+        status: status,
+        sessionRecord: sessionRecord,
+        errorMessage: errorMessage,
       );
 
   final ReferenceVaultIngestionOutcomeStatus status;

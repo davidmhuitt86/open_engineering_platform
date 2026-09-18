@@ -69,7 +69,7 @@ class AcquisitionWizardPage extends ConsumerWidget {
       2 => WizardStepChainOfCustody(controller: controller),
       3 => WizardStepScope(controller: controller),
       4 => WizardStepAcquire(controller: controller),
-      5 => const WizardStepCandidatePreview(),
+      5 => WizardStepCandidatePreview(controller: controller),
       6 => const WizardStepReview(),
       _ => WizardStepPublish(controller: controller),
     };

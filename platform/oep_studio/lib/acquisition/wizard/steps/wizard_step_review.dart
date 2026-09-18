@@ -1,69 +1,26 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/theme/studio_colors.dart';
+import '../../../knowledge/review/engineering_review_panel.dart';
 
-/// Wizard Step 8 -- "Engineering Review" (Accept/Reject/Merge/Link
-/// Existing/Edit Metadata/Notes on Candidate Engineering Objects).
+/// Wizard Step 7 -- "Engineering Review" (WP-EAM-003 §11).
 ///
-/// **Honestly disclosed as out of this wizard's flow**, same reason as
-/// Step 7 (`WizardStepCandidatePreview`): this wizard never generates
-/// Candidate Engineering Objects itself, so there is nothing here to
-/// review. Real review of real candidates happens in Knowledge Studio's
-/// own Engineering Review panel (`EngineeringReviewPanel`), reached
-/// after ingesting the published Reference Vault artifact via "Ingest
-/// into Knowledge Studio." The controls below are shown disabled,
-/// matching this codebase's own `SettingsPlaceholderRow` precedent for
-/// "real UI, honestly not wired up here" rather than hiding the step
-/// entirely.
+/// Replaces the WP-EAM-002 static, disconnected placeholder by hosting
+/// the real [EngineeringReviewPanel] directly -- the same widget Knowledge
+/// Studio's own "Engineering Review" tab uses, driven by the same
+/// `foundationRuntimeServiceProvider` the wizard's ingestion step already
+/// populated via `FoundationRuntimeNotifier.loadKnowledgeSessionRecord`.
+/// No `WizardReviewService`/`WizardCandidateController`/
+/// `WizardCandidateRepository` is introduced -- Accept/Reject/Edit/
+/// Duplicate/Delete on Knowledge Candidates and Relationship Candidates
+/// all go through the exact same, already-existing
+/// `FoundationRuntimeNotifier` methods `EngineeringReviewPanel` always
+/// used. Candidate acceptance/rejection therefore remains entirely
+/// human-controlled -- this wizard step performs no automatic accept.
 class WizardStepReview extends StatelessWidget {
   const WizardStepReview({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('Engineering Review',
-              style: TextStyle(color: StudioColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 8),
-          const Text(
-            'This wizard does not review Candidate Engineering Objects -- that happens in Knowledge Studio, '
-            'after ingesting this artifact ("Ingest into Knowledge Studio" on the Reference Vault panel). '
-            'There, each candidate is reviewed before anything is committed to the Foundation Repository -- '
-            'Accept it as-is, Reject it, Merge it into an existing object, Link it to one instead of creating '
-            'a duplicate, or edit its metadata and leave a note for whoever reviews it next.',
-            style: TextStyle(color: StudioColors.textSecondary, fontSize: 12.5, height: 1.5),
-          ),
-          const SizedBox(height: 20),
-          const Opacity(
-            opacity: 0.45,
-            child: IgnorePointer(
-              child: Wrap(
-                spacing: 8,
-                children: [
-                  Chip(label: Text('Accept')),
-                  Chip(label: Text('Reject')),
-                  Chip(label: Text('Merge')),
-                  Chip(label: Text('Link Existing')),
-                  Chip(label: Text('Edit Metadata')),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          const TextField(
-            enabled: false,
-            maxLines: 3,
-            decoration: InputDecoration(
-              labelText: 'Notes',
-              border: OutlineInputBorder(),
-              helperText: 'Not part of this wizard -- annotate candidates in Knowledge Studio after ingesting.',
-            ),
-          ),
-        ],
-      ),
-    );
+    return const EngineeringReviewPanel();
   }
 }
