@@ -299,6 +299,82 @@ reads `FoundationServiceState.ekeReadiness`/`isEkeReady` for display —
 they are consumers of the authoritative state, never independent
 initialization authorities.
 
+### Post-open Repository mutations invalidate the graph (WP-EKE-010)
+
+WP-EKE-009 established `ekeReadiness.state == ready` to mean "the graph
+is initialized." WP-EKE-010 tightens that invariant:
+`EkeReadinessState.ready` means the Engineering Graph and Knowledge
+Graph are synchronized with the **currently open Repository's actual
+current content** — not merely "were once loaded." Concretely: **any
+successful mutation of the currently open Foundation Repository
+invalidates the cached EKE runtime graph and requires synchronization
+before `ekeReadiness` may report `ready` again.**
+
+Before WP-EKE-010, `commitToFoundation` (Work Package 012) was the only
+Repository-mutation path that resynchronized EKE afterward. Other real
+mutation paths — most concretely Exchange package installation
+(`ExchangeRuntimeNotifier.installPackage` →
+`FoundationBridge.installPackage`) — changed Repository content without
+ever invalidating/resynchronizing the graph, leaving `ekeReadiness.state
+== ready` true while the cached graph was actually stale.
+
+**`FoundationRuntimeNotifier.repositoryMutationOccurred()`** is the one
+new public entry point this work package adds, at the Repository/runtime
+boundary (not Exchange-specific): any caller that just successfully
+mutated the currently open Repository calls it afterward. It is a thin
+wrapper reusing the exact same authoritative lifecycle every other entry
+point above uses — `_runEkeInitialization(bridge, fullReload: true)` — so
+there is still exactly one lifecycle, one cache, one authoritative
+`ekeReadiness` value. A no-op if no Repository is open. Never rolls back
+the Repository mutation itself if resynchronization fails — the
+Repository stays authoritative regardless of EKE cache-sync outcome; a
+failed sync lands on `initializationFailed` with diagnostics, from which
+a later `ensureEkeReady()` (or another `repositoryMutationOccurred()`
+call) can recover through the same lifecycle.
+
+Wired call sites (WP-EKE-010):
+
+* `ExchangeRuntimeNotifier.installPackage()` (`lib/exchange/services/exchange_runtime_service.dart`)
+  — calls `repositoryMutationOccurred()` after a successful
+  `_installIntoFoundation`/`FoundationBridge.installPackage`. Exchange
+  reaches Foundation only through this one clean public method — never
+  `EkeLifecycle`, `FoundationBridge` graph methods, or
+  `FoundationRuntimeNotifier` internals directly.
+* `PackageManagerPage._installFromPath()` (`lib/features/packages/package_manager_page.dart`)
+  — the local (non-Exchange) "Install Package" action; same
+  `FoundationBridge.installPackage` mutation, same fix.
+* `commitDiagramToRepository()` (`lib/diagram_studio/bridge/diagram_repository_commit_action.dart`)
+  — Diagram Studio's "Commit to Repository" action creates real
+  Engineering Objects/Relationships via `EngineGraphCommitService`; calls
+  `repositoryMutationOccurred()` alongside its existing
+  `refreshRepository()` call (which only refreshes the Current
+  Object/Relationship List for display — a separate concern from EKE
+  graph synchronization).
+
+`commitToFoundation` was re-verified during this work package's audit and
+already calls `_runEkeInitialization(fullReload: true)` exactly once, on
+success only — it was not changed.
+
+**Diagram Intelligence exception (unchanged, documented).**
+`DiagramIntelligenceService.sync()` (`lib/diagram_studio/intelligence/diagram_intelligence_service.dart`)
+performs its own `_bridge.loadEngineeringGraph()`/`_bridge.buildKnowledgeGraph()`
+calls after syncing a shadow Diagram object into the Repository, entirely
+outside the `FoundationRuntimeNotifier` lifecycle described above. This
+was already flagged by WP-EKE-009's own after-action report and
+WP-EKE-FOLLOWUP-001's audit as "not yet UI-wired," and WP-EKE-010's own
+audit re-confirmed that is still true:
+`DiagramStudioController.intelligence` (the only field of type
+`DiagramIntelligenceService`) is declared but never constructed/assigned
+anywhere in production code, so this path is unreachable from any UI and
+causes no observable `ekeReadiness` inconsistency today. Left
+intentionally unchanged, per this work package's own scope — see
+`test/core/services/eke_010_repository_mutation_sync_test.dart`'s
+"TEST-EKE-010-010" group. Wiring `DiagramIntelligenceService` into the UI
+in a future work package will need to either route its sync through
+`FoundationRuntimeNotifier.repositoryMutationOccurred()` or otherwise
+reconcile it with this same authoritative `ekeReadiness` value — it must
+not become a second, independently-tracked readiness signal.
+
 ## Missing Public API
 
 Per Work Packages 005/006: *"If additional Public API functionality is

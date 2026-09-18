@@ -343,6 +343,53 @@ class FoundationRuntimeNotifier extends Notifier<FoundationServiceState> {
     _runEkeInitialization(bridge, fullReload: true);
   }
 
+  /// Repository/runtime-boundary entry point (WP-EKE-010): any caller
+  /// that just successfully mutated the currently open Foundation
+  /// Repository (created/changed real Engineering Objects or
+  /// Relationships — e.g. Exchange package installation via
+  /// `FoundationBridge.installPackage`, or a local package install)
+  /// calls this afterward, through this one clean public method, to
+  /// keep [FoundationServiceState.ekeReadiness] truthful.
+  ///
+  /// WP-EKE-009 already made [EkeReadinessState.ready] mean "the graph
+  /// is initialized"; this tightens that invariant to mean "the graph
+  /// is initialized **and reflects the Repository's current content**."
+  /// A Repository mutation that isn't followed by a call here would
+  /// otherwise leave `ekeReadiness.state == ready` true while the
+  /// cached Engineering/Knowledge Graph is actually stale — exactly the
+  /// gap this work package closes.
+  ///
+  /// A no-op if no Repository is open (nothing to resynchronize). Does
+  /// **not** touch the Repository itself, and never rolls one back —
+  /// the Repository mutation and the EKE cache sync are separate
+  /// concerns; the Repository stays authoritative regardless of this
+  /// call's outcome (WP-EKE-010 §3). Reuses the exact same
+  /// authoritative [_runEkeInitialization] lifecycle every other entry
+  /// point uses (Repository Open, [ensureEkeReady],
+  /// [rebuildKnowledgeGraph], [commitToFoundation]) — no second
+  /// lifecycle, no second cache. Always moves readiness through
+  /// [EkeReadinessState.initializing] before attempting resynchronization
+  /// (see [_runEkeInitialization]'s own doc comment), so no consumer
+  /// ever observes a stale `ready` left over from before the mutation.
+  /// Uses a full reload ([EkeLifecycle.initialize]) rather than a
+  /// Knowledge-Graph-only rebuild, since a Repository mutation such as
+  /// package installation can add brand-new Engineering Objects/
+  /// Relationships the Engineering Graph has never seen — the same
+  /// reasoning [openRepository]/[commitToFoundation] already use.
+  ///
+  /// On failure, [FoundationServiceState.ekeReadiness] lands on
+  /// [EkeReadinessState.initializationFailed] with diagnostics — never
+  /// silently swallowed, never left falsely `ready`. A later
+  /// [ensureEkeReady] call (or another [repositoryMutationOccurred]
+  /// call) can recover from that failed state through the same
+  /// lifecycle, exactly as it already can after any other
+  /// initialization failure.
+  void repositoryMutationOccurred() {
+    final bridge = _bridge;
+    if (bridge == null || !state.isRepositoryOpen) return;
+    _runEkeInitialization(bridge, fullReload: true);
+  }
+
   /// Explicit, user-requested Knowledge Graph rebuild (WP-EKE-009
   /// requirement 6B: e.g. the Knowledge Graph Explorer's "Rebuild
   /// Graph" button) — retained as a legitimate action, but now updates

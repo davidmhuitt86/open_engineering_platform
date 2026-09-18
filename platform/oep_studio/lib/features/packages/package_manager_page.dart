@@ -88,6 +88,12 @@ class _PackageManagerPageState extends ConsumerState<PackageManagerPage> {
     });
     try {
       bridge.installPackage(archivePath.trim());
+      // WP-EKE-010: this just mutated the open Repository directly via
+      // `FoundationBridge.installPackage` — resynchronize the EKE
+      // runtime graph through the same clean public boundary Exchange's
+      // install path uses, so `ekeReadiness` never keeps reporting
+      // `ready` against a now-stale cached graph.
+      ref.read(foundationRuntimeServiceProvider.notifier).repositoryMutationOccurred();
       _refresh();
     } on FoundationBridgeException catch (e) {
       setState(() => _error = e.message);

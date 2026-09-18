@@ -161,6 +161,18 @@ class ExchangeRuntimeNotifier extends Notifier<ExchangeServiceState> {
 
       if (!installation.isFailed) {
         installation = await _installIntoFoundation(installation, packageId, version);
+        if (!installation.isFailed) {
+          // WP-EKE-010: a successful install just mutated the open
+          // Foundation Repository (real Engineering Objects/
+          // Relationships) via `FoundationBridge.installPackage` —
+          // resynchronize the EKE runtime graph through
+          // `FoundationRuntimeNotifier`'s own clean public boundary so
+          // `ekeReadiness` never keeps reporting `ready` against a now-
+          // stale cached graph. Exchange never touches `EkeLifecycle`/
+          // `FoundationBridge` graph methods or `FoundationRuntimeNotifier`
+          // internals itself — this is its one, approved entry point.
+          ref.read(foundationRuntimeServiceProvider.notifier).repositoryMutationOccurred();
+        }
       }
 
       final entry = LibraryEntry(

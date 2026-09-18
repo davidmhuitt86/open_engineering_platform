@@ -163,6 +163,25 @@ void main() {
     // existing installed-package query mechanism.
     final installed = bridge.listInstalledPackages();
     expect(installed.map((entry) => entry.packageId), contains(packageId));
+
+    // WP-EKE-010 (native Foundation integration): a real Exchange
+    // install just mutated the open Repository through the exact same
+    // production chain as AC-01..11 above. This proves the FULL
+    // mutation -> EKE resynchronization -> query-sees-the-mutation flow
+    // against the real, unmodified `oep_foundation_bridge.dll` — not a
+    // fake/seam. `ekeReadiness` must have already reached `ready` by the
+    // time `installPackage()` returns (via
+    // `ExchangeRuntimeNotifier.installPackage` ->
+    // `FoundationRuntimeNotifier.repositoryMutationOccurred` ->
+    // `EkeLifecycle.initialize` -> real `loadEngineeringGraph`/
+    // `buildKnowledgeGraph` FFI calls), and the reloaded Engineering
+    // Graph must genuinely contain the objects/relationships this
+    // install just created.
+    final readiness = c.read(foundationRuntimeServiceProvider).ekeReadiness;
+    expect(readiness.state, EkeReadinessState.ready, reason: readiness.failureMessage);
+    final reloaded = bridge.loadEngineeringGraph();
+    expect(reloaded.objectsLoaded, greaterThanOrEqualTo(2));
+    expect(reloaded.relationshipsLoaded, greaterThanOrEqualTo(1));
   });
 
   test('AC-12: a second install of the same package is reported as already installed, not duplicated', () async {

@@ -61,7 +61,15 @@ Future<void> commitDiagramToRepository(BuildContext context, WidgetRef ref) asyn
     // next unrelated Save. A no-op for a never-saved document — see
     // `persistCommittedGraph`'s own doc comment.
     await ref.read(engineeringProjectServiceProvider.notifier).persistCommittedGraph(outcome.graph);
-    ref.read(foundationRuntimeServiceProvider.notifier).refreshRepository();
+    final runtimeNotifier = ref.read(foundationRuntimeServiceProvider.notifier);
+    runtimeNotifier.refreshRepository();
+    // WP-EKE-010: `EngineGraphCommitService.commit()` just mutated the
+    // open Repository (real Engineering Objects/Relationships) — unlike
+    // `refreshRepository()` above (which only refreshes the Current
+    // Object/Relationship List for display), this resynchronizes the
+    // EKE runtime graph itself so `ekeReadiness` never keeps reporting
+    // `ready` against a now-stale cached graph.
+    runtimeNotifier.repositoryMutationOccurred();
 
     if (!context.mounted) return;
     _showSnack(context, _summarize(outcome.result));
