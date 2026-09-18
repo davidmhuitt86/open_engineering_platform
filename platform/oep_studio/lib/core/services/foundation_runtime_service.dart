@@ -140,6 +140,19 @@ class FoundationRuntimeNotifier extends Notifier<FoundationServiceState> {
   /// usable" if enumeration fails) — it just leaves those fields `null`,
   /// which the Repository/Object Explorer render as an empty state.
   ///
+  /// WP-EKE-011 (AP-EKE-012-F2): if the *open* step itself fails — e.g.
+  /// this is a Repository switch (Repository A already open) and the
+  /// new Repository B fails to open — `state` is resynchronized from
+  /// [FoundationBridge.state] (the ground truth for what the Runtime
+  /// actually has open now, since Repository A was already closed above
+  /// before B's open was attempted) rather than left representing
+  /// Repository A as still open/ready. `ekeReadiness` is always moved
+  /// off [EkeReadinessState.ready] in this path — a failed switch never
+  /// leaves EKE claiming readiness for a Repository that is no longer
+  /// (or never was) actually open. A later valid [openRepository] call
+  /// recovers exactly like any other initialization, through the same
+  /// [_runEkeInitialization] lifecycle.
+  ///
   /// Does not touch Knowledge Curation Session state — a session's
   /// assigned repository (`KnowledgeSession.repositoryName`) is
   /// independent of whichever Foundation repository happens to be open
@@ -177,7 +190,42 @@ class FoundationRuntimeNotifier extends Notifier<FoundationServiceState> {
             const EkeReadiness(state: EkeReadinessState.graphNotLoaded),
       );
     } on FoundationBridgeException catch (error) {
-      state = state.copyWith(lastError: error);
+      // WP-EKE-011 (AP-EKE-012-F2): the open/switch itself failed —
+      // either the prior Repository (if any) was already closed above
+      // and the new one never opened, or the open failed before ever
+      // touching a Repository. Either way [bridge] is ground truth for
+      // what's actually open now; `state` must be brought back in line
+      // with it rather than continuing to represent a stale Repository
+      // A (or a stale `ready`) that the bridge itself no longer backs.
+      // The invariant this closes: `ekeReadiness.state == ready` is
+      // only ever valid when a currently-open Repository's current
+      // graph has actually been loaded/built — a failed switch must
+      // never leave either the Repository state or `ekeReadiness`
+      // claiming otherwise.
+      state = state.copyWith(
+        runtimeState: bridge.state,
+        lastError: error,
+        clearRepositoryStatus: true,
+        clearSelectedCategory: true,
+        clearSelectedObject: true,
+        clearSelectedRelationship: true,
+        clearRepositoryStatistics: true,
+        clearObjectList: true,
+        clearRelationshipList: true,
+        searchQuery: '',
+        clearSearchResults: true,
+        // [bridge.state] is authoritative here: if it still reports
+        // `repositoryOpen` (e.g. the pre-close above never ran because
+        // nothing was open, and the open call itself failed against a
+        // still-disconnected/initialized Runtime), there is genuinely
+        // no open Repository's graph to be ready against, so this is
+        // never `ready`. Every other case (the Runtime is back to
+        // Initialized/RepositoryClosed after the failed attempt) maps
+        // to `repositoryClosed` — no Repository is open, matching
+        // [closeRepository]'s own resulting readiness.
+        ekeReadiness:
+            const EkeReadiness(state: EkeReadinessState.repositoryClosed),
+      );
       rethrow;
     }
     _refreshRepositoryData(bridge);

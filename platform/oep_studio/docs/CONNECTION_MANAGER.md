@@ -375,6 +375,115 @@ in a future work package will need to either route its sync through
 reconcile it with this same authoritative `ekeReadiness` value — it must
 not become a second, independently-tracked readiness signal.
 
+### Acceptance closure: real consumption, failed switches, empty Repositories (WP-EKE-011)
+
+WP-EKE-011 closed the two findings (AP-EKE-012-F1, AP-EKE-012-F2) blocking
+acceptance of the EKE runtime lifecycle built across WP-EKE-009/
+WP-EKE-FOLLOWUP-001/WP-EKE-010.
+
+**F1 — real EKE consumption, not just graph construction.**
+`test/exchange_rc1_e2e_test.dart`'s WP-EKE-010 assertion block (real
+Exchange install → real `repositoryMutationOccurred()` → real graph
+load/build → `ekeReadiness.state == ready`) proved graph
+*construction*, not that any EKE operation *consumes* the result. This
+work package extended that same test — no second native harness — with
+a further block that runs a real, graph-dependent
+`FoundationBridge.executeQuery(category: QueryCategory.object,
+primaryObjectId: ...)` call (the exact production API
+`query_console_page.dart` calls, gated by the same `EkeConsumerGate`
+every EKE consumer page uses) against the object id
+(`'aaaaaaaa-0000-4000-8000-000000000001'`, the fixture's "Harness"
+Component) the Exchange install just created, and asserts the result
+contains that id — a deterministic, identity-level assertion tied to
+content this test's own fresh temp Repository just received, not a
+count that could coincidentally match.
+
+**Empty-Repository acceptance.** The same file gained
+`TEST-EKE-011-008`: opening a genuine, never-installed-into temp
+Repository through the real DLL reaches `ekeReadiness.state == ready`
+(not a special "empty" state), `bridge.getObjectCount() == 0`, and a
+real `executeQuery` against it returns an empty result set without
+throwing or being blocked — proving the "empty ≠ not ready" invariant
+documented above against the real native library, not only as intent.
+
+**F2 — failed Repository switch cannot leave stale state.**
+`FoundationRuntimeNotifier.openRepository()`'s pre-fix `catch` block
+only recorded `lastError` on a failed open — when Repository A was
+already open and a switch to Repository B failed (B never opens, but A
+was already closed by `openRepository`'s own pre-close step per its own
+documented contract), `state` kept representing Repository A as open
+and possibly still `ready`, even though the Runtime itself had nothing
+open. The fix: the `catch` block now resynchronizes `state` from
+`FoundationBridge.state` (the Runtime's own ground truth for what is
+actually open after the failed attempt) — clearing
+`repositoryStatus`/`objectList`/`relationshipList`/`repositoryStatistics`
+and moving `ekeReadiness` to `repositoryClosed` — instead of leaving any
+field representing a Repository the Bridge no longer backs. The
+invariant this closes: **`ekeReadiness.state == ready` is only ever
+valid when a currently-open Repository's current graph has actually
+been loaded/built** — a failed open/switch must never leave either the
+Repository state or `ekeReadiness` claiming otherwise.
+
+Proven against the real native DLL in
+`test/core/services/eke_011_repository_switch_test.dart`
+(`TEST-EKE-011-003` through `-007`): Repository A ready → a switch to a
+genuinely nonexistent Repository path fails → `ekeReadiness` is not
+`ready` and stale A state is cleared → the Foundation connection itself
+stays usable (not degraded to the error phase) → a later valid open
+still reaches `ready` → and, separately, a *successful* switch (A ready
+→ B opens successfully) still reaches a fresh `ready` for B, proving the
+fix did not regress the ordinary switch path and that a prior failure
+never poisons a later attempt.
+
+**Unit vs. native integration verification, stated explicitly.** Three
+kinds of coverage exist for this lifecycle, and are labeled as such in
+each test file:
+
+* **Pure/unit** — `eke_lifecycle_test.dart`,
+  `eke_010_repository_mutation_sync_test.dart`'s "model tests" group,
+  and `eke_011_repository_switch_test.dart`'s `EkeConsumerGate`
+  re-verification group: no Bridge, no native DLL, no Riverpod.
+* **Notifier/service integration (no native Bridge)** —
+  `eke_010_repository_mutation_sync_test.dart`'s consumer-integration
+  group and the source-inspection groups in both that file and
+  `eke_011_repository_switch_test.dart`: real `FoundationRuntimeNotifier`
+  wiring, but exercising only the "no Repository open"/static-source
+  branches.
+* **Real native Foundation integration** — `exchange_rc1_e2e_test.dart`
+  (all tests, including the new F1/empty-Repository blocks) and
+  `eke_011_repository_switch_test.dart`'s "real native Repository
+  switch" group: the actual, unmodified `oep_foundation_bridge.dll`,
+  real FFI calls, real temp-directory Repositories. Both skip (never
+  fake) if the DLL cannot be loaded in a given environment, and fail
+  loudly (never skip) if it loads but is stale/incompatible — see
+  `exchange_rc1_e2e_test.dart`'s own top-level doc comment.
+
+**Diagram Intelligence — re-verified, still unreachable.** WP-EKE-011's
+own audit re-confirmed `DiagramStudioController.intelligence` is still
+declared but never constructed anywhere in production code — the
+exception documented above still holds unchanged; no new work was
+needed or done here.
+
+**Mutation-path re-audit.** WP-EKE-011 repeated the search for every
+Repository-mutating `FoundationBridge` call site
+(`createObject`/`updateObject`/`updateObjectContent`/`deleteObject`/
+`createRelationship`/`deleteRelationship`/`installPackage`/
+`createDiagram`/`createObjectInDiagram`/`createRelationshipInDiagram`/
+`beginTransaction`/`commitTransaction`). No new unsynchronized path was
+found: the three WP-EKE-010 call sites above remain the only live
+Repository-mutating paths and all still call
+`repositoryMutationOccurred()`; `DiagramRepositoryService`'s own
+create/update/delete methods are reachable only through the still-
+unreachable `DiagramIntelligenceService`; and the various
+`createEipSession`/`createReasoningSession`/`createValidationSession`
+calls across the EKE consumer pages create in-memory analysis-engine
+sessions, not persisted Repository content, so they need no
+synchronization. `commitToFoundation` was re-confirmed to call
+`_runEkeInitialization` exactly once on success, and Exchange was
+re-confirmed to never touch `EkeLifecycle`/`FoundationBridge` graph
+methods or `FoundationRuntimeNotifier` internals directly (source
+inspection, `TEST-EKE-011-009/010/011`).
+
 ## Missing Public API
 
 Per Work Packages 005/006: *"If additional Public API functionality is

@@ -4,6 +4,9 @@ import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:oep_studio/core/foundation/oep_api_types.dart';
+import 'package:oep_studio/core/models/object_category.dart';
+import 'package:oep_studio/core/services/eke_consumer_gate.dart';
 import 'package:oep_studio/core/services/foundation_runtime_service.dart';
 import 'package:oep_studio/core/services/foundation_runtime_state.dart';
 import 'package:oep_studio/exchange/services/exchange_runtime_service.dart';
@@ -182,6 +185,35 @@ void main() {
     final reloaded = bridge.loadEngineeringGraph();
     expect(reloaded.objectsLoaded, greaterThanOrEqualTo(2));
     expect(reloaded.relationshipsLoaded, greaterThanOrEqualTo(1));
+
+    // WP-EKE-011 (AP-EKE-012-F1, TEST-EKE-011-001/002): the WP-EKE-010
+    // block above proves graph CONSTRUCTION (loadEngineeringGraph counts)
+    // -- it does not prove any EKE operation actually CONSUMES that
+    // graph. This block closes that gap by running a real,
+    // graph-dependent Engineering Query Engine operation through the
+    // exact same production `FoundationBridge.executeQuery` API the
+    // Query Console page (`query_console_page.dart`) calls, gated by
+    // the same `EkeConsumerGate` every EKE consumer page uses -- not an
+    // invented operation, and not `loadEngineeringGraph`/
+    // `buildKnowledgeGraph` again.
+    //
+    // `oep_package_fixture.dart`'s `buildDemoOepPackage` hand-builds its
+    // Repository Fragment with two FIXED object ids regardless of
+    // [packageId] -- 'aaaaaaaa-0000-4000-8000-000000000001' (a
+    // "Harness" Component) and 'bbbbbbbb-0000-4000-8000-000000000002' (a
+    // "Wiring Diagram" Diagram), joined by one "Documents" Relationship.
+    // This test's own Repository is fresh (a brand-new temp directory
+    // from `setUpRealStack`), so these ids are exactly this install's
+    // content -- a genuinely deterministic, identity-level assertion,
+    // not a count that could coincidentally match.
+    expect(EkeConsumerGate.allows(readiness), isTrue,
+        reason: 'EKE must be genuinely ready (not just graph-constructed) before a consumer may query it');
+    const harnessObjectId = 'aaaaaaaa-0000-4000-8000-000000000001';
+    final queryResult = bridge.executeQuery(category: QueryCategory.object, primaryObjectId: harnessObjectId);
+    expect(queryResult.objectIds, contains(harnessObjectId),
+        reason: 'the Engineering Query Engine must genuinely see the object this Exchange install just created, '
+            'not merely have re-counted objects after a redundant graph load');
+    expect(queryResult.summary.resultCount, greaterThanOrEqualTo(1));
   });
 
   test('AC-12: a second install of the same package is reported as already installed, not duplicated', () async {
@@ -254,6 +286,57 @@ void main() {
 
     final bridge = c.read(foundationRuntimeServiceProvider.notifier).bridge!;
     expect(bridge.getObjectCount(), 0);
+  });
+
+  // WP-EKE-011 (TEST-EKE-011-008): a genuinely empty Repository -- opened
+  // through the same real `openRepository()` -> Engineering Graph Load ->
+  // Knowledge Graph Build -> EKE Ready lifecycle as every test above,
+  // just with no package ever installed into it -- must reach
+  // `EkeReadinessState.ready` exactly like a populated one. WP-EKE-009
+  // already established this as a requirement (emptiness of the object
+  // list must never be conflated with "not ready"); this is the first
+  // test proving it against the real, unmodified `oep_foundation_bridge.dll`
+  // rather than only as a documented intent. No object is fabricated to
+  // make this pass -- the Repository this test opens has never had
+  // anything installed into it.
+  test('WP-EKE-011 TEST-EKE-011-008: a genuinely empty Repository reaches EKE ready, and permits a real query',
+      () async {
+    final packageId = 'com.exchange.rc1.e2e.unused-empty-repo-server';
+    final archiveBytes = buildDemoOepPackage(packageId);
+    final checksum = sha256.convert(archiveBytes).toString();
+    // setUpRealStack requires a local server to construct
+    // ExchangeSettings, even though this test never installs anything
+    // through it -- reusing the same helper (rather than a second setup
+    // path) per this work package's "do not invent a second harness"
+    // constraint.
+    server = _LocalExchangeServer(packageId: packageId, version: '1.0.0', archiveBytes: archiveBytes, checksumHeader: checksum);
+    await server!.start();
+
+    final c = await setUpRealStack(server!);
+    if (c == null) return;
+
+    // setUpRealStack already called openRepository() on a brand-new,
+    // never-installed-into temp Repository -- nothing further needed to
+    // reach the empty-Repository state under test.
+    final foundationState = c.read(foundationRuntimeServiceProvider);
+    expect(foundationState.isRepositoryOpen, isTrue);
+    expect(foundationState.ekeReadiness.state, EkeReadinessState.ready,
+        reason: foundationState.ekeReadiness.failureMessage);
+
+    final bridge = c.read(foundationRuntimeServiceProvider.notifier).bridge!;
+    expect(bridge.getObjectCount(), 0);
+    expect(bridge.listObjects(), isEmpty);
+
+    // A real, graph-dependent EKE operation against the empty graph
+    // must succeed and deterministically report zero matches -- not
+    // throw, not be blocked, and not fabricate results.
+    expect(EkeConsumerGate.allows(foundationState.ekeReadiness), isTrue);
+    final queryResult = bridge.executeQuery(
+      category: QueryCategory.type,
+      filter: const QueryFilter(objectType: ObjectCategory.component),
+    );
+    expect(queryResult.objectIds, isEmpty);
+    expect(queryResult.summary.resultCount, 0);
   });
 }
 
