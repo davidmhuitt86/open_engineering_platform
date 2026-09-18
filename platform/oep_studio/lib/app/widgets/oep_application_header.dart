@@ -206,7 +206,9 @@ class _UserBadgeState extends ConsumerState<_UserBadge> {
   Future<void> _signOut() async {
     await ref.read(authenticationServiceProvider).signOut();
     if (!mounted) return;
-    setState(() => _username = Future.value(null));
+    setState(() {
+      _username = Future.value(null);
+    });
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Signed out. Restart the application to sign in again.')),
     );
