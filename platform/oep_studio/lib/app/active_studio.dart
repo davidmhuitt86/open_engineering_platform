@@ -159,15 +159,26 @@ String? openWorkspaceForStudio(ActiveStudio studio, WorkspaceTabsController tabs
   return tabsController.openSurface(studio.surfaceId);
 }
 
-/// Records that [tabId] is now the last-active workspace for whichever
-/// Studio it belongs to (a no-op for a Studio-unscoped tab) — called from
-/// every workspace-activate/open call site, never from
-/// [OepGlobalStudioBar]'s Studio-selection handler.
-void rememberActiveTabForItsStudio(WidgetRef ref, List<WorkspaceTab> allTabs, String tabId) {
-  final tab = allTabs.where((t) => t.id == tabId).firstOrNull;
-  if (tab == null) return;
-  final studio = activeStudioForSurfaceId(tab.surfaceId);
-  if (studio == null) return;
+/// Records that [tabId] is now the last-active workspace for [studio] —
+/// the Studio the caller was actually interacting FROM when [tabId] was
+/// activated/opened, never derived from the tab's own `surfaceId`.
+///
+/// **Bug fix**: this used to derive the owning Studio from the tab
+/// itself via [activeStudioForSurfaceId] and no-op for a Studio-unscoped
+/// tab (Repository, Search, Dashboard, etc. — see [tabsForStudio]'s own
+/// doc comment for the full list). Combined with
+/// [resolveActiveTabForStudio]'s/`EngineeringWorkspacePage.build()`'s
+/// own fix for the OPPOSITE bug (an unscoped tab silently leaking in as
+/// another Studio's resolved active tab), that no-op meant an unscoped
+/// tab could no longer be activated at all: clicking it set the
+/// controller's global `activeId` but was never remembered per-Studio,
+/// so the very next rebuild's resolution fell back to whatever this
+/// Studio's own owned tab was instead — "the tab won't let me click on
+/// it." An unscoped tab has no owning Studio of its own, but it can
+/// still be *shown* as the active content of whichever Studio the user
+/// was looking at it from — that is exactly what per-Studio memory is
+/// for, and there is no reason to special-case it out.
+void rememberActiveTabForItsStudio(WidgetRef ref, ActiveStudio studio, String tabId) {
   final next = Map<ActiveStudio, String>.from(ref.read(lastActiveTabPerStudioProvider))..[studio] = tabId;
   ref.read(lastActiveTabPerStudioProvider.notifier).state = next;
 }
@@ -189,12 +200,17 @@ WorkspaceTab? resolveActiveTabForStudio(
   String? globalActiveId,
 ) {
   final tabs = tabsForStudio(allTabs, studio);
+  // Same fix as `EngineeringWorkspacePage.build()`'s own resolution —
+  // must not let an unscoped tab active in a DIFFERENT Studio leak in
+  // here as this Studio's own resolved tab; see that call site's doc
+  // comment for the full reasoning.
+  final ownedTabs = tabs.where((t) => activeStudioForSurfaceId(t.surfaceId) == studio).toList();
   final remembered = ref.watch(lastActiveTabPerStudioProvider)[studio];
-  final id = tabs.any((t) => t.id == globalActiveId)
+  final id = ownedTabs.any((t) => t.id == globalActiveId)
       ? globalActiveId
       : (remembered != null && tabs.any((t) => t.id == remembered))
           ? remembered
-          : (tabs.isNotEmpty ? tabs.first.id : null);
+          : (ownedTabs.isNotEmpty ? ownedTabs.first.id : null);
   if (id == null) return null;
   return tabs.where((t) => t.id == id).firstOrNull;
 }

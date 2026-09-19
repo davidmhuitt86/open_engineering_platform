@@ -2,22 +2,31 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/oep_tokens.dart';
+import '../../workspace/workspace_tabs_controller.dart';
 import '../active_studio.dart';
 
 /// The OEP Global Studio Bar (target shell region 02,
 /// `docs/architecture/ux/design-system/OEP-SHELL-COMPONENTS.md` §3;
 /// canonical reference `docs/architecture/ux/renders/oep-shell/global-studio-bar.svg`).
 ///
-/// WP-UI-DS-001 Section 03 (corrected, FROZEN) — application-level
-/// NAVIGATION BETWEEN STUDIOS only. It is not a workspace/document tab bar
-/// (that is the Workspace Bar, Section 04), not Context Navigation, not a
-/// Toolbar, and not a browser tab strip.
+/// WP-UI-DS-001 Section 03 — application-level NAVIGATION BETWEEN STUDIOS.
+/// It is not a workspace/document tab bar (that is the Workspace Bar,
+/// Section 04), not Context Navigation, not a Toolbar, and not a browser
+/// tab strip.
 ///
-/// **Frozen invariant:** selecting a Studio here ONLY assigns
-/// [activeStudioProvider] (`app/active_studio.dart`). It never calls
-/// `openSurface`, `openDiagramTab`, or any other tab-creating API — a
-/// Studio is an application destination; a workspace is a unit of work
-/// inside a Studio (`AP-UX-006` §10, §16). Do not reopen this decision.
+/// **Revised (superseding AP-UX-006 §16's original "never opens a
+/// workspace" decision):** selecting a Studio assigns
+/// [activeStudioProvider] and, if that Studio does not already have a
+/// workspace tab of its own open (checked via
+/// [activeStudioForSurfaceId] — an *unreconciled/unscoped* tab that
+/// happens to also be visible under this Studio does not count; see
+/// [tabsForStudio]'s own doc comment), opens its default workspace via
+/// the existing [openWorkspaceForStudio]. This replaces the original
+/// decision's landing experience (an empty "press + to open one" screen
+/// on every Studio that had never been visited yet) with "clicking a
+/// Studio takes you to that Studio's own work," per direct product
+/// feedback. It still never creates a *second* tab for a Studio that
+/// already has one — only ever the one-time "nothing here yet" case.
 ///
 /// **Studio inventory (ratified, closed set):** Home, Diagram Studio, EAM,
 /// Knowledge Studio, Engineering Exchange, Instruments, Settings —
@@ -50,14 +59,23 @@ class OepGlobalStudioBar extends ConsumerWidget {
             _StudioTab(
               studio: studio,
               active: studio == activeStudio,
-              // Frozen (Section 03) — selecting a Studio ONLY assigns
-              // activeStudioProvider. No workspace tab is opened, reused,
-              // or created by this action.
-              onTap: () => ref.read(activeStudioProvider.notifier).state = studio,
+              onTap: () => _selectStudio(ref, studio),
             ),
         ],
       ),
     );
+  }
+
+  /// Selects [studio] and, if it has no workspace tab of its own yet,
+  /// opens its default one — see this class's own doc comment for why.
+  void _selectStudio(WidgetRef ref, ActiveStudio studio) {
+    ref.read(activeStudioProvider.notifier).state = studio;
+    if (studio == ActiveStudio.home) return;
+    final tabsController = ref.read(workspaceTabsControllerProvider);
+    final hasOwnWorkspace = tabsController.tabs.any((tab) => activeStudioForSurfaceId(tab.surfaceId) == studio);
+    if (hasOwnWorkspace) return;
+    final id = openWorkspaceForStudio(studio, tabsController);
+    if (id != null) rememberActiveTabForItsStudio(ref, studio, id);
   }
 }
 

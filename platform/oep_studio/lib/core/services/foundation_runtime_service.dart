@@ -56,6 +56,7 @@ import '../models/relationship_type.dart';
 import '../models/search_scope.dart';
 import 'eke_lifecycle.dart';
 import 'foundation_runtime_state.dart';
+import 'repository_session_storage.dart';
 
 /// The Studio Connection Manager (Work Packages 002-009). Owns Current
 /// Runtime, Current Repository, Repository Statistics, Current Object
@@ -97,6 +98,14 @@ class FoundationRuntimeNotifier extends Notifier<FoundationServiceState> {
     try {
       final bridge = FoundationBridge.create();
       _bridge = bridge;
+      // Restore whichever Repository was open when the app last closed,
+      // so a fresh launch does not always land on an empty Dashboard —
+      // fire-and-forget, the same "start connected, repopulate
+      // asynchronously" shape `workspaceTabsControllerProvider` already
+      // uses for its own restore. `openRepository`'s own race guard
+      // (checking `state.isRepositoryOpen` at call time) means a real
+      // user-initiated open that lands first always wins over this.
+      unawaited(_restoreLastRepository());
       return FoundationServiceState(
         phase: FoundationConnectionPhase.connected,
         runtimeState: bridge.state,
@@ -127,6 +136,26 @@ class FoundationRuntimeNotifier extends Notifier<FoundationServiceState> {
           technicalDetail: error.toString(),
         ),
       );
+    }
+  }
+
+  /// Reopens whichever Repository directory [RepositorySessionStorage]
+  /// last recorded, if any still exists on disk and nothing has opened a
+  /// Repository in the meantime. A failure here (a corrupt/moved
+  /// Repository, or any [FoundationBridgeException]) is deliberately
+  /// silent -- surfacing an error dialog for a Repository the user did
+  /// not just explicitly ask to open would be confusing on every future
+  /// launch until they clear it; the Dashboard's own "Open Repository"
+  /// action remains available exactly as before if automatic reopen
+  /// fails.
+  Future<void> _restoreLastRepository() async {
+    final path = await RepositorySessionStorage.load();
+    if (path == null) return;
+    if (state.isRepositoryOpen) return;
+    try {
+      openRepository(path);
+    } on FoundationBridgeException {
+      // See doc comment above.
     }
   }
 
@@ -230,6 +259,11 @@ class FoundationRuntimeNotifier extends Notifier<FoundationServiceState> {
       );
       rethrow;
     }
+    // Remembered so the next app launch reopens this same Repository
+    // automatically (see `_restoreLastRepository`) — fire-and-forget,
+    // same as every other identity-only persistence write in this
+    // codebase (`WorkspaceTabsController._persistIfChanged`).
+    unawaited(RepositorySessionStorage.recordOpened(repositoryPath));
     _refreshRepositoryData(bridge);
     // Repository Open -> Engineering Graph Load -> Knowledge Graph Build
     // -> EKE Ready (WP-EKE-009), the ONE authoritative place this

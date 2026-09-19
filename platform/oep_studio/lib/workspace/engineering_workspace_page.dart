@@ -221,23 +221,41 @@ class EngineeringWorkspacePage extends ConsumerWidget {
     // list — it only changes which subset of the SAME shared tab list is
     // displayed here.
     final tabs = tabsForStudio(allTabs, activeStudio);
+    // Bug fix (direct product feedback): a tab whose Surface has not
+    // been reconciled onto the seven-Studio model is visible under
+    // EVERY Studio (`tabsForStudio`'s own doc comment — deliberate, so
+    // it is never lost), but that must not let it silently become the
+    // resolved "active" content of an unrelated Studio just because
+    // it's the app-wide `activeId` from having been viewed elsewhere.
+    // Only a tab this Studio actually OWNS may satisfy that check; an
+    // unscoped tab can still be resolved via `remembered` below, since
+    // that is only ever set by an explicit interaction while this exact
+    // Studio was active (see `rememberActiveTabForItsStudio`).
+    final ownedTabs = tabs.where((t) => activeStudioForSurfaceId(t.surfaceId) == activeStudio).toList();
     final globalActiveId = tabsController.activeId;
     final remembered = ref.watch(lastActiveTabPerStudioProvider)[activeStudio];
-    final activeId = tabs.any((t) => t.id == globalActiveId)
+    final activeId = ownedTabs.any((t) => t.id == globalActiveId)
         ? globalActiveId
         : (remembered != null && tabs.any((t) => t.id == remembered))
             ? remembered
-            : (tabs.isNotEmpty ? tabs.first.id : null);
-    final secondTabId = tabsController.secondTabId;
+            : (ownedTabs.isNotEmpty ? ownedTabs.first.id : null);
+    // Same leak this Studio's `activeId` resolution above guards
+    // against: the persisted split partner is a single, app-wide field,
+    // not Studio-scoped, so it must only be honored here when it names
+    // a tab this Studio actually owns — otherwise a split entered while
+    // browsing a DIFFERENT Studio would render its second pane here too.
+    final rawSecondTabId = tabsController.secondTabId;
+    final secondTabId =
+        (rawSecondTabId != null && ownedTabs.any((t) => t.id == rawSecondTabId)) ? rawSecondTabId : null;
 
     void activate(String id) {
       tabsController.activate(id);
-      rememberActiveTabForItsStudio(ref, allTabs, id);
+      rememberActiveTabForItsStudio(ref, activeStudio, id);
     }
 
     void openAndRemember(String Function() open) {
       final id = open();
-      rememberActiveTabForItsStudio(ref, tabsController.tabs, id);
+      rememberActiveTabForItsStudio(ref, activeStudio, id);
     }
 
     return Container(
