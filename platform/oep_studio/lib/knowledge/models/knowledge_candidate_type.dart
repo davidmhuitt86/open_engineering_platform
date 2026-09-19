@@ -17,7 +17,15 @@ enum KnowledgeCandidateType {
   warning('Warning', Icons.warning_amber_outlined, null),
   measurement('Measurement', Icons.straighten_outlined, null),
   image('Image', Icons.image_outlined, ObjectCategory.image),
-  document('Document', Icons.description_outlined, ObjectCategory.document);
+  document('Document', Icons.description_outlined, ObjectCategory.document),
+  // Direct product feedback (WP-INGEST-010 Extraction Inspector follow-up):
+  // a plain printed label/word/phrase spotted on a source page that isn't
+  // itself any of the other nine categories (e.g. a wire-color legend
+  // entry, a callout, a loose annotation) — `foundationCategory: null` for
+  // the same reason as Specification/Tool/Material/Fluid/Warning/
+  // Measurement above: raw text is not an Engineering Object Foundation's
+  // fixed `oep_object_type_t` has a slot for either.
+  text('Text', Icons.text_fields_outlined, null);
 
   const KnowledgeCandidateType(this.label, this.icon, this.foundationCategory);
 
