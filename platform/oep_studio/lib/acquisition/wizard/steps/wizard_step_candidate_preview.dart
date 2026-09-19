@@ -6,6 +6,7 @@ import '../../../core/services/foundation_runtime_state.dart';
 import '../../../core/theme/studio_colors.dart';
 import '../../../knowledge/models/knowledge_candidate.dart';
 import '../../../knowledge/models/knowledge_candidate_type.dart';
+import '../../../knowledge/workspaces/extraction_inspector_dialog.dart';
 import '../acquisition_wizard_controller.dart';
 
 /// Wizard Step 6 -- "Candidate Knowledge Preview" (WP-EAM-003 §10).
@@ -162,6 +163,11 @@ class _CandidateSummaryView extends StatelessWidget {
       byType[candidate.type]!.add(candidate);
     }
     final partial = controller.ingestionStatus == WizardIngestionStatus.partial;
+    final source = controller.ingestedSource;
+    final ocrWordCount = source == null
+        ? 0
+        : foundation.ocrResultsForSource(source.id).fold<int>(0, (sum, r) => sum + r.words.length);
+    final entityCount = source == null ? 0 : foundation.engineeringEntitiesForSource(source.id).length;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
@@ -190,6 +196,35 @@ class _CandidateSummaryView extends StatelessWidget {
             names: [for (final r in relationships) '${r.type.name}: ${r.sourceCandidateId} → ${r.targetCandidateId}'],
           ),
           _CategoryTile(title: 'Evidence', count: evidence.length, names: [for (final e in evidence) e.label]),
+          const SizedBox(height: 24),
+          const Divider(height: 1),
+          const SizedBox(height: 16),
+          const Text('Extraction',
+              style: TextStyle(color: StudioColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 4),
+          Text(
+            'OCR $ocrWordCount   ·   Entities $entityCount   ·   Candidates ${candidates.length}',
+            style: const TextStyle(color: StudioColors.textSecondary, fontSize: 12),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Inspect the real extraction result, or select a region UIF did not recognize and classify it '
+            'yourself -- this works even when Entities and Candidates above are both zero.',
+            style: const TextStyle(color: StudioColors.textSecondary, fontSize: 12, height: 1.4),
+          ),
+          const SizedBox(height: 12),
+          // WP-INGEST-011: the wizard's own entry point into the existing,
+          // unmodified WP-INGEST-010 Extraction Inspector -- available
+          // whenever this view itself is showing (COMPLETE/PARTIAL only;
+          // FAILED never reaches `_CandidateSummaryView` at all, see
+          // `WizardStepCandidatePreview.build`'s own switch).
+          OutlinedButton.icon(
+            onPressed: source == null
+                ? null
+                : () => showExtractionInspectorDialog(context, source: source),
+            icon: const Icon(Icons.layers_outlined, size: 16),
+            label: const Text('Inspect Extraction'),
+          ),
         ],
       ),
     );

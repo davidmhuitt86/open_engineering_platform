@@ -7,6 +7,7 @@ import '../../core/services/foundation_runtime_service.dart';
 import '../../ingestion/models/ingestion_stage.dart';
 import '../../ingestion/models/stage_execution_status.dart';
 import '../../ingestion/models/stage_result.dart';
+import '../../knowledge/models/source_material.dart';
 import '../services/acquisition_api_exception.dart';
 import '../services/acquisition_runtime_service.dart';
 import '../services/reference_vault_ingestion_workflow.dart';
@@ -179,6 +180,18 @@ class AcquisitionWizardController extends ChangeNotifier {
   /// over a session that does not exist (WP-EAM-003 §9/§15).
   bool get hasKnowledgeSession =>
       ingestionStatus == WizardIngestionStatus.completed || ingestionStatus == WizardIngestionStatus.partial;
+
+  /// WP-INGEST-011: the [SourceMaterial] the Extraction Inspector needs
+  /// (`showExtractionInspectorDialog`'s own required parameter) --
+  /// already present on [ingestionOutcome], never a new field or a
+  /// second session load. `null` whenever [hasKnowledgeSession] is
+  /// `false` (no [KnowledgeSessionRecord] exists yet, per
+  /// [ReferenceVaultIngestionOutcome]'s own contract), so callers never
+  /// need a separate null-check against `ingestionStatus` first.
+  SourceMaterial? get ingestedSource {
+    final sources = ingestionOutcome?.sessionRecord?.sources;
+    return (sources == null || sources.isEmpty) ? null : sources.first;
+  }
 
   bool get canGoNext => switch (_stepIndex) {
         0 => knowledgeType != null,
