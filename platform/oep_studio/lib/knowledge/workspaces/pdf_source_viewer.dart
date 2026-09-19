@@ -5,9 +5,11 @@ import 'package:pdfrx/pdfrx.dart';
 import '../../core/services/foundation_runtime_service.dart';
 import '../../core/services/foundation_runtime_state.dart';
 import '../../core/theme/studio_colors.dart';
+import '../models/evidence_origin.dart';
 import '../models/knowledge_validation_exception.dart';
 import '../models/source_material.dart';
 import 'evidence_browser_dialog.dart';
+import 'extraction_inspector_dialog.dart';
 import 'ocr_layer_viewer_dialog.dart';
 
 /// The PDF Source Viewer (Work Package 009 STUDIO-TASK-000019): a real
@@ -59,6 +61,10 @@ class _PdfSourceViewerState extends ConsumerState<PdfSourceViewer> {
 
   void _openOcrLayerViewer() {
     showOcrLayerViewerDialog(context, source: widget.source);
+  }
+
+  void _openExtractionInspector() {
+    showExtractionInspectorDialog(context, source: widget.source);
   }
 
   void _toggleAddRegion() {
@@ -137,6 +143,10 @@ class _PdfSourceViewerState extends ConsumerState<PdfSourceViewer> {
             y: top.clamp(0.0, 1.0),
             width: width.clamp(0.0, 1.0 - left),
             height: height.clamp(0.0, 1.0 - top),
+            // WP-INGEST-010 §2: a person just drew this rectangle with
+            // their own mouse — explicit positive knowledge at this call
+            // site, not an inference from an absent field.
+            origin: EvidenceOrigin.human,
           );
     } on KnowledgeValidationException catch (error) {
       if (!context.mounted) return;
@@ -301,6 +311,7 @@ class _PdfSourceViewerState extends ConsumerState<PdfSourceViewer> {
           onToggleAddRegion: _toggleAddRegion,
           onOpenEvidenceBrowser: _openEvidenceBrowser,
           onOpenOcrLayerViewer: _openOcrLayerViewer,
+          onOpenExtractionInspector: _openExtractionInspector,
         ),
         const Divider(height: 1),
         Expanded(
@@ -401,6 +412,7 @@ class _Toolbar extends StatelessWidget {
     required this.onToggleAddRegion,
     required this.onOpenEvidenceBrowser,
     required this.onOpenOcrLayerViewer,
+    required this.onOpenExtractionInspector,
   });
 
   final PdfViewerController controller;
@@ -415,6 +427,7 @@ class _Toolbar extends StatelessWidget {
   final VoidCallback onToggleAddRegion;
   final VoidCallback onOpenEvidenceBrowser;
   final VoidCallback onOpenOcrLayerViewer;
+  final VoidCallback onOpenExtractionInspector;
 
   @override
   Widget build(BuildContext context) {
@@ -486,6 +499,12 @@ class _Toolbar extends StatelessWidget {
                   tooltip: 'OCR Layer Viewer',
                   icon: const Icon(Icons.text_snippet_outlined, size: 18),
                   onPressed: onOpenOcrLayerViewer,
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  tooltip: 'Extraction Inspector',
+                  icon: const Icon(Icons.layers_outlined, size: 18),
+                  onPressed: onOpenExtractionInspector,
                 ),
               ],
             );

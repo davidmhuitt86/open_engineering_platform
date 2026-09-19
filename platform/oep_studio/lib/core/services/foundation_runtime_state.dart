@@ -729,6 +729,34 @@ class FoundationServiceState {
         .toList();
   }
 
+  /// Every Knowledge Candidate reachable from [sourceId] via an Evidence
+  /// Region on that source (WP-INGEST-010 §6's "Candidates" layer count
+  /// for the Extraction Inspector) — `KnowledgeCandidate` itself carries
+  /// no `sourceId`, so this joins through `evidenceRegions`/`evidenceLinks`
+  /// exactly the way [candidatesLinkedToEvidenceRegion] already does for a
+  /// single region.
+  List<KnowledgeCandidate> knowledgeCandidatesForSource(String sourceId) {
+    final regionIds = evidenceRegions.where((region) => region.sourceId == sourceId).map((region) => region.id).toSet();
+    final candidateIds =
+        evidenceLinks.where((link) => regionIds.contains(link.regionId)).map((link) => link.candidateId).toSet();
+    return candidates.where((candidate) => candidateIds.contains(candidate.id)).toList();
+  }
+
+  /// Every Relationship Candidate connecting two candidates both reachable
+  /// from [sourceId] (WP-INGEST-010 §6's "Relationships" layer count) —
+  /// `RelationshipCandidate` itself carries no spatial/source information
+  /// at all (a relationship is topology, not a page location; see
+  /// AP-INGEST-009 §L), so this is necessarily a derived, best-effort
+  /// count via the same candidate join above, not a first-class
+  /// source-scoped field on the model.
+  List<RelationshipCandidate> relationshipCandidatesForSource(String sourceId) {
+    final candidateIds = knowledgeCandidatesForSource(sourceId).map((candidate) => candidate.id).toSet();
+    return relationshipCandidates
+        .where((relationship) =>
+            candidateIds.contains(relationship.sourceCandidateId) && candidateIds.contains(relationship.targetCandidateId))
+        .toList();
+  }
+
   /// How many Knowledge Candidates reference [regionId] (Work Package
   /// 009 Evidence Browser: "Linked Candidate Count").
   int linkedCandidateCountFor(String regionId) =>

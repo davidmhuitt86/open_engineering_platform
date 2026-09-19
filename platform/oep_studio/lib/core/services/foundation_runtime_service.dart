@@ -13,6 +13,8 @@ import '../../knowledge/models/engineering_context_type.dart';
 import '../../knowledge/models/engineering_entity.dart';
 import '../../knowledge/models/engineering_entity_status.dart';
 import '../../knowledge/models/evidence_link.dart';
+import '../../knowledge/models/evidence_annotation_status.dart';
+import '../../knowledge/models/evidence_origin.dart';
 import '../../knowledge/models/evidence_region.dart';
 import '../../knowledge/models/knowledge_candidate.dart';
 import '../../knowledge/models/knowledge_candidate_status.dart';
@@ -1486,6 +1488,16 @@ class FoundationRuntimeNotifier extends Notifier<FoundationServiceState> {
     required double width,
     required double height,
     String? label,
+    // WP-INGEST-010 §2/§9: optional so every pre-existing caller (the
+    // plain drag-to-draw tool historically passed none of these) keeps
+    // compiling and behaving exactly as before; a caller that DOES know
+    // who/what is creating this region (the Extraction Inspector's
+    // "Classify this region" action, or `PdfSourceViewer`'s own drag
+    // gesture updated by this work package) passes them explicitly.
+    EvidenceOrigin? origin,
+    String? annotatorId,
+    EvidenceAnnotationStatus? status,
+    String? observationRef,
   }) {
     if (state.knowledgeSession == null) {
       throw const KnowledgeValidationException(
@@ -1504,10 +1516,73 @@ class FoundationRuntimeNotifier extends Notifier<FoundationServiceState> {
       height: height,
       label: resolvedLabel,
       createdTime: DateTime.now(),
+      origin: origin,
+      annotatorId: annotatorId,
+      status: status,
+      observationRef: observationRef,
     );
     state = state.copyWith(evidenceRegions: [...state.evidenceRegions, region]);
     unawaited(_persistActiveSession());
     return region;
+  }
+
+  /// WP-INGEST-010 §5/§9: the Extraction Inspector's "Classify this
+  /// region" action — a thin, explicit wrapper over [createEvidenceRegion]
+  /// that always stamps `origin: EvidenceOrigin.human` (never left to be
+  /// inferred) and defaults [status] to
+  /// [EvidenceAnnotationStatus.unverified] for a brand-new annotation.
+  /// [observationRef] is deliberately nullable and has no validation
+  /// against it referencing a real id — AP-INGEST-009 §4/§11: a human may
+  /// annotate a region where UIF produced no machine observation at all
+  /// (`observationRef: null` is a fully valid, expected call), exactly
+  /// the TRX300 case this work package's acceptance test exercises.
+  EvidenceRegion createHumanAnnotation({
+    required String sourceId,
+    required int page,
+    required double x,
+    required double y,
+    required double width,
+    required double height,
+    required String annotatorId,
+    String? label,
+    String? observationRef,
+  }) {
+    return createEvidenceRegion(
+      sourceId: sourceId,
+      page: page,
+      x: x,
+      y: y,
+      width: width,
+      height: height,
+      label: label,
+      origin: EvidenceOrigin.human,
+      annotatorId: annotatorId,
+      status: EvidenceAnnotationStatus.unverified,
+      observationRef: observationRef,
+    );
+  }
+
+  /// WP-INGEST-010 §3: marks an existing human annotation as reviewed.
+  /// A no-op (returns without change) on a region with no recorded
+  /// [EvidenceOrigin.human] origin — verifying a machine observation or an
+  /// origin-unrecorded legacy region has no defined meaning (§2/§3).
+  void verifyEvidenceAnnotation(String regionId) {
+    EvidenceRegion? updated;
+    final regions = <EvidenceRegion>[];
+    for (final region in state.evidenceRegions) {
+      if (region.id == regionId && region.origin == EvidenceOrigin.human) {
+        updated = region.copyWith(status: EvidenceAnnotationStatus.verified, modifiedTime: DateTime.now());
+        regions.add(updated);
+      } else {
+        regions.add(region);
+      }
+    }
+    if (updated == null) return;
+    state = state.copyWith(
+      evidenceRegions: regions,
+      selectedEvidenceRegion: state.selectedEvidenceRegion?.id == regionId ? updated : null,
+    );
+    unawaited(_persistActiveSession());
   }
 
   /// Renames an Evidence Region (Evidence Browser: "Support: Rename").
