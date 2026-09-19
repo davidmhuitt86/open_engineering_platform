@@ -3,6 +3,7 @@
 #include <atomic>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 #include <thread>
 
@@ -53,7 +54,23 @@ namespace oep::acquisition::api {
 /// service with a separate Node/Fastify gateway -- see README.md
 /// "Implementation Decisions" and ADR-0007 (Platform API Strategy) for why.
 ///
-/// `GET /health` (WORK_PACKAGE_001) is always registered. The `/sources`
+/// `GET /health` (WORK_PACKAGE_001) is always registered, and reflects
+/// actual database reachability rather than merely "the process is
+/// running" when `database_config` is supplied (non-null): each call
+/// opens a short-lived probe connection and runs a trivial query, since a
+/// persistent process-lifetime connection can look fine while every real
+/// Repository connection has gone bad (see `database::ResilientConnection`)
+/// -- `/health` needs to be trustworthy on its own, independent of
+/// whichever Repository connections happen to be healthy at the moment.
+/// A database outage never fails the probe fatally: `/health` reports
+/// `{"status": "degraded", "database": "unavailable"}` with HTTP 503
+/// instead of throwing, so `/health` itself stays a reliable diagnostic
+/// even while the database is down. When `database_config` is null (e.g.
+/// tests that only care about routing/auth), `/health` keeps its original
+/// process-alive-only behavior: `{"status": "ok"}` with no `database`
+/// field.
+///
+/// The `/sources`
 /// routes (WORK_PACKAGE_002), `/jobs` routes (WORK_PACKAGE_003),
 /// `/jobs/{id}/execute`, `/jobs/{id}/cancel`, `/jobs/{id}/status` routes
 /// (WORK_PACKAGE_004), `/connectors` routes (WORK_PACKAGE_005),
@@ -101,7 +118,8 @@ class ApiServer {
                       integrity::IntegrityVerificationService* verification_service = nullptr,
                       metadata::MetadataExtractionService* metadata_service = nullptr,
                       vault::ReferenceVaultService* vault_service = nullptr,
-                      provenance::AcquisitionRecordService* acquisition_record_service = nullptr);
+                      provenance::AcquisitionRecordService* acquisition_record_service = nullptr,
+                      const common::DatabaseConfig* database_config = nullptr);
   ~ApiServer();
 
   ApiServer(const ApiServer&) = delete;
@@ -135,6 +153,9 @@ class ApiServer {
   metadata::MetadataExtractionService* metadata_service_;
   vault::ReferenceVaultService* vault_service_;
   provenance::AcquisitionRecordService* acquisition_record_service_;
+  // Empty when no `database_config` was supplied -- see this class's
+  // header comment on `GET /health`'s database-reachability behavior.
+  std::optional<std::string> health_connection_string_;
   std::unique_ptr<httplib::Server> server_;
   std::thread thread_;
   std::atomic<bool> running_{false};

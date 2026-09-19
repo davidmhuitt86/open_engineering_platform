@@ -1,13 +1,8 @@
 #pragma once
 
-#include <memory>
-
 #include "oep/acquisition/acquisition/acquisition_job_repository.hpp"
 #include "oep/acquisition/common/config.hpp"
-
-namespace pqxx {
-class connection;
-}
+#include "oep/acquisition/database/resilient_connection.hpp"
 
 namespace oep::acquisition::acquisition {
 
@@ -32,7 +27,7 @@ class PostgresAcquisitionJobRepository : public IAcquisitionJobRepository {
   bool soft_delete(const std::string& id) override;
 
  private:
-  std::unique_ptr<pqxx::connection> connection_;
+  database::ResilientConnection connection_;
 };
 
 }  // namespace oep::acquisition::acquisition

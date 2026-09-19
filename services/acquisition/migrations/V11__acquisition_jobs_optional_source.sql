@@ -1,0 +1,23 @@
+-- V11__acquisition_jobs_optional_source.sql
+--
+-- WP-EAM-005 (User-Provided Artifact Acquisition): relaxes
+-- acquisition_jobs.source_id from NOT NULL to nullable.
+--
+-- Rationale: a User-Provided Artifact (a local file the engineer selects
+-- directly, e.g. a PDF wiring diagram) is not published by a registered
+-- Official Source -- it has no external publisher to reference. The
+-- architecture explicitly prohibits inventing a fake Official Source
+-- (e.g. "User Computer") merely to satisfy this foreign key, since that
+-- would misrepresent Official Source Registry semantics ("registered
+-- external engineering source"). A NULL source_id is therefore the
+-- correct, minimal, additive representation of "this Job's artifact was
+-- supplied directly by the engineer, not acquired from a registered
+-- Source" -- distinguishable from a normal Job by that same NULL, with
+-- no new column and no new table required.
+--
+-- The foreign key itself (V3, "source_id UUID ... REFERENCES
+-- official_sources (uuid)") is unaffected: PostgreSQL foreign keys are
+-- satisfied for a NULL value by definition (MATCH SIMPLE, the default),
+-- so no FK redefinition is needed -- only the NOT NULL constraint changes.
+
+ALTER TABLE acquisition_jobs ALTER COLUMN source_id DROP NOT NULL;

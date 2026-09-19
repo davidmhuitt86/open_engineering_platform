@@ -16,7 +16,7 @@ nlohmann::json optional_to_json(const std::optional<std::string>& value) {
 nlohmann::json to_json(const AcquisitionJob& job) {
   return nlohmann::json{
       {"id", job.id},
-      {"source_id", job.source_id},
+      {"source_id", optional_to_json(job.source_id)},
       {"name", job.name},
       {"description", job.description},
       {"status", to_string(job.status)},

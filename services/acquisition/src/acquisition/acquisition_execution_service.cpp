@@ -19,9 +19,14 @@ std::optional<AcquisitionJob> AcquisitionExecutionService::execute(const std::st
     return std::nullopt;
   }
 
-  const auto source = sources_.find_by_id(job->source_id);
-  if (!source.has_value() || source->status == registry::SourceStatus::Archived) {
-    throw SourceNotAvailableError(job->source_id);
+  // WP-EAM-005: a User-Provided Artifact Job (source_id == nullopt) has no
+  // Official Source to validate -- the availability precondition only
+  // applies to Jobs acquired from a registered Source.
+  if (job->source_id.has_value()) {
+    const auto source = sources_.find_by_id(*job->source_id);
+    if (!source.has_value() || source->status == registry::SourceStatus::Archived) {
+      throw SourceNotAvailableError(*job->source_id);
+    }
   }
 
   const auto next = next_execution_status(job->status);

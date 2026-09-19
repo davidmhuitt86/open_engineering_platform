@@ -1,0 +1,16 @@
+{
+  "objectId": "6b34583f-61fd-4ab6-a612-68030290f293",
+  "objectType": "Component",
+  "name": "2051-2089",
+  "description": "Extracted by the Universal Ingestion Framework from \"2051-2089\" on page 12.",
+  "createdUtc": "2026-09-18T21:46:05.503Z",
+  "lastModifiedUtc": "2026-09-18T21:46:05.503Z",
+  "version": "1.0.0",
+  "author": "uif",
+  "tags": [
+    "knowledge-candidate:uif-candidate-1789767343925-7938",
+    "knowledge-session:session-1789767129058-8c5b"
+  ],
+  "content": "",
+  "diagramId": ""
+}

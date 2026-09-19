@@ -1,5 +1,6 @@
 add_library(oep_acquisition_database STATIC
   database_connection.cpp
+  resilient_connection.cpp
 )
 
 target_include_directories(oep_acquisition_database
@@ -12,6 +13,7 @@ target_link_libraries(oep_acquisition_database
     oep_acquisition_common
   PRIVATE
     PostgreSQL::PostgreSQL
+    libpqxx::pqxx
 )
 
 target_compile_features(oep_acquisition_database PUBLIC cxx_std_23)

@@ -2,6 +2,14 @@
 
 namespace oep::acquisition::vault {
 
+namespace {
+
+nlohmann::json optional_to_json(const std::optional<std::string>& value) {
+  return value.has_value() ? nlohmann::json(*value) : nlohmann::json(nullptr);
+}
+
+}  // namespace
+
 nlohmann::json to_json(const VaultEntry& entry) {
   // WP-SRV-002: `vault_path` is a server-local filesystem path and must
   // never appear in the public API (see ADR-0001 Section 6). Callers that
@@ -13,7 +21,7 @@ nlohmann::json to_json(const VaultEntry& entry) {
       {"metadata_id", entry.metadata_id},
       {"verification_id", entry.verification_id},
       {"download_session_id", entry.download_session_id},
-      {"source_id", entry.source_id},
+      {"source_id", optional_to_json(entry.source_id)},
       {"sha256_hash", entry.sha256_hash},
       {"mime_type", entry.mime_type},
       {"file_size_bytes", entry.file_size_bytes},

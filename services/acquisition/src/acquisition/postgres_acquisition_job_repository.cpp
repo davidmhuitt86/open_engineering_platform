@@ -28,7 +28,7 @@ std::optional<std::string> nullable_field(const pqxx::field& field) {
 AcquisitionJob row_to_job(const pqxx::row& row) {
   AcquisitionJob job;
   job.id = row[0].as<std::string>();
-  job.source_id = row[1].as<std::string>();
+  job.source_id = nullable_field(row[1]);
   job.name = row[2].as<std::string>();
   job.description = row[3].as<std::string>();
   job.status = job_status_from_string(row[4].as<std::string>()).value_or(JobStatus::Created);
@@ -45,13 +45,12 @@ AcquisitionJob row_to_job(const pqxx::row& row) {
 }  // namespace
 
 PostgresAcquisitionJobRepository::PostgresAcquisitionJobRepository(const common::DatabaseConfig& config)
-    : connection_(std::make_unique<pqxx::connection>(
-          common::Config{.database = config}.database_connection_string())) {}
+    : connection_(common::Config{.database = config}.database_connection_string()) {}
 
 PostgresAcquisitionJobRepository::~PostgresAcquisitionJobRepository() = default;
 
 AcquisitionJob PostgresAcquisitionJobRepository::create(const AcquisitionJob& job) {
-  pqxx::work txn(*connection_);
+  pqxx::work txn(connection_.get());
   try {
     const pqxx::result result = txn.exec_params(
         std::string(
@@ -72,7 +71,7 @@ std::optional<AcquisitionJob> PostgresAcquisitionJobRepository::find_by_id(const
   if (!common::is_uuid_like(id)) {
     return std::nullopt;
   }
-  pqxx::work txn(*connection_);
+  pqxx::work txn(connection_.get());
   const pqxx::result result =
       txn.exec_params(std::string("SELECT ") + kSelectColumns +
                            " FROM acquisition_jobs WHERE uuid = $1::uuid AND deleted_at IS NULL",
@@ -85,7 +84,7 @@ std::optional<AcquisitionJob> PostgresAcquisitionJobRepository::find_by_id(const
 }
 
 std::vector<AcquisitionJob> PostgresAcquisitionJobRepository::list(const JobFilter& filter) {
-  pqxx::work txn(*connection_);
+  pqxx::work txn(connection_.get());
 
   std::string sql = std::string("SELECT ") + kSelectColumns + " FROM acquisition_jobs WHERE deleted_at IS NULL";
   pqxx::params params;
@@ -124,7 +123,7 @@ std::optional<AcquisitionJob> PostgresAcquisitionJobRepository::update(const std
   if (!common::is_uuid_like(id)) {
     return std::nullopt;
   }
-  pqxx::work txn(*connection_);
+  pqxx::work txn(connection_.get());
   try {
     const pqxx::result result = txn.exec_params(
         std::string(
@@ -150,7 +149,7 @@ bool PostgresAcquisitionJobRepository::soft_delete(const std::string& id) {
   if (!common::is_uuid_like(id)) {
     return false;
   }
-  pqxx::work txn(*connection_);
+  pqxx::work txn(connection_.get());
   const pqxx::result result =
       txn.exec_params("UPDATE acquisition_jobs SET deleted_at = now(), updated_at = now() "
                        "WHERE uuid = $1::uuid AND deleted_at IS NULL RETURNING uuid",

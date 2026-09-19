@@ -1,13 +1,8 @@
 #pragma once
 
-#include <memory>
-
 #include "oep/acquisition/common/config.hpp"
+#include "oep/acquisition/database/resilient_connection.hpp"
 #include "oep/acquisition/metadata/metadata_repository.hpp"
-
-namespace pqxx {
-class connection;
-}
 
 namespace oep::acquisition::metadata {
 
@@ -27,7 +22,7 @@ class PostgresMetadataRepository : public IMetadataRepository {
   std::optional<ArtifactMetadata> update(const std::string& id, const ArtifactMetadata& metadata) override;
 
  private:
-  std::unique_ptr<pqxx::connection> connection_;
+  database::ResilientConnection connection_;
 };
 
 }  // namespace oep::acquisition::metadata

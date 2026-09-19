@@ -1,13 +1,8 @@
 #pragma once
 
-#include <memory>
-
 #include "oep/acquisition/common/config.hpp"
+#include "oep/acquisition/database/resilient_connection.hpp"
 #include "oep/acquisition/downloads/download_repository.hpp"
-
-namespace pqxx {
-class connection;
-}
 
 namespace oep::acquisition::downloads {
 
@@ -27,7 +22,7 @@ class PostgresDownloadRepository : public IDownloadRepository {
   std::optional<Download> update(const std::string& id, const Download& download) override;
 
  private:
-  std::unique_ptr<pqxx::connection> connection_;
+  database::ResilientConnection connection_;
 };
 
 }  // namespace oep::acquisition::downloads

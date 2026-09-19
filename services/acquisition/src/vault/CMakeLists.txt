@@ -21,6 +21,7 @@ target_link_libraries(oep_acquisition_vault
     oep_acquisition_metadata
     nlohmann_json::nlohmann_json
   PRIVATE
+    oep_acquisition_database
     libpqxx::pqxx
 )
 

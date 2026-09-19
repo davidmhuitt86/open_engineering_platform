@@ -8,6 +8,7 @@
 
 #include <httplib.h>
 #include <nlohmann/json.hpp>
+#include <pqxx/pqxx>
 
 #include "oep/acquisition/api/auth.hpp"
 #include "oep/acquisition/acquisition/acquisition_execution_json.hpp"
@@ -1088,10 +1089,32 @@ void register_routes(httplib::Server& server, OfficialSourceService* source_serv
                       ConnectorRegistry* connector_registry, DownloadService* download_service,
                       IntegrityVerificationService* verification_service,
                       MetadataExtractionService* metadata_service, ReferenceVaultService* vault_service,
-                      AcquisitionRecordService* acquisition_record_service) {
-  server.Get("/health", [](const httplib::Request&, httplib::Response& response) {
-    const nlohmann::json body{{"status", "ok"}};
-    response.set_content(body.dump(), "application/json");
+                      AcquisitionRecordService* acquisition_record_service,
+                      const std::optional<std::string>& health_connection_string) {
+  server.Get("/health", [health_connection_string](const httplib::Request&, httplib::Response& response) {
+    // No database configured for the health check at all (e.g. a test
+    // that only cares about routing/auth) -- keep the original
+    // process-alive-only behavior.
+    if (!health_connection_string.has_value()) {
+      respond_json(response, 200, nlohmann::json{{"status", "ok"}});
+      return;
+    }
+
+    // A short-lived probe connection, deliberately independent of every
+    // Repository's own `database::ResilientConnection` -- so `/health`
+    // reflects real, current database reachability rather than whatever
+    // state a persistent connection happens to be in (see server.hpp's
+    // class comment). This is the only route that talks to the database
+    // this way; every other DB-backed route goes through its Service /
+    // Repository as usual.
+    try {
+      pqxx::connection probe_connection(health_connection_string.value());
+      pqxx::nontransaction txn(probe_connection);
+      txn.exec("SELECT 1");
+      respond_json(response, 200, nlohmann::json{{"status", "ok"}, {"database", "ok"}});
+    } catch (const std::exception&) {
+      respond_json(response, 503, nlohmann::json{{"status", "degraded"}, {"database", "unavailable"}});
+    }
   });
 
   if (source_service != nullptr) {
@@ -1134,7 +1157,8 @@ ApiServer::ApiServer(const common::ServerConfig& config, std::string api_token,
                       integrity::IntegrityVerificationService* verification_service,
                       metadata::MetadataExtractionService* metadata_service,
                       vault::ReferenceVaultService* vault_service,
-                      provenance::AcquisitionRecordService* acquisition_record_service)
+                      provenance::AcquisitionRecordService* acquisition_record_service,
+                      const common::DatabaseConfig* database_config)
     : config_(config),
       api_token_(std::move(api_token)),
       source_service_(source_service),
@@ -1146,6 +1170,10 @@ ApiServer::ApiServer(const common::ServerConfig& config, std::string api_token,
       metadata_service_(metadata_service),
       vault_service_(vault_service),
       acquisition_record_service_(acquisition_record_service),
+      health_connection_string_(
+          database_config != nullptr
+              ? std::make_optional(common::Config{.database = *database_config}.database_connection_string())
+              : std::nullopt),
       server_(std::make_unique<httplib::Server>()) {
   if (api_token_.empty()) {
     // WP-SRV-003: an empty token must never silently mean "auth
@@ -1164,7 +1192,7 @@ ApiServer::ApiServer(const common::ServerConfig& config, std::string api_token,
   });
   register_routes(*server_, source_service_, job_service_, execution_service_, connector_registry_,
                    download_service_, verification_service_, metadata_service_, vault_service_,
-                   acquisition_record_service_);
+                   acquisition_record_service_, health_connection_string_);
 }
 
 ApiServer::~ApiServer() {

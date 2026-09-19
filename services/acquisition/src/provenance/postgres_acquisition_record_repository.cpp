@@ -35,13 +35,12 @@ AcquisitionRecord row_to_record(const pqxx::row& row) {
 }  // namespace
 
 PostgresAcquisitionRecordRepository::PostgresAcquisitionRecordRepository(const common::DatabaseConfig& config)
-    : connection_(std::make_unique<pqxx::connection>(
-          common::Config{.database = config}.database_connection_string())) {}
+    : connection_(common::Config{.database = config}.database_connection_string()) {}
 
 PostgresAcquisitionRecordRepository::~PostgresAcquisitionRecordRepository() = default;
 
 AcquisitionRecord PostgresAcquisitionRecordRepository::create(const AcquisitionRecord& record) {
-  pqxx::work txn(*connection_);
+  pqxx::work txn(connection_.get());
   try {
     const pqxx::result result = txn.exec_params(
         std::string(
@@ -62,7 +61,7 @@ std::optional<AcquisitionRecord> PostgresAcquisitionRecordRepository::find_by_id
   if (!common::is_uuid_like(id)) {
     return std::nullopt;
   }
-  pqxx::work txn(*connection_);
+  pqxx::work txn(connection_.get());
   const pqxx::result result = txn.exec_params(
       std::string("SELECT ") + kSelectColumns + " FROM acquisition_records WHERE uuid = $1::uuid",
       pqxx::params{id});
@@ -78,7 +77,7 @@ std::optional<AcquisitionRecord> PostgresAcquisitionRecordRepository::find_by_do
   if (!common::is_uuid_like(download_session_id)) {
     return std::nullopt;
   }
-  pqxx::work txn(*connection_);
+  pqxx::work txn(connection_.get());
   const pqxx::result result =
       txn.exec_params(std::string("SELECT ") + kSelectColumns +
                            " FROM acquisition_records WHERE download_session_id = $1::uuid",
@@ -91,7 +90,7 @@ std::optional<AcquisitionRecord> PostgresAcquisitionRecordRepository::find_by_do
 }
 
 std::vector<AcquisitionRecord> PostgresAcquisitionRecordRepository::list(const AcquisitionRecordFilter& filter) {
-  pqxx::work txn(*connection_);
+  pqxx::work txn(connection_.get());
 
   std::string sql = std::string("SELECT ") + kSelectColumns + " FROM acquisition_records WHERE TRUE";
   pqxx::params params;
@@ -118,7 +117,7 @@ std::optional<AcquisitionRecord> PostgresAcquisitionRecordRepository::update_sta
   if (!common::is_uuid_like(id)) {
     return std::nullopt;
   }
-  pqxx::work txn(*connection_);
+  pqxx::work txn(connection_.get());
   const pqxx::result result = txn.exec_params(
       std::string(
           "UPDATE acquisition_records SET status = $1, error_message = $2, updated_at = now() "

@@ -1,13 +1,8 @@
 #pragma once
 
-#include <memory>
-
 #include "oep/acquisition/common/config.hpp"
+#include "oep/acquisition/database/resilient_connection.hpp"
 #include "oep/acquisition/provenance/acquisition_record_repository.hpp"
-
-namespace pqxx {
-class connection;
-}
 
 namespace oep::acquisition::provenance {
 
@@ -29,7 +24,7 @@ class PostgresAcquisitionRecordRepository : public IAcquisitionRecordRepository 
                                                   const std::optional<std::string>& error_message) override;
 
  private:
-  std::unique_ptr<pqxx::connection> connection_;
+  database::ResilientConnection connection_;
 };
 
 }  // namespace oep::acquisition::provenance

@@ -18,6 +18,7 @@ target_link_libraries(oep_acquisition_downloads
     oep_acquisition_connectors
     nlohmann_json::nlohmann_json
   PRIVATE
+    oep_acquisition_database
     libpqxx::pqxx
 )
 

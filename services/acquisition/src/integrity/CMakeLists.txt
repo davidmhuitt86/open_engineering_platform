@@ -18,6 +18,7 @@ target_link_libraries(oep_acquisition_integrity
     oep_acquisition_downloads
     nlohmann_json::nlohmann_json
   PRIVATE
+    oep_acquisition_database
     libpqxx::pqxx
     picosha2
 )

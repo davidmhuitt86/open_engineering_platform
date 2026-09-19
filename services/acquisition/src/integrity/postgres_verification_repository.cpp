@@ -41,13 +41,12 @@ Verification row_to_verification(const pqxx::row& row) {
 }  // namespace
 
 PostgresVerificationRepository::PostgresVerificationRepository(const common::DatabaseConfig& config)
-    : connection_(std::make_unique<pqxx::connection>(
-          common::Config{.database = config}.database_connection_string())) {}
+    : connection_(common::Config{.database = config}.database_connection_string()) {}
 
 PostgresVerificationRepository::~PostgresVerificationRepository() = default;
 
 Verification PostgresVerificationRepository::create(const Verification& verification) {
-  pqxx::work txn(*connection_);
+  pqxx::work txn(connection_.get());
   try {
     const pqxx::result result = txn.exec_params(
         std::string(
@@ -69,7 +68,7 @@ std::optional<Verification> PostgresVerificationRepository::find_by_id(const std
   if (!common::is_uuid_like(id)) {
     return std::nullopt;
   }
-  pqxx::work txn(*connection_);
+  pqxx::work txn(connection_.get());
   const pqxx::result result = txn.exec_params(
       std::string("SELECT ") + kSelectColumns + " FROM integrity_verifications WHERE uuid = $1::uuid",
       pqxx::params{id});
@@ -81,7 +80,7 @@ std::optional<Verification> PostgresVerificationRepository::find_by_id(const std
 }
 
 std::vector<Verification> PostgresVerificationRepository::list(const VerificationFilter& filter) {
-  pqxx::work txn(*connection_);
+  pqxx::work txn(connection_.get());
 
   std::string sql = std::string("SELECT ") + kSelectColumns + " FROM integrity_verifications WHERE TRUE";
   pqxx::params params;
@@ -112,7 +111,7 @@ std::optional<Verification> PostgresVerificationRepository::update(const std::st
   if (!common::is_uuid_like(id)) {
     return std::nullopt;
   }
-  pqxx::work txn(*connection_);
+  pqxx::work txn(connection_.get());
   const pqxx::result result = txn.exec_params(
       std::string(
           "UPDATE integrity_verifications SET "

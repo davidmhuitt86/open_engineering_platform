@@ -1,13 +1,8 @@
 #pragma once
 
-#include <memory>
-
 #include "oep/acquisition/common/config.hpp"
+#include "oep/acquisition/database/resilient_connection.hpp"
 #include "oep/acquisition/registry/official_source_repository.hpp"
-
-namespace pqxx {
-class connection;
-}
 
 namespace oep::acquisition::registry {
 
@@ -39,7 +34,7 @@ class PostgresOfficialSourceRepository : public IOfficialSourceRepository {
   bool soft_delete(const std::string& id) override;
 
  private:
-  std::unique_ptr<pqxx::connection> connection_;
+  database::ResilientConnection connection_;
 };
 
 }  // namespace oep::acquisition::registry

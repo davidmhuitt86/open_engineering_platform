@@ -1,13 +1,8 @@
 #pragma once
 
-#include <memory>
-
 #include "oep/acquisition/acquisition/job_execution_history_repository.hpp"
 #include "oep/acquisition/common/config.hpp"
-
-namespace pqxx {
-class connection;
-}
+#include "oep/acquisition/database/resilient_connection.hpp"
 
 namespace oep::acquisition::acquisition {
 
@@ -25,7 +20,7 @@ class PostgresJobExecutionHistoryRepository : public IJobExecutionHistoryReposit
   std::vector<JobExecutionHistoryEntry> list_for_job(const std::string& job_id) override;
 
  private:
-  std::unique_ptr<pqxx::connection> connection_;
+  database::ResilientConnection connection_;
 };
 
 }  // namespace oep::acquisition::acquisition

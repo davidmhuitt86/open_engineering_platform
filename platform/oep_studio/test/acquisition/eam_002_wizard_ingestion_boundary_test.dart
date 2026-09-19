@@ -68,14 +68,32 @@ void main() {
           File('lib/acquisition/wizard/acquisition_wizard_controller.dart').readAsStringSync();
       expect(wizardControllerSource, contains('.ingestVaultArtifact('),
           reason: 'WP-EAM-003 requires the wizard to orchestrate ingestion automatically.');
+      // AP-EAM-004 / WP-EAM-FOLLOWUP-001: assert against the exact
+      // forbidden CALL shape (with the trailing paren), never a bare
+      // type-name substring -- a bare 'ReferenceVaultIngestionWorkflow'
+      // ban would be too broad and would risk colliding with the
+      // legitimately-referenced sibling type `ReferenceVaultIngestionOutcome`
+      // (e.g. via a future rename/refactor) even though the two names
+      // don't currently collide as substrings. Checking the real call
+      // shape `ReferenceVaultIngestionWorkflow.ingest(` is what actually
+      // encodes "the wizard may orchestrate the existing public entry
+      // point but must not bypass it and invoke ingestion internals
+      // directly" -- the intent this whole suite exists to protect.
+      expect(wizardControllerSource, isNot(contains('ReferenceVaultIngestionWorkflow.ingest(')),
+          reason: 'ReferenceVaultIngestionWorkflow.ingest(');
       for (final forbidden in [
         'IngestionOrchestrator',
         'ReferenceVaultAdapter',
         'IngestionKnowledgeSessionBridge',
-        'ReferenceVaultIngestionWorkflow.ingest',
       ]) {
         expect(wizardControllerSource, isNot(contains(forbidden)), reason: forbidden);
       }
+      // The legitimate sibling type remains explicitly allowed: the
+      // controller tracks the real ingestion outcome via
+      // ReferenceVaultIngestionOutcome (never a wizard-fabricated
+      // stand-in), and this suite must never forbid that reference.
+      expect(wizardControllerSource, contains('ReferenceVaultIngestionOutcome'),
+          reason: 'ReferenceVaultIngestionOutcome is a legitimate, allowed reference.');
     },
   );
 

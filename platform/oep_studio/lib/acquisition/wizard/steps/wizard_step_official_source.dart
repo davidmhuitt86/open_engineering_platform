@@ -1,3 +1,4 @@
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -6,11 +7,13 @@ import '../../models/official_source.dart';
 import '../../services/acquisition_runtime_service.dart';
 import '../acquisition_wizard_controller.dart';
 
-/// Wizard Step 2 -- lists real Official Sources (`GET /sources`), lets
-/// the engineer search them, and create a new one without leaving the
-/// wizard ("When Save is pressed the source immediately becomes
-/// selectable") by calling the same real `POST /sources` the classic
-/// Sources panel uses.
+/// Wizard Step 2 -- either lists real Official Sources (`GET /sources`,
+/// lets the engineer search them, and create a new one without leaving
+/// the wizard by calling the same real `POST /sources` the classic
+/// Sources panel uses), or -- WP-EAM-005 -- lets the engineer select a
+/// local file (e.g. a PDF wiring diagram) directly, entering the same
+/// downstream pipeline as a User-Provided Artifact rather than one
+/// acquired from a registered Source.
 class WizardStepOfficialSource extends ConsumerStatefulWidget {
   const WizardStepOfficialSource({super.key, required this.controller});
 
@@ -23,11 +26,33 @@ class WizardStepOfficialSource extends ConsumerStatefulWidget {
 class _WizardStepOfficialSourceState extends ConsumerState<WizardStepOfficialSource> {
   final _searchController = TextEditingController();
   bool _creating = false;
+  bool _picking = false;
+  String? _pickError;
 
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickLocalFile() async {
+    setState(() {
+      _picking = true;
+      _pickError = null;
+    });
+    try {
+      final picked = await openFile(
+        acceptedTypeGroups: const [
+          XTypeGroup(label: 'Engineering Documents', extensions: ['pdf']),
+        ],
+      );
+      if (picked == null) return;
+      final sizeBytes = await picked.length();
+      widget.controller.setLocalFile(path: picked.path, name: picked.name, sizeBytes: sizeBytes);
+    } catch (error) {
+      setState(() => _pickError = 'Could not read the selected file: $error');
+    }
+    if (mounted) setState(() => _picking = false);
   }
 
   @override
@@ -37,6 +62,7 @@ class _WizardStepOfficialSourceState extends ConsumerState<WizardStepOfficialSou
     final filtered = query.isEmpty
         ? sources
         : sources.where((s) => s.name.toLowerCase().contains(query) || s.baseUrl.toLowerCase().contains(query)).toList();
+    final isLocal = widget.controller.sourceType == AcquisitionSourceType.localDocument;
 
     return Padding(
       padding: const EdgeInsets.all(24),
@@ -47,12 +73,91 @@ class _WizardStepOfficialSourceState extends ConsumerState<WizardStepOfficialSou
               style: TextStyle(color: StudioColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
           const Text(
-            'Every acquisition traces back to an Official Source -- a trusted publisher OEP already knows '
-            'about, or a new one you register here. This is the root of Engineering Chain of Custody: it is '
-            'the answer to "who published this, and can we trust it?"',
+            'Every acquisition traces back either to an Official Source -- a trusted publisher OEP already '
+            'knows about, or a new one you register here -- or to a document you provide directly. This is '
+            'the root of Engineering Chain of Custody: it is the answer to "where did this come from, and '
+            'can we trust it?"',
             style: TextStyle(color: StudioColors.textSecondary, fontSize: 12.5, height: 1.5),
           ),
           const SizedBox(height: 16),
+          SegmentedButton<AcquisitionSourceType>(
+            segments: const [
+              ButtonSegment(
+                value: AcquisitionSourceType.officialSource,
+                label: Text('Official Source'),
+                icon: Icon(Icons.public, size: 16),
+              ),
+              ButtonSegment(
+                value: AcquisitionSourceType.localDocument,
+                label: Text('Local Document'),
+                icon: Icon(Icons.description_outlined, size: 16),
+              ),
+            ],
+            selected: {widget.controller.sourceType},
+            onSelectionChanged: (selection) => widget.controller.setSourceType(selection.first),
+          ),
+          const SizedBox(height: 16),
+          if (isLocal) ...[
+            OutlinedButton.icon(
+              onPressed: _picking ? null : _pickLocalFile,
+              icon: _picking
+                  ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.folder_open_outlined, size: 16),
+              label: const Text('Browse Files…'),
+            ),
+            const SizedBox(height: 12),
+            if (_pickError != null)
+              Text(_pickError!, style: const TextStyle(color: StudioColors.error, fontSize: 11.5)),
+            if (widget.controller.localFilePath != null)
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: StudioColors.surfaceRaised,
+                  border: Border.all(color: StudioColors.border),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.picture_as_pdf_outlined, size: 20, color: StudioColors.textSecondary),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Selected:', style: const TextStyle(color: StudioColors.textSecondary, fontSize: 11)),
+                          Text(widget.controller.localFileName ?? '',
+                              style: const TextStyle(color: StudioColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
+                          Text(
+                            _formatBytes(widget.controller.localFileSizeBytes ?? 0),
+                            style: const TextStyle(color: StudioColors.textSecondary, fontSize: 11.5),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              const Text('No file selected yet.', style: TextStyle(color: StudioColors.textSecondary, fontSize: 12)),
+          ] else ...[
+            _buildOfficialSourcePicker(filtered),
+          ],
+        ],
+      ),
+    );
+  }
+
+  static String _formatBytes(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+
+  Widget _buildOfficialSourcePicker(List<OfficialSource> filtered) {
+    return Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           Row(
             children: [
               Expanded(

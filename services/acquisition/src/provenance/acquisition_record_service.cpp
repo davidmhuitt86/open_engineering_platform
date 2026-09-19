@@ -121,9 +121,13 @@ std::optional<nlohmann::json> AcquisitionRecordService::get_provenance(const std
     if (job.has_value()) {
       body["job"] = acquisition::to_json(*job);
 
-      const auto source = sources_.find_by_id(job->source_id);
-      if (source.has_value()) {
-        body["source"] = registry::to_json(*source);
+      // WP-EAM-005: a User-Provided Artifact Job has no Official Source
+      // (source_id == nullopt) -- the "source" key is simply omitted.
+      if (job->source_id.has_value()) {
+        const auto source = sources_.find_by_id(*job->source_id);
+        if (source.has_value()) {
+          body["source"] = registry::to_json(*source);
+        }
       }
 
       nlohmann::json history = nlohmann::json::array();

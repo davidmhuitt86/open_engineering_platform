@@ -25,8 +25,9 @@ struct JobFilter {
 /// PostgreSQL foreign keys (see migrations/V3__acquisition_jobs.sql).
 class UnknownSourceError : public std::runtime_error {
  public:
-  explicit UnknownSourceError(const std::string& source_id)
-      : std::runtime_error("source_id does not reference an existing Official Source: " + source_id) {}
+  explicit UnknownSourceError(const std::optional<std::string>& source_id)
+      : std::runtime_error("source_id does not reference an existing Official Source: " +
+                            source_id.value_or("(none)")) {}
 };
 
 /// Abstracts persistence for AcquisitionJob so the Service layer can be

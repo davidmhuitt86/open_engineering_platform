@@ -1,13 +1,8 @@
 #pragma once
 
-#include <memory>
-
 #include "oep/acquisition/common/config.hpp"
+#include "oep/acquisition/database/resilient_connection.hpp"
 #include "oep/acquisition/integrity/verification_repository.hpp"
-
-namespace pqxx {
-class connection;
-}
 
 namespace oep::acquisition::integrity {
 
@@ -27,7 +22,7 @@ class PostgresVerificationRepository : public IVerificationRepository {
   std::optional<Verification> update(const std::string& id, const Verification& verification) override;
 
  private:
-  std::unique_ptr<pqxx::connection> connection_;
+  database::ResilientConnection connection_;
 };
 
 }  // namespace oep::acquisition::integrity

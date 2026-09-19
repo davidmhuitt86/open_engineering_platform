@@ -18,6 +18,7 @@
 #include "oep/acquisition/connectors/connector_factory.hpp"
 #include "oep/acquisition/connectors/connector_registry.hpp"
 #include "oep/acquisition/connectors/http_connector.hpp"
+#include "oep/acquisition/connectors/local_file_connector.hpp"
 #include "oep/acquisition/connectors/stub_connector.hpp"
 #include "oep/acquisition/database/database_connection.hpp"
 #include "oep/acquisition/downloads/download_service.hpp"
@@ -173,6 +174,10 @@ int main(int argc, char** argv) {
       "http", [](const oep::acquisition::connectors::ConnectorConfig& connector_config) {
         return std::make_unique<oep::acquisition::connectors::HttpConnector>(connector_config);
       });
+  connector_factory.register_type(
+      "local-file", [](const oep::acquisition::connectors::ConnectorConfig& connector_config) {
+        return std::make_unique<oep::acquisition::connectors::LocalFileConnector>(connector_config);
+      });
   oep::acquisition::connectors::ConnectorRegistry connector_registry(connector_factory);
   connector_registry.register_connector(oep::acquisition::connectors::ConnectorConfig{
       .connector_id = "example-stub",
@@ -189,6 +194,17 @@ int main(int argc, char** argv) {
       .type = "http",
       .name = "HTTP Source Connector",
       .description = "Retrieves engineering artifacts over real HTTP/HTTPS.",
+      .settings = {{"capabilities", "download_files"}},
+  });
+  // WP-EAM-005: a real connector whose `source_uri` is an absolute local
+  // filesystem path -- lets a User-Provided Artifact (a local file the
+  // engineer selects directly in Studio) flow through this same Job ->
+  // Download -> Verify -> Metadata -> Vault pipeline unchanged.
+  connector_registry.register_connector(oep::acquisition::connectors::ConnectorConfig{
+      .connector_id = "local-file",
+      .type = "local-file",
+      .name = "Local File Connector",
+      .description = "Retrieves an engineering artifact directly from the local filesystem.",
       .settings = {{"capabilities", "download_files"}},
   });
   log.info("connector framework initialized ({} connector(s) registered)", connector_registry.list().size());
@@ -330,7 +346,8 @@ int main(int argc, char** argv) {
 
   ApiServer server(config.server, api_token, source_service.get(), job_service.get(), execution_service.get(),
                     &connector_registry, download_service.get(), verification_service.get(),
-                    metadata_service.get(), vault_service.get(), acquisition_record_service.get());
+                    metadata_service.get(), vault_service.get(), acquisition_record_service.get(),
+                    &config.database);
   if (!server.start()) {
     log.error("failed to start API server on {}:{}", config.server.host, config.server.port);
     return 1;

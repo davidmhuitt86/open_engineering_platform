@@ -39,13 +39,12 @@ OfficialSource row_to_official_source(const pqxx::row& row) {
 }  // namespace
 
 PostgresOfficialSourceRepository::PostgresOfficialSourceRepository(const common::DatabaseConfig& config)
-    : connection_(std::make_unique<pqxx::connection>(
-          common::Config{.database = config}.database_connection_string())) {}
+    : connection_(common::Config{.database = config}.database_connection_string()) {}
 
 PostgresOfficialSourceRepository::~PostgresOfficialSourceRepository() = default;
 
 OfficialSource PostgresOfficialSourceRepository::create(const OfficialSource& source) {
-  pqxx::work txn(*connection_);
+  pqxx::work txn(connection_.get());
   const pqxx::result result = txn.exec_params(
       std::string(
           "INSERT INTO official_sources "
@@ -64,7 +63,7 @@ std::optional<OfficialSource> PostgresOfficialSourceRepository::find_by_id(const
   if (!common::is_uuid_like(id)) {
     return std::nullopt;
   }
-  pqxx::work txn(*connection_);
+  pqxx::work txn(connection_.get());
   const pqxx::result result =
       txn.exec_params(std::string("SELECT ") + kSelectColumns +
                            " FROM official_sources WHERE uuid = $1::uuid AND deleted_at IS NULL",
@@ -77,7 +76,7 @@ std::optional<OfficialSource> PostgresOfficialSourceRepository::find_by_id(const
 }
 
 std::vector<OfficialSource> PostgresOfficialSourceRepository::list(const SourceFilter& filter) {
-  pqxx::work txn(*connection_);
+  pqxx::work txn(connection_.get());
 
   std::string sql = std::string("SELECT ") + kSelectColumns + " FROM official_sources WHERE deleted_at IS NULL";
   pqxx::params params;
@@ -116,7 +115,7 @@ std::optional<OfficialSource> PostgresOfficialSourceRepository::update(const std
   if (!common::is_uuid_like(id)) {
     return std::nullopt;
   }
-  pqxx::work txn(*connection_);
+  pqxx::work txn(connection_.get());
   const pqxx::result result = txn.exec_params(
       std::string(
           "UPDATE official_sources SET "
@@ -138,7 +137,7 @@ bool PostgresOfficialSourceRepository::soft_delete(const std::string& id) {
   if (!common::is_uuid_like(id)) {
     return false;
   }
-  pqxx::work txn(*connection_);
+  pqxx::work txn(connection_.get());
   const pqxx::result result =
       txn.exec_params("UPDATE official_sources SET deleted_at = now(), updated_at = now() "
                        "WHERE uuid = $1::uuid AND deleted_at IS NULL RETURNING uuid",

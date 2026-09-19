@@ -31,9 +31,19 @@ void validate_name_source_priority(const nlohmann::json& body, std::vector<std::
     violations.emplace_back("Name is required.");
   }
 
-  out.source_id = get_string(body, "source_id");
-  if (out.source_id.empty()) {
-    violations.emplace_back("Source ID is required.");
+  // WP-EAM-005: source_id is optional -- absent/null means this Job's
+  // artifact is a User-Provided Artifact rather than one acquired from a
+  // registered Official Source (see acquisition_job.hpp's own doc
+  // comment). An explicitly-provided empty string is still rejected, to
+  // catch a caller that meant to send a real id but sent an empty one by
+  // mistake -- only a genuinely absent/null field means "user-provided."
+  if (body.contains("source_id") && !body.at("source_id").is_null()) {
+    out.source_id = get_string(body, "source_id");
+    if (out.source_id->empty()) {
+      violations.emplace_back("source_id, if provided, must not be empty.");
+    }
+  } else {
+    out.source_id = std::nullopt;
   }
 
   if (!body.contains("priority") || !body.at("priority").is_number_integer()) {

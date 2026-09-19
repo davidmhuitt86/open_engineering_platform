@@ -105,7 +105,12 @@ VaultEntry ReferenceVaultService::publish(const nlohmann::json& body) {
     }
   }
 
-  std::string source_id;
+  // WP-EAM-005: a User-Provided Artifact Job has source_id == nullopt,
+  // and reference_vault_entries.source_id is nullable for exactly the
+  // same reason (migrations/V12__reference_vault_optional_source.sql) --
+  // propagate that optionality rather than coercing to an empty string,
+  // which the column's UUID type rejects outright.
+  std::optional<std::string> source_id;
   if (download.has_value()) {
     const auto job = jobs_.find_by_id(download->job_id);
     if (job.has_value()) {

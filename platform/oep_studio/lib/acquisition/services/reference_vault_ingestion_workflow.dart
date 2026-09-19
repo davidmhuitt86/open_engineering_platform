@@ -349,10 +349,16 @@ class ReferenceVaultIngestionOutcome {
     required ReferenceVaultIngestionOutcomeStatus status,
     KnowledgeSessionRecord? sessionRecord,
     String? errorMessage,
+    // WP-EAM-005: lets a test construct a canned outcome that still
+    // carries a real IngestionResult (so its stageResults can be
+    // asserted against, e.g. the wizard's per-stage Activity Log
+    // reporting) without driving the real pipeline.
+    IngestionResult? ingestionResult,
   }) =>
       ReferenceVaultIngestionOutcome._(
         status: status,
         sessionRecord: sessionRecord,
+        ingestionResult: ingestionResult,
         errorMessage: errorMessage,
       );
 

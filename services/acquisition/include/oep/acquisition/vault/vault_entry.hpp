@@ -46,7 +46,11 @@ struct VaultEntry {
   std::string metadata_id;
   std::string verification_id;
   std::string download_session_id;
-  std::string source_id;
+  /// WP-EAM-005: `nullopt` for a Vault entry published from a
+  /// User-Provided Artifact (an `acquisition::AcquisitionJob` whose own
+  /// `source_id` is `nullopt`) -- mirrors that Job's own optionality
+  /// rather than inventing a placeholder Official Source UUID.
+  std::optional<std::string> source_id;
   std::string vault_path;
   std::string sha256_hash;
   std::string mime_type;

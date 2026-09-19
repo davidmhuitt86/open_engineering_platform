@@ -58,13 +58,12 @@ ArtifactMetadata row_to_metadata(const pqxx::row& row) {
 }  // namespace
 
 PostgresMetadataRepository::PostgresMetadataRepository(const common::DatabaseConfig& config)
-    : connection_(std::make_unique<pqxx::connection>(
-          common::Config{.database = config}.database_connection_string())) {}
+    : connection_(common::Config{.database = config}.database_connection_string()) {}
 
 PostgresMetadataRepository::~PostgresMetadataRepository() = default;
 
 ArtifactMetadata PostgresMetadataRepository::create(const ArtifactMetadata& metadata) {
-  pqxx::work txn(*connection_);
+  pqxx::work txn(connection_.get());
   try {
     const pqxx::result result = txn.exec_params(
         std::string(
@@ -91,7 +90,7 @@ std::optional<ArtifactMetadata> PostgresMetadataRepository::find_by_id(const std
   if (!common::is_uuid_like(id)) {
     return std::nullopt;
   }
-  pqxx::work txn(*connection_);
+  pqxx::work txn(connection_.get());
   const pqxx::result result = txn.exec_params(
       std::string("SELECT ") + kSelectColumns + " FROM artifact_metadata WHERE uuid = $1::uuid",
       pqxx::params{id});
@@ -103,7 +102,7 @@ std::optional<ArtifactMetadata> PostgresMetadataRepository::find_by_id(const std
 }
 
 std::vector<ArtifactMetadata> PostgresMetadataRepository::list(const MetadataFilter& filter) {
-  pqxx::work txn(*connection_);
+  pqxx::work txn(connection_.get());
 
   std::string sql = std::string("SELECT ") + kSelectColumns + " FROM artifact_metadata WHERE TRUE";
   pqxx::params params;
@@ -134,7 +133,7 @@ std::optional<ArtifactMetadata> PostgresMetadataRepository::update(const std::st
   if (!common::is_uuid_like(id)) {
     return std::nullopt;
   }
-  pqxx::work txn(*connection_);
+  pqxx::work txn(connection_.get());
   const pqxx::result result = txn.exec_params(
       std::string(
           "UPDATE artifact_metadata SET "

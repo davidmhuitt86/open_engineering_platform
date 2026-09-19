@@ -4,11 +4,51 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/services/foundation_runtime_service.dart';
+import '../../ingestion/models/ingestion_stage.dart';
+import '../../ingestion/models/stage_execution_status.dart';
+import '../../ingestion/models/stage_result.dart';
 import '../services/acquisition_api_exception.dart';
 import '../services/acquisition_runtime_service.dart';
 import '../services/reference_vault_ingestion_workflow.dart';
 import 'chain_of_custody_record.dart';
 import 'chain_of_custody_storage.dart';
+
+/// WP-EAM-005 §2: the acquisition WIZARD distinguishes two ways an
+/// artifact enters the pipeline. Neither is a fake Official Source --
+/// [localDocument] jobs are created with no `source_id` at all
+/// (services/acquisition's `acquisition_jobs.source_id` is nullable as
+/// of migrations/V11__acquisition_jobs_optional_source.sql precisely so
+/// this doesn't require inventing a placeholder registry entry).
+enum AcquisitionSourceType { officialSource, localDocument }
+
+/// A human-readable label for one executed UIF [IngestionStage] (WP-EAM-005
+/// §8/§9) -- used only for Activity Log display; never claims a stage ran
+/// if [StageResult] doesn't say so, and never mentions
+/// [IngestionStage.chunkGeneration]/[IngestionStage.embeddingGeneration]
+/// because [IngestionStage.executedInFirstSlice] proves neither is ever
+/// actually executed by the current ingestion pipeline -- reporting
+/// them would be exactly the "claim an operation ran if it did not"
+/// defect this work package exists to remove.
+String _stageLabel(IngestionStage stage) => switch (stage) {
+      IngestionStage.identify => 'Identifying document',
+      IngestionStage.parserSelection => 'Selecting parser',
+      IngestionStage.metadataExtraction => 'Extracting metadata',
+      IngestionStage.contentExtraction => 'Extracting content',
+      IngestionStage.structuralAnalysis => 'Structural analysis',
+      IngestionStage.ocr => 'OCR',
+      IngestionStage.entityExtraction => 'Entity extraction',
+      IngestionStage.relationshipExtraction => 'Relationship extraction',
+      IngestionStage.candidateGeneration => 'Candidate generation',
+      IngestionStage.chunkGeneration => 'Chunk generation',
+      IngestionStage.embeddingGeneration => 'Embedding generation',
+    };
+
+String _stageStatusLabel(StageExecutionStatus status) => switch (status) {
+      StageExecutionStatus.succeeded => 'succeeded',
+      StageExecutionStatus.partial => 'partially succeeded',
+      StageExecutionStatus.failed => 'failed',
+      StageExecutionStatus.skipped => 'skipped',
+    };
 
 /// One line of the Step 6 live acquisition log -- "No silent operations.
 /// The engineer should always know exactly what the system is doing."
@@ -84,8 +124,15 @@ class AcquisitionWizardController extends ChangeNotifier {
   String? knowledgeType;
 
   // Step 2
+  AcquisitionSourceType sourceType = AcquisitionSourceType.officialSource;
   String? sourceId;
   String? sourceName;
+
+  // Step 2 -- User-Provided Artifact (WP-EAM-005). The original file path
+  // the engineer selected; never modified or deleted by this wizard (§4).
+  String? localFilePath;
+  String? localFileName;
+  int? localFileSizeBytes;
 
   // Step 3
   String originalUrl = '';
@@ -135,7 +182,7 @@ class AcquisitionWizardController extends ChangeNotifier {
 
   bool get canGoNext => switch (_stepIndex) {
         0 => knowledgeType != null,
-        1 => sourceId != null,
+        1 => sourceType == AcquisitionSourceType.officialSource ? sourceId != null : localFilePath != null,
         2 => originalUrl.trim().isNotEmpty && engineer.trim().isNotEmpty,
         3 => true,
         4 => runStatus == AcquisitionRunStatus.completed,
@@ -174,6 +221,43 @@ class AcquisitionWizardController extends ChangeNotifier {
   void setSource(String id, String name) {
     sourceId = id;
     sourceName = name;
+    notifyListeners();
+  }
+
+  /// WP-EAM-005 §2: switches between the two acquisition origins.
+  /// Clearing the other origin's selection when switching prevents a
+  /// stale `sourceId`/`localFilePath` from a previous choice silently
+  /// surviving into [run] under the wrong [sourceType].
+  void setSourceType(AcquisitionSourceType type) {
+    sourceType = type;
+    if (type == AcquisitionSourceType.officialSource) {
+      localFilePath = null;
+      localFileName = null;
+      localFileSizeBytes = null;
+    } else {
+      sourceId = null;
+      sourceName = null;
+    }
+    notifyListeners();
+  }
+
+  /// WP-EAM-005 §3/§4: records the local file the engineer selected via
+  /// the native file picker. `path` must be the original file's own
+  /// absolute path -- this wizard never copies it anywhere itself; the
+  /// existing `local-file` connector (services/acquisition) performs the
+  /// one real copy, into acquisition's own temporary staging location,
+  /// during [run]. `originalUrl`/`acquisitionMethod` are auto-populated
+  /// with an honest description (never a `file://` URL -- that would be
+  /// exactly the connector-URL workaround this work package's own
+  /// architecture prohibits) so Step 3's Chain of Custody fields make
+  /// sense without the engineer having to invent an "Original URL" for
+  /// something that was never downloaded from anywhere.
+  void setLocalFile({required String path, required String name, required int sizeBytes}) {
+    localFilePath = path;
+    localFileName = name;
+    localFileSizeBytes = sizeBytes;
+    originalUrl = 'Local file: $name';
+    acquisitionMethod = 'User-provided local file';
     notifyListeners();
   }
 
@@ -220,11 +304,26 @@ class AcquisitionWizardController extends ChangeNotifier {
     log.clear();
     notifyListeners();
 
+    final isLocal = sourceType == AcquisitionSourceType.localDocument;
+    if (isLocal && (localFilePath == null || localFilePath!.trim().isEmpty)) {
+      runStatus = AcquisitionRunStatus.failed;
+      failureMessage = 'No local file was selected.';
+      _appendLog(failureMessage!, isError: true);
+      notifyListeners();
+      return;
+    }
+
     try {
       _appendLog('Initializing…');
-      final jobName = knowledgeType == null ? 'Acquisition' : 'Acquire $knowledgeType';
+      final jobName = isLocal
+          ? 'Acquire ${localFileName ?? 'local document'}'
+          : (knowledgeType == null ? 'Acquisition' : 'Acquire $knowledgeType');
       final job = await _runtime.createJobReturning({
-        'source_id': sourceId,
+        // WP-EAM-005: omitted entirely (not merely null) for a
+        // User-Provided Artifact -- the server distinguishes "no
+        // source_id key present" from "an empty string was sent by
+        // mistake" (see services/acquisition's validation.cpp).
+        if (!isLocal) 'source_id': sourceId,
         'name': jobName,
         'priority': 2,
         if (engineer.trim().isNotEmpty) 'requested_by': engineer.trim(),
@@ -232,17 +331,17 @@ class AcquisitionWizardController extends ChangeNotifier {
       _jobId = job['id'] as String?;
       if (_jobId == null) throw StateError('Job creation did not return an id.');
 
-      _appendLog('Connecting…');
+      _appendLog(isLocal ? 'Reading local file…' : 'Connecting…');
       await _runtime.executeJobReturning(_jobId!); // created -> queued
       await _runtime.executeJobReturning(_jobId!); // queued -> running
 
-      _appendLog('Downloading…');
+      _appendLog(isLocal ? 'Acquiring local artifact…' : 'Downloading…');
       downloadProgress = 0;
       notifyListeners();
       final download = await _runtime.startDownloadReturning({
         'job_id': _jobId,
-        'connector_id': _connectorId,
-        'source_uri': originalUrl.trim(),
+        'connector_id': isLocal ? 'local-file' : _connectorId,
+        'source_uri': isLocal ? localFilePath!.trim() : originalUrl.trim(),
       });
       final downloadStatus = download['status'] as String?;
       _downloadId = download['id'] as String?;
@@ -367,11 +466,12 @@ class AcquisitionWizardController extends ChangeNotifier {
     }
 
     ingestionStatus = WizardIngestionStatus.ingesting;
-    _appendLog('Knowledge Extraction Started — ingesting into the Universal Ingestion Framework…');
+    final sourceName_ = sourceType == AcquisitionSourceType.localDocument ? localFileName : sourceName;
+    _appendLog('Ingesting Reference Vault artifact into the Universal Ingestion Framework…');
     notifyListeners();
 
     try {
-      final sessionName = '${knowledgeType ?? 'Acquisition'} — ${sourceName ?? entryId}';
+      final sessionName = '${knowledgeType ?? 'Acquisition'} — ${sourceName_ ?? entryId}';
       final outcome = await _runtime.ingestVaultArtifact(
         vaultObjectId: entryId,
         sessionName: sessionName,
@@ -380,10 +480,35 @@ class AcquisitionWizardController extends ChangeNotifier {
       );
       ingestionOutcome = outcome;
 
+      // WP-EAM-005 §8/§9: log the ACTUAL executed UIF stages (from the
+      // real IngestionRun this outcome carries), not a fixed pair of
+      // generic "Started"/"Complete" lines -- this is the defect that let
+      // a stale, hardcoded pipeline-unavailable message linger unnoticed
+      // in the Activity Log: nothing downstream of it ever surfaced what
+      // UIF actually did. `run` is present on both a failed and a
+      // successful outcome (the ingestion pipeline's own orchestrator
+      // always constructs one), so this reports real stage results even
+      // when ingestion ultimately failed.
+      final run = outcome.ingestionResult?.run;
+      if (run != null) {
+        for (final stage in run.stageResults) {
+          final label = '${_stageLabel(stage.stage)} — ${_stageStatusLabel(stage.status)}';
+          final isProblem =
+              stage.status == StageExecutionStatus.failed || stage.status == StageExecutionStatus.partial;
+          final diagnostics = stage.diagnostics.isEmpty ? '' : ' (${stage.diagnostics.join('; ')})';
+          _appendLog('$label$diagnostics', isError: isProblem);
+        }
+      }
+
       if (outcome.isFailed || outcome.isCancelled) {
         ingestionStatus = WizardIngestionStatus.failed;
         ingestionErrorMessage = outcome.errorMessage;
-        _appendLog('Knowledge Extraction Failed — ${outcome.errorMessage ?? 'unknown error'}', isError: true);
+        _appendLog(
+          outcome.isCancelled
+              ? 'Ingestion cancelled.'
+              : 'Ingestion failed — ${outcome.errorMessage ?? 'unknown error'}',
+          isError: true,
+        );
         return;
       }
 
@@ -396,16 +521,16 @@ class AcquisitionWizardController extends ChangeNotifier {
 
       ingestionStatus =
           outcome.isPartial ? WizardIngestionStatus.partial : WizardIngestionStatus.completed;
+      final candidateCount = record.candidates.length;
       _appendLog(
         outcome.isPartial
-            ? 'Knowledge Extraction Complete (partial) — Review Package Created with the results that '
-                'succeeded.'
-            : 'Knowledge Extraction Complete — Review Package Created.',
+            ? 'Knowledge Session ready (partial) — $candidateCount candidate(s) from the results that succeeded.'
+            : 'Knowledge Session ready — $candidateCount candidate(s) generated.',
       );
     } catch (error) {
       ingestionStatus = WizardIngestionStatus.failed;
       ingestionErrorMessage = error.toString();
-      _appendLog('Knowledge Extraction Failed — $error', isError: true);
+      _appendLog('Ingestion failed — $error', isError: true);
     }
   }
 

@@ -16,13 +16,20 @@ constexpr auto kSelectColumns =
     "to_char(created_at at time zone 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"'), "
     "to_char(updated_at at time zone 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"')";
 
+std::optional<std::string> nullable_field(const pqxx::field& field) {
+  if (field.is_null()) {
+    return std::nullopt;
+  }
+  return field.as<std::string>();
+}
+
 VaultEntry row_to_entry(const pqxx::row& row) {
   VaultEntry entry;
   entry.id = row[0].as<std::string>();
   entry.metadata_id = row[1].as<std::string>();
   entry.verification_id = row[2].as<std::string>();
   entry.download_session_id = row[3].as<std::string>();
-  entry.source_id = row[4].as<std::string>();
+  entry.source_id = nullable_field(row[4]);
   entry.vault_path = row[5].as<std::string>();
   entry.sha256_hash = row[6].as<std::string>();
   entry.mime_type = row[7].as<std::string>();
@@ -37,13 +44,12 @@ VaultEntry row_to_entry(const pqxx::row& row) {
 }  // namespace
 
 PostgresVaultRepository::PostgresVaultRepository(const common::DatabaseConfig& config)
-    : connection_(std::make_unique<pqxx::connection>(
-          common::Config{.database = config}.database_connection_string())) {}
+    : connection_(common::Config{.database = config}.database_connection_string()) {}
 
 PostgresVaultRepository::~PostgresVaultRepository() = default;
 
 VaultEntry PostgresVaultRepository::create(const VaultEntry& entry) {
-  pqxx::work txn(*connection_);
+  pqxx::work txn(connection_.get());
   try {
     const pqxx::result result = txn.exec_params(
         std::string(
@@ -69,7 +75,7 @@ std::optional<VaultEntry> PostgresVaultRepository::find_by_id(const std::string&
   if (!common::is_uuid_like(id)) {
     return std::nullopt;
   }
-  pqxx::work txn(*connection_);
+  pqxx::work txn(connection_.get());
   const pqxx::result result = txn.exec_params(
       std::string("SELECT ") + kSelectColumns + " FROM reference_vault WHERE uuid = $1::uuid",
       pqxx::params{id});
@@ -81,7 +87,7 @@ std::optional<VaultEntry> PostgresVaultRepository::find_by_id(const std::string&
 }
 
 std::vector<VaultEntry> PostgresVaultRepository::list(const VaultFilter& filter) {
-  pqxx::work txn(*connection_);
+  pqxx::work txn(connection_.get());
 
   std::string sql = std::string("SELECT ") + kSelectColumns + " FROM reference_vault WHERE TRUE";
   pqxx::params params;

@@ -1,13 +1,8 @@
 #pragma once
 
-#include <memory>
-
 #include "oep/acquisition/common/config.hpp"
+#include "oep/acquisition/database/resilient_connection.hpp"
 #include "oep/acquisition/vault/vault_repository.hpp"
-
-namespace pqxx {
-class connection;
-}
 
 namespace oep::acquisition::vault {
 
@@ -27,7 +22,7 @@ class PostgresVaultRepository : public IVaultRepository {
   std::vector<VaultEntry> list(const VaultFilter& filter) override;
 
  private:
-  std::unique_ptr<pqxx::connection> connection_;
+  database::ResilientConnection connection_;
 };
 
 }  // namespace oep::acquisition::vault

@@ -22,6 +22,7 @@ target_link_libraries(oep_acquisition_api
   PRIVATE
     httplib::httplib
     nlohmann_json::nlohmann_json
+    libpqxx::pqxx
 )
 
 target_compile_features(oep_acquisition_api PUBLIC cxx_std_23)

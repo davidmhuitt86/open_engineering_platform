@@ -46,12 +46,20 @@ enum class JobPriority {
 /// (WORK-PACKAGE-002) -- enforced at the database level by a foreign key
 /// (see migrations/V3__acquisition_jobs.sql), not re-validated here.
 ///
+/// `source_id` is nullable (WP-EAM-005, migrations/V11__acquisition_jobs_optional_source.sql):
+/// `std::nullopt` means this Job's artifact is a User-Provided Artifact
+/// (the engineer selected a local file directly) rather than one
+/// acquired from a registered Official Source -- see
+/// migrations/V11__acquisition_jobs_optional_source.sql's own comment
+/// for why this is the correct representation rather than inventing a
+/// placeholder Official Source.
+///
 /// `started_at`, `completed_at`, and `error_message` are nullable per
 /// WORK_PACKAGE-003's Job Model; empty means "not set" (no value has ever
 /// been recorded), distinct from an empty string being a meaningful value.
 struct AcquisitionJob {
   std::string id;
-  std::string source_id;
+  std::optional<std::string> source_id;
   std::string name;
   std::string description;
   JobStatus status = JobStatus::Created;

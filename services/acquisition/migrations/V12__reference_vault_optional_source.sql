@@ -1,0 +1,21 @@
+-- V12__reference_vault_optional_source.sql
+--
+-- WP-EAM-005 (User-Provided Artifact Acquisition): relaxes
+-- reference_vault.source_id from NOT NULL to nullable, mirroring V11's
+-- identical relaxation of acquisition_jobs.source_id.
+--
+-- A Vault entry published from a User-Provided Artifact Job (one whose
+-- own source_id is NULL, per V11) has no Official Source to reference
+-- either -- the alternative would be inventing a placeholder Official
+-- Source row (e.g. "User Computer"), which WP-EAM-005 explicitly
+-- prohibits. NULL here means exactly what it means on
+-- acquisition_jobs.source_id: "not acquired from a registered Official
+-- Source."
+--
+-- The existing `source_id UUID ... REFERENCES official_sources (uuid)`
+-- foreign key is unaffected -- PostgreSQL foreign keys already permit a
+-- NULL value regardless of NOT NULL/nullable, so dropping NOT NULL alone
+-- is sufficient; every already-published row (all of which came from a
+-- registered Official Source, since this is the first Job that could
+-- ever have produced a NULL source_id) keeps its real value unchanged.
+ALTER TABLE reference_vault ALTER COLUMN source_id DROP NOT NULL;

@@ -54,9 +54,32 @@ TEST_CASE("parse_and_validate_create rejects a missing Name", "[jobs][validation
   CHECK_THROWS_AS(parse_and_validate_create(body), ValidationError);
 }
 
-TEST_CASE("parse_and_validate_create rejects a missing Source ID", "[jobs][validation]") {
+// WP-EAM-005: source_id is now optional (migrations/V11__acquisition_jobs_optional_source.sql)
+// -- a missing/null source_id means this Job's artifact is a
+// User-Provided Artifact, not one acquired from a registered Official
+// Source, and is a valid, accepted create request rather than a
+// validation failure.
+TEST_CASE("parse_and_validate_create accepts a missing Source ID (User-Provided Artifact)",
+          "[jobs][validation]") {
   auto body = valid_create_body();
   body.erase("source_id");
+
+  const AcquisitionJob job = parse_and_validate_create(body);
+  CHECK_FALSE(job.source_id.has_value());
+}
+
+TEST_CASE("parse_and_validate_create accepts an explicit null Source ID (User-Provided Artifact)",
+          "[jobs][validation]") {
+  auto body = valid_create_body();
+  body["source_id"] = nullptr;
+
+  const AcquisitionJob job = parse_and_validate_create(body);
+  CHECK_FALSE(job.source_id.has_value());
+}
+
+TEST_CASE("parse_and_validate_create rejects an explicitly empty Source ID", "[jobs][validation]") {
+  auto body = valid_create_body();
+  body["source_id"] = "";
 
   CHECK_THROWS_AS(parse_and_validate_create(body), ValidationError);
 }
@@ -82,7 +105,10 @@ TEST_CASE("parse_and_validate_create reports every violation at once", "[jobs][v
     [[maybe_unused]] const auto ignored = parse_and_validate_create(body);
     FAIL("expected ValidationError");
   } catch (const ValidationError& error) {
-    CHECK(error.violations().size() == 3);  // name, source_id, priority
+    // WP-EAM-005: source_id is no longer a violation when absent (see
+    // "accepts a missing Source ID" above) -- only name and priority
+    // remain required.
+    CHECK(error.violations().size() == 2);  // name, priority
   }
 }
 

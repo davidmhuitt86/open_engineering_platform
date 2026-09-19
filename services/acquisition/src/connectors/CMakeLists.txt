@@ -3,6 +3,7 @@ add_library(oep_acquisition_connectors STATIC
   connector_json.cpp
   stub_connector.cpp
   http_connector.cpp
+  local_file_connector.cpp
   connector_factory.cpp
   connector_registry.cpp
 )

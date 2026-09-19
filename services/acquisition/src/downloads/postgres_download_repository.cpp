@@ -47,13 +47,12 @@ Download row_to_download(const pqxx::row& row) {
 }  // namespace
 
 PostgresDownloadRepository::PostgresDownloadRepository(const common::DatabaseConfig& config)
-    : connection_(std::make_unique<pqxx::connection>(
-          common::Config{.database = config}.database_connection_string())) {}
+    : connection_(common::Config{.database = config}.database_connection_string()) {}
 
 PostgresDownloadRepository::~PostgresDownloadRepository() = default;
 
 Download PostgresDownloadRepository::create(const Download& download) {
-  pqxx::work txn(*connection_);
+  pqxx::work txn(connection_.get());
   try {
     const pqxx::result result = txn.exec_params(
         std::string(
@@ -78,7 +77,7 @@ std::optional<Download> PostgresDownloadRepository::find_by_id(const std::string
   if (!common::is_uuid_like(id)) {
     return std::nullopt;
   }
-  pqxx::work txn(*connection_);
+  pqxx::work txn(connection_.get());
   const pqxx::result result = txn.exec_params(
       std::string("SELECT ") + kSelectColumns + " FROM download_sessions WHERE uuid = $1::uuid",
       pqxx::params{id});
@@ -90,7 +89,7 @@ std::optional<Download> PostgresDownloadRepository::find_by_id(const std::string
 }
 
 std::vector<Download> PostgresDownloadRepository::list(const DownloadFilter& filter) {
-  pqxx::work txn(*connection_);
+  pqxx::work txn(connection_.get());
 
   std::string sql = std::string("SELECT ") + kSelectColumns + " FROM download_sessions WHERE TRUE";
   pqxx::params params;
@@ -124,7 +123,7 @@ std::optional<Download> PostgresDownloadRepository::update(const std::string& id
   if (!common::is_uuid_like(id)) {
     return std::nullopt;
   }
-  pqxx::work txn(*connection_);
+  pqxx::work txn(connection_.get());
   const pqxx::result result = txn.exec_params(
       std::string(
           "UPDATE download_sessions SET "

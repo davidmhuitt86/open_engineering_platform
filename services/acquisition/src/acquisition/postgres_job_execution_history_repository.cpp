@@ -24,14 +24,13 @@ JobExecutionHistoryEntry row_to_entry(const pqxx::row& row) {
 
 PostgresJobExecutionHistoryRepository::PostgresJobExecutionHistoryRepository(
     const common::DatabaseConfig& config)
-    : connection_(std::make_unique<pqxx::connection>(
-          common::Config{.database = config}.database_connection_string())) {}
+    : connection_(common::Config{.database = config}.database_connection_string()) {}
 
 PostgresJobExecutionHistoryRepository::~PostgresJobExecutionHistoryRepository() = default;
 
 void PostgresJobExecutionHistoryRepository::record(const std::string& job_id, JobStatus from, JobStatus to,
                                                       const std::string& message) {
-  pqxx::work txn(*connection_);
+  pqxx::work txn(connection_.get());
   txn.exec_params(
       "INSERT INTO acquisition_job_execution_history (job_id, from_status, to_status, message) "
       "VALUES ($1::uuid, $2, $3, $4)",
@@ -41,7 +40,7 @@ void PostgresJobExecutionHistoryRepository::record(const std::string& job_id, Jo
 
 std::vector<JobExecutionHistoryEntry> PostgresJobExecutionHistoryRepository::list_for_job(
     const std::string& job_id) {
-  pqxx::work txn(*connection_);
+  pqxx::work txn(connection_.get());
   const pqxx::result result =
       txn.exec_params(std::string("SELECT ") + kSelectColumns +
                            " FROM acquisition_job_execution_history WHERE job_id = $1::uuid ORDER BY occurred_at ASC",
