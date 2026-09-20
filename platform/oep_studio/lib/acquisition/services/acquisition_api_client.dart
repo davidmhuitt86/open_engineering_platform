@@ -47,17 +47,28 @@ class AcquisitionApiClient {
     required String baseUrl,
     http.Client? client,
     this.timeout = const Duration(seconds: 10),
+    this.longOperationTimeout = const Duration(minutes: 10),
     Future<String?> Function()? tokenReader,
-  })  : _baseUrl = baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl,
+  })  : _baseUrl = baseUrl.endsWith('/')
+            ? baseUrl.substring(0, baseUrl.length - 1)
+            : baseUrl,
         _client = client ?? http.Client(),
-        _tokenReader = tokenReader ?? (() => CredentialService.instance.readCredential(acquisitionApiTokenCredentialId));
+        _tokenReader = tokenReader ??
+            (() => CredentialService.instance
+                .readCredential(acquisitionApiTokenCredentialId));
 
   final String _baseUrl;
   final http.Client _client;
   final Duration timeout;
+
+  /// Server-side work whose duration scales with the artifact (hashing,
+  /// metadata extraction, download, vault publish) -- a large document
+  /// legitimately takes longer than the ordinary request [timeout].
+  final Duration longOperationTimeout;
   final Future<String?> Function() _tokenReader;
 
-  Uri _uri(String path, [Map<String, String>? query]) => Uri.parse('$_baseUrl$path').replace(
+  Uri _uri(String path, [Map<String, String>? query]) =>
+      Uri.parse('$_baseUrl$path').replace(
         queryParameters: query?.isEmpty ?? true ? null : query,
       );
 
@@ -69,22 +80,29 @@ class AcquisitionApiClient {
     };
   }
 
-  Future<List<Map<String, Object?>>> _getList(String path, [Map<String, String>? query]) async {
-    final response = await _send(() async => _client.get(_uri(path, query), headers: await _headers()));
+  Future<List<Map<String, Object?>>> _getList(String path,
+      [Map<String, String>? query]) async {
+    final response = await _send(
+        () async => _client.get(_uri(path, query), headers: await _headers()));
     final decoded = jsonDecode(response.body) as List<Object?>;
     return decoded.cast<Map<String, Object?>>();
   }
 
   Future<Map<String, Object?>> _getObject(String path) async {
-    final response = await _send(() async => _client.get(_uri(path), headers: await _headers()));
+    final response = await _send(
+        () async => _client.get(_uri(path), headers: await _headers()));
     final decoded = jsonDecode(response.body);
     return decoded as Map<String, Object?>;
   }
 
-  Future<Map<String, Object?>> _postObject(String path, Map<String, Object?> body) async {
+  Future<Map<String, Object?>> _postObject(
+      String path, Map<String, Object?> body,
+      {bool longRunning = false}) async {
     final response = await _send(
       () async => _client.post(_uri(path),
-          headers: await _headers(const {'content-type': 'application/json'}), body: jsonEncode(body)),
+          headers: await _headers(const {'content-type': 'application/json'}),
+          body: jsonEncode(body)),
+      timeout: longRunning ? longOperationTimeout : null,
     );
     final decoded = jsonDecode(response.body);
     return decoded as Map<String, Object?>;
@@ -94,19 +112,23 @@ class AcquisitionApiClient {
   /// non-2xx responses into [AcquisitionApiException] — the single
   /// place that decides what an EAM failure means to a Studio caller,
   /// mirroring `FoundationBridgeException.fromResult`'s own role.
-  Future<http.Response> _send(Future<http.Response> Function() request) async {
+  Future<http.Response> _send(Future<http.Response> Function() request,
+      {Duration? timeout}) async {
+    final limit = timeout ?? this.timeout;
     late final http.Response response;
     try {
-      response = await request().timeout(timeout);
+      response = await request().timeout(limit);
     } on TimeoutException {
-      throw AcquisitionApiException.network('timed out after ${timeout.inSeconds}s');
+      throw AcquisitionApiException.network(
+          'timed out after ${limit.inSeconds}s');
     } on http.ClientException catch (error) {
       throw AcquisitionApiException.network(error.message);
     }
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return response;
     }
-    throw AcquisitionApiException.service(statusCode: response.statusCode, technicalDetail: response.body);
+    throw AcquisitionApiException.service(
+        statusCode: response.statusCode, technicalDetail: response.body);
   }
 
   /// `GET /health` — used for Settings' "Test Connection" and the
@@ -122,38 +144,53 @@ class AcquisitionApiClient {
 
   Future<List<Map<String, Object?>>> listSources() => _getList('/sources');
 
-  Future<Map<String, Object?>> createSource(Map<String, Object?> body) => _postObject('/sources', body);
+  Future<Map<String, Object?>> createSource(Map<String, Object?> body) =>
+      _postObject('/sources', body);
 
   Future<List<Map<String, Object?>>> listJobs({String? sourceId}) =>
       _getList('/jobs', sourceId == null ? null : {'source_id': sourceId});
 
-  Future<Map<String, Object?>> createJob(Map<String, Object?> body) => _postObject('/jobs', body);
+  Future<Map<String, Object?>> createJob(Map<String, Object?> body) =>
+      _postObject('/jobs', body);
 
-  Future<Map<String, Object?>> executeJob(String jobId) => _postObject('/jobs/$jobId/execute', const {});
+  Future<Map<String, Object?>> executeJob(String jobId) =>
+      _postObject('/jobs/$jobId/execute', const {}, longRunning: true);
 
-  Future<Map<String, Object?>> cancelJob(String jobId) => _postObject('/jobs/$jobId/cancel', const {});
+  Future<Map<String, Object?>> cancelJob(String jobId) =>
+      _postObject('/jobs/$jobId/cancel', const {});
 
   Future<List<Map<String, Object?>>> listDownloads({String? jobId}) =>
       _getList('/downloads', jobId == null ? null : {'job_id': jobId});
 
-  Future<Map<String, Object?>> startDownload(Map<String, Object?> body) => _postObject('/downloads', body);
+  Future<Map<String, Object?>> startDownload(Map<String, Object?> body) =>
+      _postObject('/downloads', body, longRunning: true);
 
-  Future<List<Map<String, Object?>>> listVerifications({String? downloadSessionId}) =>
-      _getList('/verifications', downloadSessionId == null ? null : {'download_session_id': downloadSessionId});
+  Future<List<Map<String, Object?>>> listVerifications(
+          {String? downloadSessionId}) =>
+      _getList(
+          '/verifications',
+          downloadSessionId == null
+              ? null
+              : {'download_session_id': downloadSessionId});
 
   Future<Map<String, Object?>> verify(String downloadSessionId) =>
-      _postObject('/verifications', {'download_session_id': downloadSessionId});
+      _postObject('/verifications', {'download_session_id': downloadSessionId},
+          longRunning: true);
 
   Future<List<Map<String, Object?>>> listMetadata({String? verificationId}) =>
-      _getList('/metadata', verificationId == null ? null : {'verification_id': verificationId});
+      _getList('/metadata',
+          verificationId == null ? null : {'verification_id': verificationId});
 
   Future<Map<String, Object?>> extractMetadata(String verificationId) =>
-      _postObject('/metadata', {'verification_id': verificationId});
+      _postObject('/metadata', {'verification_id': verificationId},
+          longRunning: true);
 
   Future<List<Map<String, Object?>>> listVault({String? metadataId}) =>
-      _getList('/vault', metadataId == null ? null : {'metadata_id': metadataId});
+      _getList(
+          '/vault', metadataId == null ? null : {'metadata_id': metadataId});
 
-  Future<Map<String, Object?>> publish(String metadataId) => _postObject('/vault', {'metadata_id': metadataId});
+  Future<Map<String, Object?>> publish(String metadataId) =>
+      _postObject('/vault', {'metadata_id': metadataId}, longRunning: true);
 
   /// `GET /vault/{id}` (WP-INGEST-003 § 6) — retrieves one authoritative
   /// Vault Entry. Reuses the existing [VaultEntryRecord] model
@@ -186,9 +223,11 @@ class AcquisitionApiClient {
   /// unverified [DownloadedVaultArtifact] -- satisfying "the client must
   /// not silently continue after checksum failure" and "do not invoke UIF
   /// with an unverified/rejected artifact".
-  Future<DownloadedVaultArtifact> downloadVaultArtifact(String vaultObjectId) async {
+  Future<DownloadedVaultArtifact> downloadVaultArtifact(
+      String vaultObjectId) async {
     final response = await _send(
-      () async => _client.get(_uri('/vault/$vaultObjectId/artifact'), headers: await _headers()),
+      () async => _client.get(_uri('/vault/$vaultObjectId/artifact'),
+          headers: await _headers()),
     );
     final serverChecksum = response.headers['x-checksum-sha256'];
     if (serverChecksum == null || serverChecksum.trim().isEmpty) {
@@ -225,7 +264,8 @@ class AcquisitionApiClient {
   /// Adapter performs that correlation; this method only exposes the
   /// authoritative list, mirroring every other `list*` method above.
   Future<List<Map<String, Object?>>> listAcquisitionRecords({String? status}) =>
-      _getList('/acquisition-records', status == null ? null : {'status': status});
+      _getList(
+          '/acquisition-records', status == null ? null : {'status': status});
 
   void dispose() => _client.close();
 }
