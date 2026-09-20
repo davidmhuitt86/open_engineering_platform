@@ -516,3 +516,35 @@ existing surfaces rather than as new workspace panels:
 Neither required stopping for review — both are additive UI placement
 decisions within an already-approved layout, not changes to the
 architecture itself.
+
+---
+
+## Durable ingestion state through autosave (INGEST-FOLLOWUP-007)
+
+`KnowledgeSessionRecord` / `session.json` is the durable authority for
+`ingestionRuns`, `derivedArtifacts` and `normalizedProducts` (and
+`inferenceRecords`). `FoundationServiceState` is an in-memory projection of the
+active record and must carry the **complete** collections, because
+`_persistActiveSession` rebuilds the record from that state on every autosave.
+
+The invariant, for those collections:
+
+```
+session load  ==  runtime state  ==  autosaved session
+```
+
+Before this repair the state held none of the three ingestion collections, so the
+first autosave after opening or ingesting into a session rewrote `session.json`
+without them, silently erasing previously persisted ingestion history (it is why
+TRX300 sessions from after annotation work show `ingestionRuns: []`).
+The state now carries them, and every path that moves data between record and
+state does too: create and close (reset to empty), open and load-record
+(state <- record), archive (record -> record), and autosave (state -> record).
+`KnowledgeSessionRecord`, `IngestionRun`, `DerivedArtifact` and
+`NormalizedIngestionProduct` schemas are unchanged, so older sessions load as
+before (missing keys are `[]`). Ingestion's own lifecycle (including interrupted-run
+reconciliation on load) still writes to the record directly and is unchanged.
+
+Session *duplication* (`KnowledgeSessionService.buildDuplicate`) creates a new
+session and does not carry ingestion history; that is a separate question
+(a duplicate is not the same ingestion) and was left as it was.

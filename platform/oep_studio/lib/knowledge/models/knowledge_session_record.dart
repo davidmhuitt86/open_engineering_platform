@@ -6,6 +6,7 @@ import 'commit_report.dart';
 import 'engineering_context.dart';
 import 'engineering_entity.dart';
 import 'evidence_link.dart';
+import '../inference/inference_record.dart';
 import 'evidence_region.dart';
 import 'knowledge_candidate.dart';
 import 'knowledge_session.dart';
@@ -45,6 +46,7 @@ class KnowledgeSessionRecord {
     this.ingestionRuns = const [],
     this.derivedArtifacts = const [],
     this.normalizedProducts = const [],
+    this.inferenceRecords = const [],
   });
 
   final KnowledgeSession session;
@@ -142,6 +144,10 @@ class KnowledgeSessionRecord {
   /// session has an empty list.
   final List<NormalizedIngestionProduct> normalizedProducts;
 
+  /// WP-INGEST-013: durable audit records of interpretation attempts (never
+  /// engineering truth). Missing in older sessions => empty.
+  final List<InferenceRecord> inferenceRecords;
+
   Map<String, dynamic> toJson() => {
     'formatVersion': 1,
     'session': session.toJson(),
@@ -162,6 +168,7 @@ class KnowledgeSessionRecord {
     'ingestionRuns': ingestionRuns.map((run) => run.toJson()).toList(),
     'derivedArtifacts': derivedArtifacts.map((artifact) => artifact.toJson()).toList(),
     'normalizedProducts': normalizedProducts.map((product) => product.toJson()).toList(),
+    'inferenceRecords': inferenceRecords.map((record) => record.toJson()).toList(),
   };
 
   /// Throws [FormatException] on any structurally invalid input —
@@ -186,6 +193,7 @@ class KnowledgeSessionRecord {
     final ingestionRunsJson = json['ingestionRuns'] as List<dynamic>? ?? const [];
     final derivedArtifactsJson = json['derivedArtifacts'] as List<dynamic>? ?? const [];
     final normalizedProductsJson = json['normalizedProducts'] as List<dynamic>? ?? const [];
+    final inferenceRecordsJson = json['inferenceRecords'] as List<dynamic>? ?? const [];
     return KnowledgeSessionRecord(
       session: KnowledgeSession.fromJson(json['session'] as Map<String, dynamic>),
       candidates: [
@@ -237,6 +245,9 @@ class KnowledgeSessionRecord {
       normalizedProducts: [
         for (final entry in normalizedProductsJson)
           NormalizedIngestionProduct.fromJson(entry as Map<String, dynamic>),
+      ],
+      inferenceRecords: [
+        for (final entry in inferenceRecordsJson) InferenceRecord.fromJson(entry as Map<String, dynamic>),
       ],
     );
   }

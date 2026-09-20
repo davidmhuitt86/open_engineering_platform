@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import '../discovery/reference_discovery_indexes.dart';
 import '../knowledge_runtime_errors.dart';
 import '../models/knowledge_package.dart';
 import 'minimal_zip_reader.dart';
@@ -147,4 +148,40 @@ class OerpReader {
 
   /// Reads a `.oerp` file from disk.
   KnowledgePackage readFile(File file) => readBytes(file.readAsBytesSync());
+
+  /// Reads the package's precompiled discovery indexes (`search.idx`,
+  /// `graph.idx`) for `ReferenceDiscovery` (WP-EKE-014). Package artifacts
+  /// are read here so nothing above this class knows how they are stored.
+  ///
+  /// Both members are part of the compiled-package contract
+  /// (SDD-R004 §10-11); a missing one, malformed content, or an
+  /// unsupported index version throws [KnowledgeRuntimeException]
+  /// (`packageInvalid` / `schemaUnsupported`) -- never an empty index.
+  ReferenceDiscoveryIndexes readDiscoveryIndexes(Uint8List bytes) {
+    final MinimalZipReader zip;
+    try {
+      zip = MinimalZipReader(bytes);
+    } on FormatException catch (e) {
+      throw KnowledgeRuntimeException(
+        KnowledgeRuntimeErrorCode.packageInvalid,
+        'Not a valid .oerp archive: $e',
+      );
+    }
+    for (final required in const ['search.idx', 'graph.idx']) {
+      if (!zip.containsEntry(required)) {
+        throw KnowledgeRuntimeException(
+          KnowledgeRuntimeErrorCode.packageInvalid,
+          '.oerp archive is missing required member "$required" '
+          '(recompile the package).',
+        );
+      }
+    }
+    return ReferenceDiscoveryIndexes.parse(
+      searchIdxJson: zip.readEntryAsString('search.idx'),
+      graphIdxJson: zip.readEntryAsString('graph.idx'),
+    );
+  }
+
+  ReferenceDiscoveryIndexes readDiscoveryIndexesFile(File file) =>
+      readDiscoveryIndexes(file.readAsBytesSync());
 }

@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "bindings": [
+    {
+      "referenceSymbolId": "symbol.iec.resistor",
+      "engineSymbolId": "resistor",
+      "notes": "Explicit WP-EKE-016 binding. Caveat: the Reference symbol is the IEC 60617 rectangle convention; the Engine 'resistor' asset draws a zigzag (ANSI-style) glyph, so this binding does not make the rendered glyph match the Reference symbol. Ports are renderer-local to the Engine definition; the Reference symbol defines none."
+    }
+  ]
+}

@@ -207,6 +207,8 @@ are a documented future integration point, not a defect of this work package.
   is not symbol *rendering* (geometry/ports/style) and neither is visual symbol
   *recognition*. A future LLM/vision pipeline may use all three; they must not
   become one authority.
+- **Update (WP-EKE-016):** the explicit Symbol EKO <-> `SymbolDefinition` binding now
+  exists; see `SYMBOL_BINDING.md`. The remaining items below are what it left open.
 - **Deferred (required before symbol retrieval or diagram interpretation):**
   decide whether `SymbolProvider` resolves from compiled Symbol EKOs; define
   the `object_id` <-> `SymbolDefinition.identifier` mapping; decide which of
@@ -214,7 +216,8 @@ are a documented future integration point, not a defect of this work package.
   renderer; expose symbol properties/geometry references through the runtime if
   needed. No second symbol store was created and the renderer was not touched.
 
-Reference Discovery, symbol integration and diagram interpretation are later work
+Reference Discovery is implemented separately in `REFERENCE_DISCOVERY.md` (WP-EKE-014);
+symbol integration and diagram interpretation are later work
 packages; none is implemented here.
 
 ## Authority separation

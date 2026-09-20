@@ -18,7 +18,11 @@ import '../models/knowledge_validation_exception.dart';
 /// this repository) already goes through, so wiring reconciliation in
 /// here is the only way to guarantee it always happens.
 KnowledgeSessionRecord _reconcileInterruptedRuns(KnowledgeSessionRecord record) {
-  if (record.ingestionRuns.every((run) => run.status.isTerminal)) return record;
+  if (record.ingestionRuns.every((run) => run.status.isTerminal) &&
+      record.inferenceRecords.every((r) => r.status.isTerminal)) {
+    return record;
+  }
+  final reconciledAt = DateTime.now();
   return KnowledgeSessionRecord(
     session: record.session,
     candidates: record.candidates,
@@ -38,6 +42,9 @@ KnowledgeSessionRecord _reconcileInterruptedRuns(KnowledgeSessionRecord record) 
     ingestionRuns: [for (final run in record.ingestionRuns) run.reconciledIfInterrupted()],
     derivedArtifacts: record.derivedArtifacts,
     normalizedProducts: record.normalizedProducts,
+    // INGEST-013: a persisted non-terminal inference has no live execution
+    // behind it; it becomes FAILED with an explicit interruption error.
+    inferenceRecords: [for (final r in record.inferenceRecords) r.reconciledIfInterrupted(reconciledAt)],
   );
 }
 
@@ -187,7 +194,8 @@ abstract final class KnowledgeSessionStorage {
     // Decided before reconciliation runs: whether there is anything to
     // reconcile at all, so an ordinary already-terminal session (the
     // overwhelming common case) never triggers a redundant write.
-    final hasInterruptedRun = parsed.ingestionRuns.any((run) => !run.status.isTerminal);
+    final hasInterruptedRun = parsed.ingestionRuns.any((run) => !run.status.isTerminal) ||
+        parsed.inferenceRecords.any((r) => !r.status.isTerminal);
     if (!hasInterruptedRun) return parsed;
     final reconciled = _reconcileInterruptedRuns(parsed);
     await save(reconciled);
