@@ -104,7 +104,11 @@ Uint8List _buildStoredZip(Map<String, List<int>> entries) {
   return Uint8List.fromList(out);
 }
 
-Uint8List _buildOerpBytes({bool signed = false, bool withGraph = false}) {
+Uint8List _buildOerpBytes({
+  bool signed = false,
+  bool withGraph = false,
+  Set<String> omit = const {},
+}) {
   final manifest = jsonEncode({
     'package_id': 'electrical-core-test',
     'package_name': 'Test Package',
@@ -147,6 +151,10 @@ Uint8List _buildOerpBytes({bool signed = false, bool withGraph = false}) {
             },
           ]
         : <Object?>[],
+    if (!withGraph) ...{
+      if (!omit.contains('objects')) 'objects': <Object?>[],
+      if (!omit.contains('relationships')) 'relationships': <Object?>[],
+    },
     if (withGraph) ...{
       'objects': [
         for (final id in ['o1', 'o2'])
@@ -287,11 +295,37 @@ void main() {
       expect(runtime.relationshipsForObject('o2').single.id, 'o1.uses.o2');
     });
 
-    test('a runtime.json without objects/relationships (older compiler) loads empty', () {
+    test('explicit empty objects/relationships load, activate and report zero capability', () {
       final package = const OerpReader().readBytes(_buildOerpBytes());
       expect(package.objects, isEmpty);
       expect(package.relationships, isEmpty);
+      final runtime = KnowledgeRuntime.activate(
+        package,
+        allowUnsignedDevelopmentPackages: true,
+      );
+      expect(runtime.capabilities.registryCounts['objects'], 0);
+      expect(runtime.capabilities.registryCounts['relationships'], 0);
+      expect(runtime.capabilities.has('objects'), isFalse);
+      expect(runtime.capabilities.has('relationships'), isFalse);
     });
+
+    for (final omit in [
+      {'objects'},
+      {'relationships'},
+      {'objects', 'relationships'},
+    ]) {
+      test('runtime.json omitting ${omit.join(" and ")} is rejected as packageInvalid, never treated as empty', () {
+        expect(
+          () => const OerpReader().readBytes(_buildOerpBytes(omit: omit)),
+          throwsA(
+            isA<KnowledgeRuntimeException>()
+                .having((e) => e.code, 'code', KnowledgeRuntimeErrorCode.packageInvalid)
+                .having((e) => e.message, 'message', contains(omit.first))
+                .having((e) => e.message, 'recompile hint', contains('recompile')),
+          ),
+        );
+      });
+    }
 
     test('a dangling relationship in runtime.json fails activation', () {
       final bytes = _buildOerpBytes(withGraph: true);

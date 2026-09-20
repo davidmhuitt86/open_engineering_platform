@@ -126,3 +126,118 @@ interpretation, inference and reference-usage records. The workspace/diagram
 `SearchService` (`lib/core/search`) indexes Engineering Graph instances in the
 open workspace; it is not Reference Discovery and does not read the
 KnowledgeRuntime.
+
+## Package format impact
+
+- `runtime.json` `schemaVersion` stays `1.0.0`: the change is additive
+  (two new top-level members, `objects` and `relationships`); no existing
+  field changed meaning, and `manifest.json`, `search.idx`, `graph.idx`,
+  `reference.db` and `assets/` are untouched.
+**Missing required runtime member is not the same as an explicit empty runtime registry.**
+`"objects": []` / `"relationships": []` means the package explicitly contains zero
+entries and is valid. An absent member means the package does not satisfy the current
+runtime package contract and is rejected with `packageInvalid` (message names the member
+and says to recompile); it is never converted into an empty registry. This is an
+intentional contract decision with no compatibility shim: there are no distributed legacy
+`.oerp` packages, and a stale generated Studio asset is regenerated, not tolerated.
+
+- `OerpReader` now **requires** both members. An `.oerp` compiled before
+  WP-EKE-013 (no such members) is rejected with `packageInvalid` and must be
+  recompiled; an empty list is valid and means the package authors none.
+  (`KnowledgePackage.fromJson`, the in-memory/persisted form, still treats
+  absent lists as empty; it is not a package format.)
+- Studio bundles the compiled package as a generated, gitignored asset
+  (`assets/knowledge/`); `tool/generate_knowledge_asset.dart` must be re-run
+  so the bundled package carries the new members.
+- `runtime.json` remains a typed projection of what deterministic lookup
+  needs, not a dump of the Reference Library; full documents stay in
+  `reference.db`.
+
+## Compiler identity
+
+`KnowledgePackageManifest.compilerVersion` (from `manifest.json`
+`compiler_version`) is carried into `RuntimeIdentity.compilerVersion`
+unchanged, alongside `packageId`/`packageVersion`/`schemaVersion`, and is
+distinct from `runtimeVersion`/`runtimeBuild`.
+
+## Symbol boundary (audited; documented, not resolved)
+
+Audit result: `24d1cc2` does not violate the authoritative boundary; symbols
+are a documented future integration point, not a defect of this work package.
+
+- **Canonical source (Reference Library).** Symbols are Engineering Knowledge
+  Objects of `object_type: Symbol` (currently one: `symbol.iec.resistor`, with
+  identity, classification, properties such as `view_box`/`default_scale`, and
+  an `assets/symbol.svg`).
+- **Compiler.** The Reference Compiler already emits symbol knowledge: the
+  object document in `reference.db`, its SVG under the `.oerp` `assets/`
+  directory, its relationships in `graph.idx`, and (WP-EKE-013) its identity
+  and relationships as a `KnowledgeObject`/`KnowledgeRelationship` in
+  `runtime.json`. The runtime does **not** expose a symbol's properties or
+  geometry: `runtime.json` projects typed properties only for Units, Equations
+  and Components, and symbols were outside the AP-EK-013/AP-EK-020 first
+  vertical slice. That is an intentional scope boundary, not a failure.
+- **Engine `SymbolDefinition`** (`lib/core/symbols`, `SymbolLibrary`,
+  `SymbolProvider`; 14 JSON definitions under `assets/symbols/`). It is a
+  renderer/diagram concern *with some engine-owned semantics*: geometry (SVG
+  asset), ports (id, connection type, direction, position), rendering
+  metadata and validation rules (`requiredPortIds`,
+  `allowedConnectionTypes`, used by `ValidationService`). Callers are the
+  diagram view, exporters, validation and search. `EngineeringNode.symbolId`
+  refers to `SymbolDefinition.identifier` (e.g. `resistor`).
+- **Identity.** An engine symbol has no reference-library identity: its
+  identifiers (`resistor`, `battery`, ...) do not correspond to EKO ids
+  (`symbol.iec.resistor`), and no mapping exists in either direction. Today
+  the two are independent authorities with no overlapping ids, so they do not
+  conflict, but nothing prevents them diverging. This is the key integration
+  question for later diagram interpretation.
+- **No authority conflict exists today** (the identities are separate), and this is
+  not a WP-EKE-013 violation. Any integration must explicitly define the mapping
+  and decide where port/connection semantics belong.
+- **Intended FUTURE direction (adapter and mapping do not exist):**
+
+  ```
+  Reference Library Symbol -> Compiler -> .oerp -> KnowledgeRuntime
+        -> FUTURE Symbol Knowledge Adapter -> Engine SymbolDefinition / renderer
+  ```
+
+  The renderer's `SymbolLibrary` and the Reference Library must not both
+  independently author canonical symbol knowledge.
+- **Keep separate:** Symbol *knowledge* (what a symbol is, standards, semantics)
+  is not symbol *rendering* (geometry/ports/style) and neither is visual symbol
+  *recognition*. A future LLM/vision pipeline may use all three; they must not
+  become one authority.
+- **Deferred (required before symbol retrieval or diagram interpretation):**
+  decide whether `SymbolProvider` resolves from compiled Symbol EKOs; define
+  the `object_id` <-> `SymbolDefinition.identifier` mapping; decide which of
+  ports/connection semantics belong in the Reference Library versus the
+  renderer; expose symbol properties/geometry references through the runtime if
+  needed. No second symbol store was created and the renderer was not touched.
+
+Reference Discovery, symbol integration and diagram interpretation are later work
+packages; none is implemented here.
+
+## Authority separation
+
+```
+Reference Library -> Compiler -> .oerp -> OerpReader -> KnowledgeRuntime
+   (authored)                                            = authoritative compiled
+                                                           reference knowledge
+Reference Discovery = future deterministic retrieval over the runtime/indexes
+LLM / Vision        = future interpretation layer (produces observations only)
+Engineering Repository = accepted project engineering truth
+Engineering Graph      = project/workspace representation (not merged with the
+                         reference knowledge graph)
+```
+
+The runtime does not depend on an open repository, Studio state, UIF, the
+Reference Vault or acquisition state.
+
+## Re-audit of AP-EKE-012 findings against current source
+
+Confirmed still valid before this change and fixed: no object/relationship
+registries; map-comprehension registries silently overwriting duplicates
+(dimensions/units already checked); most cross-references unchecked;
+`runtimeVersion` derived from `packageId@packageVersion`; no capability
+surface. Not changed (out of scope, still open): signature verification,
+`search.idx`/`graph.idx` readers, symbol mapping, terminal counts by convention.

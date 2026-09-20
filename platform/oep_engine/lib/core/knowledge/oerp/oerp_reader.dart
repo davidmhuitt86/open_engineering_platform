@@ -85,6 +85,20 @@ class OerpReader {
       );
     }
 
+    // WP-EKE-013: `objects`/`relationships` are authoritative registries
+    // (AP-EK-013 §18-19). A runtime.json without them was produced by an
+    // older Reference Compiler; fail explicitly rather than presenting
+    // an empty registry as if the package authored no objects.
+    for (final key in const ['objects', 'relationships']) {
+      if (runtimeJson[key] is! List) {
+        throw KnowledgeRuntimeException(
+          KnowledgeRuntimeErrorCode.packageInvalid,
+          'runtime.json has no "$key" registry (compiled by an older '
+          'Reference Compiler); recompile the package.',
+        );
+      }
+    }
+
     // A signed package (a `signature/*.sig` member instead of
     // `signature/UNSIGNED`) is intentionally not treated as verified
     // here — this reader has no Ed25519 trust-store, so it reports
