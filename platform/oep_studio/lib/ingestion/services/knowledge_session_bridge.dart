@@ -132,6 +132,7 @@ abstract final class IngestionKnowledgeSessionBridge {
           : [...record.ingestionRuns, updatedRun],
       derivedArtifacts: record.derivedArtifacts,
       normalizedProducts: record.normalizedProducts,
+      inferenceRecords: record.inferenceRecords,
     );
   }
 
@@ -226,6 +227,7 @@ abstract final class IngestionKnowledgeSessionBridge {
       ingestionRuns: [...session.ingestionRuns, result.run],
       derivedArtifacts: [...session.derivedArtifacts, ...result.derivedArtifacts],
       normalizedProducts: [...session.normalizedProducts, ..._normalizedProductsFor(result)],
+      inferenceRecords: session.inferenceRecords,
     );
   }
 
@@ -265,6 +267,7 @@ abstract final class IngestionKnowledgeSessionBridge {
       ingestionRuns: record.ingestionRuns,
       derivedArtifacts: record.derivedArtifacts,
       normalizedProducts: record.normalizedProducts,
+      inferenceRecords: record.inferenceRecords,
     );
   }
 }

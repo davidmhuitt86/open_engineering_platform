@@ -2,6 +2,10 @@ import '../../knowledge/models/ai_connection_status.dart';
 import '../../knowledge/models/ai_conversation.dart';
 import '../../knowledge/models/ai_processing_status.dart';
 import '../../knowledge/models/ai_suggestion.dart';
+import '../../ingestion/models/derived_artifact.dart';
+import '../../ingestion/models/ingestion_run.dart';
+import '../../ingestion/models/normalized_ingestion_product.dart';
+import '../../knowledge/inference/inference_record.dart';
 import '../../knowledge/models/candidate_dependency_info.dart';
 import '../../knowledge/models/candidate_provenance.dart';
 import '../../knowledge/models/candidate_validation_result.dart';
@@ -247,6 +251,10 @@ class FoundationServiceState {
     this.selectedContext,
     this.contextTypeFilter,
     this.aiSuggestions = const [],
+    this.ingestionRuns = const [],
+    this.derivedArtifacts = const [],
+    this.normalizedProducts = const [],
+    this.inferenceRecords = const [],
     this.selectedAiSuggestion,
     this.currentAiProviderId = 'mock',
     this.currentAiConversation,
@@ -535,6 +543,18 @@ class FoundationServiceState {
   /// Knowledge Candidate itself until an engineer explicitly accepts
   /// one. See `docs/AI_PROVIDER_ARCHITECTURE.md`.
   final List<AiSuggestion> aiSuggestions;
+
+  /// The active session's durable ingestion collections, projected from the
+  /// `KnowledgeSessionRecord` (the durable authority) so an autosave rebuilds
+  /// the record with them intact (INGEST-FOLLOWUP-007). Never mutated by
+  /// ingestion's own lifecycle here; that is written to the record directly.
+  final List<IngestionRun> ingestionRuns;
+  final List<DerivedArtifact> derivedArtifacts;
+  final List<NormalizedIngestionProduct> normalizedProducts;
+
+  /// WP-INGEST-013: durable inference audit records of the active session
+  /// (persisted in the KnowledgeSessionRecord; never engineering truth).
+  final List<InferenceRecord> inferenceRecords;
 
   /// The AI Suggestion currently selected, if any (Work Package 016
   /// Connection Manager: "Current AI Suggestion") — switches the
@@ -1120,6 +1140,10 @@ class FoundationServiceState {
     EngineeringContextType? contextTypeFilter,
     bool clearContextTypeFilter = false,
     List<AiSuggestion>? aiSuggestions,
+    List<IngestionRun>? ingestionRuns,
+    List<DerivedArtifact>? derivedArtifacts,
+    List<NormalizedIngestionProduct>? normalizedProducts,
+    List<InferenceRecord>? inferenceRecords,
     AiSuggestion? selectedAiSuggestion,
     bool clearSelectedAiSuggestion = false,
     String? currentAiProviderId,
@@ -1228,6 +1252,10 @@ class FoundationServiceState {
           ? null
           : (contextTypeFilter ?? this.contextTypeFilter),
       aiSuggestions: aiSuggestions ?? this.aiSuggestions,
+      ingestionRuns: ingestionRuns ?? this.ingestionRuns,
+      derivedArtifacts: derivedArtifacts ?? this.derivedArtifacts,
+      normalizedProducts: normalizedProducts ?? this.normalizedProducts,
+      inferenceRecords: inferenceRecords ?? this.inferenceRecords,
       selectedAiSuggestion: clearSelectedAiSuggestion
           ? null
           : (selectedAiSuggestion ?? this.selectedAiSuggestion),

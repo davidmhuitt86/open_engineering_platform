@@ -398,6 +398,9 @@ abstract final class KnowledgeSessionService {
       // carrying them over unchanged (including accept/edit/reject/
       // defer status and any created Candidate link) is correct.
       aiSuggestions: original.aiSuggestions,
+      // INGEST-013: audit records reference the (unchanged) source ids and are
+      // carried over like the other session history.
+      inferenceRecords: original.inferenceRecords,
     );
   }
 }

@@ -1,0 +1,370 @@
+{
+  "formatVersion": 1,
+  "session": {
+    "id": "session-1789772545045-0fb6",
+    "name": "Wiring Diagram — trx300_original_pdf_diagram.pdf",
+    "repositoryName": "MyEngineeringRepository",
+    "author": "David",
+    "description": "Created by the Universal Ingestion Framework from run run-1789772545149-f7d6.",
+    "createdTime": "2026-09-18T18:02:25.150875",
+    "lastModified": "2026-09-18T18:02:26.968607",
+    "status": "created",
+    "archived": false
+  },
+  "candidates": [],
+  "relationshipCandidates": [],
+  "sources": [
+    {
+      "id": "source-fd7f4474f5a94ab4",
+      "originalFileName": "7a0a03f7-b83c-4922-952b-7b7e3c93ba24",
+      "localPath": "sources/source-fd7f4474f5a94ab4_7a0a03f7-b83c-4922-952b-7b7e3c93ba24",
+      "type": "pdf",
+      "sizeBytes": 185420,
+      "importDate": "1969-12-31T18:00:00.000",
+      "addedBy": "uif"
+    }
+  ],
+  "reviewDecisions": [],
+  "evidenceRegions": [],
+  "evidenceLinks": [],
+  "pageSelections": [],
+  "procedureSteps": [],
+  "specificationDetails": [],
+  "commitReports": [],
+  "ocrPageResults": [
+    {
+      "sourceId": "source-fd7f4474f5a94ab4",
+      "page": 1,
+      "words": [
+        {
+          "text": "21.",
+          "confidence": 0.96371284,
+          "boundingBox": {
+            "x": 0.007575757575757576,
+            "y": 0.3807843137254902,
+            "width": 0.025757575757575757,
+            "height": 0.04823529411764706
+          },
+          "readingOrder": 0,
+          "lineIndex": 0
+        },
+        {
+          "text": "WIRING",
+          "confidence": 0.9606150800000001,
+          "boundingBox": {
+            "x": 0.007575757575757576,
+            "y": 0.24392156862745099,
+            "width": 0.02666666666666667,
+            "height": 0.12470588235294118
+          },
+          "readingOrder": 1,
+          "lineIndex": 0
+        },
+        {
+          "text": "DIAGRAMS",
+          "confidence": 0.96747429,
+          "boundingBox": {
+            "x": 0.008484848484848486,
+            "y": 0.05764705882352941,
+            "width": 0.02666666666666667,
+            "height": 0.17176470588235293
+          },
+          "readingOrder": 2,
+          "lineIndex": 0
+        },
+        {
+          "text": "\"BE:",
+          "confidence": 0.62343006,
+          "boundingBox": {
+            "x": 0.0603030303030303,
+            "y": 0.8784313725490196,
+            "width": 0.009393939393939394,
+            "height": 0.02627450980392157
+          },
+          "readingOrder": 3,
+          "lineIndex": 1
+        },
+        {
+          "text": " ",
+          "confidence": 0.95,
+          "boundingBox": {
+            "x": 0.09454545454545454,
+            "y": 0.00392156862745098,
+            "width": 0.816969696969697,
+            "height": 0.9870588235294118
+          },
+          "readingOrder": 4,
+          "lineIndex": 2
+        },
+        {
+          "text": " ",
+          "confidence": 0.95,
+          "boundingBox": {
+            "x": 0.08060606060606061,
+            "y": 0.9443137254901961,
+            "width": 0.03333333333333333,
+            "height": 0.04156862745098039
+          },
+          "readingOrder": 5,
+          "lineIndex": 3
+        },
+        {
+          "text": "21-1",
+          "confidence": 0.9562133,
+          "boundingBox": {
+            "x": 0.9481818181818182,
+            "y": 0.06,
+            "width": 0.018787878787878787,
+            "height": 0.06470588235294118
+          },
+          "readingOrder": 6,
+          "lineIndex": 4
+        }
+      ],
+      "imageWidth": 3300,
+      "imageHeight": 2550,
+      "sourceFingerprint": "fd7f4474f5a94ab40a772a924f88386ca06c147b9039b1e81e403fc1eaf1c746",
+      "engineVersion": "Tesseract v5.4.0.20240606",
+      "processedTime": "2026-09-18T18:02:25.377397",
+      "success": true,
+      "errorMessage": null
+    }
+  ],
+  "engineeringEntities": [],
+  "engineeringContexts": [],
+  "aiSuggestions": [],
+  "ingestionRuns": [
+    {
+      "runId": "run-1789772545149-f7d6",
+      "vaultObjectId": "7a0a03f7-b83c-4922-952b-7b7e3c93ba24",
+      "contentHash": "fd7f4474f5a94ab40a772a924f88386ca06c147b9039b1e81e403fc1eaf1c746",
+      "startedAt": "2026-09-18T18:02:25.150875",
+      "completedAt": "2026-09-18T18:02:26.968607",
+      "status": "completed",
+      "pipelineVersion": "uif-pipeline-1.0.0",
+      "parserId": "uif.pdf_parser",
+      "parserVersion": "1.0.0",
+      "processorVersions": {
+        "entityExtraction": "engineering_pattern_library-1",
+        "ocr": "Tesseract v5.4.0.20240606"
+      },
+      "processingConfiguration": {},
+      "stageResults": [
+        {
+          "stage": "identify",
+          "status": "succeeded",
+          "startedAt": "2026-09-18T18:02:25.172466",
+          "completedAt": "2026-09-18T18:02:25.172466",
+          "diagnostics": [
+            "artifactType=pdf",
+            "mimeType=application/pdf"
+          ],
+          "derivedArtifactIds": []
+        },
+        {
+          "stage": "parserSelection",
+          "status": "succeeded",
+          "startedAt": "2026-09-18T18:02:25.172466",
+          "completedAt": "2026-09-18T18:02:25.172466",
+          "diagnostics": [
+            "Selected uif.pdf_parser@1.0.0."
+          ],
+          "derivedArtifactIds": []
+        },
+        {
+          "stage": "metadataExtraction",
+          "status": "succeeded",
+          "startedAt": "2026-09-18T18:02:25.172466",
+          "completedAt": "2026-09-18T18:02:25.306118",
+          "diagnostics": [
+            "pageCount=1"
+          ],
+          "derivedArtifactIds": []
+        },
+        {
+          "stage": "contentExtraction",
+          "status": "succeeded",
+          "startedAt": "2026-09-18T18:02:25.172466",
+          "completedAt": "2026-09-18T18:02:25.306118",
+          "diagnostics": [
+            "Page 1: embedded text layer is empty — content extraction for this page relies on the downstream OCR stage."
+          ],
+          "derivedArtifactIds": [
+            "da-contentExtraction-6dbce2ccdf22158e"
+          ]
+        },
+        {
+          "stage": "structuralAnalysis",
+          "status": "succeeded",
+          "startedAt": "2026-09-18T18:02:25.172466",
+          "completedAt": "2026-09-18T18:02:25.306118",
+          "diagnostics": [
+            "pages=[1]"
+          ],
+          "derivedArtifactIds": [
+            "da-structuralAnalysis-4bc11aeedd3566d0"
+          ]
+        },
+        {
+          "stage": "ocr",
+          "status": "succeeded",
+          "startedAt": "2026-09-18T18:02:25.309047",
+          "completedAt": "2026-09-18T18:02:26.963098",
+          "diagnostics": [],
+          "derivedArtifactIds": [
+            "da-ocr-p1-a1e9721647e2fed0"
+          ]
+        },
+        {
+          "stage": "entityExtraction",
+          "status": "succeeded",
+          "startedAt": "2026-09-18T18:02:26.963098",
+          "completedAt": "2026-09-18T18:02:26.966653",
+          "diagnostics": [
+            "extracted=0"
+          ],
+          "derivedArtifactIds": []
+        },
+        {
+          "stage": "candidateGeneration",
+          "status": "skipped",
+          "startedAt": "2026-09-18T18:02:26.966653",
+          "completedAt": "2026-09-18T18:02:26.967631",
+          "diagnostics": [
+            "candidates=0"
+          ],
+          "derivedArtifactIds": []
+        },
+        {
+          "stage": "relationshipExtraction",
+          "status": "skipped",
+          "startedAt": "2026-09-18T18:02:26.967631",
+          "completedAt": "2026-09-18T18:02:26.968607",
+          "diagnostics": [
+            "relationships=0"
+          ],
+          "derivedArtifactIds": []
+        }
+      ],
+      "diagnostics": []
+    }
+  ],
+  "derivedArtifacts": [
+    {
+      "derivedArtifactId": "da-contentExtraction-6dbce2ccdf22158e",
+      "runId": "run-1789772545149-f7d6",
+      "vaultObjectId": "7a0a03f7-b83c-4922-952b-7b7e3c93ba24",
+      "stage": "contentExtraction",
+      "artifactType": "normalized_content_result",
+      "contentHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "createdAt": "2026-09-18T18:02:25.306118",
+      "processorId": "uif.pdf_parser",
+      "processorVersion": "1.0.0",
+      "provenance": {
+        "vaultObjectId": "7a0a03f7-b83c-4922-952b-7b7e3c93ba24",
+        "acquisitionRecordIds": [
+          "8272479e-1ab5-4a59-a013-02f990750602"
+        ],
+        "runId": "run-1789772545149-f7d6",
+        "stage": "contentExtraction",
+        "processorId": "uif.pdf_parser",
+        "processorVersion": "1.0.0",
+        "parserId": "uif.pdf_parser",
+        "parserVersion": "1.0.0",
+        "pipelineVersion": "uif-pipeline-1.0.0",
+        "page": null,
+        "sourceFingerprint": "fd7f4474f5a94ab40a772a924f88386ca06c147b9039b1e81e403fc1eaf1c746"
+      }
+    },
+    {
+      "derivedArtifactId": "da-structuralAnalysis-4bc11aeedd3566d0",
+      "runId": "run-1789772545149-f7d6",
+      "vaultObjectId": "7a0a03f7-b83c-4922-952b-7b7e3c93ba24",
+      "stage": "structuralAnalysis",
+      "artifactType": "normalized_structural_result",
+      "contentHash": "2996407068d49b500bb7a117c45a3f21daf3c95b7fd3be9c008ede8148335bac",
+      "createdAt": "2026-09-18T18:02:25.307093",
+      "processorId": "uif.pdf_parser",
+      "processorVersion": "1.0.0",
+      "provenance": {
+        "vaultObjectId": "7a0a03f7-b83c-4922-952b-7b7e3c93ba24",
+        "acquisitionRecordIds": [
+          "8272479e-1ab5-4a59-a013-02f990750602"
+        ],
+        "runId": "run-1789772545149-f7d6",
+        "stage": "structuralAnalysis",
+        "processorId": "uif.pdf_parser",
+        "processorVersion": "1.0.0",
+        "parserId": "uif.pdf_parser",
+        "parserVersion": "1.0.0",
+        "pipelineVersion": "uif-pipeline-1.0.0",
+        "page": null,
+        "sourceFingerprint": "fd7f4474f5a94ab40a772a924f88386ca06c147b9039b1e81e403fc1eaf1c746"
+      }
+    },
+    {
+      "derivedArtifactId": "da-ocr-p1-a1e9721647e2fed0",
+      "runId": "run-1789772545149-f7d6",
+      "vaultObjectId": "7a0a03f7-b83c-4922-952b-7b7e3c93ba24",
+      "stage": "ocr",
+      "artifactType": "ocr_page_result",
+      "contentHash": "238340c1f457ed3cc120ebd341874a902291f1e8dbe951d8797912316e017e38",
+      "createdAt": "2026-09-18T18:02:26.963098",
+      "processorId": "ocr",
+      "processorVersion": "Tesseract v5.4.0.20240606",
+      "provenance": {
+        "vaultObjectId": "7a0a03f7-b83c-4922-952b-7b7e3c93ba24",
+        "acquisitionRecordIds": [
+          "8272479e-1ab5-4a59-a013-02f990750602"
+        ],
+        "runId": "run-1789772545149-f7d6",
+        "stage": "ocr",
+        "processorId": "ocr",
+        "processorVersion": "Tesseract v5.4.0.20240606",
+        "parserId": "uif.pdf_parser",
+        "parserVersion": "1.0.0",
+        "pipelineVersion": "uif-pipeline-1.0.0",
+        "page": 1,
+        "sourceFingerprint": "fd7f4474f5a94ab40a772a924f88386ca06c147b9039b1e81e403fc1eaf1c746"
+      }
+    }
+  ],
+  "normalizedProducts": [
+    {
+      "runId": "run-1789772545149-f7d6",
+      "derivedArtifactId": "da-structuralAnalysis-4bc11aeedd3566d0",
+      "document": {
+        "vaultObjectId": "7a0a03f7-b83c-4922-952b-7b7e3c93ba24",
+        "metadata": {
+          "title": null,
+          "author": null,
+          "organization": null,
+          "publicationDate": null,
+          "revision": null,
+          "keywords": [],
+          "productFamily": null,
+          "manufacturer": null,
+          "documentIdentifiers": [
+            "7a0a03f7-b83c-4922-952b-7b7e3c93ba24"
+          ],
+          "language": null,
+          "documentType": null,
+          "pageCount": 1,
+          "sourceFileName": "7a0a03f7-b83c-4922-952b-7b7e3c93ba24",
+          "sizeBytes": 185420,
+          "mimeType": "application/pdf",
+          "contentHash": "fd7f4474f5a94ab40a772a924f88386ca06c147b9039b1e81e403fc1eaf1c746"
+        },
+        "pages": [
+          {
+            "pageNumber": 1,
+            "widthPt": 792.0,
+            "heightPt": 612.0,
+            "rotationDegrees": 0,
+            "embeddedText": ""
+          }
+        ]
+      }
+    }
+  ]
+}

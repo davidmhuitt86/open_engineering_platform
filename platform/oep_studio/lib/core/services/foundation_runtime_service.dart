@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../knowledge/models/ai_analysis_exception.dart';
 import '../../knowledge/models/ai_connection_status.dart';
 import '../../knowledge/models/ai_processing_status.dart';
+import '../../knowledge/inference/inference_record.dart';
 import '../../knowledge/models/ai_suggestion.dart';
 import '../../knowledge/models/ai_suggestion_status.dart';
 import '../../knowledge/models/engineering_context.dart';
@@ -633,6 +634,10 @@ class FoundationRuntimeNotifier extends Notifier<FoundationServiceState> {
       engineeringEntities: const [],
       engineeringContexts: const [],
       aiSuggestions: const [],
+      ingestionRuns: const [],
+      derivedArtifacts: const [],
+      normalizedProducts: const [],
+      inferenceRecords: const [],
       clearSelectedCandidate: true,
       clearSelectedRelationshipCandidate: true,
       clearSelectedSourceMaterial: true,
@@ -688,6 +693,10 @@ class FoundationRuntimeNotifier extends Notifier<FoundationServiceState> {
       engineeringEntities: const [],
       engineeringContexts: const [],
       aiSuggestions: const [],
+      ingestionRuns: const [],
+      derivedArtifacts: const [],
+      normalizedProducts: const [],
+      inferenceRecords: const [],
       clearSelectedCandidate: true,
       clearSelectedRelationshipCandidate: true,
       clearSelectedSourceMaterial: true,
@@ -737,6 +746,10 @@ class FoundationRuntimeNotifier extends Notifier<FoundationServiceState> {
         engineeringEntities: record.engineeringEntities,
         engineeringContexts: record.engineeringContexts,
         aiSuggestions: record.aiSuggestions,
+        ingestionRuns: record.ingestionRuns,
+        derivedArtifacts: record.derivedArtifacts,
+        normalizedProducts: record.normalizedProducts,
+        inferenceRecords: record.inferenceRecords,
         clearSelectedCandidate: true,
         clearSelectedRelationshipCandidate: true,
         clearSelectedSourceMaterial: true,
@@ -801,6 +814,10 @@ class FoundationRuntimeNotifier extends Notifier<FoundationServiceState> {
       engineeringEntities: record.engineeringEntities,
       engineeringContexts: record.engineeringContexts,
       aiSuggestions: record.aiSuggestions,
+      ingestionRuns: record.ingestionRuns,
+      derivedArtifacts: record.derivedArtifacts,
+      normalizedProducts: record.normalizedProducts,
+      inferenceRecords: record.inferenceRecords,
       clearSelectedCandidate: true,
       clearSelectedRelationshipCandidate: true,
       clearSelectedSourceMaterial: true,
@@ -872,6 +889,10 @@ class FoundationRuntimeNotifier extends Notifier<FoundationServiceState> {
           engineeringEntities: record.engineeringEntities,
           engineeringContexts: record.engineeringContexts,
           aiSuggestions: record.aiSuggestions,
+          ingestionRuns: record.ingestionRuns,
+          derivedArtifacts: record.derivedArtifacts,
+          normalizedProducts: record.normalizedProducts,
+          inferenceRecords: record.inferenceRecords,
         ),
       );
       if (state.knowledgeSession?.id == sessionId) {
@@ -930,6 +951,10 @@ class FoundationRuntimeNotifier extends Notifier<FoundationServiceState> {
           engineeringEntities: state.engineeringEntities,
           engineeringContexts: state.engineeringContexts,
           aiSuggestions: state.aiSuggestions,
+          ingestionRuns: state.ingestionRuns,
+          derivedArtifacts: state.derivedArtifacts,
+          normalizedProducts: state.normalizedProducts,
+          inferenceRecords: state.inferenceRecords,
         ),
       );
       if (state.knowledgeStorageError != null) {
@@ -938,6 +963,48 @@ class FoundationRuntimeNotifier extends Notifier<FoundationServiceState> {
     } on KnowledgeValidationException catch (error) {
       state = state.copyWith(knowledgeStorageError: error.message);
     }
+  }
+
+  // -------------------------------------------------------------------
+  // Inference audit records (WP-INGEST-013)
+  //
+  // Durable audit records of interpretation attempts live in the session
+  // (`KnowledgeSessionRecord.inferenceRecords`) and persist through the same
+  // `_persistActiveSession` path as everything else. These two methods only
+  // store/replace a record: they never create or touch a Knowledge Candidate,
+  // Engineering Object or Repository state, and never call the commit path.
+  // A record is never deleted or silently overwritten: `updateInferenceRecord`
+  // accepts only a legal successor (`InferenceRecord.requireValidSuccessorOf`).
+  // -------------------------------------------------------------------
+
+  void addInferenceRecord(InferenceRecord record) {
+    if (state.knowledgeSession == null) {
+      throw const KnowledgeValidationException('There is no active session to record an inference in.');
+    }
+    if (state.inferenceRecords.any((r) => r.inferenceId == record.inferenceId)) {
+      throw KnowledgeValidationException('Inference record "${record.inferenceId}" already exists.');
+    }
+    state = state.copyWith(inferenceRecords: [...state.inferenceRecords, record]);
+    unawaited(_persistActiveSession());
+  }
+
+  void updateInferenceRecord(InferenceRecord updated) {
+    final existing = state.inferenceRecords.where((r) => r.inferenceId == updated.inferenceId);
+    if (existing.isEmpty) {
+      throw KnowledgeValidationException('No inference record "${updated.inferenceId}" to update.');
+    }
+    try {
+      updated.requireValidSuccessorOf(existing.first);
+    } on InferenceRecordException catch (error) {
+      throw KnowledgeValidationException(error.message);
+    }
+    state = state.copyWith(
+      inferenceRecords: [
+        for (final r in state.inferenceRecords)
+          if (r.inferenceId == updated.inferenceId) updated else r,
+      ],
+    );
+    unawaited(_persistActiveSession());
   }
 
   void _recordDecision(
