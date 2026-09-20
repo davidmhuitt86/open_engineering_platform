@@ -60,10 +60,8 @@ void main() {
 
   tearDown(() async {
     for (final id in createdSessionIds) {
-      final directory = KnowledgeSessionStorage.sessionDirectory(id);
-      if (directory.existsSync()) {
-        await directory.delete(recursive: true);
-      }
+      // Queued behind any still-pending fire-and-forget autosave.
+      await KnowledgeSessionStorage.delete(id);
     }
     createdSessionIds.clear();
   });

@@ -200,6 +200,28 @@ never blocks the UI action that triggered it (the candidate is still
 added/edited/accepted in memory even if the save fails); it only
 surfaces via the Session Header's dismissible error banner.
 
+### Serialized writes (INGEST-FOLLOWUP-006)
+
+Because autosaves are fire-and-forget, several `save` calls for the same
+session can be in flight at once. `KnowledgeSessionStorage` therefore
+serializes writes **per session id**, inside the storage boundary:
+
+- Saves (and `delete`) for one session run strictly in request order
+  (A, then B, then C); they never overlap on `session.json`. Sessions with
+  different ids use different queues and never block each other.
+- `save()` keeps its `Future<void>` signature. Each returned future
+  completes, or fails, with the result of *its own* queued write.
+- The record is encoded to JSON synchronously when `save` is called, so
+  each write persists the state passed to that call (snapshot-at-request),
+  never a later one.
+- A failed write rejects only its own future (still translated to
+  `KnowledgeValidationException`); later queued writes still run.
+- `load()` is not queued. The write itself is a plain `writeAsString`
+  (not temp-file + rename), so a `load()` racing an in-flight write can
+  still observe a partially written file; atomic replacement is a
+  separate, unaddressed hardening. Overlapping *writers* are what this
+  change removes.
+
 Session-lifecycle actions that go through the Session Browser
 (Open/Duplicate/Archive/Delete) are `Future<void>`-returning and
 *rethrow* on failure — these are explicit, single-purpose user actions

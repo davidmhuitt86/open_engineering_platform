@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
+
 import '../models/knowledge_session_record.dart';
 import '../models/knowledge_validation_exception.dart';
 
@@ -96,15 +98,52 @@ abstract final class KnowledgeSessionStorage {
   /// needed. Called automatically after every mutation to the active
   /// session (see `FoundationRuntimeNotifier`'s autosave) — there is no
   /// separate explicit "Save" action to forget to click.
+  ///
+  /// INGEST-FOLLOWUP-006: writes for one session are serialized through a
+  /// per-session queue, so fire-and-forget autosaves can never overlap on
+  /// `session.json`. The record is encoded synchronously at call time
+  /// (snapshot-at-request), each write runs strictly in request order, and
+  /// the returned future completes or fails with its own write's result; a
+  /// failed write does not stop later queued writes. Different sessions
+  /// use different queues and never block each other.
   static Future<void> save(KnowledgeSessionRecord record) async {
+    const encoder = JsonEncoder.withIndent('  ');
+    final json = encoder.convert(record.toJson());
+    final sessionId = record.session.id;
     try {
-      await sessionDirectory(record.session.id).create(recursive: true);
-      const encoder = JsonEncoder.withIndent('  ');
-      await _sessionFile(record.session.id).writeAsString(encoder.convert(record.toJson()));
+      await _enqueue(sessionId, () => (_writer ?? _defaultWriter)(sessionId, json));
     } on IOException catch (error) {
       throw KnowledgeValidationException('Couldn\'t save session "${record.session.name}": ${error.toString()}');
     }
   }
+
+  static final Map<String, Future<void>> _writeTails = {};
+
+  static Future<void> _enqueue(String sessionId, Future<void> Function() operation) {
+    final previous = _writeTails[sessionId] ?? Future<void>.value();
+    final run = previous.then((_) => operation());
+    final tail = run.then<void>((_) {}, onError: (Object _) {});
+    _writeTails[sessionId] = tail;
+    tail.whenComplete(() {
+      if (identical(_writeTails[sessionId], tail)) _writeTails.remove(sessionId);
+    });
+    return run;
+  }
+
+  static Future<void> _defaultWriter(String sessionId, String json) async {
+    await sessionDirectory(sessionId).create(recursive: true);
+    await _sessionFile(sessionId).writeAsString(json);
+  }
+
+  static Future<void> Function(String sessionId, String json)? _writer;
+
+  /// Test seam: replaces the physical write (pass `null` to restore).
+  @visibleForTesting
+  static void debugSetWriter(Future<void> Function(String sessionId, String json)? writer) => _writer = writer;
+
+  /// Test seam: completes when every write queued so far has finished.
+  @visibleForTesting
+  static Future<void> flushPendingForTest() => Future.wait(List.of(_writeTails.values));
 
   /// Loads one session by ID. Throws [KnowledgeValidationException] —
   /// translated from either a missing file, a JSON/structural parse
@@ -184,9 +223,12 @@ abstract final class KnowledgeSessionStorage {
   /// method performs the deletion unconditionally once called).
   static Future<void> delete(String sessionId) async {
     final directory = sessionDirectory(sessionId);
-    if (!directory.existsSync()) return;
+    if (!directory.existsSync() && !_writeTails.containsKey(sessionId)) return;
     try {
-      await directory.delete(recursive: true);
+      // Queued behind pending saves so a late save cannot resurrect it.
+      await _enqueue(sessionId, () async {
+        if (directory.existsSync()) await directory.delete(recursive: true);
+      });
     } on IOException catch (error) {
       throw KnowledgeValidationException('Couldn\'t delete session: ${error.toString()}');
     }
