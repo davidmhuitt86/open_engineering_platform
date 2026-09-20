@@ -1,3 +1,4 @@
+import 'evidence_annotation.dart';
 import 'evidence_annotation_status.dart';
 import 'evidence_origin.dart';
 
@@ -43,6 +44,7 @@ class EvidenceRegion {
     this.annotatorId,
     this.status,
     this.observationRef,
+    this.annotation,
   });
 
   final String id;
@@ -92,6 +94,14 @@ class EvidenceRegion {
   /// TRX300 case," where entity extraction produced zero results).
   final String? observationRef;
 
+  /// WP-INGEST-013: the optional structured observation recorded about
+  /// this region (open-ended properties). `null` on every region saved
+  /// before this work package and on any region nobody has added a
+  /// property to -- a missing payload is the ordinary, valid empty state.
+  /// [EvidenceRegion] itself stays spatial/evidence-only; this is one
+  /// optional payload, not a set of engineering-specific fields.
+  final EvidenceAnnotation? annotation;
+
   EvidenceRegion copyWith({
     String? label,
     String? notes,
@@ -100,6 +110,7 @@ class EvidenceRegion {
     String? annotatorId,
     EvidenceAnnotationStatus? status,
     String? observationRef,
+    EvidenceAnnotation? annotation,
   }) {
     return EvidenceRegion(
       id: id,
@@ -117,26 +128,28 @@ class EvidenceRegion {
       annotatorId: annotatorId ?? this.annotatorId,
       status: status ?? this.status,
       observationRef: observationRef ?? this.observationRef,
+      annotation: annotation ?? this.annotation,
     );
   }
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'sourceId': sourceId,
-    'page': page,
-    'x': x,
-    'y': y,
-    'width': width,
-    'height': height,
-    'label': label,
-    'notes': notes,
-    'createdTime': createdTime.toIso8601String(),
-    'modifiedTime': modifiedTime?.toIso8601String(),
-    'origin': origin?.name,
-    'annotatorId': annotatorId,
-    'status': status?.name,
-    'observationRef': observationRef,
-  };
+        'id': id,
+        'sourceId': sourceId,
+        'page': page,
+        'x': x,
+        'y': y,
+        'width': width,
+        'height': height,
+        'label': label,
+        'notes': notes,
+        'createdTime': createdTime.toIso8601String(),
+        'modifiedTime': modifiedTime?.toIso8601String(),
+        'origin': origin?.name,
+        'annotatorId': annotatorId,
+        'status': status?.name,
+        'observationRef': observationRef,
+        'annotation': annotation?.toJson(),
+      };
 
   /// **WP-INGEST-010 backward compatibility**: a session file saved
   /// before this work package has no `origin`/`annotatorId`/`status`/
@@ -159,11 +172,21 @@ class EvidenceRegion {
       label: json['label'] as String,
       notes: json['notes'] as String? ?? '',
       createdTime: DateTime.parse(json['createdTime'] as String),
-      modifiedTime: json['modifiedTime'] == null ? null : DateTime.parse(json['modifiedTime'] as String),
-      origin: json['origin'] == null ? null : EvidenceOrigin.values.byName(json['origin'] as String),
+      modifiedTime: json['modifiedTime'] == null
+          ? null
+          : DateTime.parse(json['modifiedTime'] as String),
+      origin: json['origin'] == null
+          ? null
+          : EvidenceOrigin.values.byName(json['origin'] as String),
       annotatorId: json['annotatorId'] as String?,
-      status: json['status'] == null ? null : EvidenceAnnotationStatus.values.byName(json['status'] as String),
+      status: json['status'] == null
+          ? null
+          : EvidenceAnnotationStatus.values.byName(json['status'] as String),
       observationRef: json['observationRef'] as String?,
+      annotation: json['annotation'] == null
+          ? null
+          : EvidenceAnnotation.fromJson(
+              json['annotation'] as Map<String, dynamic>),
     );
   }
 }

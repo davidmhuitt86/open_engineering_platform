@@ -377,3 +377,223 @@ disarmed. This is expected "tool mode" behavior, not a defect — noted
 here since it wasn't obvious at first that "the tool is still armed"
 was the reason an unrelated tap during verification appeared to do
 nothing.
+
+---
+
+## Human Annotation, Classification, and Candidates (WP-INGEST-010/012)
+
+The Extraction Inspector (`lib/knowledge/workspaces/extraction_inspector_dialog.dart`,
+opened from the PDF Source Viewer toolbar and from the Acquire Knowledge
+wizard's Candidate Preview) lets an engineer draw regions on a source and
+classify them. This section is the canonical description of what each step
+creates -- and, just as importantly, what it does not.
+
+### Lifecycle
+
+```
+Human draws a region
+        ↓
+EvidenceRegion                      origin = human, status = unverified,
+                                    label = "Unclassified"
+        ↓
+Engineer classifies the region      label = "<Type>" or "<Type>: <name>"
+        ↓
+KnowledgeCandidate created          (first classification) or updated
+                                    (every later reclassification), and
+                                    linked to the region by an EvidenceLink
+        ↓
+Engineering Review                  Accept / Reject / Edit -- human-controlled
+        ↓
+Accepted candidate
+        ↓
+CommitPlanService → explicit Commit → Committed Repository Object
+```
+
+### Four distinct things
+
+| Term | What it is | Created by | Is Repository truth? |
+|---|---|---|---|
+| **Evidence** (`EvidenceRegion`) | *Where* on a source something is. A machine region (`origin = machine`, from `CandidateGenerationService`) or a human region (`origin = human`). | UIF, or the human drawing a rectangle | No -- never (SDD-015 Layer 2.5) |
+| **Knowledge Candidate** (`KnowledgeCandidate`) | A pending, human-reviewable *interpretation* of evidence. | UIF (machine), or **classifying a human region** | No -- `status = pending` until reviewed |
+| **Accepted Engineering Object** | A candidate an engineer has explicitly accepted in Engineering Review, ready for a Commit Plan. | Explicit human acceptance | Not yet -- only eligible to be committed |
+| **Committed Repository Object** | A Foundation object created by an explicit, confirmed Commit. | `CommitTransactionService` via `CommitPlanService` | Yes |
+
+### Classification creates/updates a candidate -- and nothing more
+
+Classifying a human region renames it (its `label` is the single source of
+truth for the chosen `KnowledgeCandidateType`; no separate field exists) and
+creates -- or, on reclassification, **updates the same** -- one
+`KnowledgeCandidate` linked to it (`addKnowledgeCandidate` / `linkEvidence` /
+`editKnowledgeCandidate`, the same mechanism `CandidateGenerationService`
+uses for machine detections). Reclassifying never creates a duplicate.
+
+Classification does **not**: create an Engineering Object, write to the
+Repository, bypass Engineering Review or `CommitPlanService`, invoke EKE,
+modify UIF output, or modify machine-generated regions. `CommitPlanService`
+takes candidates and relationship candidates, never `EvidenceRegion`s, so
+evidence alone can never reach a Commit.
+
+### Inspector counts and "New Relationship"
+
+The Inspector's toolbar shows two independent counts: **Evidence** (every
+`EvidenceRegion` of the source, any origin; also the overlay toggle) and
+**Candidates** (every `KnowledgeCandidate` reachable from the source through
+an Evidence Link; no overlay of its own). Both display `0` explicitly.
+
+"New Relationship" opens the existing, unmodified
+`RelationshipCandidateFormDialog`, and is enabled only when at least two
+**human** annotations of the current source are classified (a human region
+whose label is a selected type rather than "Unclassified"). Machine-generated
+candidates, and candidates of unrelated evidence, never enable it
+(`ExtractionInspectorSummary.canCreateRelationship`).
+
+---
+
+## Evidence vs. Annotation, and Extensible Properties (WP-INGEST-013)
+
+> **`EvidenceRegion` answers WHERE. The annotation answers WHAT, and WHAT IS
+> KNOWN ABOUT IT.**
+
+### Region vs. annotation
+
+`EvidenceRegion` stays spatial/evidence-only (source, page, normalized
+coordinates, origin, annotator, status, observation reference). What an
+engineer records about a region is carried by **one optional payload** on it,
+`EvidenceRegion.annotation` (`EvidenceAnnotation`,
+`lib/knowledge/models/evidence_annotation.dart`) -- deliberately not dozens of
+engineering-specific fields on the region.
+
+| Universal annotation field | Where it lives (unchanged from WP-INGEST-012) |
+|---|---|
+| Type | the region `label` (`"<Type>"` / `"<Type>: <name>"`) |
+| Name | the region `label` |
+| Description / Notes | `EvidenceRegion.notes` |
+| Annotator, status | `annotatorId`, `status` |
+| **Properties** (new) | `EvidenceAnnotation.properties` |
+
+`EvidenceAnnotation` has a stable `id` (minted the first time a region gets
+properties, never regenerated by an edit) and a list of properties.
+
+### Extensible properties
+
+An `AnnotationProperty` is `{key, value, valueType?, unit?}` and nothing more.
+`valueType` is a hint from a small initial set (`text`, `number`, `boolean`;
+absent reads as `text`); `unit` is optional free text. There is no validation
+engine, no unit conversion, no enumerations, no ontology-defined types and no
+confidence -- nothing checks a value against its type.
+
+**Stable keys.** The persisted identity of a property is a machine-stable key
+(`part_number`, not "Part Number"): keys are normalized on edit
+(`AnnotationProperty.normalizeKey`: lower-case, non-alphanumeric runs collapsed
+to `_`). Any key may be created; **no canonical vocabulary exists**.
+
+### No wiring ontology yet
+
+This mechanism is generic on purpose. The platform does **not** define wire /
+connector / pin / splice forms or fields. The intended order is: generic
+properties -> annotate real diagrams (the TRX300 exercise) -> observe which
+keys engineers actually use -> only then derive a canonical annotation schema
+-> only then any visual extraction that targets it.
+
+### Lifecycle
+
+```
+Evidence Region
+      ↓
+Human Observation        (notes)
+      ↓
+Properties               (EvidenceAnnotation.properties)
+      ↓
+Classification           (label -> KnowledgeCandidateType)
+      ↓
+Knowledge Candidate      (created/updated, linked by an EvidenceLink)
+      ↓
+Engineering Review
+      ↓
+Explicit Commit          (CommitPlanService)
+```
+
+### Annotation vs. candidate
+
+`EvidenceAnnotation` is *what the engineer observed at this location*;
+`KnowledgeCandidate` is the *proposed engineering entity derived from that
+observation*. Properties are **not** copied onto the candidate and are never
+turned into Repository fields automatically. Classification keeps using the
+existing `renameEvidenceRegion` / `addKnowledgeCandidate` / `linkEvidence` /
+`editKnowledgeCandidate` paths; editing properties creates neither a region
+nor a candidate, and reclassifying leaves the properties intact.
+
+### Persistence ownership
+
+```
+Reference Vault artifact   (immutable evidence; never modified)
+      ↓
+Knowledge Session          (session.json -- the only persistence path)
+      ↓
+EvidenceRegion
+      ↓
+EvidenceAnnotation
+      ↓
+Properties
+```
+
+Properties are saved and reloaded with the session's `evidenceRegions` array
+and deleted with their region. A session or region without the payload loads
+as "no annotation / no properties" -- no migration.
+
+### Boundary
+
+Editing properties creates no Engineering Object, writes nothing to the
+Repository and invokes no commit. `CommitPlanService` takes candidates and
+relationship candidates, never `EvidenceRegion`s or their annotations.
+
+---
+
+## Observation model (INGEST-012)
+
+The layers, from raw evidence to repository truth:
+
+```
+Evidence (EvidenceRegion)      = WHERE something is (spatial identity)
+  -> Observation               = WHAT was observed / interpreted
+  -> KnowledgeCandidate        = WHAT may enter engineering review
+  -> Engineering Review
+  -> Explicit Commit (CommitPlanService / CommitTransactionService)
+  -> Engineering Repository    = accepted repository truth
+```
+
+**Observation** is the `EvidenceAnnotation` payload carried by an
+`EvidenceRegion` (`typedef Observation = EvidenceAnnotation`, kept under
+its WP-INGEST-013 storage name so persisted sessions stay valid). All
+fields except `id` are optional:
+
+| Field | Meaning |
+|---|---|
+| `type` | free-form type name; normally a `KnowledgeCandidateType.name`, but any string (e.g. `wire`) is valid |
+| `name`, `description` | interpretation name / notes |
+| `properties` | ordered `key`, `value`, optional `valueType` (`text`/`number`/`boolean`), `unit`, `source` |
+| `origin` | `human`, `machine` or `llm` (`llm` is reserved; nothing produces it yet) |
+| `authorId` | annotator identity, or later a model identity/version |
+| `status` | `unverified` / `verified` -- never authoritative by itself |
+| `regionId` | provenance back to the `EvidenceRegion` |
+
+Persistence: the Observation lives inside its region in the existing
+`session.json`; no second file or store. A session or region without one
+loads unchanged. Deleting a region deletes its Observation, so no
+dangling reference is possible.
+
+Classification (`applyRegionClassification`) records `type`/`name` on the
+Observation, renames the region, and creates/updates the ONE linked
+`KnowledgeCandidate` exactly as before. It never creates an Engineering
+Object, writes the Repository, or bypasses Engineering Review or the
+commit services. `description` mirrors `EvidenceRegion.notes` when the
+notes are edited in the Inspector.
+
+The Observation is intentionally richer than `KnowledgeCandidate`: it
+keeps the raw interpretation (arbitrary properties, provenance, author)
+that a candidate does not carry, which may later support
+training/evaluation and AI-assisted extraction. Properties are never
+copied into candidates automatically. Type-specific property-key
+suggestions (`observationPropertySuggestions`) are configuration only;
+the persistence model does not depend on them and no wiring ontology is
+defined.

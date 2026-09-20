@@ -7,7 +7,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pdfrx/pdfrx.dart';
 
 import '../../core/services/foundation_runtime_service.dart';
+import '../../core/services/foundation_runtime_state.dart';
 import '../../core/theme/studio_colors.dart';
+import '../models/evidence_annotation.dart';
 import '../models/evidence_annotation_status.dart';
 import '../models/evidence_origin.dart';
 import '../models/evidence_region.dart';
@@ -62,6 +64,101 @@ Future<void> showExtractionInspectorDialog(BuildContext context,
 /// package's own "Do not manufacture a layer for data that does not
 /// exist."
 enum _OverlayLayer { ocr, entities, evidence }
+
+/// The [KnowledgeCandidateType] a human annotation's [EvidenceRegion.label]
+/// represents (`"<Type>"` or `"<Type>: <name>"`), or `null` for the
+/// unclassified state (`"Unclassified"` or any other label that is not a
+/// selected type). The label is the single source of truth for a
+/// classification -- no separate field exists (WP-INGEST-010).
+KnowledgeCandidateType? classifiedTypeFromLabel(String label) {
+  for (final type in KnowledgeCandidateType.values) {
+    if (label == type.label || label.startsWith('${type.label}: ')) {
+      return type;
+    }
+  }
+  return null;
+}
+
+/// WP-INGEST-012: the Inspector's per-source summary, as one pure
+/// calculation over existing state (no new state model) so the displayed
+/// counts and the "New Relationship" eligibility are testable without
+/// rendering the private dialog.
+class ExtractionInspectorSummary {
+  const ExtractionInspectorSummary({
+    required this.evidenceCount,
+    required this.candidateCount,
+    required this.classifiedHumanAnnotationCount,
+  });
+
+  factory ExtractionInspectorSummary.from(
+      FoundationServiceState state, String sourceId) {
+    final regions =
+        state.evidenceRegions.where((r) => r.sourceId == sourceId).toList();
+    return ExtractionInspectorSummary(
+      evidenceCount: regions.length,
+      candidateCount: state.knowledgeCandidatesForSource(sourceId).length,
+      classifiedHumanAnnotationCount: regions
+          .where((r) =>
+              r.origin == EvidenceOrigin.human &&
+              classifiedTypeFromLabel(r.label) != null)
+          .length,
+    );
+  }
+
+  /// Every [EvidenceRegion] for the source, of any origin.
+  final int evidenceCount;
+
+  /// Every `KnowledgeCandidate` reachable from the source through an
+  /// Evidence Link (`FoundationServiceState.knowledgeCandidatesForSource`).
+  /// Deliberately independent of [evidenceCount].
+  final int candidateCount;
+
+  /// Human-origin regions of this source whose label is a selected type.
+  final int classifiedHumanAnnotationCount;
+
+  /// "New Relationship" is enabled only when at least two HUMAN
+  /// annotations of this source are classified -- never from
+  /// [candidateCount], which also counts machine-generated candidates
+  /// and (via any shared evidence) is not a statement about annotations.
+  bool get canCreateRelationship => classifiedHumanAnnotationCount >= 2;
+}
+
+/// Classifies [region] (a human annotation): renames it to the selected
+/// type and creates -- first time -- or updates -- every time after -- the
+/// ONE `KnowledgeCandidate` linked to it, using the existing
+/// `addKnowledgeCandidate`/`linkEvidence`/`editKnowledgeCandidate`
+/// methods. A candidate-level human interpretation only: this never
+/// creates an Engineering Object, never touches the Repository, and never
+/// alters the region beyond its label. [linkedCandidateIds] must be the
+/// candidates currently linked to [region] (from
+/// `FoundationServiceState.candidatesLinkedToEvidenceRegion`).
+void applyRegionClassification({
+  required FoundationRuntimeNotifier notifier,
+  required EvidenceRegion region,
+  required List<String> linkedCandidateIds,
+  required KnowledgeCandidateType type,
+  required String customName,
+  required String annotatorId,
+}) {
+  final trimmed = customName.trim();
+  final shortId = region.id.length <= 6
+      ? region.id
+      : region.id.substring(region.id.length - 6);
+  final name = trimmed.isEmpty ? '${type.label} $shortId' : trimmed;
+  final label = trimmed.isEmpty ? type.label : '${type.label}: $trimmed';
+
+  notifier.renameEvidenceRegion(region.id, label);
+  notifier.setObservationClassification(region.id, type: type.name, name: name);
+
+  if (linkedCandidateIds.isEmpty) {
+    final candidate = notifier.addKnowledgeCandidate(
+        type: type, name: name, author: annotatorId);
+    notifier.linkEvidence(candidateId: candidate.id, regionId: region.id);
+  } else {
+    notifier.editKnowledgeCandidate(linkedCandidateIds.first,
+        type: type, name: name);
+  }
+}
 
 class _ExtractionInspectorDialog extends ConsumerStatefulWidget {
   const _ExtractionInspectorDialog({required this.source, this.initialPage});
@@ -318,41 +415,21 @@ class _ExtractionInspectorDialogState
     }
   }
 
-  static String _shortId(String id) =>
-      id.length <= 6 ? id : id.substring(id.length - 6);
-
-  /// Sets [region]'s classification. Reuses the existing `label` field
-  /// (`"<Type>: <name>"`, exactly the convention `CandidateGenerationService`
-  /// already uses for machine-generated regions) -- no new field was
-  /// added to `EvidenceRegion` for this. Also creates (first time) or
-  /// updates (every time after) a linked `KnowledgeCandidate` via the
-  /// existing `addKnowledgeCandidate`/`linkEvidence`/`editKnowledgeCandidate`
-  /// methods, so the existing, unmodified relationship-creation dialog
-  /// (`showRelationshipCandidateFormDialog`) already has real candidates
-  /// to connect -- no second candidate-creation path, no new relationship
-  /// model.
+  /// Sets [region]'s classification -- see [applyRegionClassification].
   void _classify(
       EvidenceRegion region, KnowledgeCandidateType type, String customName) {
-    final notifier = ref.read(foundationRuntimeServiceProvider.notifier);
-    final name = customName.trim().isEmpty
-        ? '${type.label} ${_shortId(region.id)}'
-        : customName.trim();
-    final label = customName.trim().isEmpty
-        ? type.label
-        : '${type.label}: ${customName.trim()}';
-
-    notifier.renameEvidenceRegion(region.id, label);
-
-    final linked = ref
-        .read(foundationRuntimeServiceProvider)
-        .candidatesLinkedToEvidenceRegion(region.id);
-    if (linked.isEmpty) {
-      final candidate = notifier.addKnowledgeCandidate(
-          type: type, name: name, author: _annotatorController.text.trim());
-      notifier.linkEvidence(candidateId: candidate.id, regionId: region.id);
-    } else {
-      notifier.editKnowledgeCandidate(linked.first.id, type: type, name: name);
-    }
+    applyRegionClassification(
+      notifier: ref.read(foundationRuntimeServiceProvider.notifier),
+      region: region,
+      linkedCandidateIds: ref
+          .read(foundationRuntimeServiceProvider)
+          .candidatesLinkedToEvidenceRegion(region.id)
+          .map((c) => c.id)
+          .toList(),
+      type: type,
+      customName: customName,
+      annotatorId: _annotatorController.text.trim(),
+    );
   }
 
   @override
@@ -362,8 +439,8 @@ class _ExtractionInspectorDialogState
 
     final ocrResults = foundation.ocrResultsForSource(widget.source.id);
     final entities = foundation.engineeringEntitiesForSource(widget.source.id);
-    final candidates =
-        foundation.knowledgeCandidatesForSource(widget.source.id);
+    final summary =
+        ExtractionInspectorSummary.from(foundation, widget.source.id);
     final relationships =
         foundation.relationshipCandidatesForSource(widget.source.id);
     final allRegionsForSource = foundation.evidenceRegions
@@ -416,7 +493,8 @@ class _ExtractionInspectorDialogState
               ocrWordCount: ocrWordCount,
               entityCount: entities.length,
               relationshipCount: relationships.length,
-              candidateCount: candidates.length,
+              evidenceCount: summary.evidenceCount,
+              candidateCount: summary.candidateCount,
               visibleLayers: _visibleLayers,
               onToggleLayer: _toggleLayer,
               currentPage: _currentPage,
@@ -579,7 +657,19 @@ class _ExtractionInspectorDialogState
                           .deleteEvidenceRegion(region.id),
                       onNewRelationship: () =>
                           showRelationshipCandidateFormDialog(context),
-                      classifiedCount: candidates.length,
+                      canCreateRelationship: summary.canCreateRelationship,
+                      onNotesChanged: (region, notes) => ref
+                          .read(foundationRuntimeServiceProvider.notifier)
+                          .setEvidenceRegionNotes(region.id, notes),
+                      onAddProperty: (region, property) => ref
+                          .read(foundationRuntimeServiceProvider.notifier)
+                          .addAnnotationProperty(region.id, property: property),
+                      onUpdateProperty: (region, index, property) => ref
+                          .read(foundationRuntimeServiceProvider.notifier)
+                          .updateAnnotationProperty(region.id, index, property),
+                      onRemoveProperty: (region, index) => ref
+                          .read(foundationRuntimeServiceProvider.notifier)
+                          .removeAnnotationProperty(region.id, index),
                     ),
                   ),
                 ],
@@ -597,6 +687,7 @@ class _LayerBar extends StatelessWidget {
     required this.ocrWordCount,
     required this.entityCount,
     required this.relationshipCount,
+    required this.evidenceCount,
     required this.candidateCount,
     required this.visibleLayers,
     required this.onToggleLayer,
@@ -615,6 +706,7 @@ class _LayerBar extends StatelessWidget {
   final int ocrWordCount;
   final int entityCount;
   final int relationshipCount;
+  final int evidenceCount;
   final int candidateCount;
   final Set<_OverlayLayer> visibleLayers;
   final ValueChanged<_OverlayLayer> onToggleLayer;
@@ -676,12 +768,20 @@ class _LayerBar extends StatelessWidget {
               count: relationshipCount,
               visible: null,
               onTap: null),
+          // WP-INGEST-012: two independent quantities, never conflated.
+          // Evidence is the spatial overlay layer (toggleable); Candidates
+          // has no overlay of its own, so it is a plain count.
           _LayerChip(
-            label: 'Evidence/Candidates',
-            count: candidateCount,
+            label: 'Evidence',
+            count: evidenceCount,
             visible: visibleLayers.contains(_OverlayLayer.evidence),
             onTap: () => onToggleLayer(_OverlayLayer.evidence),
           ),
+          _LayerChip(
+              label: 'Candidates',
+              count: candidateCount,
+              visible: null,
+              onTap: null),
           const SizedBox(width: 12),
           IconButton(
             tooltip: 'Zoom In',
@@ -840,11 +940,13 @@ class _RegionOverlay extends StatelessWidget {
   Color get _color => switch (region.origin) {
         EvidenceOrigin.machine => StudioColors.warning,
         EvidenceOrigin.human => StudioColors.success,
+        EvidenceOrigin.llm => StudioColors.selection,
         null => StudioColors.textSecondary,
       };
 
   String get _badge => switch (region.origin) {
         EvidenceOrigin.machine => 'machine',
+        EvidenceOrigin.llm => 'llm',
         EvidenceOrigin.human =>
           region.status == EvidenceAnnotationStatus.verified
               ? 'human · verified'
@@ -889,9 +991,20 @@ class _AnnotationPanel extends StatelessWidget {
     required this.onClassify,
     required this.onDelete,
     required this.onNewRelationship,
-    required this.classifiedCount,
+    required this.canCreateRelationship,
+    required this.onNotesChanged,
+    required this.onAddProperty,
+    required this.onUpdateProperty,
+    required this.onRemoveProperty,
   });
 
+  final void Function(EvidenceRegion region, String notes) onNotesChanged;
+  final void Function(EvidenceRegion region, AnnotationProperty? seed)
+      onAddProperty;
+  final void Function(
+          EvidenceRegion region, int index, AnnotationProperty property)
+      onUpdateProperty;
+  final void Function(EvidenceRegion region, int index) onRemoveProperty;
   final TextEditingController annotatorController;
   final List<EvidenceRegion> annotations;
   final Future<ui.Image?> Function(int page) pageImageFor;
@@ -901,7 +1014,7 @@ class _AnnotationPanel extends StatelessWidget {
       onClassify;
   final ValueChanged<EvidenceRegion> onDelete;
   final VoidCallback onNewRelationship;
-  final int classifiedCount;
+  final bool canCreateRelationship;
 
   @override
   Widget build(BuildContext context) {
@@ -929,15 +1042,15 @@ class _AnnotationPanel extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 OutlinedButton.icon(
-                  onPressed: classifiedCount >= 2 ? onNewRelationship : null,
+                  onPressed: canCreateRelationship ? onNewRelationship : null,
                   icon: const Icon(Icons.timeline, size: 16),
                   label: const Text('New Relationship'),
                 ),
-                if (classifiedCount < 2)
+                if (!canCreateRelationship)
                   const Padding(
                     padding: EdgeInsets.only(top: 4),
                     child: Text(
-                      'Classify at least two annotations to connect them.',
+                      'Classify at least two of your annotations to connect them.',
                       style: TextStyle(
                           color: StudioColors.textDisabled, fontSize: 10.5),
                     ),
@@ -968,6 +1081,13 @@ class _AnnotationPanel extends StatelessWidget {
                       onClassify: (type, name) =>
                           onClassify(annotations[index], type, name),
                       onDelete: () => onDelete(annotations[index]),
+                      onNotesChanged: (notes) =>
+                          onNotesChanged(annotations[index], notes),
+                      onAddProperty: (seed) => onAddProperty(annotations[index], seed),
+                      onUpdateProperty: (i, property) =>
+                          onUpdateProperty(annotations[index], i, property),
+                      onRemoveProperty: (i) =>
+                          onRemoveProperty(annotations[index], i),
                     ),
                   ),
           ),
@@ -984,6 +1104,10 @@ class _AnnotationListItem extends StatefulWidget {
     required this.onJumpTo,
     required this.onClassify,
     required this.onDelete,
+    required this.onNotesChanged,
+    required this.onAddProperty,
+    required this.onUpdateProperty,
+    required this.onRemoveProperty,
   });
 
   final EvidenceRegion region;
@@ -991,6 +1115,10 @@ class _AnnotationListItem extends StatefulWidget {
   final VoidCallback onJumpTo;
   final void Function(KnowledgeCandidateType type, String name) onClassify;
   final VoidCallback onDelete;
+  final ValueChanged<String> onNotesChanged;
+  final ValueChanged<AnnotationProperty?> onAddProperty;
+  final void Function(int index, AnnotationProperty property) onUpdateProperty;
+  final ValueChanged<int> onRemoveProperty;
 
   @override
   State<_AnnotationListItem> createState() => _AnnotationListItemState();
@@ -1010,14 +1138,6 @@ class _AnnotationListItemState extends State<_AnnotationListItem> {
     return '';
   }
 
-  static KnowledgeCandidateType? _typeFrom(String label) {
-    for (final type in KnowledgeCandidateType.values) {
-      if (label == type.label || label.startsWith('${type.label}: '))
-        return type;
-    }
-    return null;
-  }
-
   @override
   void dispose() {
     _nameController.dispose();
@@ -1027,107 +1147,347 @@ class _AnnotationListItemState extends State<_AnnotationListItem> {
   @override
   Widget build(BuildContext context) {
     final region = widget.region;
-    final selectedType = _typeFrom(region.label);
+    final selectedType = classifiedTypeFromLabel(region.label);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       color: StudioColors.surface,
       child: Padding(
         padding: const EdgeInsets.all(8),
-        child: Row(
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            GestureDetector(
-              onTap: widget.onJumpTo,
-              child: SizedBox(
-                width: _thumbSize,
-                height: _thumbSize,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                      border: Border.all(color: StudioColors.border)),
-                  // Centered rather than filling the frame: the actual
-                  // rendered thumbnail below sizes itself to the region's
-                  // OWN aspect ratio (never distorted/stretched to a
-                  // square), so a wide or tall region shows fully and
-                  // legibly, with the frame providing letterboxing rather
-                  // than the image being squeezed to match it.
-                  child: Center(
-                    child: FutureBuilder<ui.Image?>(
-                      future: widget.pageImageFor(region.page),
-                      builder: (context, snapshot) {
-                        final image = snapshot.data;
-                        if (image == null) {
-                          return const SizedBox(
-                            width: 14,
-                            height: 14,
-                            child: CircularProgressIndicator(strokeWidth: 1.5),
-                          );
-                        }
-                        return _RegionThumbnail(
-                          image: image,
-                          region: region,
-                          maxWidth: _thumbSize,
-                          maxHeight: _thumbSize,
-                        );
-                      },
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                GestureDetector(
+                  onTap: widget.onJumpTo,
+                  child: SizedBox(
+                    width: _thumbSize,
+                    height: _thumbSize,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                          border: Border.all(color: StudioColors.border)),
+                      // Centered rather than filling the frame: the actual
+                      // rendered thumbnail below sizes itself to the region's
+                      // OWN aspect ratio (never distorted/stretched to a
+                      // square), so a wide or tall region shows fully and
+                      // legibly, with the frame providing letterboxing rather
+                      // than the image being squeezed to match it.
+                      child: Center(
+                        child: FutureBuilder<ui.Image?>(
+                          future: widget.pageImageFor(region.page),
+                          builder: (context, snapshot) {
+                            final image = snapshot.data;
+                            if (image == null) {
+                              return const SizedBox(
+                                width: 14,
+                                height: 14,
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 1.5),
+                              );
+                            }
+                            return _RegionThumbnail(
+                              image: image,
+                              region: region,
+                              maxWidth: _thumbSize,
+                              maxHeight: _thumbSize,
+                            );
+                          },
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: Text('Page ${region.page}',
-                            style: const TextStyle(
-                                color: StudioColors.textSecondary,
-                                fontSize: 10.5)),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text('Page ${region.page}',
+                                style: const TextStyle(
+                                    color: StudioColors.textSecondary,
+                                    fontSize: 10.5)),
+                          ),
+                          InkWell(
+                            onTap: widget.onDelete,
+                            child: const Icon(Icons.delete_outline,
+                                size: 15, color: StudioColors.textSecondary),
+                          ),
+                        ],
                       ),
-                      InkWell(
-                        onTap: widget.onDelete,
-                        child: const Icon(Icons.delete_outline,
-                            size: 15, color: StudioColors.textSecondary),
+                      const SizedBox(height: 2),
+                      DropdownButton<KnowledgeCandidateType>(
+                        isDense: true,
+                        isExpanded: true,
+                        value: selectedType,
+                        hint: const Text('Unclassified',
+                            style: TextStyle(fontSize: 11.5)),
+                        style: const TextStyle(
+                            fontSize: 11.5, color: StudioColors.textPrimary),
+                        items: [
+                          for (final type in KnowledgeCandidateType.values)
+                            DropdownMenuItem(
+                                value: type, child: Text(type.label)),
+                        ],
+                        onChanged: (type) {
+                          if (type == null) return;
+                          widget.onClassify(type, _nameController.text);
+                        },
+                      ),
+                      TextField(
+                        controller: _nameController,
+                        style: const TextStyle(fontSize: 11),
+                        decoration: const InputDecoration(
+                            isDense: true, hintText: 'Name (optional)'),
+                        onSubmitted: (name) {
+                          if (selectedType != null)
+                            widget.onClassify(selectedType, name);
+                        },
                       ),
                     ],
                   ),
-                  const SizedBox(height: 2),
-                  DropdownButton<KnowledgeCandidateType>(
-                    isDense: true,
-                    isExpanded: true,
-                    value: selectedType,
-                    hint: const Text('Unclassified',
-                        style: TextStyle(fontSize: 11.5)),
-                    style: const TextStyle(
-                        fontSize: 11.5, color: StudioColors.textPrimary),
-                    items: [
-                      for (final type in KnowledgeCandidateType.values)
-                        DropdownMenuItem(value: type, child: Text(type.label)),
-                    ],
-                    onChanged: (type) {
-                      if (type == null) return;
-                      widget.onClassify(type, _nameController.text);
-                    },
-                  ),
-                  TextField(
-                    controller: _nameController,
-                    style: const TextStyle(fontSize: 11),
-                    decoration: const InputDecoration(
-                        isDense: true, hintText: 'Name (optional)'),
-                    onSubmitted: (name) {
-                      if (selectedType != null)
-                        widget.onClassify(selectedType, name);
-                    },
-                  ),
-                ],
-              ),
+                ),
+              ],
+            ),
+            // WP-INGEST-013: notes + open-ended properties, inline in the
+            // non-modal panel (never a dialog per property).
+            _AnnotationDetails(
+              // Keyed by region id so switching which region a list slot
+              // shows never reuses another region's text controllers.
+              key: ValueKey('details-${region.id}'),
+              region: region,
+              onNotesChanged: widget.onNotesChanged,
+              onAddProperty: widget.onAddProperty,
+              onUpdateProperty: widget.onUpdateProperty,
+              onRemoveProperty: widget.onRemoveProperty,
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// WP-INGEST-013: the expandable "Description / Notes" + "Properties"
+/// section of one annotation. Edits commit on submit or when a field
+/// loses focus (never per keystroke, so a key like "Part Number" can be
+/// typed freely before being normalized to its stable `part_number`
+/// form), and each commit updates the existing region in place -- it
+/// never creates a region or a candidate.
+class _AnnotationDetails extends StatefulWidget {
+  const _AnnotationDetails({
+    super.key,
+    required this.region,
+    required this.onNotesChanged,
+    required this.onAddProperty,
+    required this.onUpdateProperty,
+    required this.onRemoveProperty,
+  });
+
+  final EvidenceRegion region;
+  final ValueChanged<String> onNotesChanged;
+  final ValueChanged<AnnotationProperty?> onAddProperty;
+  final void Function(int index, AnnotationProperty property) onUpdateProperty;
+  final ValueChanged<int> onRemoveProperty;
+
+  @override
+  State<_AnnotationDetails> createState() => _AnnotationDetailsState();
+}
+
+class _AnnotationDetailsState extends State<_AnnotationDetails> {
+  late final _notesController =
+      TextEditingController(text: widget.region.notes);
+
+  @override
+  void dispose() {
+    _notesController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final properties =
+        widget.region.annotation?.properties ?? const <AnnotationProperty>[];
+    final typeName = widget.region.annotation?.type ??
+        classifiedTypeFromLabel(widget.region.label)?.name;
+    final existingKeys = {for (final p in properties) p.key};
+    final suggestions = [
+      for (final key in observationPropertySuggestions[typeName] ?? const <String>[])
+        if (!existingKeys.contains(key)) key,
+    ];
+    return Theme(
+      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+      child: ExpansionTile(
+        maintainState: true,
+        dense: true,
+        tilePadding: EdgeInsets.zero,
+        childrenPadding: EdgeInsets.zero,
+        title: Text(
+          properties.isEmpty
+              ? 'Details'
+              : 'Details (${properties.length} properties)',
+          style: const TextStyle(
+              color: StudioColors.textSecondary, fontSize: 11.5),
+        ),
+        children: [
+          Focus(
+            onFocusChange: (hasFocus) {
+              if (!hasFocus) widget.onNotesChanged(_notesController.text);
+            },
+            child: TextField(
+              controller: _notesController,
+              minLines: 2,
+              maxLines: 4,
+              style: const TextStyle(fontSize: 11),
+              decoration: const InputDecoration(
+                  isDense: true, labelText: 'Description / Notes'),
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Align(
+            alignment: Alignment.centerLeft,
+            child: Text('Properties',
+                style:
+                    TextStyle(color: StudioColors.textSecondary, fontSize: 11)),
+          ),
+          for (var index = 0; index < properties.length; index++)
+            _PropertyRow(
+              // Content in the key: after a delete or a committed edit the
+              // row rebuilds from the stored property, never from a stale
+              // controller left at a shifted index.
+              key: ValueKey('${widget.region.id}-$index-${properties[index]}'),
+              property: properties[index],
+              onChanged: (property) => widget.onUpdateProperty(index, property),
+              onRemove: () => widget.onRemoveProperty(index),
+            ),
+          if (suggestions.isNotEmpty)
+            Wrap(
+              spacing: 4,
+              children: [
+                for (final key in suggestions)
+                  ActionChip(
+                    key: ValueKey('suggest-property-$key'),
+                    label: Text('+ $key', style: const TextStyle(fontSize: 10)),
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () =>
+                        widget.onAddProperty(AnnotationProperty(key: key)),
+                  ),
+              ],
+            ),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: () => widget.onAddProperty(null),
+              icon: const Icon(Icons.add, size: 14),
+              label: const Text('Add Property', style: TextStyle(fontSize: 11)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PropertyRow extends StatefulWidget {
+  const _PropertyRow(
+      {super.key,
+      required this.property,
+      required this.onChanged,
+      required this.onRemove});
+
+  final AnnotationProperty property;
+  final ValueChanged<AnnotationProperty> onChanged;
+  final VoidCallback onRemove;
+
+  @override
+  State<_PropertyRow> createState() => _PropertyRowState();
+}
+
+class _PropertyRowState extends State<_PropertyRow> {
+  late final _keyController = TextEditingController(text: widget.property.key);
+  late final _valueController =
+      TextEditingController(text: widget.property.value);
+  late final _unitController =
+      TextEditingController(text: widget.property.unit ?? '');
+
+  @override
+  void dispose() {
+    _keyController.dispose();
+    _valueController.dispose();
+    _unitController.dispose();
+    super.dispose();
+  }
+
+  void _commit({String? valueType}) {
+    final unit = _unitController.text.trim();
+    final next = AnnotationProperty(
+      key: _keyController.text,
+      value: _valueController.text,
+      valueType: valueType ?? widget.property.valueType,
+      unit: unit.isEmpty ? null : unit,
+    );
+    // Only a real change writes -- blur without an edit must not touch
+    // (or re-persist) the session.
+    final normalized =
+        next.copyWith(key: AnnotationProperty.normalizeKey(next.key));
+    if (normalized != widget.property) widget.onChanged(next);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const style = TextStyle(fontSize: 11);
+    Widget field(TextEditingController controller, String hint) => Focus(
+          onFocusChange: (hasFocus) {
+            if (!hasFocus) _commit();
+          },
+          child: TextField(
+            controller: controller,
+            style: style,
+            decoration: InputDecoration(isDense: true, hintText: hint),
+            onSubmitted: (_) => _commit(),
+          ),
+        );
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(flex: 4, child: field(_keyController, 'key')),
+          const SizedBox(width: 4),
+          Expanded(flex: 4, child: field(_valueController, 'value')),
+          const SizedBox(width: 4),
+          DropdownButton<String>(
+            isDense: true,
+            value: AnnotationProperty.valueTypes
+                    .contains(widget.property.valueType)
+                ? widget.property.valueType
+                : AnnotationProperty.valueTypeText,
+            style: const TextStyle(
+                fontSize: 10.5, color: StudioColors.textPrimary),
+            items: [
+              for (final type in AnnotationProperty.valueTypes)
+                DropdownMenuItem(value: type, child: Text(type)),
+            ],
+            onChanged: (type) {
+              if (type != null) _commit(valueType: type);
+            },
+          ),
+          const SizedBox(width: 4),
+          SizedBox(width: 40, child: field(_unitController, 'unit')),
+          InkWell(
+            onTap: widget.onRemove,
+            child: const Padding(
+              padding: EdgeInsets.all(2),
+              child: Icon(Icons.close,
+                  size: 14, color: StudioColors.textSecondary),
+            ),
+          ),
+        ],
       ),
     );
   }

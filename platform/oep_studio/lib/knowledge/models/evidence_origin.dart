@@ -21,4 +21,8 @@ enum EvidenceOrigin {
   /// (`PdfSourceViewer`) or the new Extraction Inspector's "Classify this
   /// region" action.
   human,
+
+  /// INGEST-012: reserved for a future model-produced observation.
+  /// Nothing produces it yet.
+  llm,
 }
