@@ -104,7 +104,7 @@ Uint8List _buildStoredZip(Map<String, List<int>> entries) {
   return Uint8List.fromList(out);
 }
 
-Uint8List _buildOerpBytes({bool signed = false}) {
+Uint8List _buildOerpBytes({bool signed = false, bool withGraph = false}) {
   final manifest = jsonEncode({
     'package_id': 'electrical-core-test',
     'package_name': 'Test Package',
@@ -135,7 +135,48 @@ Uint8List _buildOerpBytes({bool signed = false}) {
     'laws': <Object?>[],
     'equations': <Object?>[],
     'constraints': <Object?>[],
-    'provenance': <Object?>[],
+    'provenance': withGraph
+        ? [
+            {
+              'id': 'prov.o1',
+              'sourceObjectId': 'o1',
+              'sourceReference': 'o1/object.yaml',
+              'sourceKnowledgeVersion': 'p@1',
+              'compilerVersion': '0.2.0',
+              'contentHash': null,
+            },
+          ]
+        : <Object?>[],
+    if (withGraph) ...{
+      'objects': [
+        for (final id in ['o1', 'o2'])
+          {
+            'id': id,
+            'objectType': 'Component',
+            'name': id,
+            'shortName': id,
+            'version': '1.0.0',
+            'lifecycleState': 'Published',
+            'uuid': 'u-$id',
+            'domain': 'Electrical',
+            'tags': ['t'],
+            'provenanceId': 'prov.o1',
+          },
+      ],
+      'relationships': [
+        {
+          'id': 'o1.uses.o2',
+          'relationshipType': 'USES_EQUATION',
+          'sourceObjectId': 'o1',
+          'targetObjectId': 'o2',
+          'cardinality': 'many_to_one',
+          'lifecycle': 'Published',
+          'confidence': 'high',
+          'notes': '',
+          'provenanceId': 'prov.o1',
+        },
+      ],
+    },
   });
 
   final entries = <String, List<int>>{
@@ -230,6 +271,57 @@ void main() {
       );
       expect(runtime.identity.packageId, 'electrical-core-test');
       expect(runtime.getUnit('unit.volt').symbol, 'V');
+    });
+
+    test('objects and relationships in runtime.json reach the runtime registries', () {
+      final package = const OerpReader().readBytes(
+        _buildOerpBytes(withGraph: true),
+      );
+      final runtime = KnowledgeRuntime.activate(
+        package,
+        allowUnsignedDevelopmentPackages: true,
+      );
+      expect(runtime.getObject('o2').uuid, 'u-o2');
+      final r = runtime.getRelationship('o1.uses.o2');
+      expect((r.sourceObjectId, r.targetObjectId), ('o1', 'o2'));
+      expect(runtime.relationshipsForObject('o2').single.id, 'o1.uses.o2');
+    });
+
+    test('a runtime.json without objects/relationships (older compiler) loads empty', () {
+      final package = const OerpReader().readBytes(_buildOerpBytes());
+      expect(package.objects, isEmpty);
+      expect(package.relationships, isEmpty);
+    });
+
+    test('a dangling relationship in runtime.json fails activation', () {
+      final bytes = _buildOerpBytes(withGraph: true);
+      final package = const OerpReader().readBytes(bytes);
+      final broken = KnowledgePackage(
+        manifest: package.manifest,
+        dimensions: package.dimensions,
+        units: package.units,
+        componentModels: package.componentModels,
+        laws: package.laws,
+        equations: package.equations,
+        constraints: package.constraints,
+        provenance: package.provenance,
+        objects: [package.objects.first],
+        relationships: package.relationships,
+        developmentModeUnsigned: true,
+      );
+      expect(
+        () => KnowledgeRuntime.activate(
+          broken,
+          allowUnsignedDevelopmentPackages: true,
+        ),
+        throwsA(
+          isA<KnowledgeRuntimeException>().having(
+            (e) => e.code,
+            'code',
+            KnowledgeRuntimeErrorCode.invalidReference,
+          ),
+        ),
+      );
     });
 
     test('missing runtime.json is rejected as packageInvalid', () {

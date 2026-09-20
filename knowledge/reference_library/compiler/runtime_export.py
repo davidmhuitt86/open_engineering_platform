@@ -10,6 +10,10 @@ competing schema. The runtime never reads authoring YAML directly
 (AP-EK-001); this is the file it reads instead.
 
 Shape follows AP-EK-013 §16-25's registry contract: units, dimensions,
+objects, relationships (WP-EKE-013: projected from every authored
+object's Identity/Classification facets and Relationship Facet, since
+`graph.idx` carries only outgoing edge targets, no object identity, and
+the runtime reads a single compiled member),
 componentModels, laws, equations, constraints, provenance -- the same
 fields `platform/oep_engine/lib/core/knowledge/models/knowledge_package.dart`'s
 `KnowledgePackage.fromJson` expects.
@@ -104,6 +108,46 @@ def _build_provenance(package: PackageSource, obj: ObjectSource) -> dict[str, An
     }
 
 
+def _build_object(identity: dict[str, Any], classification: dict[str, Any], prov_id: str) -> dict[str, Any]:
+    """The canonical object identity (AP-EK-013 §18) exactly as authored.
+
+    Every field is copied from the object's own Identity/Classification
+    facets; nothing is derived. ``domain`` is ``""`` when the object
+    authors no classification domain.
+    """
+    return {
+        "id": identity["object_id"],
+        "objectType": identity["object_type"],
+        "name": identity["display_name"],
+        "shortName": identity["short_name"],
+        "version": identity["version"],
+        "lifecycleState": identity["lifecycle_state"],
+        "uuid": identity["uuid"],
+        "domain": classification.get("domain") or "",
+        "tags": sorted(classification.get("tags") or []),
+        "provenanceId": prov_id,
+    }
+
+
+def _build_relationship(source_object_id: str, rel: dict[str, Any], prov_id: str) -> dict[str, Any]:
+    """One authored relationship (AP-EK-013 §19); the source is the owning object.
+
+    ``cardinality``/``lifecycle``/``confidence``/``notes`` are optional in
+    the Relationship Facet and are ``""`` when unauthored.
+    """
+    return {
+        "id": rel["relationship_id"],
+        "relationshipType": rel["relationship_type"],
+        "sourceObjectId": source_object_id,
+        "targetObjectId": rel["target"],
+        "cardinality": rel.get("cardinality") or "",
+        "lifecycle": rel.get("lifecycle") or "",
+        "confidence": rel.get("confidence") or "",
+        "notes": rel.get("notes") or "",
+        "provenanceId": prov_id,
+    }
+
+
 def _build_units_and_dimensions(
     packages: list[PackageSource],
 ) -> tuple[list[dict[str, Any]], dict[str, dict[str, Any]]]:
@@ -179,6 +223,8 @@ def build_runtime_export(packages: list[PackageSource]) -> dict[str, Any]:
     component_models: list[dict[str, Any]] = []
     constraints_by_id: dict[str, dict[str, Any]] = {}
     provenance: list[dict[str, Any]] = []
+    objects: list[dict[str, Any]] = []
+    relationships: list[dict[str, Any]] = []
 
     for package in packages:
         for obj in sorted(package.objects, key=lambda o: o.object_id or ""):
@@ -191,6 +237,9 @@ def build_runtime_export(packages: list[PackageSource]) -> dict[str, Any]:
             prov_id = _provenance_id(object_id)
 
             provenance.append(_build_provenance(package, obj))
+            objects.append(_build_object(identity, classification, prov_id))
+            for rel in obj.relationships or []:
+                relationships.append(_build_relationship(object_id, rel, prov_id))
 
             if object_type == "Equation":
                 aliases = classification.get("aliases") or []
@@ -285,6 +334,8 @@ def build_runtime_export(packages: list[PackageSource]) -> dict[str, Any]:
     laws.sort(key=lambda law: law["id"])
     component_models.sort(key=lambda m: m["id"])
     provenance.sort(key=lambda p: p["id"])
+    objects.sort(key=lambda o: o["id"])
+    relationships.sort(key=lambda r: r["id"])
     dimensions = sorted(dimensions_by_id.values(), key=lambda d: d["id"])
     constraints = sorted(constraints_by_id.values(), key=lambda c: c["id"])
 
@@ -303,6 +354,8 @@ def build_runtime_export(packages: list[PackageSource]) -> dict[str, Any]:
         "equations": equations,
         "constraints": constraints,
         "provenance": provenance,
+        "objects": objects,
+        "relationships": relationships,
     }
 
 

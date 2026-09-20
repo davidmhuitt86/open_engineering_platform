@@ -116,6 +116,8 @@ class OerpReader {
       'equations': runtimeJson['equations'],
       'constraints': runtimeJson['constraints'],
       'provenance': runtimeJson['provenance'],
+      'objects': runtimeJson['objects'],
+      'relationships': runtimeJson['relationships'],
       'developmentModeUnsigned': isUnsigned,
     };
 

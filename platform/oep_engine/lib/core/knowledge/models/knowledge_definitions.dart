@@ -293,3 +293,113 @@ class ConstraintDefinition {
         provenanceId: json['provenanceId'] as String,
       );
 }
+
+/// A canonical Engineering Knowledge Object as compiled into the package
+/// (AP-EK-013 §18, WP-EKE-013). This is the *reference-library* object
+/// identity projected by the Reference Compiler's `runtime.json`; it is
+/// not an Engineering Graph instance (`core/graph/`) and not an
+/// Engineering Repository object -- it carries no live state.
+class KnowledgeObject {
+  final String id;
+  final String objectType;
+  final String name;
+  final String shortName;
+  final String version;
+  final String lifecycleState;
+  final String uuid;
+  final String domain;
+  final List<String> tags;
+  final String provenanceId;
+
+  const KnowledgeObject({
+    required this.id,
+    required this.objectType,
+    required this.name,
+    required this.shortName,
+    required this.version,
+    required this.lifecycleState,
+    required this.uuid,
+    required this.domain,
+    required this.tags,
+    required this.provenanceId,
+  });
+
+  Map<String, Object?> toJson() => {
+    'id': id,
+    'objectType': objectType,
+    'name': name,
+    'shortName': shortName,
+    'version': version,
+    'lifecycleState': lifecycleState,
+    'uuid': uuid,
+    'domain': domain,
+    'tags': tags,
+    'provenanceId': provenanceId,
+  };
+
+  factory KnowledgeObject.fromJson(Map<String, Object?> json) =>
+      KnowledgeObject(
+        id: json['id'] as String,
+        objectType: json['objectType'] as String,
+        name: json['name'] as String,
+        shortName: json['shortName'] as String,
+        version: json['version'] as String,
+        lifecycleState: json['lifecycleState'] as String,
+        uuid: json['uuid'] as String,
+        domain: json['domain'] as String,
+        tags: (json['tags'] as List).cast<String>(),
+        provenanceId: json['provenanceId'] as String,
+      );
+}
+
+/// A directed, typed relationship between two [KnowledgeObject]s as
+/// authored in the Relationship Facet (SDD-R011 §8) and projected into
+/// `runtime.json` (AP-EK-013 §19). Source is the owning object.
+class KnowledgeRelationship {
+  final String id;
+  final String relationshipType;
+  final String sourceObjectId;
+  final String targetObjectId;
+  final String cardinality;
+  final String lifecycle;
+  final String confidence;
+  final String notes;
+  final String provenanceId;
+
+  const KnowledgeRelationship({
+    required this.id,
+    required this.relationshipType,
+    required this.sourceObjectId,
+    required this.targetObjectId,
+    required this.cardinality,
+    required this.lifecycle,
+    required this.confidence,
+    required this.notes,
+    required this.provenanceId,
+  });
+
+  Map<String, Object?> toJson() => {
+    'id': id,
+    'relationshipType': relationshipType,
+    'sourceObjectId': sourceObjectId,
+    'targetObjectId': targetObjectId,
+    'cardinality': cardinality,
+    'lifecycle': lifecycle,
+    'confidence': confidence,
+    'notes': notes,
+    'provenanceId': provenanceId,
+  };
+
+  factory KnowledgeRelationship.fromJson(Map<String, Object?> json) =>
+      KnowledgeRelationship(
+        id: json['id'] as String,
+        relationshipType: json['relationshipType'] as String,
+        sourceObjectId: json['sourceObjectId'] as String,
+        targetObjectId: json['targetObjectId'] as String,
+        cardinality: json['cardinality'] as String,
+        lifecycle: json['lifecycle'] as String,
+        confidence: json['confidence'] as String,
+        notes: json['notes'] as String,
+        provenanceId: json['provenanceId'] as String,
+      );
+}

@@ -93,3 +93,13 @@ Classification/Authority/Provenance columns (Schema Version 1.0); see
 `compiler/database.py` for the exact DDL and
 `docs/SCHEMA_MIGRATION.md` for what changed from WORK_PACKAGE_001's
 column set.
+
+## `runtime.json` (Knowledge Runtime projection)
+
+Besides `reference.db`/`search.idx`/`graph.idx`, the `.oerp` carries a
+deterministic `runtime.json` (`compiler/runtime_export.py`) that the OEP
+Knowledge Runtime reads via `OerpReader`. As of WP-EKE-013 it also projects
+`objects` (canonical identity from the Identity/Classification facets) and
+`relationships` (every authored relationship, source = the owning object),
+each sorted by id and carrying a `provenanceId`. See
+`docs/architecture/knowledge/KNOWLEDGE_RUNTIME_BOUNDARY.md` (repository root).

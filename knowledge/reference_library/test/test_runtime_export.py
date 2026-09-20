@@ -110,3 +110,38 @@ def test_build_runtime_export_output_ordering_does_not_depend_on_input_order():
     reversed_objects_package.objects = list(reversed(package.objects))
     backward = build_runtime_export([reversed_objects_package])
     assert forward == backward
+
+
+def test_build_runtime_export_projects_every_authored_object_with_its_identity():
+    package = _core_reference_package()
+    export = build_runtime_export([package])
+    assert {o["id"] for o in export["objects"]} == {obj.object_id for obj in package.objects}
+    resistor = next(o for o in export["objects"] if o["id"] == "component.passive.resistor")
+    assert resistor["objectType"] == "Component"
+    assert resistor["name"] == "Resistor"
+    assert resistor["uuid"] == "3ce139cf-f381-5398-a529-96c7ed6382b3"
+    assert resistor["provenanceId"] == "prov.component.passive.resistor"
+    assert resistor["tags"] == sorted(resistor["tags"])
+
+
+def test_build_runtime_export_projects_every_authored_relationship_with_implicit_source():
+    package = _core_reference_package()
+    export = build_runtime_export([package])
+    authored = {rel["relationship_id"] for obj in package.objects for rel in (obj.relationships or [])}
+    assert {r["id"] for r in export["relationships"]} == authored
+    rel = next(r for r in export["relationships"] if r["id"] == "component.passive.resistor.uses_equation.ohms_law")
+    assert rel["sourceObjectId"] == "component.passive.resistor"
+    assert rel["targetObjectId"] == "equation.ohms_law"
+    assert rel["relationshipType"] == "USES_EQUATION"
+
+
+def test_build_runtime_export_relationships_and_objects_are_referentially_closed():
+    export = build_runtime_export([_core_reference_package()])
+    object_ids = {o["id"] for o in export["objects"]}
+    provenance_ids = {p["id"] for p in export["provenance"]}
+    for rel in export["relationships"]:
+        assert rel["sourceObjectId"] in object_ids
+        assert rel["targetObjectId"] in object_ids
+        assert rel["provenanceId"] in provenance_ids
+    assert [o["id"] for o in export["objects"]] == sorted(o["id"] for o in export["objects"])
+    assert [r["id"] for r in export["relationships"]] == sorted(r["id"] for r in export["relationships"])

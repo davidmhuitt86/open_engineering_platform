@@ -90,6 +90,13 @@ class KnowledgePackage {
   final List<ConstraintDefinition> constraints;
   final List<ProvenanceRecord> provenance;
 
+  /// WP-EKE-013: canonical reference objects and their relationships.
+  /// Empty for a package that declares none (e.g. the hand-built test
+  /// fixture, or a `runtime.json` from a compiler older than this
+  /// work package).
+  final List<KnowledgeObject> objects;
+  final List<KnowledgeRelationship> relationships;
+
   /// Whether this package was activated in an explicit
   /// unsigned-development-mode exception (AP-EK-013 §43: "Development/
   /// test modes may permit explicitly configured unsigned packages, but
@@ -105,6 +112,8 @@ class KnowledgePackage {
     required this.equations,
     required this.constraints,
     required this.provenance,
+    this.objects = const [],
+    this.relationships = const [],
     this.developmentModeUnsigned = false,
   });
 
@@ -125,6 +134,9 @@ class KnowledgePackage {
       ..sort((a, b) => a.id.compareTo(b.id));
     final sortedProvenance = [...provenance]
       ..sort((a, b) => a.id.compareTo(b.id));
+    final sortedObjects = [...objects]..sort((a, b) => a.id.compareTo(b.id));
+    final sortedRelationships = [...relationships]
+      ..sort((a, b) => a.id.compareTo(b.id));
     return {
       'manifest': {
         ...manifest.toJson()
@@ -138,6 +150,8 @@ class KnowledgePackage {
       'equations': sortedEquations.map((e) => e.toJson()).toList(),
       'constraints': sortedConstraints.map((c) => c.toJson()).toList(),
       'provenance': sortedProvenance.map((p) => p.toJson()).toList(),
+      'objects': sortedObjects.map((o) => o.toJson()).toList(),
+      'relationships': sortedRelationships.map((r) => r.toJson()).toList(),
     };
   }
 
@@ -152,6 +166,24 @@ class KnowledgePackage {
     );
     return sha256Hex(canonicalBytes);
   }
+
+  /// A copy whose collections are unmodifiable, retained by an activated
+  /// runtime so callers holding `runtime.package` cannot mutate
+  /// authoritative content (WP-EKE-013). Element definitions are already
+  /// immutable value objects.
+  KnowledgePackage frozenCopy() => KnowledgePackage(
+    manifest: manifest,
+    dimensions: List.unmodifiable(dimensions),
+    units: List.unmodifiable(units),
+    componentModels: List.unmodifiable(componentModels),
+    laws: List.unmodifiable(laws),
+    equations: List.unmodifiable(equations),
+    constraints: List.unmodifiable(constraints),
+    provenance: List.unmodifiable(provenance),
+    objects: List.unmodifiable(objects),
+    relationships: List.unmodifiable(relationships),
+    developmentModeUnsigned: developmentModeUnsigned,
+  );
 
   Map<String, Object?> toJson() => {
     ...toCanonicalJson(),
@@ -194,6 +226,18 @@ class KnowledgePackage {
     provenance: (json['provenance'] as List)
         .map(
           (p) => ProvenanceRecord.fromJson(Map<String, Object?>.from(p as Map)),
+        )
+        .toList(),
+    objects: (json['objects'] as List? ?? const [])
+        .map(
+          (o) => KnowledgeObject.fromJson(Map<String, Object?>.from(o as Map)),
+        )
+        .toList(),
+    relationships: (json['relationships'] as List? ?? const [])
+        .map(
+          (r) => KnowledgeRelationship.fromJson(
+            Map<String, Object?>.from(r as Map),
+          ),
         )
         .toList(),
     developmentModeUnsigned: json['developmentModeUnsigned'] as bool? ?? false,
