@@ -4,6 +4,9 @@
 /// consumers (Diagram Studio, tests) import.
 library;
 
+export '../core/knowledge/discovery/reference_discovery.dart';
+export '../core/knowledge/discovery/reference_discovery_indexes.dart';
+export '../core/symbols/binding/symbol_binding.dart';
 export '../core/knowledge/fixtures/electrical_core_package.dart';
 export '../core/knowledge/knowledge_runtime.dart';
 export '../core/knowledge/knowledge_runtime_errors.dart';
