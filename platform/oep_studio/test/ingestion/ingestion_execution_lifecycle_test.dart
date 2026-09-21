@@ -14,6 +14,7 @@ import 'package:oep_studio/ingestion/models/vault_object_input.dart';
 import 'package:oep_studio/ingestion/services/ingestion_cancellation_token.dart';
 import 'package:oep_studio/ingestion/services/ingestion_orchestrator.dart';
 import 'package:oep_studio/ingestion/services/knowledge_session_bridge.dart';
+import 'package:oep_studio/knowledge/models/document_orientation.dart';
 import 'package:oep_studio/knowledge/models/knowledge_session_record.dart';
 import 'package:oep_studio/knowledge/models/ocr_bounding_box.dart';
 import 'package:oep_studio/knowledge/models/ocr_page_result.dart';
@@ -808,4 +809,35 @@ void main() {
       );
     });
   });
+
+  group('WP-INGEST-014 orientation survives the real ingestion workflow', () {
+    test('the session-owned source copy keeps the chosen orientation across reload and duplication', () async {
+      final bytes = await File(trx300Path).readAsBytes();
+      final checksum = sha256.convert(bytes).toString();
+      final client = buildClient(bytes: bytes, checksum: checksum);
+
+      final outcome = await ReferenceVaultIngestionWorkflow.ingest(
+        client: client,
+        vaultObjectId: vaultId,
+        sessionName: 'orientation-persist',
+        repositoryName: 'repo',
+        author: 'author',
+        ocrRunner: fakeOcrSuccess,
+        orientation: DocumentOrientation.deg90,
+      );
+
+      expect(outcome.isCompleted, isTrue);
+      final record = outcome.sessionRecord!;
+      createdSessionIds.add(record.session.id);
+      expect(record.sources.single.extractionOrientation, DocumentOrientation.deg90);
+      expect(record.ingestionRuns.single.processingConfiguration['extractionOrientationDegrees'], 90);
+
+      final reloaded = await KnowledgeSessionStorage.load(record.session.id);
+      expect(reloaded.sources.single.extractionOrientation, DocumentOrientation.deg90);
+
+      final copy = KnowledgeSessionService.buildDuplicate(reloaded, author: 'author');
+      expect(copy.sources.single.extractionOrientation, DocumentOrientation.deg90);
+    });
+  });
 }
+

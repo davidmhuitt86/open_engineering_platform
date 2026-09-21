@@ -10,6 +10,7 @@ import '../models/source_material.dart';
 import '../models/source_material_type.dart';
 import 'ocr_cache_service.dart';
 import 'tesseract_ocr_engine.dart';
+import 'tesseract_tsv_parser.dart' show TesseractPageOutput;
 
 /// OCR processing orchestration (Work Package 013 STUDIO-TASK-000034/
 /// 000037) — the only service that both renders pages *and* calls
@@ -63,6 +64,7 @@ abstract final class OcrPipelineService {
       existingResults: existingForSource,
       pageCount: pageCount,
       currentFingerprint: fingerprint,
+      orientationDegrees: source.extractionOrientation.degrees,
     );
 
     if (pagesToProcess.isEmpty) {
@@ -126,7 +128,7 @@ abstract final class OcrPipelineService {
   }) async {
     final now = DateTime.now();
     try {
-      final pdfPage = document.pages[page - 1];
+      final pdfPage = document.pages[page - 1].rotatedBy(PdfPageRotation.values[source.extractionOrientation.quarterTurns]);
       final scale = _renderDpi / 72.0;
       final image = await pdfPage.render(fullWidth: pdfPage.width * scale, fullHeight: pdfPage.height * scale);
       if (image == null) {
@@ -149,6 +151,7 @@ abstract final class OcrPipelineService {
         return OcrPageResult(
           sourceId: source.id,
           page: page,
+          orientationDegrees: source.extractionOrientation.degrees,
           words: output.words,
           imageWidth: output.imageWidth,
           imageHeight: output.imageHeight,
@@ -184,10 +187,17 @@ abstract final class OcrPipelineService {
   }) async {
     final now = DateTime.now();
     try {
-      final output = await TesseractOcrEngine.recognizePage(source.localPath);
+      final oriented = await _orientedImagePath(source);
+      final TesseractPageOutput output;
+      try {
+        output = await TesseractOcrEngine.recognizePage(oriented.path);
+      } finally {
+        if (oriented.isTemporary) await File(oriented.path).delete();
+      }
       return OcrPageResult(
         sourceId: source.id,
         page: 1,
+        orientationDegrees: source.extractionOrientation.degrees,
         words: output.words,
         imageWidth: output.imageWidth,
         imageHeight: output.imageHeight,
@@ -217,6 +227,41 @@ abstract final class OcrPipelineService {
   /// own pixel-to-image decode/encode (`decodeImageFromPixels` +
   /// `Image.toByteData(format: ui.ImageByteFormat.png)`), a Flutter
   /// framework capability, not a new package.
+  /// Image sources are never rewritten: when an orientation is set, a
+  /// deterministic rotated temporary copy is rendered for OCR only.
+  static Future<({String path, bool isTemporary})> _orientedImagePath(SourceMaterial source) async {
+    final turns = source.extractionOrientation.quarterTurns;
+    if (turns == 0) return (path: source.localPath, isTemporary: false);
+    final codec = await ui.instantiateImageCodec(await File(source.localPath).readAsBytes());
+    final frame = await codec.getNextFrame();
+    final image = frame.image;
+    try {
+      final swap = turns.isOdd;
+      final width = swap ? image.height : image.width;
+      final height = swap ? image.width : image.height;
+      final recorder = ui.PictureRecorder();
+      final canvas = ui.Canvas(recorder);
+      canvas.translate(width / 2, height / 2);
+      canvas.rotate(turns * 3.141592653589793 / 2);
+      canvas.translate(-image.width / 2, -image.height / 2);
+      canvas.drawImage(image, ui.Offset.zero, ui.Paint());
+      final rotated = await recorder.endRecording().toImage(width, height);
+      try {
+        final bytes = (await rotated.toByteData(format: ui.ImageByteFormat.png))!.buffer.asUint8List();
+        final file = File(
+          '${Directory.systemTemp.path}${Platform.pathSeparator}oep_ocr_rot_${DateTime.now().microsecondsSinceEpoch}.png',
+        );
+        await file.writeAsBytes(bytes);
+        return (path: file.path, isTemporary: true);
+      } finally {
+        rotated.dispose();
+      }
+    } finally {
+      image.dispose();
+      codec.dispose();
+    }
+  }
+
   static Future<File> _writeTempPng(PdfImage image) async {
     final completer = Completer<ui.Image>();
     ui.decodeImageFromPixels(

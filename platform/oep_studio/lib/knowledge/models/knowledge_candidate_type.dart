@@ -25,7 +25,11 @@ enum KnowledgeCandidateType {
   // the same reason as Specification/Tool/Material/Fluid/Warning/
   // Measurement above: raw text is not an Engineering Object Foundation's
   // fixed `oep_object_type_t` has a slot for either.
-  text('Text', Icons.text_fields_outlined, null);
+  text('Text', Icons.text_fields_outlined, null),
+  // WP-INGEST-015: a wire/conductor traced as linear (polyline) evidence.
+  // `foundationCategory: null` like the other types Foundation has no slot for;
+  // no connectivity/net/terminal semantics are implied.
+  wire('Wire', Icons.cable_outlined, null);
 
   const KnowledgeCandidateType(this.label, this.icon, this.foundationCategory);
 

@@ -87,6 +87,7 @@ abstract final class SourceMaterialService {
       sizeBytes: source.sizeBytes,
       importDate: source.importDate,
       addedBy: source.addedBy,
+      extractionOrientation: source.extractionOrientation,
     );
   }
 

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 
 import '../../ingestion/models/ingestion_result.dart';
+import '../../knowledge/models/document_orientation.dart';
 import '../../ingestion/models/ingestion_run.dart';
 import '../../ingestion/models/ingestion_run_status.dart';
 import '../../ingestion/models/vault_object_input.dart';
@@ -110,6 +111,7 @@ abstract final class ReferenceVaultIngestionWorkflow {
     // passes it in here, and calls `.cancel()` on it from wherever it
     // is held.
     IngestionCancellationToken? cancellationToken,
+    DocumentOrientation orientation = DocumentOrientation.deg0,
   }) async {
     VaultObjectInput? input;
     // WP-INGEST-007 § 7/§ 27/§ 28: the durable session record this
@@ -160,6 +162,7 @@ abstract final class ReferenceVaultIngestionWorkflow {
         runId: runId,
         ocrRunner: ocrRunner,
         cancellationToken: cancellationToken,
+        orientation: orientation,
         onLifecycleUpdate: persistLifecycle,
       );
 

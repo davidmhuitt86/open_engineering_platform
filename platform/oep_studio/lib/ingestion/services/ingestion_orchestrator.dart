@@ -1,3 +1,4 @@
+import '../../knowledge/models/document_orientation.dart';
 import '../../knowledge/models/engineering_entity.dart';
 import '../../knowledge/models/evidence_link.dart';
 import '../../knowledge/models/evidence_region.dart';
@@ -105,6 +106,10 @@ abstract final class IngestionOrchestrator {
     // QUEUED/RUNNING durable record this callback built) persists it the
     // same way it persisted the earlier checkpoints.
     IngestionRunLifecycleCallback? onLifecycleUpdate,
+    // WP-INGEST-014: persistent Extraction Orientation, recorded in the run's
+    // processingConfiguration (hence processingIdentity) and applied before
+    // the first orientation-dependent stage (OCR).
+    DocumentOrientation orientation = DocumentOrientation.deg0,
   }) async {
     // INGEST-FOLLOWUP-004: `runId` identifies one *execution attempt* --
     // wholly independent of `IngestionRun.processingIdentity` (frozen by
@@ -139,7 +144,7 @@ abstract final class IngestionOrchestrator {
       parserId: 'none',
       parserVersion: 'none',
       processorVersions: const {},
-      processingConfiguration: const {},
+      processingConfiguration: {'extractionOrientationDegrees': orientation.degrees},
       stageResults: const [],
     );
     if (onLifecycleUpdate != null) await onLifecycleUpdate(run);
@@ -244,6 +249,11 @@ abstract final class IngestionOrchestrator {
       run = run.transitionTo(IngestionRunStatus.failed, completedAt: DateTime.now(), stageResults: stageResults);
       return _terminalResult(input: input, run: run);
     }
+    parserOutput = ParserOutput(
+      document: parserOutput.document,
+      source: parserOutput.source.withExtractionOrientation(orientation),
+      diagnostics: [...parserOutput.diagnostics, 'extractionOrientation=${orientation.degrees}'],
+    );
     final parseEnd = DateTime.now();
 
     // WP-INGEST-002 § 12: CONTENT_EXTRACTION -> normalized content

@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:oep_studio/knowledge/models/document_orientation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -413,13 +414,17 @@ class _FakeWizardRuntimeNotifier extends AcquisitionRuntimeNotifier {
   Future<Map<String, Object?>> publishReturning(String metadataId) async =>
       {'id': 'vault-1', 'vault_path': './data/vault/fd/fd7f4474f5a94ab4'};
 
+  final ingestOrientations = <DocumentOrientation>[];
+
   @override
   Future<ReferenceVaultIngestionOutcome> ingestVaultArtifact({
     required String vaultObjectId,
     required String sessionName,
     required String repositoryName,
     required String author,
+    DocumentOrientation orientation = DocumentOrientation.deg0,
   }) async {
+    ingestOrientations.add(orientation);
     return outcome;
   }
 }

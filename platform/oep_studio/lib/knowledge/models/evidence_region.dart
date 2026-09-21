@@ -1,4 +1,5 @@
 import 'evidence_annotation.dart';
+import 'evidence_geometry.dart';
 import 'evidence_annotation_status.dart';
 import 'evidence_origin.dart';
 
@@ -28,14 +29,18 @@ import 'evidence_origin.dart';
 /// comment for why `null`, not a default value, is the correct backward-
 /// compatibility behavior here.
 class EvidenceRegion {
-  const EvidenceRegion({
+  /// Either pass [geometry] (rectangle or polyline), or the legacy
+  /// `x/y/width/height` which describe a [RectangleGeometry]. Every existing
+  /// caller keeps using the rectangle form unchanged.
+  EvidenceRegion({
     required this.id,
     required this.sourceId,
     required this.page,
-    required this.x,
-    required this.y,
-    required this.width,
-    required this.height,
+    double? x,
+    double? y,
+    double? width,
+    double? height,
+    EvidenceGeometry? geometry,
     required this.label,
     this.notes = '',
     required this.createdTime,
@@ -45,7 +50,7 @@ class EvidenceRegion {
     this.status,
     this.observationRef,
     this.annotation,
-  });
+  }) : geometry = geometry ?? RectangleGeometry(x!, y!, width!, height!);
 
   final String id;
 
@@ -56,10 +61,17 @@ class EvidenceRegion {
   /// 1-based page number, matching `pdfrx`'s `PdfPage.pageNumber`.
   final int page;
 
-  final double x;
-  final double y;
-  final double width;
-  final double height;
+  /// WHERE this evidence is (the annotation says WHAT it is).
+  final EvidenceGeometry geometry;
+
+  /// The geometry's normalized bounding box. For a [RectangleGeometry] these
+  /// are exactly the rectangle's own values; for a polyline they are the
+  /// path's extent, so every bounds-based consumer (thumbnails, navigation,
+  /// the Evidence Browser) keeps working for both.
+  double get x => geometry.bounds.x;
+  double get y => geometry.bounds.y;
+  double get width => geometry.bounds.width;
+  double get height => geometry.bounds.height;
 
   final String label;
   final String notes;
@@ -111,15 +123,13 @@ class EvidenceRegion {
     EvidenceAnnotationStatus? status,
     String? observationRef,
     EvidenceAnnotation? annotation,
+    EvidenceGeometry? geometry,
   }) {
     return EvidenceRegion(
       id: id,
       sourceId: sourceId,
       page: page,
-      x: x,
-      y: y,
-      width: width,
-      height: height,
+      geometry: geometry ?? this.geometry,
       label: label ?? this.label,
       notes: notes ?? this.notes,
       createdTime: createdTime,
@@ -136,10 +146,14 @@ class EvidenceRegion {
         'id': id,
         'sourceId': sourceId,
         'page': page,
+        // Rectangles keep the legacy flat keys unchanged. A polyline also
+        // writes its bounding box there (so older readers degrade to its
+        // extent) plus the authoritative 'geometry' object.
         'x': x,
         'y': y,
         'width': width,
         'height': height,
+        if (geometry is! RectangleGeometry) 'geometry': geometry.toJson(),
         'label': label,
         'notes': notes,
         'createdTime': createdTime.toIso8601String(),
@@ -165,10 +179,14 @@ class EvidenceRegion {
       id: json['id'] as String,
       sourceId: json['sourceId'] as String,
       page: json['page'] as int,
-      x: (json['x'] as num).toDouble(),
-      y: (json['y'] as num).toDouble(),
-      width: (json['width'] as num).toDouble(),
-      height: (json['height'] as num).toDouble(),
+      geometry: json['geometry'] == null
+          ? RectangleGeometry(
+              (json['x'] as num).toDouble(),
+              (json['y'] as num).toDouble(),
+              (json['width'] as num).toDouble(),
+              (json['height'] as num).toDouble(),
+            )
+          : EvidenceGeometry.fromJson(json['geometry'] as Map<String, dynamic>),
       label: json['label'] as String,
       notes: json['notes'] as String? ?? '',
       createdTime: DateTime.parse(json['createdTime'] as String),

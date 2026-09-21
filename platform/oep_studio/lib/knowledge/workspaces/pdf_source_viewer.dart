@@ -6,6 +6,7 @@ import '../../core/services/foundation_runtime_service.dart';
 import '../../core/services/foundation_runtime_state.dart';
 import '../../core/theme/studio_colors.dart';
 import '../models/evidence_origin.dart';
+import '../models/evidence_region.dart';
 import '../models/knowledge_validation_exception.dart';
 import '../models/source_material.dart';
 import 'evidence_browser_dialog.dart';
@@ -56,7 +57,8 @@ class _PdfSourceViewerState extends ConsumerState<PdfSourceViewer> {
   String? _lastNavigatedContextId;
 
   void _openEvidenceBrowser() {
-    showEvidenceBrowserDialog(context, sourceId: widget.source.id, sourceName: widget.source.originalFileName);
+    showEvidenceBrowserDialog(context,
+        sourceId: widget.source.id, sourceName: widget.source.originalFileName);
   }
 
   void _openOcrLayerViewer() {
@@ -112,10 +114,13 @@ class _PdfSourceViewerState extends ConsumerState<PdfSourceViewer> {
     if (start == null || current == null || page == null) return;
     if ((current - start).distance < 8) return; // Ignore accidental clicks.
 
-    final startHit = _controller.getPdfPageHitTestResult(start, useDocumentLayoutCoordinates: false);
-    final endHit = _controller.getPdfPageHitTestResult(current, useDocumentLayoutCoordinates: false);
+    final startHit = _controller.getPdfPageHitTestResult(start,
+        useDocumentLayoutCoordinates: false);
+    final endHit = _controller.getPdfPageHitTestResult(current,
+        useDocumentLayoutCoordinates: false);
     if (startHit == null || endHit == null) return;
-    if (startHit.page.pageNumber != page || endHit.page.pageNumber != page) return;
+    if (startHit.page.pageNumber != page || endHit.page.pageNumber != page)
+      return;
 
     final pageWidth = startHit.page.width;
     final pageHeight = startHit.page.height;
@@ -127,16 +132,21 @@ class _PdfSourceViewerState extends ConsumerState<PdfSourceViewer> {
     final y1 = 1 - (startHit.offset.y / pageHeight);
     final y2 = 1 - (endHit.offset.y / pageHeight);
 
-    final left = x1 < x2 ? x1 : x2;
-    final top = y1 < y2 ? y1 : y2;
-    final width = (x2 - x1).abs();
-    final height = (y2 - y1).abs();
+    final orientation = widget.source.extractionOrientation;
+    final oriented = orientation.rectPageToOriented(
+      (x1 < x2 ? x1 : x2).clamp(0.0, 1.0),
+      (y1 < y2 ? y1 : y2).clamp(0.0, 1.0),
+      (x2 - x1).abs(),
+      (y2 - y1).abs(),
+    );
+    final left = oriented.x;
+    final top = oriented.y;
+    final width = oriented.width;
+    final height = oriented.height;
     if (width <= 0 || height <= 0) return;
 
     try {
-      ref
-          .read(foundationRuntimeServiceProvider.notifier)
-          .createEvidenceRegion(
+      ref.read(foundationRuntimeServiceProvider.notifier).createEvidenceRegion(
             sourceId: widget.source.id,
             page: page,
             x: left.clamp(0.0, 1.0),
@@ -156,7 +166,11 @@ class _PdfSourceViewerState extends ConsumerState<PdfSourceViewer> {
           backgroundColor: StudioColors.surfaceRaised,
           title: const Text("Couldn't Create Evidence Region"),
           content: Text(error.message),
-          actions: [TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('OK'))],
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('OK'))
+          ],
         ),
       );
     }
@@ -170,41 +184,63 @@ class _PdfSourceViewerState extends ConsumerState<PdfSourceViewer> {
   // calling `ref.watch` themselves.
   late FoundationServiceState _foundation;
 
-  List<Widget> _buildPageOverlays(BuildContext context, Rect pageRectInViewer, PdfPage page) {
+  List<Widget> _regionWidgets(
+    EvidenceRegion region,
+    Rect pageRectInViewer,
+    String? selectedRegionId,
+    Set<String> linkedRegionIds,
+    FoundationRuntimeNotifier notifier,
+  ) {
+    final pageBox = widget.source.extractionOrientation
+        .rectOrientedToPage(region.x, region.y, region.width, region.height);
+    return [
+      Positioned(
+        left: pageBox.x * pageRectInViewer.width,
+        top: pageBox.y * pageRectInViewer.height,
+        width: pageBox.width * pageRectInViewer.width,
+        height: pageBox.height * pageRectInViewer.height,
+        // A plain `GestureDetector` scoped to just this small rect —
+        // not `PdfOverlayInteractionRegion` — since the region rect
+        // is far smaller than the viewer, a normal tap here never
+        // competes with the viewer's own pan/zoom gesture arena for
+        // touches starting elsewhere on the page.
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => notifier.selectEvidenceRegion(region),
+          child: _RegionBox(
+            selected: region.id == selectedRegionId,
+            linked: linkedRegionIds.contains(region.id),
+            label: region.label,
+          ),
+        ),
+      ),
+    ];
+  }
+
+  List<Widget> _buildPageOverlays(
+      BuildContext context, Rect pageRectInViewer, PdfPage page) {
     final foundation = _foundation;
     final notifier = ref.read(foundationRuntimeServiceProvider.notifier);
-    final regions = foundation.evidenceRegionsForPage(widget.source.id, page.pageNumber);
+    final regions =
+        foundation.evidenceRegionsForPage(widget.source.id, page.pageNumber);
     final selectedCandidate = foundation.selectedCandidate;
     final linkedRegionIds = selectedCandidate == null
         ? const <String>{}
-        : foundation.evidenceRegionsLinkedToCandidate(selectedCandidate.id).map((region) => region.id).toSet();
+        : foundation
+            .evidenceRegionsLinkedToCandidate(selectedCandidate.id)
+            .map((region) => region.id)
+            .toSet();
     final selectedRegionId = foundation.selectedEvidenceRegion?.id;
     final isPageSelected = foundation.pageSelections.any(
-      (selection) => selection.sourceId == widget.source.id && selection.page == page.pageNumber,
+      (selection) =>
+          selection.sourceId == widget.source.id &&
+          selection.page == page.pageNumber,
     );
 
     return [
       for (final region in regions)
-        Positioned(
-          left: region.x * pageRectInViewer.width,
-          top: region.y * pageRectInViewer.height,
-          width: region.width * pageRectInViewer.width,
-          height: region.height * pageRectInViewer.height,
-          // A plain `GestureDetector` scoped to just this small rect —
-          // not `PdfOverlayInteractionRegion` — since the region rect
-          // is far smaller than the viewer, a normal tap here never
-          // competes with the viewer's own pan/zoom gesture arena for
-          // touches starting elsewhere on the page.
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () => notifier.selectEvidenceRegion(region),
-            child: _RegionBox(
-              selected: region.id == selectedRegionId,
-              linked: linkedRegionIds.contains(region.id),
-              label: region.label,
-            ),
-          ),
-        ),
+        ..._regionWidgets(region, pageRectInViewer, selectedRegionId,
+            linkedRegionIds, notifier),
       Positioned(
         left: 4,
         top: 4,
@@ -212,7 +248,8 @@ class _PdfSourceViewerState extends ConsumerState<PdfSourceViewer> {
           behavior: HitTestBehavior.opaque,
           onTap: () {
             try {
-              notifier.togglePageSelection(sourceId: widget.source.id, page: page.pageNumber);
+              notifier.togglePageSelection(
+                  sourceId: widget.source.id, page: page.pageNumber);
             } on KnowledgeValidationException {
               // No session — the toggle silently has no effect; the rest
               // of the Source Viewer already requires an active session
@@ -230,13 +267,15 @@ class _PdfSourceViewerState extends ConsumerState<PdfSourceViewer> {
     ];
   }
 
-  List<Widget> _buildViewerOverlay(BuildContext context, Size size, PdfViewerHandleLinkTap handleLinkTap) {
+  List<Widget> _buildViewerOverlay(
+      BuildContext context, Size size, PdfViewerHandleLinkTap handleLinkTap) {
     if (!_addRegionArmed) return const [];
     return [
       GestureDetector(
         behavior: HitTestBehavior.opaque,
         onPanDown: (details) {
-          final hit = _controller.getPdfPageHitTestResult(details.localPosition, useDocumentLayoutCoordinates: false);
+          final hit = _controller.getPdfPageHitTestResult(details.localPosition,
+              useDocumentLayoutCoordinates: false);
           setState(() {
             _dragStart = details.localPosition;
             _dragCurrent = details.localPosition;
@@ -257,7 +296,8 @@ class _PdfSourceViewerState extends ConsumerState<PdfSourceViewer> {
           width: size.width,
           height: size.height,
           child: _dragStart != null && _dragCurrent != null
-              ? CustomPaint(painter: _DragRectPainter(_dragStart!, _dragCurrent!))
+              ? CustomPaint(
+                  painter: _DragRectPainter(_dragStart!, _dragCurrent!))
               : null,
         ),
       ),
@@ -274,10 +314,13 @@ class _PdfSourceViewerState extends ConsumerState<PdfSourceViewer> {
     // per newly-selected region, as a post-frame callback since a
     // controller navigation must not happen mid-build.
     final selected = _foundation.selectedEvidenceRegion;
-    if (selected != null && selected.sourceId == widget.source.id && selected.id != _lastNavigatedRegionId) {
+    if (selected != null &&
+        selected.sourceId == widget.source.id &&
+        selected.id != _lastNavigatedRegionId) {
       _lastNavigatedRegionId = selected.id;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && _controller.isReady) _controller.goToPage(pageNumber: selected.page);
+        if (mounted && _controller.isReady)
+          _controller.goToPage(pageNumber: selected.page);
       });
     } else if (selected == null) {
       _lastNavigatedRegionId = null;
@@ -289,7 +332,8 @@ class _PdfSourceViewerState extends ConsumerState<PdfSourceViewer> {
         selectedContext.id != _lastNavigatedContextId) {
       _lastNavigatedContextId = selectedContext.id;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && _controller.isReady) _controller.goToPage(pageNumber: selectedContext.pageStart);
+        if (mounted && _controller.isReady)
+          _controller.goToPage(pageNumber: selectedContext.pageStart);
       });
     } else if (selectedContext == null) {
       _lastNavigatedContextId = null;
@@ -316,24 +360,31 @@ class _PdfSourceViewerState extends ConsumerState<PdfSourceViewer> {
         const Divider(height: 1),
         Expanded(
           child: RotatedBox(
-            quarterTurns: _rotationQuarterTurns,
+            quarterTurns: (widget.source.extractionOrientation.quarterTurns +
+                    _rotationQuarterTurns) %
+                4,
             child: PdfViewer.file(
               widget.source.localPath,
               key: ValueKey('pdf-viewer-${widget.source.id}'),
               controller: _controller,
               params: PdfViewerParams(
                 onPageChanged: (page) {
-                  if (page != null) ref.read(foundationRuntimeServiceProvider.notifier).setCurrentPage(page);
+                  if (page != null)
+                    ref
+                        .read(foundationRuntimeServiceProvider.notifier)
+                        .setCurrentPage(page);
                 },
                 pageOverlaysBuilder: _buildPageOverlays,
                 viewerOverlayBuilder: _buildViewerOverlay,
-                errorBannerBuilder: (context, error, stackTrace, documentRef) => Center(
+                errorBannerBuilder: (context, error, stackTrace, documentRef) =>
+                    Center(
                   child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: Text(
                       'This PDF could not be opened. It may be invalid or corrupted.',
                       textAlign: TextAlign.center,
-                      style: const TextStyle(color: StudioColors.error, fontSize: 12),
+                      style: const TextStyle(
+                          color: StudioColors.error, fontSize: 12),
                     ),
                   ),
                 ),
@@ -347,7 +398,8 @@ class _PdfSourceViewerState extends ConsumerState<PdfSourceViewer> {
 }
 
 class _RegionBox extends StatelessWidget {
-  const _RegionBox({required this.selected, required this.linked, required this.label});
+  const _RegionBox(
+      {required this.selected, required this.linked, required this.label});
 
   final bool selected;
   final bool linked;
@@ -355,7 +407,9 @@ class _RegionBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = selected ? StudioColors.selection : (linked ? StudioColors.warning : StudioColors.success);
+    final color = selected
+        ? StudioColors.selection
+        : (linked ? StudioColors.warning : StudioColors.success);
     return Container(
       decoration: BoxDecoration(
         border: Border.all(color: color, width: selected ? 3 : 2),
@@ -367,7 +421,8 @@ class _RegionBox extends StatelessWidget {
               margin: const EdgeInsets.all(2),
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
               color: color,
-              child: Text(label, style: const TextStyle(color: Colors.white, fontSize: 9)),
+              child: Text(label,
+                  style: const TextStyle(color: Colors.white, fontSize: 9)),
             )
           : null,
     );
@@ -383,7 +438,8 @@ class _DragRectPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final rect = Rect.fromPoints(start, end);
-    canvas.drawRect(rect, Paint()..color = StudioColors.selection.withValues(alpha: 0.18));
+    canvas.drawRect(
+        rect, Paint()..color = StudioColors.selection.withValues(alpha: 0.18));
     canvas.drawRect(
       rect,
       Paint()
@@ -439,8 +495,11 @@ class _Toolbar extends StatelessWidget {
           listenable: controller,
           builder: (context, _) {
             final ready = controller.isReady;
-            final pageLabel = ready ? '${controller.pageNumber ?? 1} / ${controller.pageCount}' : '— / —';
-            final zoomLabel = ready ? '${(controller.currentZoom * 100).round()}%' : '—';
+            final pageLabel = ready
+                ? '${controller.pageNumber ?? 1} / ${controller.pageCount}'
+                : '— / —';
+            final zoomLabel =
+                ready ? '${(controller.currentZoom * 100).round()}%' : '—';
             return Row(
               children: [
                 IconButton(
@@ -448,7 +507,9 @@ class _Toolbar extends StatelessWidget {
                   icon: const Icon(Icons.navigate_before, size: 18),
                   onPressed: ready ? onPrevPage : null,
                 ),
-                Text(pageLabel, style: const TextStyle(color: StudioColors.textSecondary, fontSize: 11.5)),
+                Text(pageLabel,
+                    style: const TextStyle(
+                        color: StudioColors.textSecondary, fontSize: 11.5)),
                 IconButton(
                   tooltip: 'Next Page',
                   icon: const Icon(Icons.navigate_next, size: 18),
@@ -460,7 +521,9 @@ class _Toolbar extends StatelessWidget {
                   icon: const Icon(Icons.zoom_out, size: 18),
                   onPressed: ready ? onZoomOut : null,
                 ),
-                Text(zoomLabel, style: const TextStyle(color: StudioColors.textSecondary, fontSize: 11.5)),
+                Text(zoomLabel,
+                    style: const TextStyle(
+                        color: StudioColors.textSecondary, fontSize: 11.5)),
                 IconButton(
                   tooltip: 'Zoom In',
                   icon: const Icon(Icons.zoom_in, size: 18),
@@ -484,7 +547,9 @@ class _Toolbar extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 IconButton(
-                  tooltip: addRegionArmed ? 'Stop Drawing Evidence Regions' : 'Draw Evidence Region',
+                  tooltip: addRegionArmed
+                      ? 'Stop Drawing Evidence Regions'
+                      : 'Draw Evidence Region',
                   icon: const Icon(Icons.crop_din, size: 18),
                   color: addRegionArmed ? StudioColors.selection : null,
                   onPressed: ready ? onToggleAddRegion : null,

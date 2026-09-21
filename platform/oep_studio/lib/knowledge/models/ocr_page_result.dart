@@ -23,6 +23,7 @@ class OcrPageResult {
     required this.processedTime,
     required this.success,
     this.errorMessage,
+    this.orientationDegrees = 0,
   });
 
   /// The [SourceMaterial.id] this result belongs to.
@@ -42,6 +43,10 @@ class OcrPageResult {
   /// `docs/OCR_PIPELINE.md` § Architectural Observations, the TIFF
   /// preview gap). Not the *display* size — [OcrWord.boundingBox] is
   /// already a resolution-independent fraction of this.
+  /// Extraction Orientation this page was recognised under; word boxes are in
+  /// that oriented space. A different orientation makes a cached result stale.
+  final int orientationDegrees;
+
   final int imageWidth;
   final int imageHeight;
 
@@ -109,6 +114,7 @@ class OcrPageResult {
     'processedTime': processedTime.toIso8601String(),
     'success': success,
     'errorMessage': errorMessage,
+    if (orientationDegrees != 0) 'orientationDegrees': orientationDegrees,
   };
 
   factory OcrPageResult.fromJson(Map<String, dynamic> json) {
@@ -124,6 +130,7 @@ class OcrPageResult {
       processedTime: DateTime.parse(json['processedTime'] as String),
       success: json['success'] as bool,
       errorMessage: json['errorMessage'] as String?,
+      orientationDegrees: json['orientationDegrees'] as int? ?? 0,
     );
   }
 }

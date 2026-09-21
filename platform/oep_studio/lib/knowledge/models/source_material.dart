@@ -1,3 +1,4 @@
+import 'document_orientation.dart';
 import 'source_material_type.dart';
 
 /// A piece of engineering evidence attached to a Knowledge Curation
@@ -22,6 +23,7 @@ class SourceMaterial {
     required this.sizeBytes,
     required this.importDate,
     required this.addedBy,
+    this.extractionOrientation = DocumentOrientation.deg0,
   });
 
   final String id;
@@ -32,6 +34,22 @@ class SourceMaterial {
   final DateTime importDate;
   final String addedBy;
 
+  /// Persistent Extraction Orientation: the coordinate frame (OCR, entities,
+  /// evidence regions) recorded for this source. The stored file is never
+  /// rewritten. Omitted from JSON when 0; missing means 0.
+  final DocumentOrientation extractionOrientation;
+
+  SourceMaterial withExtractionOrientation(DocumentOrientation orientation) => SourceMaterial(
+    id: id,
+    originalFileName: originalFileName,
+    localPath: localPath,
+    type: type,
+    sizeBytes: sizeBytes,
+    importDate: importDate,
+    addedBy: addedBy,
+    extractionOrientation: orientation,
+  );
+
   Map<String, dynamic> toJson() => {
     'id': id,
     'originalFileName': originalFileName,
@@ -40,6 +58,7 @@ class SourceMaterial {
     'sizeBytes': sizeBytes,
     'importDate': importDate.toIso8601String(),
     'addedBy': addedBy,
+    if (extractionOrientation != DocumentOrientation.deg0) 'extractionOrientation': extractionOrientation.degrees,
   };
 
   factory SourceMaterial.fromJson(Map<String, dynamic> json) {
@@ -51,6 +70,7 @@ class SourceMaterial {
       sizeBytes: json['sizeBytes'] as int,
       importDate: DateTime.parse(json['importDate'] as String),
       addedBy: json['addedBy'] as String,
+      extractionOrientation: DocumentOrientation.fromDegrees(json['extractionOrientation'] as int? ?? 0),
     );
   }
 }

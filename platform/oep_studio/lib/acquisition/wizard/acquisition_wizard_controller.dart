@@ -10,6 +10,7 @@ import '../../ingestion/models/stage_result.dart';
 import '../../knowledge/models/source_material.dart';
 import '../services/acquisition_api_exception.dart';
 import '../services/acquisition_runtime_service.dart';
+import '../../knowledge/models/document_orientation.dart';
 import '../services/reference_vault_ingestion_workflow.dart';
 import 'chain_of_custody_record.dart';
 import 'chain_of_custody_storage.dart';
@@ -132,6 +133,16 @@ class AcquisitionWizardController extends ChangeNotifier {
   // Step 2 -- User-Provided Artifact (WP-EAM-005). The original file path
   // the engineer selected; never modified or deleted by this wizard (§4).
   String? localFilePath;
+
+  /// Persistent Extraction Orientation, chosen before acquisition and applied
+  /// before OCR (WP-INGEST-014). Not the Inspector's temporary viewer rotation.
+  DocumentOrientation extractionOrientation = DocumentOrientation.deg0;
+
+  void setExtractionOrientation(DocumentOrientation orientation) {
+    if (extractionOrientation == orientation) return;
+    extractionOrientation = orientation;
+    notifyListeners();
+  }
   String? localFileName;
   int? localFileSizeBytes;
 
@@ -490,6 +501,7 @@ class AcquisitionWizardController extends ChangeNotifier {
         sessionName: sessionName,
         repositoryName: openRepositoryName,
         author: engineer.trim(),
+        orientation: extractionOrientation,
       );
       ingestionOutcome = outcome;
 

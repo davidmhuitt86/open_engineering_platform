@@ -197,7 +197,13 @@ class _WizardFooter extends StatelessWidget {
           if (controller.stepIndex > 0)
             TextButton(onPressed: controller.back, child: const Text('Back')),
           const SizedBox(width: 8),
-          if (!isLast)
+          if (controller.stepIndex == 4 && controller.runStatus == AcquisitionRunStatus.idle)
+            FilledButton.icon(
+              onPressed: controller.run,
+              icon: const Icon(Icons.play_arrow, size: 18),
+              label: const Text('Acquire Engineering Knowledge'),
+            )
+          else if (!isLast)
             FilledButton(
               onPressed: controller.canGoNext ? controller.next : null,
               child: const Text('Next'),

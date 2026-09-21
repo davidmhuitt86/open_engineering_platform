@@ -339,6 +339,7 @@ abstract final class KnowledgeSessionService {
           sizeBytes: source.sizeBytes,
           importDate: source.importDate,
           addedBy: source.addedBy,
+          extractionOrientation: source.extractionOrientation,
         ),
     ];
     return KnowledgeSessionRecord(

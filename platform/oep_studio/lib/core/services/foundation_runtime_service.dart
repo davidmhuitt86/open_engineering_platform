@@ -17,6 +17,7 @@ import '../../knowledge/models/evidence_link.dart';
 import '../../knowledge/models/evidence_annotation.dart';
 import '../../knowledge/models/evidence_annotation_status.dart';
 import '../../knowledge/models/evidence_origin.dart';
+import '../../knowledge/models/evidence_geometry.dart';
 import '../../knowledge/models/evidence_region.dart';
 import '../../knowledge/models/knowledge_candidate.dart';
 import '../../knowledge/models/knowledge_candidate_status.dart';
@@ -1664,6 +1665,67 @@ class FoundationRuntimeNotifier extends Notifier<FoundationServiceState> {
     );
   }
 
+  /// WP-INGEST-015: creates a human LINEAR-evidence region -- a polyline over
+  /// the page. [points] are normalized page fractions (the same convention as
+  /// rectangle regions); [strokeWidth] is the visual width in PDF points, not a
+  /// wire gauge. Throws [KnowledgeValidationException] for fewer than two
+  /// points, an invalid coordinate/width, or no active session. It is only
+  /// evidence: nothing is classified, linked or committed.
+  EvidenceRegion createHumanPathAnnotation({
+    required String sourceId,
+    required int page,
+    required List<GeometryPoint> points,
+    required String annotatorId,
+    double strokeWidth = PolylineGeometry.defaultStrokeWidth,
+    String? label,
+  }) {
+    if (state.knowledgeSession == null) {
+      throw const KnowledgeValidationException('Create or open a Knowledge Curation Session before adding evidence.');
+    }
+    final geometry = PolylineGeometry(points, strokeWidth: strokeWidth);
+    final resolvedLabel = (label == null || label.trim().isEmpty) ? 'Region ${state.evidenceRegions.length + 1}' : label.trim();
+    final region = EvidenceRegion(
+      id: KnowledgeSessionService.generateId('region'),
+      sourceId: sourceId,
+      page: page,
+      geometry: geometry,
+      label: resolvedLabel,
+      createdTime: DateTime.now(),
+      origin: EvidenceOrigin.human,
+      annotatorId: annotatorId,
+      status: EvidenceAnnotationStatus.unverified,
+    );
+    state = state.copyWith(evidenceRegions: [...state.evidenceRegions, region]);
+    unawaited(_persistActiveSession());
+    return region;
+  }
+
+  /// WP-INGEST-015: changes a polyline region's visual stroke width (PDF
+  /// points). Throws [KnowledgeValidationException] for a non-path region or
+  /// an invalid width.
+  void setEvidenceRegionStrokeWidth(String regionId, double strokeWidth) {
+    EvidenceRegion? updated;
+    final regions = <EvidenceRegion>[];
+    for (final region in state.evidenceRegions) {
+      if (region.id == regionId) {
+        final geometry = region.geometry;
+        if (geometry is! PolylineGeometry) {
+          throw const KnowledgeValidationException('Only a path annotation has a width.');
+        }
+        updated = region.copyWith(geometry: geometry.withStrokeWidth(strokeWidth), modifiedTime: DateTime.now());
+        regions.add(updated);
+      } else {
+        regions.add(region);
+      }
+    }
+    if (updated == null) return;
+    state = state.copyWith(
+      evidenceRegions: regions,
+      selectedEvidenceRegion: state.selectedEvidenceRegion?.id == regionId ? updated : null,
+    );
+    unawaited(_persistActiveSession());
+  }
+
   /// WP-INGEST-010 §3: marks an existing human annotation as reviewed.
   /// A no-op (returns without change) on a region with no recorded
   /// [EvidenceOrigin.human] origin — verifying a machine observation or an
@@ -1793,6 +1855,23 @@ class FoundationRuntimeNotifier extends Notifier<FoundationServiceState> {
   /// from the same call that sets the region label, so they never drift.
   void setObservationClassification(String regionId, {required String type, required String name}) {
     _mutateAnnotation(regionId, (observation) => observation.copyWith(type: type, name: name));
+  }
+
+  /// Inspector explicit Save: records the Observation name without requiring a
+  /// classification (a name typed before any type is chosen must still persist).
+  void setObservationName(String regionId, String name) {
+    _mutateAnnotation(regionId, (observation) => observation.copyWith(name: name.trim()));
+  }
+
+  /// Inspector explicit Save: replaces the whole property list atomically,
+  /// normalizing every key like [updateAnnotationProperty].
+  void setAnnotationProperties(String regionId, List<AnnotationProperty> properties) {
+    _mutateAnnotation(
+      regionId,
+      (observation) => observation.copyWith(
+        properties: [for (final p in properties) p.copyWith(key: AnnotationProperty.normalizeKey(p.key))],
+      ),
+    );
   }
 
   void _mutateAnnotation(String regionId, EvidenceAnnotation Function(EvidenceAnnotation) change) {

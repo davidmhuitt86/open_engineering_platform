@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:oep_studio/knowledge/models/document_orientation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -153,6 +154,27 @@ void main() {
       expect(acquisition.ingestCalls.single.vaultObjectId, 'vault-1');
     },
   );
+
+  test('WP-EAM-007: the chosen Extraction Orientation is forwarded to the existing ingestion call', () async {
+    final acquisition = _FakeWizardRuntimeNotifier();
+    final container = containerWith(acquisition: acquisition, foundation: _FakeRepoOpenNotifier.new);
+    final controller = readyController(container);
+    controller.setExtractionOrientation(DocumentOrientation.deg90);
+
+    await controller.run();
+
+    expect(acquisition.ingestOrientations, [DocumentOrientation.deg90]);
+  });
+
+  test('WP-EAM-007: orientation defaults to 0 when the user never changes it', () async {
+    final acquisition = _FakeWizardRuntimeNotifier();
+    final container = containerWith(acquisition: acquisition, foundation: _FakeRepoOpenNotifier.new);
+    final controller = readyController(container);
+
+    await controller.run();
+
+    expect(acquisition.ingestOrientations, [DocumentOrientation.deg0]);
+  });
 
   test('TEST-EAM-003-002: the wizard uses AcquisitionRuntimeNotifier.ingestVaultArtifact rather than '
       'duplicating ingestion logic itself', () {
@@ -646,13 +668,17 @@ class _FakeWizardRuntimeNotifier extends AcquisitionRuntimeNotifier {
   Future<Map<String, Object?>> publishReturning(String metadataId) async =>
       {'id': 'vault-1', 'vault_path': './data/vault/ab/abc123'};
 
+  final ingestOrientations = <DocumentOrientation>[];
+
   @override
   Future<ReferenceVaultIngestionOutcome> ingestVaultArtifact({
     required String vaultObjectId,
     required String sessionName,
     required String repositoryName,
     required String author,
+    DocumentOrientation orientation = DocumentOrientation.deg0,
   }) async {
+    ingestOrientations.add(orientation);
     ingestCalls.add(_IngestCall(
       vaultObjectId: vaultObjectId,
       sessionName: sessionName,

@@ -47,12 +47,6 @@ class _IdleView extends StatelessWidget {
           _SummaryLine('Source', controller.sourceName ?? '—'),
           _SummaryLine('URL', controller.originalUrl),
           _SummaryLine('Scope', controller.scopeKind),
-          const SizedBox(height: 20),
-          FilledButton.icon(
-            onPressed: controller.run,
-            icon: const Icon(Icons.play_arrow, size: 18),
-            label: const Text('Acquire Engineering Knowledge'),
-          ),
         ],
       ),
     );

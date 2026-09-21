@@ -255,7 +255,7 @@ typedef ObservationProperty = AnnotationProperty;
 /// Optional, non-authoritative property-key suggestions per observation
 /// type (configuration only; the persistence model never depends on it).
 const Map<String, List<String>> observationPropertySuggestions = {
-  'wire': ['color', 'gauge', 'label', 'function'],
+  'wire': ['color', 'gauge', 'from', 'to', 'circuit', 'signal', 'function'],
   'component': ['part_number', 'manufacturer'],
   'connector': ['connector_type', 'part_number', 'manufacturer', 'pin_count'],
   'measurement': ['value', 'unit'],

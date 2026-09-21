@@ -7,6 +7,7 @@ import 'package:pdfrx/pdfrx.dart';
 
 import '../../core/services/foundation_runtime_service.dart';
 import '../../core/theme/studio_colors.dart';
+import '../models/document_orientation.dart';
 import '../models/ocr_bounding_box.dart';
 import '../models/ocr_page_result.dart';
 import '../models/ocr_processing_status.dart';
@@ -459,7 +460,9 @@ class _PageView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (source.type == SourceMaterialType.pdf) {
-      return PdfViewer.file(
+      return RotatedBox(
+        quarterTurns: source.extractionOrientation.quarterTurns,
+        child: PdfViewer.file(
         source.localPath,
         key: ValueKey('ocr-pdf-viewer-${source.id}'),
         controller: pdfController,
@@ -467,10 +470,10 @@ class _PageView extends StatelessWidget {
         params: PdfViewerParams(
           pageOverlaysBuilder: (context, pageRectInViewer, pdfPage) {
             if (pdfPage.pageNumber != page || !overlayVisible || result == null) return const [];
-            return _wordOverlays(result!, pageRectInViewer.size);
+            return _wordOverlays(result!, pageRectInViewer.size, orientation: source.extractionOrientation);
           },
         ),
-      );
+      ));
     }
 
     if (result == null || result!.imageWidth == 0 || result!.imageHeight == 0) {
@@ -492,10 +495,13 @@ class _PageView extends StatelessWidget {
             children: [
               Positioned.fill(
                 child: canRenderOriginal
-                    ? Image.file(
-                        File(source.localPath),
-                        fit: BoxFit.fill,
-                        errorBuilder: (context, error, stackTrace) => const ColoredBox(color: Colors.white24),
+                    ? RotatedBox(
+                        quarterTurns: source.extractionOrientation.quarterTurns,
+                        child: Image.file(
+                          File(source.localPath),
+                          fit: BoxFit.fill,
+                          errorBuilder: (context, error, stackTrace) => const ColoredBox(color: Colors.white24),
+                        ),
                       )
                     : const ColoredBox(color: Colors.white24),
               ),
@@ -507,11 +513,12 @@ class _PageView extends StatelessWidget {
     );
   }
 
-  List<Widget> _wordOverlays(OcrPageResult result, Size canvasSize) {
+  List<Widget> _wordOverlays(OcrPageResult result, Size canvasSize,
+      {DocumentOrientation orientation = DocumentOrientation.deg0}) {
     return [
       for (var i = 0; i < result.words.length; i++)
         _WordBox(
-          box: result.words[i].boundingBox,
+          box: _toPageSpace(result.words[i].boundingBox, orientation),
           confidence: result.words[i].confidence,
           canvasSize: canvasSize,
           heatMapEnabled: heatMapEnabled,
@@ -519,6 +526,14 @@ class _PageView extends StatelessWidget {
         ),
     ];
   }
+}
+
+/// Stored OCR boxes are in oriented space; a PDF page is drawn in page space
+/// under a base rotation equal to the orientation.
+OcrBoundingBox _toPageSpace(OcrBoundingBox box, DocumentOrientation orientation) {
+  if (orientation == DocumentOrientation.deg0) return box;
+  final r = orientation.rectOrientedToPage(box.x, box.y, box.width, box.height);
+  return OcrBoundingBox(x: r.x, y: r.y, width: r.width, height: r.height);
 }
 
 class _WordBox extends StatelessWidget {

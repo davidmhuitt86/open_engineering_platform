@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/studio_colors.dart';
 import '../acquisition_wizard_controller.dart';
+import 'wizard_orientation_selector.dart';
 
 const _scopeKinds = ['Entire Document', 'Selected Pages', 'Selected Chapters', 'Selected Sections'];
 
@@ -99,6 +100,11 @@ class _WizardStepScopeState extends State<WizardStepScope> {
               ),
             ),
           ],
+          const SizedBox(height: 24),
+          ListenableBuilder(
+            listenable: widget.controller,
+            builder: (context, _) => WizardOrientationSelector(controller: widget.controller),
+          ),
         ],
       ),
     );

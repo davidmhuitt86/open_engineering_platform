@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart' show protected;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/events/platform_event.dart';
+import '../../knowledge/models/document_orientation.dart';
 import '../../core/events/platform_event_bus.dart';
 import '../models/acquisition_connection_status.dart';
 import '../models/acquisition_job.dart';
@@ -320,6 +321,7 @@ class AcquisitionRuntimeNotifier extends Notifier<AcquisitionServiceState> {
     required String sessionName,
     required String repositoryName,
     required String author,
+    DocumentOrientation orientation = DocumentOrientation.deg0,
   }) async {
     // Reports COMPLETED/PARTIAL/FAILED to the Activity Log distinctly,
     // rather than routing through `_reportingOperation` unmodified —
@@ -339,6 +341,7 @@ class AcquisitionRuntimeNotifier extends Notifier<AcquisitionServiceState> {
         sessionName: sessionName,
         repositoryName: repositoryName,
         author: author,
+        orientation: orientation,
       );
       if (outcome.isFailed) {
         eventBus.publish(

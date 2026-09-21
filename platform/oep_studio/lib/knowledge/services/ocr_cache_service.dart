@@ -35,10 +35,13 @@ abstract final class OcrCacheService {
     required List<OcrPageResult> existingResults,
     required int page,
     required String currentFingerprint,
+    int orientationDegrees = 0,
   }) {
     for (final result in existingResults) {
       if (result.page == page) {
-        return result.success && result.sourceFingerprint == currentFingerprint;
+        return result.success &&
+            result.sourceFingerprint == currentFingerprint &&
+            result.orientationDegrees == orientationDegrees;
       }
     }
     return false;
@@ -52,10 +55,16 @@ abstract final class OcrCacheService {
     required List<OcrPageResult> existingResults,
     required int pageCount,
     required String currentFingerprint,
+    int orientationDegrees = 0,
   }) {
     return [
       for (var page = 1; page <= pageCount; page++)
-        if (!isCacheValid(existingResults: existingResults, page: page, currentFingerprint: currentFingerprint))
+        if (!isCacheValid(
+          existingResults: existingResults,
+          page: page,
+          currentFingerprint: currentFingerprint,
+          orientationDegrees: orientationDegrees,
+        ))
           page,
     ];
   }
